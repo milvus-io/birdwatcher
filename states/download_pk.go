@@ -61,9 +61,14 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				return err
 			}
 
-			minioClient, exists, err := getMinioClient()
+			minioClient, err := getMinioClient()
 			if err != nil {
 				fmt.Println("cannot get minio client", err.Error())
+				return nil
+			}
+			exists, err := minioClient.BucketExists(context.Background(), bucketName)
+			if !exists {
+				fmt.Printf("bucket %s not exists\n", bucketName)
 				return nil
 			}
 
@@ -82,11 +87,11 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func getMinioClient() (*minio.Client, bool, error) {
+func getMinioClient() (*minio.Client, error) {
 	p := promptui.Prompt{Label: "Address"}
 	address, err := p.Run()
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	ssl := promptui.Select{
@@ -102,19 +107,13 @@ func getMinioClient() (*minio.Client, bool, error) {
 		useSSL = false
 	}
 
-	p.Label = "Bucket Name"
-	bucketName, err := p.Run()
-	if err != nil {
-		return nil, false, err
-	}
-
 	sl := promptui.Select{
 		Label: "Select authentication method:",
 		Items: []string{"IAM", "AK/SK"},
 	}
 	_, result, err := sl.Run()
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	fmt.Println("Use authen: ", result)
 
@@ -127,19 +126,21 @@ func getMinioClient() (*minio.Client, bool, error) {
 
 		iamEndpoint, err := input.Run()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		cred = credentials.NewIAM(iamEndpoint)
 	case "AK/SK":
+		p.HideEntered = true
+		p.Mask = rune('*')
 		p.Label = "AK"
 		ak, err := p.Run()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		p.Label = "SK"
 		sk, err := p.Run()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 
 		cred = credentials.NewStaticV4(ak, sk, "")
@@ -151,15 +152,10 @@ func getMinioClient() (*minio.Client, bool, error) {
 	})
 
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
-	exists, err := minioClient.BucketExists(context.Background(), bucketName)
-	if !exists {
-		return nil, false, nil
-	}
-
-	return minioClient, true, nil
+	return minioClient, nil
 }
 
 func downloadPks(cli *minio.Client, bucketName string, collID, pkID int64, segments []*datapb.SegmentInfo) {
