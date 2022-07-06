@@ -3,6 +3,7 @@ package states
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -58,6 +59,26 @@ func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command
 
 	cmd.Flags().Int64("id", 0, "collection id to display")
 	return cmd
+}
+
+func getCollectionByID(cli *clientv3.Client, basePath string, collID int64) (*etcdpb.CollectionInfo, error) {
+	resp, err := cli.Get(context.Background(), path.Join(basePath, "root-coord/collection", strconv.FormatInt(collID, 10)))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Kvs) != 1 {
+		return nil, errors.New("invalid collection id")
+	}
+
+	coll := &etcdpb.CollectionInfo{}
+
+	err = proto.Unmarshal(resp.Kvs[0].Value, coll)
+	if err != nil {
+		return nil, err
+	}
+	return coll, nil
+
 }
 
 var CollectionTombstone = []byte{0xE2, 0x9B, 0xBC}

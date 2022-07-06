@@ -14,6 +14,8 @@ const (
 	metaPath = `meta`
 )
 
+// getConnectCommand returns the command for connect etcd.
+// usage: connect --etcd [address] --rootPath [rootPath]
 func getConnectCommand(state *cmdState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "connect [options]",
@@ -24,6 +26,10 @@ func getConnectCommand(state *cmdState) *cobra.Command {
 				return err
 			}
 			rootPath, err := cmd.Flags().GetString("rootPath")
+			if err != nil {
+				return err
+			}
+			metaPath, err := cmd.Flags().GetString("metaPath")
 			if err != nil {
 				return err
 			}
@@ -52,9 +58,11 @@ func getConnectCommand(state *cmdState) *cobra.Command {
 	}
 	cmd.Flags().String("etcd", "127.0.0.1:2379", "the etcd endpoint to connect")
 	cmd.Flags().String("rootPath", "by-dev", "meta root path milvus is using")
+	cmd.Flags().String("metaPath", metaPath, "meta path prefix")
 	return cmd
 }
 
+// findMilvusInstance iterate all possible rootPath
 func findMilvusInstance(cli *clientv3.Client) ([]string, error) {
 	var apps []string
 	current := ""
@@ -86,6 +94,7 @@ type etcdConnectedState struct {
 	addr   string
 }
 
+// TBD for testing only
 func getEtcdConnectedState(cli *clientv3.Client, addr string) State {
 	cmd := &cobra.Command{
 		Use:   "",

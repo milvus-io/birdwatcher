@@ -36,6 +36,8 @@ func getInstanceState(cli *clientv3.Client, instanceName string, etcdState State
 		getEtcdKillCmd(cli, path.Join(instanceName, metaPath)),
 		// force-release
 		getForceReleaseCmd(cli, path.Join(instanceName, metaPath)),
+		// download-pk
+		getDownloadPKCmd(cli, path.Join(instanceName, metaPath)),
 		// exit
 		getExitCmd(state),
 	)
