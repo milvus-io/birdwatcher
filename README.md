@@ -56,7 +56,7 @@ Fields:
  - Field ID: 0 	 Field Name: RowID 	 Field Type: Int64
  - Field ID: 1 	 Field Name: Timestamp 	 Field Type: Int64
  - Field ID: 100 	 Field Name: ID 	 Field Type: Int64
- - Primary Key, AutoID: false
+	 - Primary Key, AutoID: false
  - Field ID: 101 	 Field Name: Year 	 Field Type: Int32
  - Field ID: 102 	 Field Name: Vector 	 Field Type: FloatVector
 	 - Type Param dim: 8

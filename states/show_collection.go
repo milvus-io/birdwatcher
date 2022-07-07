@@ -112,7 +112,7 @@ func printCollection(collection *etcdpb.CollectionInfo) {
 	for _, field := range fields {
 		fmt.Printf(" - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
 		if field.IsPrimaryKey {
-			fmt.Printf(" - Primary Key, AutoID: %v\n", field.AutoID)
+			fmt.Printf("\t - Primary Key, AutoID: %v\n", field.AutoID)
 		}
 		for _, tp := range field.TypeParams {
 			fmt.Printf("\t - Type Param %s: %s\n", tp.Key, tp.Value)
