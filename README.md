@@ -27,7 +27,7 @@ go build -o birdwatcher main.go
 
 ```shell
 ❯ birdwatcher
-# execute connect command, using default config, equal to connect --etcd localhost:2379 --basePath by-dev
+# execute connect command, using default config, equal to connect --etcd localhost:2379 --rootPath by-dev
 Offline: connect 
 Using meta path: by-dev/meta/
 ✔ Milvus(by-dev): show collection
@@ -38,7 +38,7 @@ Using meta path: by-dev/meta/
 
 ```shell
 ❯ birdwatcher
-Offline: connect --etcd [ip]:[port] --basePath instanceName
+Offline: connect --etcd [ip]:[port] --rootPath instanceName
 Using meta path: instanceName/meta/
 ✔ Milvus(instanceName): 
 
