@@ -3,7 +3,6 @@ package states
 import (
 	"context"
 	"fmt"
-	"path"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -19,9 +18,8 @@ func getForceReleaseCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			// basePath = 'by-dev/meta/'
 			// queryCoord prefix = 'queryCoord-'
-			prefix := path.Join(basePath, "queryCoord-")
 			now := time.Now()
-			err := backupEtcd(cli, prefix, fmt.Sprintf("bw_etcd_querycoord.%s.bak.gz", now.Format("060102-150405")))
+			err := backupEtcd(cli, basePath, "queryCoord-", string(compQueryCoord), fmt.Sprintf("bw_etcd_querycoord.%s.bak.gz", now.Format("060102-150405")))
 			if err != nil {
 				fmt.Printf("backup etcd failed, error: %v, stop doing force-release\n", err)
 			}
