@@ -16,7 +16,7 @@ const (
 
 // getConnectCommand returns the command for connect etcd.
 // usage: connect --etcd [address] --rootPath [rootPath]
-func getConnectCommand(state *cmdState) *cobra.Command {
+func getConnectCommand(state State) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "connect [options]",
 		Short: "Connect to etcd instance",
@@ -48,10 +48,10 @@ func getConnectCommand(state *cmdState) *cobra.Command {
 
 			if rootPath != "" {
 				// use rootPath as instanceName
-				state.nextState = getInstanceState(etcdCli, rootPath, etcdState)
+				state.SetNext(getInstanceState(etcdCli, rootPath, etcdState))
 			} else {
 				// rootPath empty fall back to etcd connected state
-				state.nextState = etcdState
+				state.SetNext(etcdState)
 			}
 			return nil
 		},

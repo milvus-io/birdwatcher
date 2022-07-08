@@ -92,6 +92,7 @@ func processCollectionKV(kv *mvccpb.KeyValue, handleErr func(key string, err err
 	err := proto.Unmarshal(kv.Value, collection)
 	if err != nil {
 		handleErr(string(kv.Key), err)
+		return
 	}
 
 	printCollection(collection)
