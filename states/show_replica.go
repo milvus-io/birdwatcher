@@ -35,7 +35,7 @@ func getEtcdShowReplica(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 func listReplicas(cli *clientv3.Client, basePath string) ([]*milvuspb.ReplicaInfo, error) {
-	resp, err := cli.Get(context.Background(), path.Join(basePath, "queryCoord-ReplicaMeta"))
+	resp, err := cli.Get(context.Background(), path.Join(basePath, "queryCoord-ReplicaMeta"), clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
