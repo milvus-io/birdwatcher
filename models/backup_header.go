@@ -13,7 +13,7 @@ type BackupHeader struct {
 	// Entries record number of key-value in backup
 	Entries int64 `protobuf:"varint,4,opt,name=entries,proto3" json:"entries,omitempty"`
 	// Component is the backup target
-	Component string `protobuf:"varint,5,opt,name=component,proto3" json:"component,omitempty"`
+	Component string `protobuf:"bytes,5,opt,name=component,proto3" json:"component,omitempty"`
 	// Extra property reserved
 	Extra []byte `protobuf:"bytes,6,opt,name=extra,proto3" json:"-"`
 }
