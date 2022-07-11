@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/congqixia/birdwatcher/proto/v2.0/datapb"
+	"github.com/gosuri/uilive"
 	"github.com/manifoldco/promptui"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -28,6 +29,7 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 
 			coll, err := getCollectionByID(cli, basePath, collectionID)
 			if err != nil {
+				fmt.Println("Collection not found for id", collectionID)
 				return nil
 			}
 
@@ -83,7 +85,7 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Int64("id", 0, "collection id to display")
+	cmd.Flags().Int64("id", 0, "collection id to download")
 	return cmd
 }
 
@@ -164,8 +166,14 @@ func downloadPks(cli *minio.Client, bucketName string, collID, pkID int64, segme
 		fmt.Println("Failed to create folder,", err.Error())
 	}
 
+	pd := uilive.New()
+	pf := "Downloading pk files ... %d%%(%d/%d)\n"
+	pd.Start()
+	fmt.Fprintf(pd, pf, 0, 0, len(segments))
+	defer pd.Stop()
+
 	count := 0
-	for _, segment := range segments {
+	for i, segment := range segments {
 		for _, fieldBinlog := range segment.Binlogs {
 			if fieldBinlog.FieldID != pkID {
 				continue
@@ -198,7 +206,11 @@ func downloadPks(cli *minio.Client, bucketName string, collID, pkID int64, segme
 				count++
 			}
 		}
+		progress := (i + 1) * 100 / len(segments)
+		fmt.Fprintf(pd, pf, progress, i+1, len(segments))
+
 	}
-	fmt.Printf("pk file download completed for collection :%d, %d file(s) downloaded", collID, count)
+	fmt.Println()
+	fmt.Printf("pk file download completed for collection :%d, %d file(s) downloaded\n", collID, count)
 
 }

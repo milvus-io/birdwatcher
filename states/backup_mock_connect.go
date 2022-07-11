@@ -20,6 +20,14 @@ type embedEtcdMockState struct {
 	instanceName string
 }
 
+// Close implements State.
+// Clean up embed etcd folder content.
+func (s *embedEtcdMockState) Close() {
+	if s.server != nil {
+		os.RemoveAll(s.server.Config().Dir)
+	}
+}
+
 func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string) State {
 
 	cmd := &cobra.Command{}
@@ -67,6 +75,7 @@ func getLoadBackupCmd(state State) *cobra.Command {
 			}
 
 			server, err := startEmbedEtcdServer()
+			fmt.Println("using data dir:", server.Config().Dir)
 			if err != nil {
 				fmt.Println("failed to start embed etcd server:", err.Error())
 				return
@@ -112,7 +121,6 @@ func startEmbedEtcdServer() (*embed.Etcd, error) {
 	}
 	fmt.Println("embed etcd use dir:", dir)
 
-	//defer os.RemoveAll(dir)
 	config := embed.NewConfig()
 
 	config.Dir = dir
