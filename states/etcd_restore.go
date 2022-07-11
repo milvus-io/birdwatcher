@@ -78,16 +78,16 @@ func restoreFromV1File(cli *clientv3.Client, rd io.Reader, header *models.Backup
 
 	lb := make([]byte, 8)
 	i := 0
-
 	progressDisplay := uilive.New()
 	progressFmt := "Restoring backup ... %d%%(%d/%d)\n"
+
 	progressDisplay.Start()
 	fmt.Fprintf(progressDisplay, progressFmt, 0, 0, header.Entries)
 	defer progressDisplay.Stop()
 
 	for {
 
-		bsRead, err := rd.Read(lb)
+		bsRead, err := io.ReadFull(rd, lb) //rd.Read(lb)
 		// all file read
 		if err == io.EOF {
 			return nil
@@ -131,7 +131,6 @@ func restoreFromV1File(cli *clientv3.Client, rd io.Reader, header *models.Backup
 			return err
 		}
 		i++
-
 		progress := i * 100 / int(header.Entries)
 
 		fmt.Fprintf(progressDisplay, progressFmt, progress, i, header.Entries)
