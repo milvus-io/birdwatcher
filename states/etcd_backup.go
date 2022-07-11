@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -62,8 +63,13 @@ func getBackupEtcdCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		Use:   "backup",
 		Short: "backup etcd key-values",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			prefix := ""
 
+			ignoreRevision, err := cmd.Flags().GetBool("ignoreRevision")
+			if err != nil {
+				return err
+			}
+
+			prefix := ""
 			switch component {
 			case compAll:
 				prefix = ""
@@ -74,7 +80,7 @@ func getBackupEtcdCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 			}
 
 			now := time.Now()
-			err := backupEtcd(cli, basePath, prefix, component.String(), fmt.Sprintf("bw_etcd_%s.%s.bak.gz", component, now.Format("060102-150405")))
+			err = backupEtcd(cli, basePath, prefix, component.String(), fmt.Sprintf("bw_etcd_%s.%s.bak.gz", component, now.Format("060102-150405")), ignoreRevision)
 			if err != nil {
 				fmt.Printf("backup etcd failed, error: %v\n", err)
 			}
@@ -83,15 +89,20 @@ func getBackupEtcdCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 	}
 
 	cmd.Flags().Var(&component, "component", "component to backup")
+	cmd.Flags().Bool("ignoreRevision", false, "backup ignore revision change, ONLY shall works with no nodes online")
 	return cmd
 }
 
 // backupEtcd backup all key-values with prefix provided into local file.
 // implements gzip compression for now.
-func backupEtcd(cli *clientv3.Client, base, prefix string, component string, filePath string) error {
+func backupEtcd(cli *clientv3.Client, base, prefix string, component string, filePath string, ignoreRevision bool) error {
 	resp, err := cli.Get(context.Background(), path.Join(base, prefix), clientv3.WithCountOnly(), clientv3.WithPrefix())
 	if err != nil {
 		return err
+	}
+
+	if ignoreRevision {
+		fmt.Println("WARNING!!! doing backup ignore revision! please make sure no instanc of milvus is online!")
 	}
 
 	cnt := resp.Count
@@ -110,31 +121,40 @@ func backupEtcd(cli *clientv3.Client, base, prefix string, component string, fil
 	w := bufio.NewWriter(gw)
 
 	var instance, meta string
-	parts := strings.Split(prefix, "/")
+	parts := strings.Split(base, "/")
 	if len(parts) > 1 {
 		meta = parts[len(parts)-1]
 		instance = path.Join(parts[:len(parts)-1]...)
 	} else {
-		instance = prefix
+		instance = base
 	}
 
+	lb := make([]byte, 8)
 	header := &models.BackupHeader{Version: 1, Instance: instance, MetaPath: meta, Entries: cnt}
 	bs, err := proto.Marshal(header)
 	if err != nil {
 		fmt.Println("failed to marshal backup header,", err.Error())
 		return err
 	}
+	binary.LittleEndian.PutUint64(lb, uint64(len(bs)))
+	fmt.Println("header length:", len(bs))
+	w.Write(lb)
 	w.Write(bs)
-	w.WriteString("\n")
 
 	progressDisplay := uilive.New()
 	progressFmt := "Backing up ... %d%%(%d/%d)\n"
 	progressDisplay.Start()
 	fmt.Fprintf(progressDisplay, progressFmt, 0, 0, cnt)
 
+	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(1)}
+	if !ignoreRevision {
+		options = append(options, clientv3.WithRev(rev))
+	}
+
 	currentKey := path.Join(base, prefix)
 	for i := 0; int64(i) < cnt; i++ {
-		resp, err = cli.Get(context.Background(), currentKey, clientv3.WithRev(rev), clientv3.WithFromKey(), clientv3.WithLimit(1))
+
+		resp, err = cli.Get(context.Background(), currentKey, options...)
 		if err != nil {
 			return err
 		}
@@ -144,12 +164,13 @@ func backupEtcd(cli *clientv3.Client, base, prefix string, component string, fil
 			entry := &commonpb.KeyDataPair{Key: string(kvs.Key), Data: kvs.Value}
 			bs, err = proto.Marshal(entry)
 			if err != nil {
-				fmt.Println("failed to marsahl kv pair", err.Error())
+				fmt.Println("failed to marshal kv pair", err.Error())
 				return err
 			}
 
+			binary.LittleEndian.PutUint64(lb, uint64(len(bs)))
+			w.Write(lb)
 			w.Write(bs)
-			w.WriteString("\n")
 			currentKey = string(append(kvs.Key, 0))
 		}
 
