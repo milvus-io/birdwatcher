@@ -19,7 +19,7 @@ func getForceReleaseCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 			// basePath = 'by-dev/meta/'
 			// queryCoord prefix = 'queryCoord-'
 			now := time.Now()
-			err := backupEtcd(cli, basePath, "queryCoord-", string(compQueryCoord), fmt.Sprintf("bw_etcd_querycoord.%s.bak.gz", now.Format("060102-150405")))
+			err := backupEtcd(cli, basePath, "queryCoord-", string(compQueryCoord), fmt.Sprintf("bw_etcd_querycoord.%s.bak.gz", now.Format("060102-150405")), false)
 			if err != nil {
 				fmt.Printf("backup etcd failed, error: %v, stop doing force-release\n", err)
 			}
