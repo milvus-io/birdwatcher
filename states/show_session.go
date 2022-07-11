@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/congqixia/birdwatcher/models"
 	"github.com/spf13/cobra"
@@ -34,7 +35,9 @@ func getEtcdShowSession(cli *clientv3.Client, basePath string) *cobra.Command {
 
 // listSessions returns all session
 func listSessions(cli *clientv3.Client, basePath string) ([]*models.Session, error) {
-	resp, err := cli.Get(context.Background(), path.Join(basePath, "session"), clientv3.WithPrefix())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	resp, err := cli.Get(ctx, path.Join(basePath, "session"), clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}

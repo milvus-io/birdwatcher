@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/congqixia/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/golang/protobuf/proto"
@@ -35,7 +36,10 @@ func getEtcdShowReplica(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 func listReplicas(cli *clientv3.Client, basePath string) ([]*milvuspb.ReplicaInfo, error) {
-	resp, err := cli.Get(context.Background(), path.Join(basePath, "queryCoord-ReplicaMeta"), clientv3.WithPrefix())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	resp, err := cli.Get(ctx, path.Join(basePath, "queryCoord-ReplicaMeta"), clientv3.WithPrefix())
+
 	if err != nil {
 		return nil, err
 	}

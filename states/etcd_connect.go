@@ -67,7 +67,9 @@ func findMilvusInstance(cli *clientv3.Client) ([]string, error) {
 	var apps []string
 	current := ""
 	for {
-		resp, err := cli.Get(context.Background(), current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
+		resp, err := cli.Get(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
 
 		if err != nil {
 			return nil, err

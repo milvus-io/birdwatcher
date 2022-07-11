@@ -8,6 +8,7 @@ import (
 	"path"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/congqixia/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/golang/protobuf/proto"
@@ -31,13 +32,17 @@ func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command
 
 			var kvs []*mvccpb.KeyValue
 			if collectionID > 0 {
-				resp, err := cli.Get(context.Background(), path.Join(basePath, "root-coord/collection", strconv.FormatInt(collectionID, 10)))
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+				defer cancel()
+				resp, err := cli.Get(ctx, path.Join(basePath, "root-coord/collection", strconv.FormatInt(collectionID, 10)))
 				if err != nil {
 					return err
 				}
 				kvs = resp.Kvs
 			} else {
-				resp, err := cli.Get(context.Background(), path.Join(basePath, "root-coord/collection"), clientv3.WithPrefix())
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+				defer cancel()
+				resp, err := cli.Get(ctx, path.Join(basePath, "root-coord/collection"), clientv3.WithPrefix())
 				if err != nil {
 					return err
 				}
@@ -62,7 +67,10 @@ func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command
 }
 
 func getCollectionByID(cli *clientv3.Client, basePath string, collID int64) (*etcdpb.CollectionInfo, error) {
-	resp, err := cli.Get(context.Background(), path.Join(basePath, "root-coord/collection", strconv.FormatInt(collID, 10)))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	resp, err := cli.Get(ctx, path.Join(basePath, "root-coord/collection", strconv.FormatInt(collID, 10)))
+
 	if err != nil {
 		return nil, err
 	}
