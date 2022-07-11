@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/congqixia/birdwatcher/models"
 	"github.com/spf13/cobra"
@@ -45,7 +46,10 @@ func getEtcdKillCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 func etcdKillComponent(cli *clientv3.Client, key string, id int64) error {
-	resp, err := cli.Get(context.Background(), key)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	resp, err := cli.Get(ctx, key)
+
 	if err != nil {
 		return err
 	}

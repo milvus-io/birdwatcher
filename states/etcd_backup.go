@@ -95,8 +95,11 @@ func getBackupEtcdCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 
 // backupEtcd backup all key-values with prefix provided into local file.
 // implements gzip compression for now.
+<<<<<<< HEAD
 func backupEtcd(cli *clientv3.Client, base, prefix string, component string, filePath string, ignoreRevision bool) error {
-	resp, err := cli.Get(context.Background(), path.Join(base, prefix), clientv3.WithCountOnly(), clientv3.WithPrefix())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	resp, err := cli.Get(ctx, path.Join(base, prefix), clientv3.WithCountOnly(), clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}

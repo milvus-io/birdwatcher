@@ -67,7 +67,9 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
-	resp, err := cli.Get(context.Background(), path.Join(basePath, "datacoord-meta/s"), clientv3.WithPrefix())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	resp, err := cli.Get(ctx, path.Join(basePath, "datacoord-meta/s"), clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}

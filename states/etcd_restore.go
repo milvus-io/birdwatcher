@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/congqixia/birdwatcher/models"
 	"github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
@@ -122,7 +123,9 @@ func restoreFromV1File(cli *clientv3.Client, rd io.Reader, header *models.Backup
 			continue
 		}
 
-		_, err = cli.Put(context.Background(), entry.Key, string(entry.Data))
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
+		_, err = cli.Put(ctx, entry.Key, string(entry.Data))
 		if err != nil {
 			fmt.Println("failed save kv into etcd, ", err.Error())
 			return err
