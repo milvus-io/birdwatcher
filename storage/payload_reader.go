@@ -31,7 +31,7 @@ func (r *ParquetPayloadReader) GetInt64sFromPayload() ([]int64, error) {
 		return nil, errors.New("data type not matched")
 	}
 
-	// looks wierd
+	// looks weird
 	reader, ok := r.reader.RowGroup(0).Column(0).(*file.Int64ColumnChunkReader)
 	if !ok {
 		return nil, errors.New("parquet reader type not match")

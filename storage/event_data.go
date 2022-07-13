@@ -94,11 +94,7 @@ func (data *descriptorEventData) Write(buffer io.Writer) error {
 	if err := binary.Write(buffer, commonEndian, data.ExtraLength); err != nil {
 		return err
 	}
-	if err := binary.Write(buffer, commonEndian, data.ExtraBytes); err != nil {
-		return err
-	}
-
-	return nil
+	return binary.Write(buffer, commonEndian, data.ExtraBytes)
 }
 
 func readDescriptorEventData(buffer io.Reader) (*descriptorEventData, error) {

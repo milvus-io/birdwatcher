@@ -1,6 +1,6 @@
 run:
   skip-dirs:
-    - build
+    - bin
     - configs
     - deployments
     - docs
