@@ -78,6 +78,12 @@ func Start() State {
 		rootCmd: root,
 	}
 
-	root.AddCommand(getTestCommand(), getConnectCommand(state), getLoadBackupCmd(state), getExitCmd(state))
+	root.AddCommand(
+		// connect
+		getConnectCommand(state),
+		// load-backup
+		getLoadBackupCmd(state),
+		// exit
+		getExitCmd(state))
 	return state
 }
