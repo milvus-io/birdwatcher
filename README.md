@@ -1,5 +1,7 @@
 # Birdwatcher
 
+[![linter status](https://github.com/congqixia/birdwatcher/workflows/golangci-lint/badge.svg)](https://github.com/congqixia/birdwatcher/actions/workflows/golangci-lint.yml?query=branch%3Amain+)
+
 Debug tool for Milvus 2.0 project. This tool connects to etcd and inspect some status of the Milvus system.
 
 ## Get Started
