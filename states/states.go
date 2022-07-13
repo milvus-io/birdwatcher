@@ -12,6 +12,7 @@ type State interface {
 	Process(cmd string) (State, error)
 	Close()
 	SetNext(state State)
+	Suggestions(input string) map[string]string
 }
 
 // cmdState is the basic state to process input command.
@@ -24,6 +25,15 @@ type cmdState struct {
 // Label returns the display label for current cli.
 func (s *cmdState) Label() string {
 	return s.label
+}
+
+func (s *cmdState) Suggestions(input string) map[string]string {
+	result := make(map[string]string)
+	subCmds := s.rootCmd.Commands()
+	for _, subCmd := range subCmds {
+		result[subCmd.Use] = subCmd.Short
+	}
+	return result
 }
 
 // Process is the main entry for processing command.
@@ -68,6 +78,6 @@ func Start() State {
 		rootCmd: root,
 	}
 
-	root.AddCommand(getConnectCommand(state), getLoadBackupCmd(state), getExitCmd(state))
+	root.AddCommand(getTestCommand(), getConnectCommand(state), getLoadBackupCmd(state), getExitCmd(state))
 	return state
 }

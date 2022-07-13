@@ -9,6 +9,7 @@ import (
 
 	"github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
 	"github.com/congqixia/birdwatcher/proto/v2.0/datapb"
+	"github.com/congqixia/birdwatcher/storage"
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -25,6 +26,7 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			segmentID, err := cmd.Flags().GetInt64("segment")
 			format, err := cmd.Flags().GetString("format")
 			if err != nil {
 				return err
@@ -35,7 +37,8 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 			}
 
 			segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
-				return collID == 0 || info.CollectionID == collID
+				return (collID == 0 || info.CollectionID == collID) &&
+					(segmentID == 0 || info.ID == segmentID)
 			})
 
 			totalRC := int64(0)
@@ -63,6 +66,7 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd.Flags().Int64("collection", 0, "collection id to filter with")
 	cmd.Flags().String("format", "line", "segment display format")
 	cmd.Flags().Bool("detail", false, "flags indicating whether pring detail binlog info")
+	cmd.Flags().Int64("segment", 0, "segment id to filter with")
 	return cmd
 }
 
@@ -100,6 +104,7 @@ func printSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 	fmt.Printf("Num of Rows: %d\t\tMax Row Num: %d\n", info.NumOfRows, info.MaxRowNum)
 	lastExpireTime, _ := ParseTS(info.LastExpireTime)
 	fmt.Printf("Last Expire Time: %s\n", lastExpireTime.Format(tsPrintFormat))
+	fmt.Printf("Compact from %v \n", info.CompactionFrom)
 	if info.StartPosition != nil {
 		startTime, _ := ParseTS(info.GetStartPosition().GetTimestamp())
 		fmt.Printf("Start Position ID: %v, time: %s\n", info.StartPosition.MsgID, startTime.Format(tsPrintFormat))
@@ -165,4 +170,9 @@ func ParseTS(ts uint64) (time.Time, uint64) {
 	physical := ts >> logicalBits
 	physicalTime := time.Unix(int64(physical/1000), int64(physical)%1000*time.Millisecond.Nanoseconds())
 	return physicalTime, logical
+}
+
+func analysisBinlog() {
+	r := &storage.ParquetPayloadReader{}
+	fmt.Println(r)
 }

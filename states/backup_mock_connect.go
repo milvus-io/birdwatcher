@@ -46,6 +46,8 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 		getEtcdShowCmd(cli, path.Join(instanceName, metaPath)),
 		// download-pk
 		getDownloadPKCmd(cli, path.Join(instanceName, metaPath)),
+		// inspect-pk
+		getInspectPKCmd(cli, path.Join(instanceName, metaPath)),
 		// exit
 		getExitCmd(state),
 	)
