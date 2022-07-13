@@ -27,6 +27,9 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 				return err
 			}
 			segmentID, err := cmd.Flags().GetInt64("segment")
+			if err != nil {
+				return err
+			}
 			format, err := cmd.Flags().GetString("format")
 			if err != nil {
 				return err
@@ -40,6 +43,10 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 				return (collID == 0 || info.CollectionID == collID) &&
 					(segmentID == 0 || info.ID == segmentID)
 			})
+			if err != nil {
+				fmt.Println("failed to list segments", err.Error())
+				return nil
+			}
 
 			totalRC := int64(0)
 			healthy := 0

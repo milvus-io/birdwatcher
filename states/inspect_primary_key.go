@@ -33,6 +33,10 @@ func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				}
 				segments, err = listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool { return info.ID == segmentID })
 			}
+			if err != nil {
+				fmt.Println("failed to parse argument:", err.Error())
+				return
+			}
 
 			// collid -> pk id
 			cachedCollection := make(map[int64]int64)
@@ -78,7 +82,15 @@ func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 							return
 						}
 						r, _, err := storage.NewBinlogReader(f)
+						if err != nil {
+							fmt.Println("fail to create binlog reader:", err.Error())
+							continue
+						}
 						ids, err := r.NextEventReader(f)
+						if err != nil {
+							fmt.Println("faild to read next event:", err.Error())
+							continue
+						}
 						f.Close()
 						// binlog entries num = 0 skip
 						if binlog.EntriesNum != int64(len(ids)) && binlog.EntriesNum > 0 {

@@ -101,6 +101,9 @@ func getMinioClient() (*minio.Client, error) {
 		Items: []string{"yes", "no"},
 	}
 	_, sslResult, err := ssl.Run()
+	if err != nil {
+		return nil, err
+	}
 	useSSL := false
 	switch sslResult {
 	case "yes":

@@ -31,6 +31,7 @@ mkdir -p datapb
 mkdir -p indexpb
 mkdir -p rootcoordpb
 mkdir -p querypb
+mkdir -p proxypb
 
 # milvus.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
@@ -68,6 +69,10 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
     --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
     --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
+    --go_opt="Metcd_meta.proto=github.com/congqixia/birdwatcher/proto/v2.0/etcdpb" \
+    --go_opt="Mdata_coord.proto=github.com/congqixia/birdwatcher/proto/v2.0/datapb" \
+    --go_opt="Mindex_coord.proto=github.com/congqixia/birdwatcher/proto/v2.0/indexpb" \
+    --go_opt="Mproxy.proto=github.com/congqixia/birdwatcher/proto/v2.0/proxypb" \
     --go_out=plugins=grpc,paths=source_relative:rootcoordpb root_coord.proto
 # data_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
@@ -82,6 +87,7 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
     --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
     --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
+    --go_opt="Mdata_coord.proto=github.com/congqixia/birdwatcher/proto/v2.0/datapb" \
     --go_out=plugins=grpc,paths=source_relative:querypb query_coord.proto
 # index_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
@@ -90,3 +96,10 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
     --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:indexpb index_coord.proto
+# proxy.proto
+${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
+    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
+    --go_out=plugins=grpc,paths=source_relative:proxypb proxy.proto

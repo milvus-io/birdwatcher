@@ -67,8 +67,8 @@ func restoreEtcd(cli *clientv3.Client, filePath string, basePath string) error {
 	case 1:
 		return restoreFromV1File(cli, rd, header)
 	default:
-		fmt.Printf("Backup version %d not supported\n", header.Version)
-		return fmt.Errorf("Backup version %d not supported\n", header.Version)
+		fmt.Printf("backup version %d not supported\n", header.Version)
+		return fmt.Errorf("backup version %d not supported", header.Version)
 	}
 }
 
