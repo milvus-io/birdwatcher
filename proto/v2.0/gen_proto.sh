@@ -67,6 +67,7 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
     --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
     --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:rootcoordpb root_coord.proto
 # data_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
@@ -80,10 +81,12 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
     --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
     --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:querypb query_coord.proto
 # index_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
     --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
     --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:indexpb index_coord.proto
