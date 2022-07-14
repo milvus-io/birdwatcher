@@ -129,4 +129,7 @@ func printCollection(collection *etcdpb.CollectionInfo) {
 	}
 
 	fmt.Printf("Consistency Level: %s\n", collection.GetConsistencyLevel().String())
+	for _, startPos := range collection.StartPositions {
+		fmt.Printf("Start position for channel %s: %v\n", startPos.Key, startPos.Data)
+	}
 }
