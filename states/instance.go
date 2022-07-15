@@ -38,6 +38,8 @@ func getInstanceState(cli *clientv3.Client, instanceName string, etcdState State
 		getForceReleaseCmd(cli, path.Join(instanceName, metaPath)),
 		// download-pk
 		getDownloadPKCmd(cli, path.Join(instanceName, metaPath)),
+		// visit [component] [id]
+		getVisitCmd(state, cli, path.Join(instanceName, metaPath)),
 		// exit
 		getExitCmd(state),
 	)

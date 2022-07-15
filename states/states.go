@@ -46,7 +46,7 @@ func (s *cmdState) Process(cmd string) (State, error) {
 		return s, err
 	}
 	if s.nextState != nil {
-		defer s.Close()
+		//defer s.Close()
 		// TODO fix ugly type cast
 		if _, ok := s.nextState.(*exitState); ok {
 			return s.nextState, ExitErr
