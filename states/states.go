@@ -51,7 +51,9 @@ func (s *cmdState) Process(cmd string) (State, error) {
 		if _, ok := s.nextState.(*exitState); ok {
 			return s.nextState, ExitErr
 		}
-		return s.nextState, nil
+		nextState := s.nextState
+		s.nextState = nil
+		return nextState, nil
 	}
 	// clean up args
 	s.rootCmd.SetArgs(nil)
