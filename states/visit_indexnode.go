@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/congqixia/birdwatcher/models"
+	"github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
 	"github.com/congqixia/birdwatcher/proto/v2.0/indexpb"
 	"github.com/congqixia/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/spf13/cobra"
@@ -48,6 +49,7 @@ func getIndexNodeMetrics(client indexpb.IndexNodeClient) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 
 			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
+				Base:    &commonpb.MsgBase{},
 				Request: `{"metric_type": "system_info"}`,
 			})
 			if err != nil {
