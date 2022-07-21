@@ -94,6 +94,7 @@ func getQNGetMetrics(client querypb.QueryNodeClient) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 
 			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
+				Base:    &commonpb.MsgBase{},
 				Request: `{"metric_type": "system_info"}`,
 			})
 			if err != nil {
