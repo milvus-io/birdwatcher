@@ -40,6 +40,10 @@ func getInstanceState(cli *clientv3.Client, instanceName string, etcdState State
 		getDownloadPKCmd(cli, path.Join(instanceName, metaPath)),
 		// visit [component] [id]
 		getVisitCmd(state, cli, path.Join(instanceName, metaPath)),
+		// show-log-level
+		getShowLogLevelCmd(cli, path.Join(instanceName, metaPath)),
+		// update-log-level log_level_name component serverId
+		getUpdateLogLevelCmd(cli, path.Join(instanceName, metaPath)),
 		// exit
 		getExitCmd(state),
 	)
