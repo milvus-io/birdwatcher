@@ -19,6 +19,7 @@ func getEtcdShowCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		getEtcdShowSegments(cli, basePath),
 		getLoadedSegmentsCmd(cli, basePath),
 		getEtcdShowReplica(cli, basePath),
+		getCheckpointCmd(cli, basePath),
 	)
 	return showCmd
 }

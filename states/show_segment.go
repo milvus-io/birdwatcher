@@ -9,6 +9,7 @@ import (
 
 	"github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
 	"github.com/congqixia/birdwatcher/proto/v2.0/datapb"
+	"github.com/congqixia/birdwatcher/proto/v2.0/internalpb"
 	"github.com/congqixia/birdwatcher/proto/v2.0/querypb"
 	"github.com/congqixia/birdwatcher/storage"
 	"github.com/golang/protobuf/proto"
@@ -124,6 +125,69 @@ func getLoadedSegmentsCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 	cmd.Flags().Bool("detail", false, "flags indicating whether pring detail binlog info")
 	cmd.Flags().Int64("segment", 0, "segment id to filter with")
 	return cmd
+}
+
+func getCheckpointCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "checkpoint",
+		Short:   "list checkpoint collection vchannels",
+		Aliases: []string{"checkpoints", "cp"},
+		Run: func(cmd *cobra.Command, args []string) {
+
+			collID, err := cmd.Flags().GetInt64("collection")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			coll, err := getCollectionByID(cli, basePath, collID)
+			if err != nil {
+				fmt.Println("failed to get collection", err.Error())
+				return
+			}
+
+			for _, vchannel := range coll.GetVirtualChannelNames() {
+				segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
+					return info.CollectionID == collID && info.InsertChannel == vchannel
+				})
+				if err != nil {
+					fmt.Printf("fail to list segment for channel %s, err: %s\n", vchannel, err.Error())
+					continue
+				}
+				fmt.Printf("find segments to list checkpoint for %s, segment found %d\n", vchannel, len(segments))
+				var segmentID int64
+				var pos *internalpb.MsgPosition
+				for _, segment := range segments {
+					// skip all empty segment
+					if segment.GetDmlPosition() == nil && segment.GetStartPosition() == nil {
+						continue
+					}
+					var segPos *internalpb.MsgPosition
+
+					if segment.GetDmlPosition() != nil {
+						segPos = segment.GetDmlPosition()
+					} else {
+						segPos = segment.GetStartPosition()
+					}
+
+					if pos == nil || segPos.GetTimestamp() < pos.GetTimestamp() {
+						pos = segPos
+						segmentID = segment.GetID()
+					}
+				}
+
+				if pos == nil {
+					fmt.Printf("vchannel %s position nil\n", vchannel)
+				} else {
+					t, _ := ParseTS(pos.GetTimestamp())
+					fmt.Printf("vchannel %s seek to %v, for segment ID:%d \n", vchannel, t, segmentID)
+				}
+			}
+		},
+	}
+	cmd.Flags().Int64("collection", 0, "collection id to filter with")
+	return cmd
+
 }
 
 func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
