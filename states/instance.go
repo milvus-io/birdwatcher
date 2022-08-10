@@ -44,6 +44,8 @@ func getInstanceState(cli *clientv3.Client, instanceName string, etcdState State
 		getShowLogLevelCmd(cli, path.Join(instanceName, metaPath)),
 		// update-log-level log_level_name component serverId
 		getUpdateLogLevelCmd(cli, path.Join(instanceName, metaPath)),
+		// clean-empty-segment
+		cleanEmptySegments(cli, path.Join(instanceName, metaPath)),
 		// exit
 		getExitCmd(state),
 	)

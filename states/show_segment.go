@@ -94,15 +94,6 @@ func getLoadedSegmentsCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 			if err != nil {
 				return err
 			}
-			/*
-				format, err := cmd.Flags().GetString("format")
-				if err != nil {
-					return err
-				}
-				detail, err := cmd.Flags().GetBool("detail")
-				if err != nil {
-					return err
-				}*/
 
 			segments, err := listLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
 				return (collID == 0 || info.CollectionID == collID) &&
@@ -187,7 +178,68 @@ func getCheckpointCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 	}
 	cmd.Flags().Int64("collection", 0, "collection id to filter with")
 	return cmd
+}
 
+func cleanEmptySegments(cli *clientv3.Client, basePath string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "clean-empty-segment",
+		Short:   "Remove empty segment from meta",
+		Aliases: []string{"segments-loaded"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			run, err := cmd.Flags().GetBool("run")
+			if err != nil {
+				return err
+			}
+			segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
+				return info.GetState() == commonpb.SegmentState_Flushed || info.GetState() == commonpb.SegmentState_Flushing || info.GetState() == commonpb.SegmentState_Sealed
+			})
+			if err != nil {
+				fmt.Println("failed to list segments", err.Error())
+				return nil
+			}
+
+			for _, info := range segments {
+				if isEmptySegment(info) {
+					fmt.Printf("suspect segment %d found:\n", info.GetID())
+					printSegmentInfo(info, false)
+					if run {
+						err := removeSegment(cli, basePath, info)
+						if err == nil {
+							fmt.Printf("remove segment %d from meta succeed\n", info.GetID())
+						} else {
+							fmt.Printf("remove segment %d failed, err: %s\n", info.GetID(), err.Error())
+						}
+					}
+
+				}
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().Bool("run", false, "flags indicating whether pring detail binlog info")
+	return cmd
+}
+
+// returns whether all binlog/statslog/deltalog is empty
+func isEmptySegment(info *datapb.SegmentInfo) bool {
+	for _, log := range info.GetBinlogs() {
+		if len(log.Binlogs) > 0 {
+			return false
+		}
+	}
+	for _, log := range info.GetStatslogs() {
+		if len(log.Binlogs) > 0 {
+			return false
+		}
+	}
+	for _, log := range info.GetDeltalogs() {
+		if len(log.Binlogs) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
@@ -209,6 +261,16 @@ func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.Seg
 		}
 	}
 	return segments, nil
+}
+
+func removeSegment(cli *clientv3.Client, basePath string, info *datapb.SegmentInfo) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	path := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
+	_, err := cli.Delete(ctx, path)
+
+	return err
 }
 
 func listLoadedSegments(cli *clientv3.Client, basePath string, filter func(*querypb.SegmentInfo) bool) ([]*querypb.SegmentInfo, error) {
