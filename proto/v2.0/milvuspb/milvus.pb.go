@@ -6,10 +6,10 @@ package milvuspb
 import (
 	context "context"
 	fmt "fmt"
-	commonpb "github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
-	schemapb "github.com/congqixia/birdwatcher/proto/v2.0/schemapb"
 	proto "github.com/golang/protobuf/proto"
 	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
+	commonpb "github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
+	schemapb "github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

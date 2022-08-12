@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/apache/arrow/go/v8/parquet/file"
-	"github.com/congqixia/birdwatcher/proto/v2.0/schemapb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
 
 type ParquetPayloadReader struct {

@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/c-bata/go-prompt"
-	"github.com/congqixia/birdwatcher/states"
 	"github.com/manifoldco/promptui"
+	"github.com/milvus-io/birdwatcher/states"
 )
 
 var (
@@ -18,7 +18,6 @@ var (
 
 func main() {
 	app := states.Start()
-	//run(app)
 	runPrompt(app)
 }
 

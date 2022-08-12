@@ -11,10 +11,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/congqixia/birdwatcher/models"
-	"github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

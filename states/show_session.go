@@ -7,7 +7,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/congqixia/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )

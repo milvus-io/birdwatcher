@@ -5,8 +5,8 @@ package schemapb
 
 import (
 	fmt "fmt"
-	commonpb "github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
 	proto "github.com/golang/protobuf/proto"
+	commonpb "github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	math "math"
 )
 

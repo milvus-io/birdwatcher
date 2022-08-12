@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/congqixia/birdwatcher/proto/v2.0/schemapb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
 
 const (
