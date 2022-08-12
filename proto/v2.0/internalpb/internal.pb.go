@@ -5,9 +5,9 @@ package internalpb
 
 import (
 	fmt "fmt"
-	commonpb "github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
-	schemapb "github.com/congqixia/birdwatcher/proto/v2.0/schemapb"
 	proto "github.com/golang/protobuf/proto"
+	commonpb "github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
+	schemapb "github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	math "math"
 )
 

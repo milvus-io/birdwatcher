@@ -6,10 +6,10 @@ package proxypb
 import (
 	context "context"
 	fmt "fmt"
-	commonpb "github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
-	internalpb "github.com/congqixia/birdwatcher/proto/v2.0/internalpb"
-	milvuspb "github.com/congqixia/birdwatcher/proto/v2.0/milvuspb"
 	proto "github.com/golang/protobuf/proto"
+	commonpb "github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
+	internalpb "github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
+	milvuspb "github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

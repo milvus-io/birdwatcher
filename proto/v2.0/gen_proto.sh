@@ -35,71 +35,71 @@ mkdir -p proxypb
 
 # milvus.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
     --go_out=plugins=grpc,paths=source_relative:milvuspb milvus.proto
 # schema.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
     --go_out=plugins=grpc,paths=source_relative:schemapb schema.proto
 # common.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
     --go_out=plugins=grpc,paths=source_relative:commonpb common.proto
 # internal.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
     --go_out=plugins=grpc,paths=source_relative:internalpb internal.proto
 # etcd_meta.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
     --go_out=plugins=grpc,paths=source_relative:etcdpb etcd_meta.proto
 # root_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
-    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
-    --go_opt="Metcd_meta.proto=github.com/congqixia/birdwatcher/proto/v2.0/etcdpb" \
-    --go_opt="Mdata_coord.proto=github.com/congqixia/birdwatcher/proto/v2.0/datapb" \
-    --go_opt="Mindex_coord.proto=github.com/congqixia/birdwatcher/proto/v2.0/indexpb" \
-    --go_opt="Mproxy.proto=github.com/congqixia/birdwatcher/proto/v2.0/proxypb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.0/internalpb" \
+    --go_opt="Metcd_meta.proto=github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb" \
+    --go_opt="Mdata_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.0/datapb" \
+    --go_opt="Mindex_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.0/indexpb" \
+    --go_opt="Mproxy.proto=github.com/milvus-io/birdwatcher/proto/v2.0/proxypb" \
     --go_out=plugins=grpc,paths=source_relative:rootcoordpb root_coord.proto
 # data_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
-    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.0/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:datapb data_coord.proto
 # query_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
-    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
-    --go_opt="Mdata_coord.proto=github.com/congqixia/birdwatcher/proto/v2.0/datapb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.0/internalpb" \
+    --go_opt="Mdata_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.0/datapb" \
     --go_out=plugins=grpc,paths=source_relative:querypb query_coord.proto
 # index_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
-    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.0/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:indexpb index_coord.proto
 # proxy.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
-    --go_opt="Mmilvus.proto=github.com/congqixia/birdwatcher/proto/v2.0/milvuspb" \
-    --go_opt="Mcommon.proto=github.com/congqixia/birdwatcher/proto/v2.0/commonpb" \
-    --go_opt="Mschema.proto=github.com/congqixia/birdwatcher/proto/v2.0/schemapb" \
-    --go_opt="Minternal.proto=github.com/congqixia/birdwatcher/proto/v2.0/internalpb" \
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.0/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.0/schemapb" \
+    --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.0/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:proxypb proxy.proto

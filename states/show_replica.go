@@ -6,8 +6,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/congqixia/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/golang/protobuf/proto"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )

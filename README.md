@@ -1,6 +1,6 @@
 # Birdwatcher
 
-[![linter status](https://github.com/congqixia/birdwatcher/workflows/golangci-lint/badge.svg)](https://github.com/congqixia/birdwatcher/actions/workflows/golangci-lint.yml?query=branch%3Amain+)
+[![linter status](https://github.com/milvus-io/birdwatcher/workflows/golangci-lint/badge.svg)](https://github.com/milvus-io/birdwatcher/actions/workflows/golangci-lint.yml?query=branch%3Amain+)
 
 Debug tool for Milvus 2.0 project. This tool connects to etcd and inspect some status of the Milvus system.
 
@@ -13,12 +13,12 @@ go 1.16 or higher
 
 install with go command
 ```shell
-go install github.com/congqixia/birdwatcher
+go install github.com/milvus-io/birdwatcher
 ```
 
 or download source and run with go command
 ```shell
-git clone https://github.com/congqixia/birdwatcher
+git clone https://github.com/milvus-io/birdwatcher
 cd birdwatcher
 go build -o birdwatcher main.go
 ```

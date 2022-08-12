@@ -7,12 +7,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
-	"github.com/congqixia/birdwatcher/proto/v2.0/datapb"
-	"github.com/congqixia/birdwatcher/proto/v2.0/internalpb"
-	"github.com/congqixia/birdwatcher/proto/v2.0/querypb"
-	"github.com/congqixia/birdwatcher/storage"
 	"github.com/golang/protobuf/proto"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
+	"github.com/milvus-io/birdwatcher/storage"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )

@@ -1,4 +1,4 @@
-module github.com/congqixia/birdwatcher
+module github.com/milvus-io/birdwatcher
 
 go 1.16
 

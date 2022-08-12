@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/congqixia/birdwatcher/models"
-	"github.com/congqixia/birdwatcher/proto/v2.0/commonpb"
-	"github.com/congqixia/birdwatcher/proto/v2.0/milvuspb"
-	"github.com/congqixia/birdwatcher/proto/v2.0/querypb"
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )

@@ -8,9 +8,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/congqixia/birdwatcher/proto/v2.0/datapb"
 	"github.com/gosuri/uilive"
 	"github.com/manifoldco/promptui"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spf13/cobra"
