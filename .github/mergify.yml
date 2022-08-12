@@ -1,7 +1,25 @@
 pull_request_rules:
-  - name: Automatic merge ⬇️ on approval ✔
+  - name: Add needs-dco label when DCO check failed
     conditions:
-      - "#approved-reviews-by>=1"
+      - base=main
+      - -status-success=DCO
     actions:
-      merge:
-        method: rebase
+      label:
+        remove:
+          - dco-passed
+        add:
+          - needs-dco
+      comment:
+        message: |
+          @{{author}} Thanks for your contribution. Please submit with DCO, see the contributing guide https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md#developer-certificate-of-origin-dco.
+  
+  - name: Add dco-passed label when DCO check passed
+    conditions:
+      - base=main
+      - status-success=DCO
+    actions:
+      label:
+        remove:
+          - needs-dco
+        add:
+          - dco-passed
