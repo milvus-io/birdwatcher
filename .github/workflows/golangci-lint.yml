@@ -4,9 +4,20 @@ on:
     tags:
       - v*
     branches:
-      - master
       - main
   pull_request:
+    paths:
+      - 'model/**'
+      - 'proto/**'
+      - 'states/**'
+      - 'storage/**'
+      - 'version/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'main.go'
+      - '.golangci.yml'
+      - '!**.md'
+      - '.github/workflows/golangci-lint.yml'
 permissions:
   contents: read
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
