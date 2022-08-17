@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/spf13/cobra"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -51,7 +52,7 @@ func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command
 
 			errors := make(map[string]error)
 			for _, kv := range kvs {
-				processCollectionKV(kv, func(key string, err error) {
+				processCollectionKV(cli, basePath, kv, func(key string, err error) {
 					errors[key] = err
 				})
 			}
@@ -85,13 +86,18 @@ func getCollectionByID(cli *clientv3.Client, basePath string, collID int64) (*et
 	if err != nil {
 		return nil, err
 	}
-	return coll, nil
 
+	err = fillFieldSchemaIfEmpty(cli, basePath, coll)
+	if err != nil {
+		return nil, err
+	}
+
+	return coll, nil
 }
 
 var CollectionTombstone = []byte{0xE2, 0x9B, 0xBC}
 
-func processCollectionKV(kv *mvccpb.KeyValue, handleErr func(key string, err error)) {
+func processCollectionKV(cli *clientv3.Client, basePath string, kv *mvccpb.KeyValue, handleErr func(key string, err error)) {
 	if bytes.Equal(kv.Value, CollectionTombstone) {
 		return
 	}
@@ -103,7 +109,33 @@ func processCollectionKV(kv *mvccpb.KeyValue, handleErr func(key string, err err
 		return
 	}
 
+	err = fillFieldSchemaIfEmpty(cli, basePath, collection)
+	if err != nil {
+		handleErr(string(kv.Key), err)
+		return
+	}
+
 	printCollection(collection)
+}
+
+func fillFieldSchemaIfEmpty(cli *clientv3.Client, basePath string, collection *etcdpb.CollectionInfo) error {
+	if len(collection.GetSchema().GetFields()) == 0 { // fields separated from schema after 2.1.1
+		resp, err := cli.Get(context.TODO(), path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collection.ID)), clientv3.WithPrefix())
+		if err != nil {
+			return err
+		}
+		for _, kv := range resp.Kvs {
+			field := &schemapb.FieldSchema{}
+			err := proto.Unmarshal(kv.Value, field)
+			if err != nil {
+				fmt.Println("found error field:", string(kv.Key), err.Error())
+				continue
+			}
+			collection.Schema.Fields = append(collection.Schema.Fields, field)
+		}
+	}
+
+	return nil
 }
 
 func printCollection(collection *etcdpb.CollectionInfo) {
