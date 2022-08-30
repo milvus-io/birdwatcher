@@ -245,7 +245,7 @@ func isEmptySegment(info *datapb.SegmentInfo) bool {
 func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	resp, err := cli.Get(ctx, path.Join(basePath, "datacoord-meta/s"), clientv3.WithPrefix())
+	resp, err := cli.Get(ctx, path.Join(basePath, "datacoord-meta/s")+"/", clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
