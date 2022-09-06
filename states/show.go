@@ -21,6 +21,7 @@ func getEtcdShowCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		getEtcdShowReplica(cli, basePath),
 		getCheckpointCmd(cli, basePath),
 		getQueryCoordTaskCmd(cli, basePath),
+		getQueryCoordClusterNodeInfo(cli, basePath),
 	)
 	return showCmd
 }

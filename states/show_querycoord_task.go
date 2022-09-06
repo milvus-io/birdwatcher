@@ -133,6 +133,16 @@ func getQueryCoordTaskCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 			if err != nil {
 				return err
 			}
+
+			taskType, err := cmd.Flags().GetString("type")
+			if err != nil {
+				return err
+			}
+
+			if taskType != "" && taskType != "activate" && taskType != "trigger" && taskType != "all" {
+				fmt.Println("worng taskType")
+				return nil
+			}
 			triggerTasks, activateTasks, err := listQueryCoordTasks(cli, basePath, func(task queryCoordTask) bool {
 				if task == nil {
 					return false
@@ -144,21 +154,25 @@ func getQueryCoordTaskCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 				fmt.Println("failed to list tasks in querycoord", err.Error())
 				return nil
 			}
-
-			for tID, task := range triggerTasks {
-				fmt.Printf("===trigger %d===\n", tID)
-				fmt.Printf("%s\n", task.String())
-				fmt.Printf("======\n")
+			if taskType == "" || taskType == "all" || taskType == "trigger" {
+				for tID, task := range triggerTasks {
+					fmt.Printf("===trigger %d===\n", tID)
+					fmt.Printf("%s\n", task.String())
+					fmt.Printf("======\n")
+				}
 			}
 
-			for tID, task := range activateTasks {
-				fmt.Printf("---activate %d---\n", tID)
-				fmt.Printf("%s\n", task.String())
-				fmt.Printf("------\n")
+			if taskType == "" || taskType == "all" || taskType == "activate" {
+				for tID, task := range activateTasks {
+					fmt.Printf("---activate %d---\n", tID)
+					fmt.Printf("%s\n", task.String())
+					fmt.Printf("------\n")
+				}
 			}
 			return nil
 		},
 	}
 	cmd.Flags().Int64("collection", 0, "collection id to filter with")
+	cmd.Flags().String("type", "all", "filter task types [activate, trigger, all]")
 	return cmd
 }

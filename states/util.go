@@ -17,7 +17,12 @@
 package states
 
 import (
+	"context"
+	"encoding/json"
 	"time"
+
+	"github.com/milvus-io/birdwatcher/models"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -30,4 +35,26 @@ func ParseTS(ts uint64) (time.Time, uint64) {
 	physical := ts >> logicalBits
 	physicalTime := time.Unix(int64(physical/1000), int64(physical)%1000*time.Millisecond.Nanoseconds())
 	return physicalTime, logical
+}
+
+// listSessions returns all session
+func listSessionsByPrefix(cli *clientv3.Client, prefix string) ([]*models.Session, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+
+	sessions := make([]*models.Session, 0, len(resp.Kvs))
+	for _, kv := range resp.Kvs {
+		session := &models.Session{}
+		err := json.Unmarshal(kv.Value, session)
+		if err != nil {
+			continue
+		}
+
+		sessions = append(sessions, session)
+	}
+	return sessions, nil
 }
