@@ -82,6 +82,8 @@ type queryCoordTask interface {
 	String() string
 	getTriggerCondition() querypb.TriggerCondition
 	setTriggerCondition(trigger querypb.TriggerCondition)
+	getType() string
+	setType(taskType string)
 }
 
 type baseQueryCoordTask struct {
@@ -90,6 +92,7 @@ type baseQueryCoordTask struct {
 	parentTask       queryCoordTask
 	childTasks       []queryCoordTask
 	state            taskState
+	taskType         string
 }
 
 // getTaskID function returns the unique taskID of the trigger task
@@ -97,11 +100,19 @@ func (bt *baseQueryCoordTask) getTaskID() UniqueID {
 	return bt.taskID
 }
 
+func (bt *baseQueryCoordTask) getType() string {
+	return bt.taskType
+}
+
+func (bt *baseQueryCoordTask) setType(taskType string) {
+	bt.taskType = taskType
+}
+
 func (bt *baseQueryCoordTask) String() string {
 	state := bt.getState()
 	taskID := bt.getTaskID()
 	condition := bt.getTriggerCondition()
-	ret := fmt.Sprintf("taskID:%d \t taskState:%s, condition:%s", taskID, state.String(), condition.String())
+	ret := fmt.Sprintf("taskID:%d \t type:%s, taskState:%s, condition:%s", taskID, bt.getType(), state.String(), condition.String())
 	return ret
 }
 

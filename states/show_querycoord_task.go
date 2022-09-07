@@ -18,9 +18,11 @@ package states
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 
 	//"sort"
@@ -29,6 +31,30 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
+
+func listQueryCoordTriggerTasks(cli *clientv3.Client, basePath string) (map[UniqueID]queryCoordTask, error) {
+	prefix := path.Join(basePath, triggerTaskPrefix)
+	triggerTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
+	if err != nil {
+		return nil, err
+	}
+	for _, task := range triggerTasks {
+		task.setType("Trigger")
+	}
+	return triggerTasks, nil
+}
+
+func listQueryCoordActivateTasks(cli *clientv3.Client, basePath string) (map[UniqueID]queryCoordTask, error) {
+	prefix := path.Join(basePath, activeTaskPrefix)
+	activateTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
+	if err != nil {
+		return nil, err
+	}
+	for _, task := range activateTasks {
+		task.setType("Activate")
+	}
+	return activateTasks, nil
+}
 
 func listQueryCoordTasksByPrefix(cli *clientv3.Client, prefix string) (map[UniqueID]queryCoordTask, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
@@ -55,9 +81,10 @@ func listQueryCoordTasksByPrefix(cli *clientv3.Client, prefix string) (map[Uniqu
 	return tasks, nil
 }
 
-func listQueryCoordTaskStates(cli *clientv3.Client, prefix string) (map[UniqueID]taskState, error) {
+func listQueryCoordTaskStates(cli *clientv3.Client, basePath string) (map[UniqueID]taskState, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
+	prefix := path.Join(basePath, taskInfoPrefix)
 	taskInfos := make(map[int64]taskState)
 	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
@@ -80,38 +107,29 @@ func listQueryCoordTaskStates(cli *clientv3.Client, prefix string) (map[UniqueID
 	return taskInfos, nil
 }
 
+func checkAndSetTaskState(tasks map[UniqueID]queryCoordTask, states map[UniqueID]taskState) error {
+	for tID := range tasks {
+		state, ok := states[tID]
+		if !ok {
+			return errors.New("taskStateInfo and taskInfo are inconsistent")
+		}
+		tasks[tID].setState(state)
+	}
+	return nil
+}
+
 func listQueryCoordTasks(cli *clientv3.Client, basePath string, filter func(task queryCoordTask) bool) (map[UniqueID]queryCoordTask, map[UniqueID]queryCoordTask, error) {
-	prefix := path.Join(basePath, triggerTaskPrefix)
-	triggerTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
+	triggerTasks, err := listQueryCoordTriggerTasks(cli, basePath)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	for tID, task := range triggerTasks {
 		if !filter(task) {
 			delete(triggerTasks, tID)
 		}
 	}
 
-	prefix = path.Join(basePath, taskInfoPrefix)
-	triggerTaskStates, err := listQueryCoordTaskStates(cli, prefix)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for tID, tState := range triggerTaskStates {
-		if task, ok := triggerTasks[tID]; !ok {
-			if filter(task) {
-				fmt.Println("reloadFromKV: taskStateInfo and triggerTaskInfo are inconsistent")
-				continue
-			}
-		} else {
-			triggerTasks[tID].setState(tState)
-		}
-	}
-
-	prefix = path.Join(basePath, activeTaskPrefix)
-	activateTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
+	activateTasks, err := listQueryCoordActivateTasks(cli, basePath)
 	if err != nil {
 		return triggerTasks, nil, err
 	}
@@ -119,6 +137,20 @@ func listQueryCoordTasks(cli *clientv3.Client, basePath string, filter func(task
 		if !filter(task) {
 			delete(activateTasks, tID)
 		}
+	}
+	taskStates, err := listQueryCoordTaskStates(cli, basePath)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = checkAndSetTaskState(triggerTasks, taskStates)
+	if err != nil {
+		errStr := fmt.Sprintf("%s%s", "triggerTask", err.Error())
+		return nil, nil, errors.New(errStr)
+	}
+	err = checkAndSetTaskState(activateTasks, taskStates)
+	if err != nil {
+		errStr := fmt.Sprintf("%s%s", "activateTask", err.Error())
+		return nil, nil, errors.New(errStr)
 	}
 	return triggerTasks, activateTasks, nil
 }
@@ -154,20 +186,26 @@ func getQueryCoordTaskCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 				fmt.Println("failed to list tasks in querycoord", err.Error())
 				return nil
 			}
-			if taskType == "" || taskType == "all" || taskType == "trigger" {
-				for tID, task := range triggerTasks {
-					fmt.Printf("===trigger %d===\n", tID)
-					fmt.Printf("%s\n", task.String())
-					fmt.Printf("======\n")
+
+			printFunc := func(tasks map[UniqueID]queryCoordTask) {
+				var tIDs []UniqueID
+				for tID := range tasks {
+					tIDs = append(tIDs, tID)
+				}
+				sort.Slice(tIDs, func(i, j int) bool {
+					return tIDs[i] < tIDs[j]
+				})
+				for _, tID := range tIDs {
+					task := tasks[tID]
+					fmt.Printf("%s\n\n", task.String())
 				}
 			}
 
+			if taskType == "" || taskType == "all" || taskType == "trigger" {
+				printFunc(triggerTasks)
+			}
 			if taskType == "" || taskType == "all" || taskType == "activate" {
-				for tID, task := range activateTasks {
-					fmt.Printf("---activate %d---\n", tID)
-					fmt.Printf("%s\n", task.String())
-					fmt.Printf("------\n")
-				}
+				printFunc(activateTasks)
 			}
 			return nil
 		},
