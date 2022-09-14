@@ -558,7 +558,7 @@ func (wdt *watchDmChannelTask) timestamp() Timestamp {
 	return ret
 }
 
-//****************************handoff task********************************//
+// handoffTask handoff definition
 type handoffTask struct {
 	*baseQueryCoordTask
 	*querypb.HandoffSegmentsRequest

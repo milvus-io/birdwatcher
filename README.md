@@ -7,7 +7,7 @@ Debug tool for Milvus 2.0 project. This tool connects to etcd and inspect some s
 ## Get Started
 
 ### Prerequisite
-go 1.16 or higher 
+go 1.18 or higher 
 
 ### Install birdwatcher
 
