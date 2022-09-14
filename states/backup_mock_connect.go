@@ -53,6 +53,9 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 		// disconnect
 		getDisconnectCmd(state),
 
+		// raw get
+		getEtcdRawCmd(cli),
+
 		// exit
 		getExitCmd(state),
 	)
@@ -70,10 +73,6 @@ func getLoadBackupCmd(state State) *cobra.Command {
 				fmt.Println("No backup file provided.")
 				return
 			}
-			rootPath, err := cmd.Flags().GetString("rootPath")
-			if err != nil {
-				return
-			}
 			for _, arg := range args {
 				err := testFile(arg)
 				if err != nil {
@@ -83,15 +82,16 @@ func getLoadBackupCmd(state State) *cobra.Command {
 			}
 
 			server, err := startEmbedEtcdServer()
-			fmt.Println("using data dir:", server.Config().Dir)
 			if err != nil {
 				fmt.Println("failed to start embed etcd server:", err.Error())
 				return
 			}
+			fmt.Println("using data dir:", server.Config().Dir)
 
+			var rootPath string
 			client := v3client.New(server.Server)
 			for _, f := range args {
-				err := restoreEtcd(client, f, path.Join(rootPath, metaPath))
+				rootPath, _, err = restoreEtcd(client, f)
 				if err != nil {
 					fmt.Printf("failed to restore file: %s, error: %s", f, err.Error())
 					server.Close()
@@ -103,8 +103,6 @@ func getLoadBackupCmd(state State) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("rootPath", "by-dev", "meta root path milvus is using")
-	cmd.Flags().String("metaPath", metaPath, "meta path prefix")
 	return cmd
 }
 
@@ -134,12 +132,12 @@ func startEmbedEtcdServer() (*embed.Etcd, error) {
 	config.Dir = dir
 	config.LogLevel = "warn"
 	config.LogOutputs = []string{"default"}
-	u, err := url.Parse("http://localhost:2389")
+	u, err := url.Parse("http://localhost:0")
 	if err != nil {
 		return nil, err
 	}
 	config.LCUrls = []url.URL{*u}
-	u, err = url.Parse("http://localhost:2390")
+	u, err = url.Parse("http://localhost:0")
 	if err != nil {
 		return nil, err
 	}
