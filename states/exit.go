@@ -31,3 +31,17 @@ func getExitCmd(state State) *cobra.Command {
 type exitState struct {
 	cmdState
 }
+
+// getDisconnectCmd disconnect from current state.
+// will call close method for current state.
+func getDisconnectCmd(state State) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "disconnect",
+		Short: "disconnect from current state",
+		Run: func(*cobra.Command, []string) {
+			state.SetNext(Start())
+			state.Close()
+		},
+	}
+	return cmd
+}

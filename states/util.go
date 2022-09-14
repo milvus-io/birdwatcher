@@ -19,9 +19,12 @@ package states
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -29,6 +32,12 @@ const (
 	logicalBits     = 18
 	logicalBitsMask = (1 << logicalBits) - 1
 )
+
+func getGlobalUtilCommands() []*cobra.Command {
+	return []*cobra.Command{
+		getParseTSCmd(),
+	}
+}
 
 func ParseTS(ts uint64) (time.Time, uint64) {
 	logical := ts & logicalBitsMask
@@ -57,4 +66,30 @@ func listSessionsByPrefix(cli *clientv3.Client, prefix string) ([]*models.Sessio
 		sessions = append(sessions, session)
 	}
 	return sessions, nil
+}
+
+// getParseTSCmd returns command for parse timestamp
+func getParseTSCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "parse-ts",
+		Short: "parse hybrid timestamp",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				fmt.Println("no ts provided")
+				return
+			}
+
+			for _, arg := range args {
+				ts, err := strconv.ParseUint(arg, 10, 64)
+				if err != nil {
+					fmt.Printf("failed to parse ts from %s, err: %s\n", arg, err.Error())
+					continue
+				}
+
+				t, _ := ParseTS(ts)
+				fmt.Printf("Parse ts result, ts:%d, time: %v\n", ts, t)
+			}
+		},
+	}
+	return cmd
 }
