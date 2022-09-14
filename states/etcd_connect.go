@@ -33,6 +33,10 @@ func getConnectCommand(state State) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			dry, err := cmd.Flags().GetBool("dry")
+			if err != nil {
+				return err
+			}
 
 			etcdCli, err := clientv3.New(clientv3.Config{
 				Endpoints:   []string{etcdAddr},
@@ -46,10 +50,11 @@ func getConnectCommand(state State) *cobra.Command {
 
 			etcdState := getEtcdConnectedState(etcdCli, etcdAddr)
 
-			if rootPath != "" {
+			if !dry {
 				// use rootPath as instanceName
 				state.SetNext(getInstanceState(etcdCli, rootPath, etcdState))
 			} else {
+				fmt.Println("using dry mode, ignore rootPath and metaPath")
 				// rootPath empty fall back to etcd connected state
 				state.SetNext(etcdState)
 			}
@@ -59,6 +64,7 @@ func getConnectCommand(state State) *cobra.Command {
 	cmd.Flags().String("etcd", "127.0.0.1:2379", "the etcd endpoint to connect")
 	cmd.Flags().String("rootPath", "by-dev", "meta root path milvus is using")
 	cmd.Flags().String("metaPath", metaPath, "meta path prefix")
+	cmd.Flags().Bool("dry", false, "dry connect without specify milvus instance")
 	return cmd
 }
 
@@ -77,7 +83,9 @@ func findMilvusInstance(cli *clientv3.Client) ([]string, error) {
 		for _, kv := range resp.Kvs {
 			key := string(kv.Key)
 			parts := strings.Split(key, "/")
-			apps = append(apps, parts[0])
+			if parts[0] != "" {
+				apps = append(apps, parts[0])
+			}
 			// next key, since '0' is the next ascii char of '/'
 			current = parts[0] + "0"
 		}
@@ -90,10 +98,58 @@ func findMilvusInstance(cli *clientv3.Client) ([]string, error) {
 	return apps, nil
 }
 
+func getFindMilvusCmd(cli *clientv3.Client, state *etcdConnectedState) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "find-milvus",
+		Short: "search etcd kvs to find milvus instance",
+		Run: func(cmd *cobra.Command, args []string) {
+			apps, err := findMilvusInstance(cli)
+			if err != nil {
+				fmt.Println("failed to find milvus instance:", err.Error())
+				return
+			}
+			fmt.Printf("%d candidates found:\n", len(apps))
+			for _, app := range apps {
+				fmt.Println(app)
+			}
+			state.candidates = apps
+		},
+	}
+
+	return cmd
+}
+
+func getUseCmd(cli *clientv3.Client, state State) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "use [instance name]",
+		Short: "use specified milvus instance",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 {
+				fmt.Println("instance name not provided")
+				cmd.Usage()
+				return
+			}
+			metaPath, err := cmd.Flags().GetString("metaPath")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			rootPath := args[0]
+
+			fmt.Printf("Using meta path: %s/%s/\n", rootPath, metaPath)
+
+			state.SetNext(getInstanceState(cli, rootPath, state))
+		},
+	}
+	cmd.Flags().String("metaPath", metaPath, "meta path prefix")
+	return cmd
+}
+
 type etcdConnectedState struct {
 	cmdState
-	client *clientv3.Client
-	addr   string
+	client     *clientv3.Client
+	addr       string
+	candidates []string
 }
 
 // TBD for testing only
@@ -112,7 +168,16 @@ func getEtcdConnectedState(cli *clientv3.Client, addr string) State {
 		addr:   addr,
 	}
 
-	cmd.AddCommand()
+	cmd.AddCommand(
+		// find-milvus
+		getFindMilvusCmd(cli, state),
+		// use
+		getUseCmd(cli, state),
+		// disconnect
+		getDisconnectCmd(state),
+		// exit
+		getExitCmd(state),
+	)
 
 	return state
 }

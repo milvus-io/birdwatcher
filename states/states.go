@@ -87,5 +87,8 @@ func Start() State {
 		getLoadBackupCmd(state),
 		// exit
 		getExitCmd(state))
+
+	root.AddCommand(getGlobalUtilCommands()...)
+
 	return state
 }

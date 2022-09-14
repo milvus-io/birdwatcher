@@ -15,6 +15,18 @@ type instanceState struct {
 	client       *clientv3.Client
 }
 
+// getDryModeCmd enter dry-mode
+func getDryModeCmd(cli *clientv3.Client, state *instanceState, etcdState State) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "dry-mode",
+		Short: "enter dry mode to select instance",
+		Run: func(*cobra.Command, []string) {
+			state.SetNext(etcdState)
+		},
+	}
+	return cmd
+}
+
 func getInstanceState(cli *clientv3.Client, instanceName string, etcdState State) State {
 	cmd := &cobra.Command{}
 
@@ -46,6 +58,12 @@ func getInstanceState(cli *clientv3.Client, instanceName string, etcdState State
 		getUpdateLogLevelCmd(cli, path.Join(instanceName, metaPath)),
 		// clean-empty-segment
 		cleanEmptySegments(cli, path.Join(instanceName, metaPath)),
+		// garbage-collect
+		getGarbageCollectCmd(cli, path.Join(instanceName, metaPath)),
+		// dry-mode
+		getDryModeCmd(cli, state, etcdState),
+		// disconnect
+		getDisconnectCmd(state),
 		// exit
 		getExitCmd(state),
 	)
