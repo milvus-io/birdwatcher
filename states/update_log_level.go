@@ -15,7 +15,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 )
 
-//todo: read port from config
+// TODO read port from config
 const httpAPIListenPort = 9091
 
 func getShowLogLevelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
