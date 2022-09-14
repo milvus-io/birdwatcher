@@ -21,16 +21,16 @@ import (
 // restoreEtcd write back backup file content to etcd
 // need backup first before calling this function
 // basePath is needed for key indication
-func restoreEtcd(cli *clientv3.Client, filePath string, basePath string) error {
+func restoreEtcd(cli *clientv3.Client, filePath string) (string, string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	defer f.Close()
 
 	r, err := gzip.NewReader(f)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	defer r.Close()
 
@@ -47,28 +47,28 @@ func restoreEtcd(cli *clientv3.Client, filePath string, basePath string) error {
 	lenRead, err = rd.Read(headerBs)
 	if err != nil {
 		fmt.Println("failed to read header", err.Error())
-		return nil
+		return "", "", nil
 	}
 
 	if lenRead != int(nextBytes) {
 		fmt.Println("not enough bytes for header")
-		return nil
+		return "", "", nil
 	}
 
 	header := &models.BackupHeader{}
 	err = proto.Unmarshal(headerBs, header)
 	if err != nil {
 		fmt.Println("cannot parse backup header", err.Error())
-		return err
+		return "", "", err
 	}
 	fmt.Printf("header: %#v\n", header)
 
 	switch header.Version {
 	case 1:
-		return restoreFromV1File(cli, rd, header)
+		return header.Instance, header.MetaPath, restoreFromV1File(cli, rd, header)
 	default:
 		fmt.Printf("backup version %d not supported\n", header.Version)
-		return fmt.Errorf("backup version %d not supported", header.Version)
+		return "", "", fmt.Errorf("backup version %d not supported", header.Version)
 	}
 }
 
