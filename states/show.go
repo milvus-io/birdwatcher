@@ -28,6 +28,7 @@ func getEtcdShowCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		//getEtcdShowIndex(cli, basePath),
 		getEtcdShowSegmentIndexCmd(cli, basePath),
 		getQueryCoordChannelInfoCmd(cli, basePath),
+		getShowLoadedCollectionCmd(cli, basePath),
 	)
 	return showCmd
 }
