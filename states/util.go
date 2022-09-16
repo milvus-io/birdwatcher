@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -137,4 +138,32 @@ func reviseVChannelInfo(vChannel *datapb.VchannelInfo) {
 		vChannel.DroppedSegments = []*datapb.SegmentInfo{}
 	}
 	vChannel.DroppedSegmentIds = removeDuplicateSegmentIDFn(vChannel.GetDroppedSegmentIds())
+}
+
+type infoWithCollectionID interface {
+	GetCollectionID() UniqueID
+	String() string
+}
+
+func printInfoWithCollectionID(infos []infoWithCollectionID) {
+	var collectionIDs []int64
+	collectionMap := make(map[int64][]infoWithCollectionID)
+	for _, info := range infos {
+		collectionID := info.GetCollectionID()
+		collectionIDs = append(collectionIDs, collectionID)
+		sliceInfo := collectionMap[collectionID]
+		sliceInfo = append(sliceInfo, info)
+		collectionMap[collectionID] = sliceInfo
+	}
+
+	sort.Slice(collectionIDs, func(i, j int) bool {
+		return collectionIDs[i] < collectionIDs[j]
+	})
+
+	for _, colID := range collectionIDs {
+		sliceInfos := collectionMap[colID]
+		for _, info := range sliceInfos {
+			fmt.Printf("%s\n", info.String())
+		}
+	}
 }

@@ -87,26 +87,11 @@ func listQueryCoordUnsubChannelInfos(cli *clientv3.Client, basePath string) ([]*
 }
 
 func printDMChannelWatchInfo(infos []*querypb.DmChannelWatchInfo) {
-	var collectionIDs []int64
-	collectionMap := make(map[int64][]*querypb.DmChannelWatchInfo)
+	infos2 := make([]infoWithCollectionID, 0)
 	for _, info := range infos {
-		collectionID := info.GetCollectionID()
-		collectionIDs = append(collectionIDs, collectionID)
-		sliceInfo := collectionMap[collectionID]
-		sliceInfo = append(sliceInfo, info)
-		collectionMap[collectionID] = sliceInfo
+		infos2 = append(infos2, info)
 	}
-
-	sort.Slice(collectionIDs, func(i, j int) bool {
-		return collectionIDs[i] < collectionIDs[j]
-	})
-
-	for _, colID := range collectionIDs {
-		sliceInfos := collectionMap[colID]
-		for _, info := range sliceInfos {
-			fmt.Printf("%s\n", info.String())
-		}
-	}
+	printInfoWithCollectionID(infos2)
 }
 
 func listQueryCoordDMLChannelInfos(cli *clientv3.Client, basePath string) ([]*querypb.DmChannelWatchInfo, error) {
@@ -155,26 +140,11 @@ func listQueryCoordDeltaChannelInfos(cli *clientv3.Client, basePath string) ([]*
 }
 
 func printDeltaChannelInfos(infos []*datapb.VchannelInfo) {
-	var collectionIDs []int64
-	collectionMap := make(map[int64][]*datapb.VchannelInfo)
+	infos2 := make([]infoWithCollectionID, 0)
 	for _, info := range infos {
-		collectionID := info.GetCollectionID()
-		collectionIDs = append(collectionIDs, collectionID)
-		sliceInfo := collectionMap[collectionID]
-		sliceInfo = append(sliceInfo, info)
-		collectionMap[collectionID] = sliceInfo
+		infos2 = append(infos2, info)
 	}
-
-	sort.Slice(collectionIDs, func(i, j int) bool {
-		return collectionIDs[i] < collectionIDs[j]
-	})
-
-	for _, colID := range collectionIDs {
-		sliceInfos := collectionMap[colID]
-		for _, info := range sliceInfos {
-			fmt.Printf("%s\n", info.String())
-		}
-	}
+	printInfoWithCollectionID(infos2)
 }
 
 func getQueryCoordChannelInfoCmd(cli *clientv3.Client, basePath string) *cobra.Command {
