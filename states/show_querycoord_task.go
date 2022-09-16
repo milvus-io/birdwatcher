@@ -180,7 +180,7 @@ func getQueryCoordTaskCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 					return false
 				}
 				collectionID := task.getCollectionID()
-				return (collID == 0 || collectionID == collID)
+				return collID == 0 || collectionID == collID
 			})
 			if err != nil {
 				fmt.Println("failed to list tasks in querycoord", err.Error())
