@@ -27,6 +27,7 @@ func getEtcdShowCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		getQueryCoordClusterNodeInfo(cli, basePath),
 		//getEtcdShowIndex(cli, basePath),
 		getEtcdShowSegmentIndexCmd(cli, basePath),
+		getQueryCoordChannelInfoCmd(cli, basePath),
 	)
 	return showCmd
 }
