@@ -257,6 +257,7 @@ func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.Seg
 			continue
 		}
 		if filter == nil || filter(info) {
+			fillFieldsIfV2(cli, basePath, info)
 			segments = append(segments, info)
 		}
 	}
@@ -290,9 +291,59 @@ func listLoadedSegments(cli *clientv3.Client, basePath string, filter func(*quer
 		if filter == nil || filter(info) {
 			segments = append(segments, info)
 		}
+
 	}
 	return segments, nil
 
+}
+
+func fillFieldsIfV2(cli *clientv3.Client, basePath string, segment *datapb.SegmentInfo) error {
+	if len(segment.Binlogs) == 0 {
+		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
+		fields, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
+		if err != nil {
+			return err
+		}
+
+		segment.Binlogs = make([]*datapb.FieldBinlog, 0, len(fields))
+		for _, field := range fields {
+			field := field
+			f := proto.Clone(&field).(*datapb.FieldBinlog)
+			segment.Binlogs = append(segment.Binlogs, f)
+		}
+	}
+
+	if len(segment.Deltalogs) == 0 {
+		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("deltalog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
+		fields, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
+		if err != nil {
+			return err
+		}
+
+		segment.Deltalogs = make([]*datapb.FieldBinlog, 0, len(fields))
+		for _, field := range fields {
+			field := field
+			f := proto.Clone(&field).(*datapb.FieldBinlog)
+			segment.Deltalogs = append(segment.Deltalogs, f)
+		}
+	}
+
+	if len(segment.Statslogs) == 0 {
+		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
+		fields, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
+		if err != nil {
+			return err
+		}
+
+		segment.Statslogs = make([]*datapb.FieldBinlog, 0, len(fields))
+		for _, field := range fields {
+			field := field
+			f := proto.Clone(&field).(*datapb.FieldBinlog)
+			segment.Statslogs = append(segment.Statslogs, f)
+		}
+	}
+
+	return nil
 }
 
 const (
