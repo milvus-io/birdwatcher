@@ -50,6 +50,8 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 		getInspectPKCmd(cli, path.Join(instanceName, metaPath)),
 		// clean-empty-segment
 		cleanEmptySegments(cli, path.Join(instanceName, metaPath)),
+		// clean-empty-segment-by-id
+		cleanEmptySegmentByID(cli, path.Join(instanceName, metaPath)),
 		// disconnect
 		getDisconnectCmd(state),
 

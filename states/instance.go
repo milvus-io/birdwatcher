@@ -58,6 +58,8 @@ func getInstanceState(cli *clientv3.Client, instanceName string, etcdState State
 		getUpdateLogLevelCmd(cli, path.Join(instanceName, metaPath)),
 		// clean-empty-segment
 		cleanEmptySegments(cli, path.Join(instanceName, metaPath)),
+		// clean-empty-segment-by-id
+		cleanEmptySegmentByID(cli, path.Join(instanceName, metaPath)),
 		// garbage-collect
 		getGarbageCollectCmd(cli, path.Join(instanceName, metaPath)),
 		// dry-mode

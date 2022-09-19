@@ -182,9 +182,8 @@ func getCheckpointCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 
 func cleanEmptySegments(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "clean-empty-segment",
-		Short:   "Remove empty segment from meta",
-		Aliases: []string{"segments-loaded"},
+		Use:   "clean-empty-segment",
+		Short: "Remove empty segment from meta",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			run, err := cmd.Flags().GetBool("run")
 			if err != nil {
@@ -218,7 +217,56 @@ func cleanEmptySegments(cli *clientv3.Client, basePath string) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("run", false, "flags indicating whether pring detail binlog info")
+	cmd.Flags().Bool("run", false, "flags indicating whether to remove segments from meta")
+	return cmd
+}
+
+func cleanEmptySegmentByID(cli *clientv3.Client, basePath string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "clean-empty-segment-by-id",
+		Short: "Remove empty segment from meta with specified segment id",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			targetSegmentID, err := cmd.Flags().GetInt64("segment")
+			if err != nil {
+				return err
+			}
+			run, err := cmd.Flags().GetBool("run")
+			if err != nil {
+				return err
+			}
+			segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
+				return true
+			})
+			if err != nil {
+				fmt.Println("failed to list segments", err.Error())
+				return nil
+			}
+
+			for _, info := range segments {
+				if info.GetID() == targetSegmentID {
+					if isEmptySegment(info) {
+						fmt.Printf("target segment %d found:\n", info.GetID())
+						printSegmentInfo(info, false)
+						if run {
+							err := removeSegment(cli, basePath, info)
+							if err == nil {
+								fmt.Printf("remove segment %d from meta succeed\n", info.GetID())
+							} else {
+								fmt.Printf("remove segment %d failed, err: %s\n", info.GetID(), err.Error())
+							}
+						}
+						return nil
+					}
+					fmt.Printf("[WARN] segment %d is not empty, directly return\n", targetSegmentID)
+					return nil
+				}
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().Bool("run", false, "flags indicating whether to remove segment from meta")
+	cmd.Flags().Int64("segment", 0, "segment id to remove")
 	return cmd
 }
 
