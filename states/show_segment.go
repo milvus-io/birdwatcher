@@ -309,6 +309,10 @@ func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.Seg
 			segments = append(segments, info)
 		}
 	}
+
+	sort.Slice(segments, func(i, j int) bool {
+		return segments[i].GetID() < segments[j].GetID()
+	})
 	return segments, nil
 }
 
