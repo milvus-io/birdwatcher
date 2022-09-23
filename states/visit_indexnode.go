@@ -19,26 +19,36 @@ type indexNodeState struct {
 	prevState State
 }
 
-func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *indexNodeState) SetupCommands() {
 	cmd := &cobra.Command{}
-
-	state := &indexNodeState{
-		cmdState: cmdState{
-			label:   fmt.Sprintf("IndexNode-%d(%s)", session.ServerID, session.Address),
-			rootCmd: cmd,
-		},
-		client: client,
-		conn:   conn,
-	}
-
 	cmd.AddCommand(
 		//GetMetrics
-		getIndexNodeMetrics(client),
+		getIndexNodeMetrics(s.client),
 		//back
-		getBackCmd(state, prev),
+		getBackCmd(s, s.prevState),
 		// exit
-		getExitCmd(state),
+		getExitCmd(s),
 	)
+	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.cmdState.rootCmd = cmd
+	s.setupFn = s.SetupCommands
+}
+
+func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+	state := &indexNodeState{
+		cmdState: cmdState{
+			label: fmt.Sprintf("IndexNode-%d(%s)", session.ServerID, session.Address),
+		},
+		client:    client,
+		conn:      conn,
+		prevState: prev,
+	}
+
+	state.SetupCommands()
+
 	return state
 }
 

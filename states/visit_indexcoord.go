@@ -19,26 +19,37 @@ type indexCoordState struct {
 	prevState State
 }
 
-func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *indexCoordState) SetupCommands() {
 	cmd := &cobra.Command{}
+	cmd.AddCommand(
+		//GetMetrics
+		getIndexCoordMetrics(s.client),
+		//back
+		getBackCmd(s, s.prevState),
+		// exit
+		getExitCmd(s),
+	)
+	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.cmdState.rootCmd = cmd
+	s.setupFn = s.SetupCommands
+}
+
+func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 
 	state := &indexCoordState{
 		cmdState: cmdState{
-			label:   fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address),
-			rootCmd: cmd,
+			label: fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address),
 		},
-		client: client,
-		conn:   conn,
+		client:    client,
+		conn:      conn,
+		prevState: prev,
 	}
 
-	cmd.AddCommand(
-		//GetMetrics
-		getIndexCoordMetrics(client),
-		//back
-		getBackCmd(state, prev),
-		// exit
-		getExitCmd(state),
-	)
+	state.SetupCommands()
+
 	return state
 }
 

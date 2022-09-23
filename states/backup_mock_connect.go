@@ -28,40 +28,49 @@ func (s *embedEtcdMockState) Close() {
 	}
 }
 
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *embedEtcdMockState) SetupCommands() {
+	cmd := &cobra.Command{}
+
+	cmd.AddCommand(
+		// show [subcommand] options...
+		getEtcdShowCmd(s.client, path.Join(s.instanceName, metaPath)),
+		// download-pk
+		getDownloadPKCmd(s.client, path.Join(s.instanceName, metaPath)),
+		// inspect-pk
+		getInspectPKCmd(s.client, path.Join(s.instanceName, metaPath)),
+		// clean-empty-segment
+		cleanEmptySegments(s.client, path.Join(s.instanceName, metaPath)),
+		// clean-empty-segment-by-id
+		cleanEmptySegmentByID(s.client, path.Join(s.instanceName, metaPath)),
+		// disconnect
+		getDisconnectCmd(s),
+
+		// raw get
+		getEtcdRawCmd(s.client),
+
+		// exit
+		getExitCmd(s),
+	)
+	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.cmdState.rootCmd = cmd
+	s.setupFn = s.SetupCommands
+}
+
 func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string) State {
 
-	cmd := &cobra.Command{}
 	state := &embedEtcdMockState{
 		cmdState: cmdState{
-			label:   fmt.Sprintf("Backup(%s)", instanceName),
-			rootCmd: cmd,
+			label: fmt.Sprintf("Backup(%s)", instanceName),
 		},
 		instanceName: instanceName,
 		server:       server,
 		client:       cli,
 	}
 
-	cmd.AddCommand(
-		// show [subcommand] options...
-		getEtcdShowCmd(cli, path.Join(instanceName, metaPath)),
-		// download-pk
-		getDownloadPKCmd(cli, path.Join(instanceName, metaPath)),
-		// inspect-pk
-		getInspectPKCmd(cli, path.Join(instanceName, metaPath)),
-		// clean-empty-segment
-		cleanEmptySegments(cli, path.Join(instanceName, metaPath)),
-		// clean-empty-segment-by-id
-		cleanEmptySegmentByID(cli, path.Join(instanceName, metaPath)),
-		// disconnect
-		getDisconnectCmd(state),
-
-		// raw get
-		getEtcdRawCmd(cli),
-
-		// exit
-		getExitCmd(state),
-	)
-	cmd.AddCommand(getGlobalUtilCommands()...)
+	state.SetupCommands()
 
 	return state
 }
