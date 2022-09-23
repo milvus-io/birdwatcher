@@ -20,28 +20,39 @@ type queryNodeState struct {
 	prevState State
 }
 
-func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *queryNodeState) SetupCommands() {
 	cmd := &cobra.Command{}
+	cmd.AddCommand(
+		// GetSegmentInfo collection_id
+		getQNGetSegmentsCmd(s.client),
+		// GetMetrics
+		getQNGetMetrics(s.client),
+
+		getBackCmd(s, s.prevState),
+		// exit
+		getExitCmd(s),
+	)
+	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.cmdState.rootCmd = cmd
+	s.setupFn = s.SetupCommands
+}
+
+func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 
 	state := &queryNodeState{
 		cmdState: cmdState{
-			label:   fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address),
-			rootCmd: cmd,
+			label: fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address),
 		},
-		client: client,
-		conn:   conn,
+		client:    client,
+		conn:      conn,
+		prevState: prev,
 	}
 
-	cmd.AddCommand(
-		// GetSegmentInfo collection_id
-		getQNGetSegmentsCmd(client),
-		// GetMetrics
-		getQNGetMetrics(client),
+	state.SetupCommands()
 
-		getBackCmd(state, prev),
-		// exit
-		getExitCmd(state),
-	)
 	return state
 }
 

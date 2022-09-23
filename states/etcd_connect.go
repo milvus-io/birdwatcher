@@ -152,32 +152,38 @@ type etcdConnectedState struct {
 	candidates []string
 }
 
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *etcdConnectedState) SetupCommands() {
+	cmd := &cobra.Command{}
+
+	cmd.AddCommand(
+		// find-milvus
+		getFindMilvusCmd(s.client, s),
+		// use
+		getUseCmd(s.client, s),
+		// disconnect
+		getDisconnectCmd(s),
+		// exit
+		getExitCmd(s),
+	)
+
+	s.cmdState.rootCmd = cmd
+	s.setupFn = s.SetupCommands
+}
+
 // TBD for testing only
 func getEtcdConnectedState(cli *clientv3.Client, addr string) State {
-	cmd := &cobra.Command{
-		Use:   "",
-		Short: "",
-	}
 
 	state := &etcdConnectedState{
 		cmdState: cmdState{
-			label:   fmt.Sprintf("Etcd(%s)", addr),
-			rootCmd: cmd,
+			label: fmt.Sprintf("Etcd(%s)", addr),
 		},
 		client: cli,
 		addr:   addr,
 	}
 
-	cmd.AddCommand(
-		// find-milvus
-		getFindMilvusCmd(cli, state),
-		// use
-		getUseCmd(cli, state),
-		// disconnect
-		getDisconnectCmd(state),
-		// exit
-		getExitCmd(state),
-	)
+	state.SetupCommands()
 
 	return state
 }

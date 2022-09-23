@@ -19,26 +19,37 @@ type dataCoordState struct {
 	prevState State
 }
 
-func getDataCoordState(client datapb.DataCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *dataCoordState) SetupCommands() {
 	cmd := &cobra.Command{}
+	cmd.AddCommand(
+		//GetMetrics
+		getDataCoordMetrics(s.client),
+		//back
+		getBackCmd(s, s.prevState),
+		// exit
+		getExitCmd(s),
+	)
+	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.cmdState.rootCmd = cmd
+	s.setupFn = s.SetupCommands
+}
+
+func getDataCoordState(client datapb.DataCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 
 	state := &dataCoordState{
 		cmdState: cmdState{
-			label:   fmt.Sprintf("DataCoord-%d(%s)", session.ServerID, session.Address),
-			rootCmd: cmd,
+			label: fmt.Sprintf("DataCoord-%d(%s)", session.ServerID, session.Address),
 		},
-		client: client,
-		conn:   conn,
+		client:    client,
+		conn:      conn,
+		prevState: prev,
 	}
 
-	cmd.AddCommand(
-		//GetMetrics
-		getDataCoordMetrics(client),
-		//back
-		getBackCmd(state, prev),
-		// exit
-		getExitCmd(state),
-	)
+	state.SetupCommands()
+
 	return state
 }
 

@@ -13,6 +13,7 @@ type State interface {
 	Close()
 	SetNext(state State)
 	Suggestions(input string) map[string]string
+	SetupCommands()
 }
 
 // cmdState is the basic state to process input command.
@@ -20,6 +21,14 @@ type cmdState struct {
 	label     string
 	rootCmd   *cobra.Command
 	nextState State
+
+	setupFn func()
+}
+
+func (s *cmdState) SetupCommands() {
+	if s.setupFn != nil {
+		s.setupFn()
+	}
 }
 
 // Label returns the display label for current cli.
@@ -40,8 +49,12 @@ func (s *cmdState) Suggestions(input string) map[string]string {
 func (s *cmdState) Process(cmd string) (State, error) {
 	args := strings.Split(cmd, " ")
 
+	target, _, err := s.rootCmd.Find(args)
+	if err == nil && target != nil {
+		defer target.SetArgs(nil)
+	}
 	s.rootCmd.SetArgs(args)
-	err := s.rootCmd.Execute()
+	err = s.rootCmd.Execute()
 	if err != nil {
 		return s, err
 	}
@@ -55,8 +68,9 @@ func (s *cmdState) Process(cmd string) (State, error) {
 		s.nextState = nil
 		return nextState, nil
 	}
-	// clean up args
-	s.rootCmd.SetArgs(nil)
+
+	// reset command states
+	s.SetupCommands()
 	return s, nil
 }
 

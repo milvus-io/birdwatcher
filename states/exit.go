@@ -32,6 +32,10 @@ type exitState struct {
 	cmdState
 }
 
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *exitState) SetupCommands() {}
+
 // getDisconnectCmd disconnect from current state.
 // will call close method for current state.
 func getDisconnectCmd(state State) *cobra.Command {

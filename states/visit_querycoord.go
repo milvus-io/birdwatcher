@@ -19,26 +19,37 @@ type queryCoordState struct {
 	prevState State
 }
 
-func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+// SetupCommands setups the command.
+// also called after each command run to reset flag values.
+func (s *queryCoordState) SetupCommands() {
 	cmd := &cobra.Command{}
+	cmd.AddCommand(
+		//GetMetrics
+		getQueryCoordMetrics(s.client),
+		//back
+		getBackCmd(s, s.prevState),
+		// exit
+		getExitCmd(s),
+	)
+	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.cmdState.rootCmd = cmd
+	s.setupFn = s.SetupCommands
+}
+
+func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 
 	state := &queryCoordState{
 		cmdState: cmdState{
-			label:   fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address),
-			rootCmd: cmd,
+			label: fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address),
 		},
-		client: client,
-		conn:   conn,
+		client:    client,
+		conn:      conn,
+		prevState: prev,
 	}
 
-	cmd.AddCommand(
-		//GetMetrics
-		getQueryCoordMetrics(client),
-		//back
-		getBackCmd(state, prev),
-		// exit
-		getExitCmd(state),
-	)
+	state.SetupCommands()
+
 	return state
 }
 
