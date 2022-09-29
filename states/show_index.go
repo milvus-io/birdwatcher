@@ -124,9 +124,16 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 				return
 			}
 
-			seg2Idx := make(map[int64]etcdpb.SegmentIndexInfo)
+			seg2Idx := make(map[int64][]etcdpb.SegmentIndexInfo)
 			for _, segIdx := range segmentIndexes {
-				seg2Idx[segIdx.GetSegmentID()] = segIdx
+				idxs, ok := seg2Idx[segIdx.SegmentID]
+				if !ok {
+					idxs = []etcdpb.SegmentIndexInfo{}
+				}
+
+				idxs = append(idxs, segIdx)
+
+				seg2Idx[segIdx.GetSegmentID()] = idxs
 			}
 
 			buildID2Info := make(map[int64]indexpb.IndexMeta)
@@ -140,16 +147,20 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 					fmt.Println()
 					continue
 				}
-				segIdx, ok := seg2Idx[segment.GetID()]
+				segIdxs, ok := seg2Idx[segment.GetID()]
 				if !ok {
 					fmt.Println("\tno segment index info")
 					continue
 				}
-				info, ok := buildID2Info[segIdx.BuildID]
-				if !ok {
-					fmt.Printf("\tno build info found for id: %d\n", segIdx.BuildID)
+
+				for _, segIdx := range segIdxs {
+					info, ok := buildID2Info[segIdx.BuildID]
+					if !ok {
+						fmt.Printf("\tno build info found for id: %d\n", segIdx.BuildID)
+					}
+					fmt.Printf("\n\tIndex build ID: %d, state: %s", info.IndexBuildID, info.State.String())
 				}
-				fmt.Printf("\tIndex build ID: %d, state: %s \n", info.IndexBuildID, info.State.String())
+				fmt.Printf("\n")
 			}
 
 		},
