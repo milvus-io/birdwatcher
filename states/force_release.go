@@ -121,7 +121,7 @@ func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collection
 		if deltaChannel.CollectionID != collectionID {
 			continue
 		}
-		p := path.Join(basePath, dmChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
+		p := path.Join(basePath, deltaChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
 		cli.Delete(ctx, p)
 	}
 
