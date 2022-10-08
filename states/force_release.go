@@ -6,6 +6,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -67,7 +68,7 @@ func getReleaseDroppedCollectionCmd(cli *clientv3.Client, basePath string) *cobr
 			if err == nil && run {
 
 				for _, id := range missing {
-					fmt.Printf("Start to remove loaded meta from querycoord, collection id %d...\n", id)
+					fmt.Printf("Start to remove loaded meta from querycoord, collection id %d...", id)
 					err := releaseQueryCoordLoadMeta(cli, basePath, id)
 					if err != nil {
 						fmt.Println("failed, err:", err.Error())
@@ -85,8 +86,44 @@ func getReleaseDroppedCollectionCmd(cli *clientv3.Client, basePath string) *cobr
 
 func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collectionID int64) error {
 	p := path.Join(basePath, collectionMetaPrefix, fmt.Sprintf("%d", collectionID))
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	_, err := cli.Delete(ctx, p)
+
+	segments, err := listLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
+		return info.CollectionID == collectionID
+	})
+
+	if err != nil {
+		return err
+	}
+
+	for _, segment := range segments {
+		p := path.Join(basePath, "queryCoord-segmentMeta", fmt.Sprintf("%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.SegmentID))
+		cli.Delete(ctx, p)
+	}
+
+	dmChannels, err := listQueryCoordDMLChannelInfos(cli, basePath)
+	if err != nil {
+		return err
+	}
+
+	for _, dmChannel := range dmChannels {
+		if dmChannel.CollectionID != collectionID {
+			continue
+		}
+		p := path.Join(basePath, dmChannelMetaPrefix, fmt.Sprintf("%d/%s", dmChannel.CollectionID, dmChannel.DmChannel))
+		cli.Delete(ctx, p)
+	}
+
+	deltaChannels, err := listQueryCoordDeltaChannelInfos(cli, basePath)
+	for _, deltaChannel := range deltaChannels {
+		if deltaChannel.CollectionID != collectionID {
+			continue
+		}
+		p := path.Join(basePath, dmChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
+		cli.Delete(ctx, p)
+	}
+
 	return err
 }
