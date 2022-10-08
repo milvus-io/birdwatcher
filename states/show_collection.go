@@ -67,6 +67,10 @@ func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command
 	return cmd
 }
 
+var (
+	ErrCollectionDropped = errors.New("collection dropped")
+)
+
 func getCollectionByID(cli *clientv3.Client, basePath string, collID int64) (*etcdpb.CollectionInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
@@ -78,6 +82,10 @@ func getCollectionByID(cli *clientv3.Client, basePath string, collID int64) (*et
 
 	if len(resp.Kvs) != 1 {
 		return nil, errors.New("invalid collection id")
+	}
+
+	if bytes.Equal(resp.Kvs[0].Value, CollectionTombstone) {
+		return nil, fmt.Errorf("%w, collection id: %d", ErrCollectionDropped, collID)
 	}
 
 	coll := &etcdpb.CollectionInfo{}

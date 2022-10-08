@@ -48,6 +48,8 @@ func (s *instanceState) SetupCommands() {
 		cleanEmptySegmentByID(cli, path.Join(instanceName, metaPath)),
 		// garbage-collect
 		getGarbageCollectCmd(cli, path.Join(instanceName, metaPath)),
+		// release-dropped-collection
+		getReleaseDroppedCollectionCmd(cli, path.Join(instanceName, metaPath)),
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
 		// disconnect
