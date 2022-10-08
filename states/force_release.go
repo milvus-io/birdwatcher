@@ -90,6 +90,10 @@ func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collection
 	defer cancel()
 	_, err := cli.Delete(ctx, p)
 
+	if err != nil {
+		return err
+	}
+
 	segments, err := listLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
 		return info.CollectionID == collectionID
 	})
