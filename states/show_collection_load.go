@@ -11,7 +11,10 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-const collectionMetaPrefix = "queryCoord-collectionMeta"
+const (
+	collectionMetaPrefix = "queryCoord-collectionMeta"
+	ReplicaMetaPrefix    = "queryCoord-ReplicaMeta"
+)
 
 func printLoadedCollections(infos []*querypb.CollectionInfo) {
 	infos2 := make([]infoWithCollectionID, 0)
