@@ -26,6 +26,8 @@ func (s *instanceState) SetupCommands() {
 	instanceName := s.instanceName
 
 	cmd.AddCommand(
+		// download-segment
+		getDownloadSegmentCmd(cli, path.Join(instanceName, metaPath)),
 		// show [subcommand] options...
 		getEtcdShowCmd(cli, path.Join(instanceName, metaPath)),
 		// backup [component]
@@ -50,6 +52,8 @@ func (s *instanceState) SetupCommands() {
 		getGarbageCollectCmd(cli, path.Join(instanceName, metaPath)),
 		// release-dropped-collection
 		getReleaseDroppedCollectionCmd(cli, path.Join(instanceName, metaPath)),
+		// repair-segment
+		getRepairSegmentCmd(cli, path.Join(instanceName, metaPath)),
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
 		// disconnect
