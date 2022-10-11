@@ -9,6 +9,7 @@ import (
 
 	"github.com/c-bata/go-prompt"
 	"github.com/manifoldco/promptui"
+	_ "github.com/milvus-io/birdwatcher/asap"
 	"github.com/milvus-io/birdwatcher/states"
 )
 
