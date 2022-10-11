@@ -8,10 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	debugSuggestion = false
-)
-
 // State is the interface for application state.
 type State interface {
 	Label() string
@@ -43,16 +39,9 @@ func (s *cmdState) Label() string {
 }
 
 func (s *cmdState) Suggestions(input string) map[string]string {
-	result := make(map[string]string)
-
 	iResult := s.parseInput(input)
-	switch iResult.state {
-	case inputStateCmd:
-		return s.findCmdSuggestions(iResult.parts)
-	default:
-		//
-		return result
-	}
+
+	return findCmdSuggestions(iResult.parts, s.rootCmd.Commands())
 }
 
 func printCommands(cmds []*cobra.Command) {
@@ -60,61 +49,6 @@ func printCommands(cmds []*cobra.Command) {
 		fmt.Printf("\"%s\"", cmd.Use)
 	}
 	fmt.Println()
-}
-
-func (s *cmdState) findCmdSuggestions(comps []cComp) map[string]string {
-	candidates := s.rootCmd.Commands()
-	if debugSuggestion {
-		fmt.Println()
-	}
-	for len(candidates) > 0 && len(comps) > 0 {
-		if debugSuggestion {
-			printCommands(candidates)
-			fmt.Println(comps)
-
-		}
-		var target cComp
-		for len(comps) > 0 {
-			if comps[0].cType != cmdCompCommand {
-				comps = comps[1:]
-				continue
-			}
-			target = comps[0]
-			break
-		}
-		if len(comps) == 0 {
-			break
-		}
-
-		found := false
-		for _, subCommand := range candidates {
-			// cmd [option]
-			cmd := strings.Split(subCommand.Use, " ")[0]
-			if cmd == target.cTag {
-				comps = comps[1:]
-				candidates = subCommand.Commands()
-				found = true
-				break
-			}
-		}
-		if !found {
-			break
-		}
-	}
-	if debugSuggestion {
-		fmt.Println("final candidates")
-		printCommands(candidates)
-	}
-
-	result := make(map[string]string)
-	for _, subCmd := range candidates {
-		result[subCmd.Use] = subCmd.Short
-		for _, alias := range subCmd.Aliases {
-			result[alias] = subCmd.Short
-		}
-	}
-
-	return result
 }
 
 func (s *cmdState) parseInput(input string) inputResult {
@@ -145,6 +79,7 @@ func (s *cmdState) parseInput(input string) inputResult {
 				// a=b
 				if len(parts) == 2 {
 					comps = append(comps, cComp{
+						raw:    part,
 						cTag:   parts[0],
 						cValue: parts[1],
 						cType:  cmdCompFlag,
@@ -154,12 +89,14 @@ func (s *cmdState) parseInput(input string) inputResult {
 			} else {
 				currentFlagValue = true
 				comps = append(comps, cComp{
+					raw:   part,
 					cTag:  raw,
 					cType: cmdCompFlag,
 				})
 			}
 		} else {
 			comps = append(comps, cComp{
+				raw:   part,
 				cTag:  part,
 				cType: cmdCompCommand,
 			})
@@ -173,6 +110,11 @@ func (s *cmdState) parseInput(input string) inputResult {
 		} else {
 			is = inputStateFlagTag
 		}
+	}
+
+	// add empty comp if end with space
+	if isEndBlank {
+		comps = append(comps, cComp{cType: cmdCompCommand})
 	}
 
 	return inputResult{

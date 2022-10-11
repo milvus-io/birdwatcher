@@ -6,7 +6,9 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
@@ -77,19 +79,31 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 
 func getLoadBackupCmd(state State) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "load-backup [backup_file]",
+		Use:   "load-backup [file]",
 		Short: "load etcd backup file as env",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				fmt.Println("No backup file provided.")
 				return
 			}
-			for _, arg := range args {
-				err := testFile(arg)
+			if len(args) > 1 {
+				fmt.Println("only one backup file is allowed")
+				return
+			}
+
+			arg := args[0]
+			if strings.Contains(arg, "~") {
+				var err error
+				arg, err = homedir.Expand(arg)
 				if err != nil {
-					fmt.Println(err.Error())
+					fmt.Println("path contains tilde, but cannot find home folder", err.Error())
 					return
 				}
+			}
+			err := testFile(arg)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
 			}
 
 			server, err := startEmbedEtcdServer()
@@ -101,13 +115,11 @@ func getLoadBackupCmd(state State) *cobra.Command {
 
 			var rootPath string
 			client := v3client.New(server.Server)
-			for _, f := range args {
-				rootPath, _, err = restoreEtcd(client, f)
-				if err != nil {
-					fmt.Printf("failed to restore file: %s, error: %s", f, err.Error())
-					server.Close()
-					return
-				}
+			rootPath, _, err = restoreEtcd(client, arg)
+			if err != nil {
+				fmt.Printf("failed to restore file: %s, error: %s", arg, err.Error())
+				server.Close()
+				return
 			}
 
 			state.SetNext(getEmbedEtcdInstance(server, client, rootPath))

@@ -3,7 +3,8 @@ package states
 type cmdCompType int
 
 const (
-	cmdCompCommand cmdCompType = iota + 1
+	cmdCompAll cmdCompType = iota
+	cmdCompCommand
 	cmdCompFlag
 )
 
@@ -21,6 +22,8 @@ type inputResult struct {
 }
 
 type cComp struct {
+	// raw is the complete value before component parsing
+	raw string
 	// cTag is command name for cmd, or flag name for cmdFlag
 	cTag string
 	// cValue is the flag value if any

@@ -71,9 +71,7 @@ func (a *promptApp) completeInput(d prompt.Document) []prompt.Suggest {
 			Description: short,
 		})
 	}
-	parts := strings.Split(input, " ")
-	lastPart := parts[len(parts)-1]
-	return prompt.FilterContains(s, lastPart, true)
+	return s
 }
 
 // livePrefix implements dynamic change prefix.
