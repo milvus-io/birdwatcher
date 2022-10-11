@@ -11,6 +11,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
+	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -44,6 +45,14 @@ func listSegmentIndex(cli *clientv3.Client, basePath string) ([]etcdpb.SegmentIn
 
 	prefix := path.Join(basePath, "root-coord/segment-index") + "/"
 	return listObject[etcdpb.SegmentIndexInfo](ctx, cli, prefix)
+}
+
+func listSegmentIndexV2(cli *clientv3.Client, basePath string) ([]indexpbv2.SegmentIndex, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	prefix := path.Join(basePath, "segment-index") + "/"
+	return listObject[indexpbv2.SegmentIndex](ctx, cli, prefix)
 }
 
 func listIndex(cli *clientv3.Client, basePath string) ([]indexpb.IndexMeta, error) {
@@ -87,6 +96,7 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 	cmd := &cobra.Command{
 		Use:     "segment-index",
 		Aliases: []string{"segments-index", "segment-indexes", "segments-indexes"},
+		Short:   "display segment index information",
 		Run: func(cmd *cobra.Command, args []string) {
 			collID, err := cmd.Flags().GetInt64("collection")
 			if err != nil {
@@ -113,6 +123,7 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 				fmt.Println(err.Error())
 				return
 			}
+			segmentIndexesV2, err := listSegmentIndexV2(cli, basePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -125,6 +136,7 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 			}
 
 			seg2Idx := make(map[int64][]etcdpb.SegmentIndexInfo)
+			seg2Idxv2 := make(map[int64][]indexpbv2.SegmentIndex)
 			for _, segIdx := range segmentIndexes {
 				idxs, ok := seg2Idx[segIdx.SegmentID]
 				if !ok {
@@ -134,6 +146,16 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 				idxs = append(idxs, segIdx)
 
 				seg2Idx[segIdx.GetSegmentID()] = idxs
+			}
+			for _, segIdx := range segmentIndexesV2 {
+				idxs, ok := seg2Idxv2[segIdx.SegmentID]
+				if !ok {
+					idxs = []indexpbv2.SegmentIndex{}
+				}
+
+				idxs = append(idxs, segIdx)
+
+				seg2Idxv2[segIdx.GetSegmentID()] = idxs
 			}
 
 			buildID2Info := make(map[int64]indexpb.IndexMeta)
@@ -149,7 +171,16 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 				}
 				segIdxs, ok := seg2Idx[segment.GetID()]
 				if !ok {
-					fmt.Println("\tno segment index info")
+					// try v2 index information
+					segIdxv2, ok := seg2Idxv2[segment.GetID()]
+					if !ok {
+						fmt.Println("\tno segment index info")
+						continue
+					}
+					for _, segIdx := range segIdxv2 {
+						fmt.Printf("\n\tIndexV2 build ID: %d, states %s", segIdx.GetBuildID(), segIdx.GetState().String())
+					}
+					fmt.Println()
 					continue
 				}
 
@@ -157,10 +188,11 @@ func getEtcdShowSegmentIndexCmd(cli *clientv3.Client, basePath string) *cobra.Co
 					info, ok := buildID2Info[segIdx.BuildID]
 					if !ok {
 						fmt.Printf("\tno build info found for id: %d\n", segIdx.BuildID)
+						fmt.Println(segIdx.String())
 					}
 					fmt.Printf("\n\tIndex build ID: %d, state: %s", info.IndexBuildID, info.State.String())
 				}
-				fmt.Printf("\n")
+				fmt.Println()
 			}
 
 		},
