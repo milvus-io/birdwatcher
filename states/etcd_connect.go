@@ -8,11 +8,17 @@ import (
 
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
 )
 
 const (
 	metaPath = `meta`
 )
+
+func pingEtcd(ctx context.Context, cli *clientv3.Client) error {
+	_, err := cli.Get(ctx, "ping")
+	return err
+}
 
 // getConnectCommand returns the command for connect etcd.
 // usage: connect --etcd [address] --rootPath [rootPath]
@@ -41,9 +47,21 @@ func getConnectCommand(state State) *cobra.Command {
 			etcdCli, err := clientv3.New(clientv3.Config{
 				Endpoints:   []string{etcdAddr},
 				DialTimeout: time.Second * 2,
+
+				// disable grpc logging
+				Logger: zap.NewNop(),
 			})
 			if err != nil {
 				return err
+			}
+
+			// ping etcd
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+			defer cancel()
+			err = pingEtcd(ctx, etcdCli)
+			if err != nil {
+				fmt.Println("cannot connect to etcd with addr:", etcdAddr, err.Error())
+				return nil
 			}
 
 			fmt.Println("Using meta path:", fmt.Sprintf("%s/%s/", rootPath, metaPath))
