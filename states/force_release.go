@@ -29,7 +29,7 @@ func getForceReleaseCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 			// remove all keys start with [basePath]/queryCoord-
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
-			_, err = cli.Delete(ctx, "queryCoord-", clientv3.WithPrefix())
+			_, err = cli.Delete(ctx, path.Join(basePath, "queryCoord-"), clientv3.WithPrefix())
 			if err != nil {
 				fmt.Printf("failed to remove queryCoord etcd kv, err: %v\n", err)
 			}
