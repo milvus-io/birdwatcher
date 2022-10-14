@@ -12,6 +12,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
+	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/storage"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -352,22 +353,38 @@ func listLoadedSegments(cli *clientv3.Client, basePath string, filter func(*quer
 func fillFieldsIfV2(cli *clientv3.Client, basePath string, segment *datapb.SegmentInfo) error {
 	if len(segment.Binlogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		fields, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
+		fields, _, err := listObject[datapbv2.FieldBinlog](context.Background(), cli, prefix)
 		if err != nil {
 			return err
 		}
 
 		segment.Binlogs = make([]*datapb.FieldBinlog, 0, len(fields))
 		for _, field := range fields {
-			field := field
-			f := proto.Clone(&field).(*datapb.FieldBinlog)
+			f := &datapb.FieldBinlog{
+				FieldID: field.FieldID,
+				Binlogs: make([]*datapb.Binlog, 0, len(field.Binlogs)),
+			}
+
+			for _, binlog := range field.Binlogs {
+				l := &datapb.Binlog{
+					EntriesNum:    binlog.EntriesNum,
+					TimestampFrom: binlog.TimestampFrom,
+					TimestampTo:   binlog.TimestampTo,
+					LogPath:       binlog.LogPath,
+					LogSize:       binlog.LogSize,
+				}
+				if l.LogPath == "" {
+					l.LogPath = fmt.Sprintf("files/insert_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, field.FieldID, binlog.LogID)
+				}
+				f.Binlogs = append(f.Binlogs, l)
+			}
 			segment.Binlogs = append(segment.Binlogs, f)
 		}
 	}
 
 	if len(segment.Deltalogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("deltalog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		fields, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
+		fields, _, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
 		if err != nil {
 			return err
 		}
@@ -382,7 +399,7 @@ func fillFieldsIfV2(cli *clientv3.Client, basePath string, segment *datapb.Segme
 
 	if len(segment.Statslogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		fields, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
+		fields, _, err := listObject[datapb.FieldBinlog](context.Background(), cli, prefix)
 		if err != nil {
 			return err
 		}
@@ -434,7 +451,15 @@ func printSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 			return info.Binlogs[i].FieldID < info.Binlogs[j].FieldID
 		})
 		for _, log := range info.Binlogs {
-			fmt.Printf("Field %d: %v\n", log.FieldID, log.Binlogs)
+			fmt.Printf("Field %d:\n", log.FieldID)
+			for _, binlog := range log.Binlogs {
+				fmt.Printf("Path: %s\n", binlog.LogPath)
+				tf, _ := ParseTS(binlog.TimestampFrom)
+				tt, _ := ParseTS(binlog.TimestampTo)
+				fmt.Printf("Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
+					binlog.LogSize, binlog.EntriesNum,
+					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
+			}
 		}
 
 		fmt.Println("**************************************")
