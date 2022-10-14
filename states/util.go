@@ -19,9 +19,11 @@ package states
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/milvus-io/birdwatcher/models"
@@ -166,4 +168,41 @@ func printInfoWithCollectionID(infos []infoWithCollectionID) {
 			fmt.Printf("%s\n", info.String())
 		}
 	}
+}
+
+// getKVPair iterates KV pairs to find specified key.
+func getKVPair[T interface {
+	GetKey() string
+	GetValue() string
+}](pairs []T, key string) string {
+	for _, pair := range pairs {
+		if pair.GetKey() == key {
+			return pair.GetValue()
+		}
+	}
+	return ""
+}
+
+func pathPartInt64(p string, idx int) (int64, error) {
+	part, err := pathPart(p, idx)
+	if err != nil {
+		return 0, err
+	}
+	v, err := strconv.ParseInt(part, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
+}
+
+func pathPart(p string, idx int) (string, error) {
+	parts := strings.Split(p, "/")
+	// -1 means last part
+	if idx < 0 {
+		idx = len(parts) + idx
+	}
+	if idx < 0 && idx >= len(parts) {
+		return "", errors.New("out of index")
+	}
+	return parts[idx], nil
 }
