@@ -46,8 +46,8 @@ func (s *instanceState) SetupCommands() {
 		getUpdateLogLevelCmd(cli, path.Join(instanceName, metaPath)),
 		// clean-empty-segment
 		cleanEmptySegments(cli, path.Join(instanceName, metaPath)),
-		// clean-empty-segment-by-id
-		cleanEmptySegmentByID(cli, path.Join(instanceName, metaPath)),
+		// remove-segment-by-id
+		removeSegmentByID(cli, path.Join(instanceName, metaPath)),
 		// garbage-collect
 		getGarbageCollectCmd(cli, path.Join(instanceName, metaPath)),
 		// release-dropped-collection

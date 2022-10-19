@@ -44,8 +44,8 @@ func (s *embedEtcdMockState) SetupCommands() {
 		getInspectPKCmd(s.client, path.Join(s.instanceName, metaPath)),
 		// clean-empty-segment
 		cleanEmptySegments(s.client, path.Join(s.instanceName, metaPath)),
-		// clean-empty-segment-by-id
-		cleanEmptySegmentByID(s.client, path.Join(s.instanceName, metaPath)),
+		// remove-segment-by-id
+		removeSegmentByID(s.client, path.Join(s.instanceName, metaPath)),
 		// disconnect
 		getDisconnectCmd(s),
 
