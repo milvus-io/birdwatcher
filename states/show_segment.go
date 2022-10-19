@@ -222,10 +222,10 @@ func cleanEmptySegments(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func cleanEmptySegmentByID(cli *clientv3.Client, basePath string) *cobra.Command {
+func removeSegmentByID(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "clean-empty-segment-by-id",
-		Short: "Remove empty segment from meta with specified segment id",
+		Use:   "remove-segment-by-id",
+		Short: "Remove segment from meta with specified segment id",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			targetSegmentID, err := cmd.Flags().GetInt64("segment")
 			if err != nil {
@@ -245,23 +245,24 @@ func cleanEmptySegmentByID(cli *clientv3.Client, basePath string) *cobra.Command
 
 			for _, info := range segments {
 				if info.GetID() == targetSegmentID {
-					if isEmptySegment(info) {
-						fmt.Printf("target segment %d found:\n", info.GetID())
-						printSegmentInfo(info, false)
-						if run {
-							err := removeSegment(cli, basePath, info)
-							if err == nil {
-								fmt.Printf("remove segment %d from meta succeed\n", info.GetID())
-							} else {
-								fmt.Printf("remove segment %d failed, err: %s\n", info.GetID(), err.Error())
-							}
+					fmt.Printf("target segment %d found:\n", info.GetID())
+					printSegmentInfo(info, false)
+					if run {
+						err := removeSegment(cli, basePath, info)
+						if err == nil {
+							fmt.Printf("remove segment %d from meta succeed\n", info.GetID())
+						} else {
+							fmt.Printf("remove segment %d failed, err: %s\n", info.GetID(), err.Error())
 						}
 						return nil
 					}
-					fmt.Printf("[WARN] segment %d is not empty, directly return\n", targetSegmentID)
+					if !isEmptySegment(info) {
+						fmt.Printf("\n[WARN] segment %d is not empty, please make sure you know what you're doing\n", targetSegmentID)
+					}
 					return nil
 				}
 			}
+			fmt.Printf("[WARN] cannot find segment %d\n", targetSegmentID)
 			return nil
 		},
 	}
