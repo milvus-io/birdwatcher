@@ -150,6 +150,11 @@ func getCheckpointCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				var segmentID int64
 				var pos *internalpb.MsgPosition
 				for _, segment := range segments {
+					if segment.State != commonpb.SegmentState_Flushed &&
+						segment.State != commonpb.SegmentState_Growing &&
+						segment.State != commonpb.SegmentState_Flushing {
+						continue
+					}
 					// skip all empty segment
 					if segment.GetDmlPosition() == nil && segment.GetStartPosition() == nil {
 						continue
