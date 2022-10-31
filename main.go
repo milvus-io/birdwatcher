@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/c-bata/go-prompt"
@@ -51,6 +52,47 @@ type promptApp struct {
 func (a *promptApp) promptExecute(in string) {
 	in = strings.TrimSpace(in)
 	var err error
+
+	// try to get $PAGER env
+	pager := os.Getenv("PAGER")
+	if pager != "" {
+		var args []string
+		// refine less behavior
+		if pager == "less" {
+			args = append(args,
+				"-F",        // don't page if content can fix in one screen
+				"--no-init", // don't clean screen when start paging
+			)
+		}
+		// #nosec args audit for less
+		cmd := exec.Command(pager, args...)
+
+		r, w, err := os.Pipe()
+		if err != nil {
+			fmt.Println("failed to create os pipeline", err.Error())
+			return
+		}
+
+		// Capture STDOUT for the Pager. Keep the old
+		// value so we can restore it later.
+		stdout := os.Stdout
+		os.Stdout = w
+		cmd.Stdin = r
+		cmd.Stdout = stdout
+		cmd.Stderr = os.Stderr
+
+		err = cmd.Start()
+		if err != nil {
+			fmt.Printf("[WARNING] Cannot use %%PAGER(%s), set output back to stdout\n", pager)
+			os.Stdout = stdout
+		} else {
+			defer func() {
+				w.Close()
+				os.Stdout = stdout
+				cmd.Wait()
+			}()
+		}
+	}
 
 	a.currentState, err = a.currentState.Process(in)
 	if errors.Is(err, states.ExitErr) {
