@@ -54,6 +54,8 @@ func (s *instanceState) SetupCommands() {
 		getReleaseDroppedCollectionCmd(cli, path.Join(instanceName, metaPath)),
 		// repair-segment
 		getRepairSegmentCmd(cli, path.Join(instanceName, metaPath)),
+		// repair-channel
+		getRepairChannelCmd(cli, path.Join(instanceName, metaPath)),
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
 		// disconnect
