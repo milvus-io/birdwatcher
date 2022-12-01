@@ -56,6 +56,8 @@ func (s *instanceState) SetupCommands() {
 		getRepairSegmentCmd(cli, path.Join(instanceName, metaPath)),
 		// repair-channel
 		getRepairChannelCmd(cli, path.Join(instanceName, metaPath)),
+		// reset-checkpoint
+		getResetCheckpointCmd(cli, path.Join(instanceName, metaPath)),
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
 		// disconnect
