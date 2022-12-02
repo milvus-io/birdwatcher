@@ -11,18 +11,19 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/spf13/cobra"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
 
 // getEtcdShowCollection returns sub command for showCmd
 // show collection [options...]
 func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "collection",
+		Use:     "collections",
 		Short:   "list current available collection from RootCoord",
 		Aliases: []string{"collections"},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -3,6 +3,7 @@ GO ?= go
 all: static-check birdwatcher 
 
 birdwatcher:
+	@echo "Compiling birdwatch"
 	@mkdir -p bin
 	@go build -o bin/birdwatcher main.go
 
