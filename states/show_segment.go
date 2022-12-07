@@ -70,6 +70,7 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 
 				switch format {
 				case "table":
+					fillFieldsIfV2(cli, basePath, info)
 					printSegmentInfo(info, detail)
 				case "line":
 					fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
@@ -116,6 +117,7 @@ func getLoadedSegmentsCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 
 			for _, info := range segments {
 				fmt.Printf("Segment ID: %d LegacyNodeID: %d NodeIds: %v,DmlChannel: %s\n", info.SegmentID, info.NodeID, info.NodeIds, info.DmChannel)
+				fmt.Printf("%#v\n", info.GetIndexInfos())
 			}
 
 			return nil
@@ -146,6 +148,7 @@ func cleanEmptySegments(cli *clientv3.Client, basePath string) *cobra.Command {
 			}
 
 			for _, info := range segments {
+				fillFieldsIfV2(cli, basePath, info)
 				if isEmptySegment(info) {
 					fmt.Printf("suspect segment %d found:\n", info.GetID())
 					printSegmentInfo(info, false)
@@ -254,7 +257,6 @@ func listSegments(cli *clientv3.Client, basePath string, filter func(*datapb.Seg
 			continue
 		}
 		if filter == nil || filter(info) {
-			fillFieldsIfV2(cli, basePath, info)
 			segments = append(segments, info)
 		}
 	}

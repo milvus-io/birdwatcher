@@ -79,6 +79,9 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				return nil
 			}
 
+			for _, segment := range segments {
+				fillFieldsIfV2(cli, basePath, segment)
+			}
 			downloadPks(minioClient, bucketName, collectionID, pkID, segments)
 
 			return nil
