@@ -77,6 +77,7 @@ func garbageCollect(cli *clientv3.Client, basePath string, minioClient *minio.Cl
 	statslog := make(map[string]struct{})
 
 	for _, segment := range segments {
+		fillFieldsIfV2(cli, basePath, segment)
 		idSegments[segment.ID] = segment
 
 		if !isSegmentHealthy(segment) {

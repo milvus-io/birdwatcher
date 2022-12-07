@@ -68,6 +68,7 @@ func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 					}
 				}
 
+				fillFieldsIfV2(cli, basePath, segment)
 				for _, fieldBinlog := range segment.Binlogs {
 					if fieldBinlog.FieldID != pkID {
 						continue

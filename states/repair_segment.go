@@ -113,6 +113,8 @@ func getRepairSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 					collections[segment.CollectionID] = coll
 				}
 
+				fillFieldsIfV2(cli, basePath, segment)
+
 				for _, segIdx := range segIdxs {
 					var valid bool
 					for _, field := range coll.GetSchema().GetFields() {

@@ -55,6 +55,7 @@ func getDownloadSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command
 
 			folder := fmt.Sprintf("dlsegment_%s", time.Now().Format("20060102150406"))
 			for _, segment := range segments {
+				fillFieldsIfV2(cli, basePath, segment)
 				downloadSegment(minioClient, bucketName, segment, nil, folder)
 			}
 
