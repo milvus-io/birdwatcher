@@ -891,7 +891,7 @@ func NewRootCoordClient(cc *grpc.ClientConn) RootCoordClient {
 
 func (c *rootCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -900,7 +900,7 @@ func (c *rootCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.G
 
 func (c *rootCoordClient) GetTimeTickChannel(ctx context.Context, in *internalpb.GetTimeTickChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/GetTimeTickChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/GetTimeTickChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -909,7 +909,7 @@ func (c *rootCoordClient) GetTimeTickChannel(ctx context.Context, in *internalpb
 
 func (c *rootCoordClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -918,7 +918,7 @@ func (c *rootCoordClient) GetStatisticsChannel(ctx context.Context, in *internal
 
 func (c *rootCoordClient) CreateCollection(ctx context.Context, in *milvuspb.CreateCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/CreateCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/CreateCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -927,7 +927,7 @@ func (c *rootCoordClient) CreateCollection(ctx context.Context, in *milvuspb.Cre
 
 func (c *rootCoordClient) DropCollection(ctx context.Context, in *milvuspb.DropCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/DropCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/DropCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -936,7 +936,7 @@ func (c *rootCoordClient) DropCollection(ctx context.Context, in *milvuspb.DropC
 
 func (c *rootCoordClient) HasCollection(ctx context.Context, in *milvuspb.HasCollectionRequest, opts ...grpc.CallOption) (*milvuspb.BoolResponse, error) {
 	out := new(milvuspb.BoolResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/HasCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/HasCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -945,7 +945,7 @@ func (c *rootCoordClient) HasCollection(ctx context.Context, in *milvuspb.HasCol
 
 func (c *rootCoordClient) DescribeCollection(ctx context.Context, in *milvuspb.DescribeCollectionRequest, opts ...grpc.CallOption) (*milvuspb.DescribeCollectionResponse, error) {
 	out := new(milvuspb.DescribeCollectionResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/DescribeCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/DescribeCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -954,7 +954,7 @@ func (c *rootCoordClient) DescribeCollection(ctx context.Context, in *milvuspb.D
 
 func (c *rootCoordClient) CreateAlias(ctx context.Context, in *milvuspb.CreateAliasRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/CreateAlias", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/CreateAlias", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -963,7 +963,7 @@ func (c *rootCoordClient) CreateAlias(ctx context.Context, in *milvuspb.CreateAl
 
 func (c *rootCoordClient) DropAlias(ctx context.Context, in *milvuspb.DropAliasRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/DropAlias", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/DropAlias", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -972,7 +972,7 @@ func (c *rootCoordClient) DropAlias(ctx context.Context, in *milvuspb.DropAliasR
 
 func (c *rootCoordClient) AlterAlias(ctx context.Context, in *milvuspb.AlterAliasRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/AlterAlias", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/AlterAlias", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -981,7 +981,7 @@ func (c *rootCoordClient) AlterAlias(ctx context.Context, in *milvuspb.AlterAlia
 
 func (c *rootCoordClient) ShowCollections(ctx context.Context, in *milvuspb.ShowCollectionsRequest, opts ...grpc.CallOption) (*milvuspb.ShowCollectionsResponse, error) {
 	out := new(milvuspb.ShowCollectionsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ShowCollections", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ShowCollections", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -990,7 +990,7 @@ func (c *rootCoordClient) ShowCollections(ctx context.Context, in *milvuspb.Show
 
 func (c *rootCoordClient) AlterCollection(ctx context.Context, in *milvuspb.AlterCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/AlterCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/AlterCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -999,7 +999,7 @@ func (c *rootCoordClient) AlterCollection(ctx context.Context, in *milvuspb.Alte
 
 func (c *rootCoordClient) CreatePartition(ctx context.Context, in *milvuspb.CreatePartitionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/CreatePartition", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/CreatePartition", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1008,7 +1008,7 @@ func (c *rootCoordClient) CreatePartition(ctx context.Context, in *milvuspb.Crea
 
 func (c *rootCoordClient) DropPartition(ctx context.Context, in *milvuspb.DropPartitionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/DropPartition", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/DropPartition", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1017,7 +1017,7 @@ func (c *rootCoordClient) DropPartition(ctx context.Context, in *milvuspb.DropPa
 
 func (c *rootCoordClient) HasPartition(ctx context.Context, in *milvuspb.HasPartitionRequest, opts ...grpc.CallOption) (*milvuspb.BoolResponse, error) {
 	out := new(milvuspb.BoolResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/HasPartition", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/HasPartition", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1026,7 +1026,7 @@ func (c *rootCoordClient) HasPartition(ctx context.Context, in *milvuspb.HasPart
 
 func (c *rootCoordClient) ShowPartitions(ctx context.Context, in *milvuspb.ShowPartitionsRequest, opts ...grpc.CallOption) (*milvuspb.ShowPartitionsResponse, error) {
 	out := new(milvuspb.ShowPartitionsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ShowPartitions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ShowPartitions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1035,7 +1035,7 @@ func (c *rootCoordClient) ShowPartitions(ctx context.Context, in *milvuspb.ShowP
 
 func (c *rootCoordClient) ShowSegments(ctx context.Context, in *milvuspb.ShowSegmentsRequest, opts ...grpc.CallOption) (*milvuspb.ShowSegmentsResponse, error) {
 	out := new(milvuspb.ShowSegmentsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ShowSegments", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ShowSegments", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1044,7 +1044,7 @@ func (c *rootCoordClient) ShowSegments(ctx context.Context, in *milvuspb.ShowSeg
 
 func (c *rootCoordClient) AllocTimestamp(ctx context.Context, in *AllocTimestampRequest, opts ...grpc.CallOption) (*AllocTimestampResponse, error) {
 	out := new(AllocTimestampResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/AllocTimestamp", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/AllocTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1053,7 +1053,7 @@ func (c *rootCoordClient) AllocTimestamp(ctx context.Context, in *AllocTimestamp
 
 func (c *rootCoordClient) AllocID(ctx context.Context, in *AllocIDRequest, opts ...grpc.CallOption) (*AllocIDResponse, error) {
 	out := new(AllocIDResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/AllocID", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/AllocID", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1062,7 +1062,7 @@ func (c *rootCoordClient) AllocID(ctx context.Context, in *AllocIDRequest, opts 
 
 func (c *rootCoordClient) UpdateChannelTimeTick(ctx context.Context, in *internalpb.ChannelTimeTickMsg, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/UpdateChannelTimeTick", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/UpdateChannelTimeTick", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1071,7 +1071,7 @@ func (c *rootCoordClient) UpdateChannelTimeTick(ctx context.Context, in *interna
 
 func (c *rootCoordClient) InvalidateCollectionMetaCache(ctx context.Context, in *proxypb.InvalidateCollMetaCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/InvalidateCollectionMetaCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/InvalidateCollectionMetaCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1080,7 +1080,7 @@ func (c *rootCoordClient) InvalidateCollectionMetaCache(ctx context.Context, in 
 
 func (c *rootCoordClient) ShowConfigurations(ctx context.Context, in *internalpb.ShowConfigurationsRequest, opts ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error) {
 	out := new(internalpb.ShowConfigurationsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ShowConfigurations", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ShowConfigurations", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1089,7 +1089,7 @@ func (c *rootCoordClient) ShowConfigurations(ctx context.Context, in *internalpb
 
 func (c *rootCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/GetMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/GetMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1098,7 +1098,7 @@ func (c *rootCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetric
 
 func (c *rootCoordClient) Import(ctx context.Context, in *milvuspb.ImportRequest, opts ...grpc.CallOption) (*milvuspb.ImportResponse, error) {
 	out := new(milvuspb.ImportResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/Import", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/Import", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1107,7 +1107,7 @@ func (c *rootCoordClient) Import(ctx context.Context, in *milvuspb.ImportRequest
 
 func (c *rootCoordClient) GetImportState(ctx context.Context, in *milvuspb.GetImportStateRequest, opts ...grpc.CallOption) (*milvuspb.GetImportStateResponse, error) {
 	out := new(milvuspb.GetImportStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/GetImportState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/GetImportState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1116,7 +1116,7 @@ func (c *rootCoordClient) GetImportState(ctx context.Context, in *milvuspb.GetIm
 
 func (c *rootCoordClient) ListImportTasks(ctx context.Context, in *milvuspb.ListImportTasksRequest, opts ...grpc.CallOption) (*milvuspb.ListImportTasksResponse, error) {
 	out := new(milvuspb.ListImportTasksResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ListImportTasks", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ListImportTasks", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1125,7 +1125,7 @@ func (c *rootCoordClient) ListImportTasks(ctx context.Context, in *milvuspb.List
 
 func (c *rootCoordClient) ReportImport(ctx context.Context, in *ImportResult, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ReportImport", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ReportImport", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1134,7 +1134,7 @@ func (c *rootCoordClient) ReportImport(ctx context.Context, in *ImportResult, op
 
 func (c *rootCoordClient) CreateCredential(ctx context.Context, in *internalpb.CredentialInfo, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/CreateCredential", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/CreateCredential", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1143,7 +1143,7 @@ func (c *rootCoordClient) CreateCredential(ctx context.Context, in *internalpb.C
 
 func (c *rootCoordClient) UpdateCredential(ctx context.Context, in *internalpb.CredentialInfo, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/UpdateCredential", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/UpdateCredential", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1152,7 +1152,7 @@ func (c *rootCoordClient) UpdateCredential(ctx context.Context, in *internalpb.C
 
 func (c *rootCoordClient) DeleteCredential(ctx context.Context, in *milvuspb.DeleteCredentialRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/DeleteCredential", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/DeleteCredential", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1161,7 +1161,7 @@ func (c *rootCoordClient) DeleteCredential(ctx context.Context, in *milvuspb.Del
 
 func (c *rootCoordClient) ListCredUsers(ctx context.Context, in *milvuspb.ListCredUsersRequest, opts ...grpc.CallOption) (*milvuspb.ListCredUsersResponse, error) {
 	out := new(milvuspb.ListCredUsersResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ListCredUsers", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ListCredUsers", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1170,7 +1170,7 @@ func (c *rootCoordClient) ListCredUsers(ctx context.Context, in *milvuspb.ListCr
 
 func (c *rootCoordClient) GetCredential(ctx context.Context, in *GetCredentialRequest, opts ...grpc.CallOption) (*GetCredentialResponse, error) {
 	out := new(GetCredentialResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/GetCredential", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/GetCredential", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1179,7 +1179,7 @@ func (c *rootCoordClient) GetCredential(ctx context.Context, in *GetCredentialRe
 
 func (c *rootCoordClient) CreateRole(ctx context.Context, in *milvuspb.CreateRoleRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/CreateRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/CreateRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1188,7 +1188,7 @@ func (c *rootCoordClient) CreateRole(ctx context.Context, in *milvuspb.CreateRol
 
 func (c *rootCoordClient) DropRole(ctx context.Context, in *milvuspb.DropRoleRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/DropRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/DropRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1197,7 +1197,7 @@ func (c *rootCoordClient) DropRole(ctx context.Context, in *milvuspb.DropRoleReq
 
 func (c *rootCoordClient) OperateUserRole(ctx context.Context, in *milvuspb.OperateUserRoleRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/OperateUserRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/OperateUserRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1206,7 +1206,7 @@ func (c *rootCoordClient) OperateUserRole(ctx context.Context, in *milvuspb.Oper
 
 func (c *rootCoordClient) SelectRole(ctx context.Context, in *milvuspb.SelectRoleRequest, opts ...grpc.CallOption) (*milvuspb.SelectRoleResponse, error) {
 	out := new(milvuspb.SelectRoleResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/SelectRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/SelectRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1215,7 +1215,7 @@ func (c *rootCoordClient) SelectRole(ctx context.Context, in *milvuspb.SelectRol
 
 func (c *rootCoordClient) SelectUser(ctx context.Context, in *milvuspb.SelectUserRequest, opts ...grpc.CallOption) (*milvuspb.SelectUserResponse, error) {
 	out := new(milvuspb.SelectUserResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/SelectUser", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/SelectUser", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1224,7 +1224,7 @@ func (c *rootCoordClient) SelectUser(ctx context.Context, in *milvuspb.SelectUse
 
 func (c *rootCoordClient) OperatePrivilege(ctx context.Context, in *milvuspb.OperatePrivilegeRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/OperatePrivilege", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/OperatePrivilege", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1233,7 +1233,7 @@ func (c *rootCoordClient) OperatePrivilege(ctx context.Context, in *milvuspb.Ope
 
 func (c *rootCoordClient) SelectGrant(ctx context.Context, in *milvuspb.SelectGrantRequest, opts ...grpc.CallOption) (*milvuspb.SelectGrantResponse, error) {
 	out := new(milvuspb.SelectGrantResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/SelectGrant", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/SelectGrant", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1242,7 +1242,7 @@ func (c *rootCoordClient) SelectGrant(ctx context.Context, in *milvuspb.SelectGr
 
 func (c *rootCoordClient) ListPolicy(ctx context.Context, in *internalpb.ListPolicyRequest, opts ...grpc.CallOption) (*internalpb.ListPolicyResponse, error) {
 	out := new(internalpb.ListPolicyResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/ListPolicy", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/ListPolicy", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1251,7 +1251,7 @@ func (c *rootCoordClient) ListPolicy(ctx context.Context, in *internalpb.ListPol
 
 func (c *rootCoordClient) CheckHealth(ctx context.Context, in *milvuspb.CheckHealthRequest, opts ...grpc.CallOption) (*milvuspb.CheckHealthResponse, error) {
 	out := new(milvuspb.CheckHealthResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.rootcoord.RootCoord/CheckHealth", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.rootcoord.RootCoord/CheckHealth", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1497,7 +1497,7 @@ func _RootCoord_GetComponentStates_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/GetComponentStates",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -1515,7 +1515,7 @@ func _RootCoord_GetTimeTickChannel_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/GetTimeTickChannel",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/GetTimeTickChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).GetTimeTickChannel(ctx, req.(*internalpb.GetTimeTickChannelRequest))
@@ -1533,7 +1533,7 @@ func _RootCoord_GetStatisticsChannel_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/GetStatisticsChannel",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -1551,7 +1551,7 @@ func _RootCoord_CreateCollection_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/CreateCollection",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/CreateCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).CreateCollection(ctx, req.(*milvuspb.CreateCollectionRequest))
@@ -1569,7 +1569,7 @@ func _RootCoord_DropCollection_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/DropCollection",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/DropCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).DropCollection(ctx, req.(*milvuspb.DropCollectionRequest))
@@ -1587,7 +1587,7 @@ func _RootCoord_HasCollection_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/HasCollection",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/HasCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).HasCollection(ctx, req.(*milvuspb.HasCollectionRequest))
@@ -1605,7 +1605,7 @@ func _RootCoord_DescribeCollection_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/DescribeCollection",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/DescribeCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).DescribeCollection(ctx, req.(*milvuspb.DescribeCollectionRequest))
@@ -1623,7 +1623,7 @@ func _RootCoord_CreateAlias_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/CreateAlias",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/CreateAlias",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).CreateAlias(ctx, req.(*milvuspb.CreateAliasRequest))
@@ -1641,7 +1641,7 @@ func _RootCoord_DropAlias_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/DropAlias",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/DropAlias",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).DropAlias(ctx, req.(*milvuspb.DropAliasRequest))
@@ -1659,7 +1659,7 @@ func _RootCoord_AlterAlias_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/AlterAlias",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/AlterAlias",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).AlterAlias(ctx, req.(*milvuspb.AlterAliasRequest))
@@ -1677,7 +1677,7 @@ func _RootCoord_ShowCollections_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ShowCollections",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ShowCollections",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ShowCollections(ctx, req.(*milvuspb.ShowCollectionsRequest))
@@ -1695,7 +1695,7 @@ func _RootCoord_AlterCollection_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/AlterCollection",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/AlterCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).AlterCollection(ctx, req.(*milvuspb.AlterCollectionRequest))
@@ -1713,7 +1713,7 @@ func _RootCoord_CreatePartition_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/CreatePartition",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/CreatePartition",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).CreatePartition(ctx, req.(*milvuspb.CreatePartitionRequest))
@@ -1731,7 +1731,7 @@ func _RootCoord_DropPartition_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/DropPartition",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/DropPartition",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).DropPartition(ctx, req.(*milvuspb.DropPartitionRequest))
@@ -1749,7 +1749,7 @@ func _RootCoord_HasPartition_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/HasPartition",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/HasPartition",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).HasPartition(ctx, req.(*milvuspb.HasPartitionRequest))
@@ -1767,7 +1767,7 @@ func _RootCoord_ShowPartitions_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ShowPartitions",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ShowPartitions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ShowPartitions(ctx, req.(*milvuspb.ShowPartitionsRequest))
@@ -1785,7 +1785,7 @@ func _RootCoord_ShowSegments_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ShowSegments",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ShowSegments",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ShowSegments(ctx, req.(*milvuspb.ShowSegmentsRequest))
@@ -1803,7 +1803,7 @@ func _RootCoord_AllocTimestamp_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/AllocTimestamp",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/AllocTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).AllocTimestamp(ctx, req.(*AllocTimestampRequest))
@@ -1821,7 +1821,7 @@ func _RootCoord_AllocID_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/AllocID",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/AllocID",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).AllocID(ctx, req.(*AllocIDRequest))
@@ -1839,7 +1839,7 @@ func _RootCoord_UpdateChannelTimeTick_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/UpdateChannelTimeTick",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/UpdateChannelTimeTick",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).UpdateChannelTimeTick(ctx, req.(*internalpb.ChannelTimeTickMsg))
@@ -1857,7 +1857,7 @@ func _RootCoord_InvalidateCollectionMetaCache_Handler(srv interface{}, ctx conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/InvalidateCollectionMetaCache",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/InvalidateCollectionMetaCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).InvalidateCollectionMetaCache(ctx, req.(*proxypb.InvalidateCollMetaCacheRequest))
@@ -1875,7 +1875,7 @@ func _RootCoord_ShowConfigurations_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ShowConfigurations",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ShowConfigurations",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ShowConfigurations(ctx, req.(*internalpb.ShowConfigurationsRequest))
@@ -1893,7 +1893,7 @@ func _RootCoord_GetMetrics_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/GetMetrics",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/GetMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).GetMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
@@ -1911,7 +1911,7 @@ func _RootCoord_Import_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/Import",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/Import",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).Import(ctx, req.(*milvuspb.ImportRequest))
@@ -1929,7 +1929,7 @@ func _RootCoord_GetImportState_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/GetImportState",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/GetImportState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).GetImportState(ctx, req.(*milvuspb.GetImportStateRequest))
@@ -1947,7 +1947,7 @@ func _RootCoord_ListImportTasks_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ListImportTasks",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ListImportTasks",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ListImportTasks(ctx, req.(*milvuspb.ListImportTasksRequest))
@@ -1965,7 +1965,7 @@ func _RootCoord_ReportImport_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ReportImport",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ReportImport",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ReportImport(ctx, req.(*ImportResult))
@@ -1983,7 +1983,7 @@ func _RootCoord_CreateCredential_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/CreateCredential",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/CreateCredential",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).CreateCredential(ctx, req.(*internalpb.CredentialInfo))
@@ -2001,7 +2001,7 @@ func _RootCoord_UpdateCredential_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/UpdateCredential",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/UpdateCredential",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).UpdateCredential(ctx, req.(*internalpb.CredentialInfo))
@@ -2019,7 +2019,7 @@ func _RootCoord_DeleteCredential_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/DeleteCredential",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/DeleteCredential",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).DeleteCredential(ctx, req.(*milvuspb.DeleteCredentialRequest))
@@ -2037,7 +2037,7 @@ func _RootCoord_ListCredUsers_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ListCredUsers",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ListCredUsers",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ListCredUsers(ctx, req.(*milvuspb.ListCredUsersRequest))
@@ -2055,7 +2055,7 @@ func _RootCoord_GetCredential_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/GetCredential",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/GetCredential",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).GetCredential(ctx, req.(*GetCredentialRequest))
@@ -2073,7 +2073,7 @@ func _RootCoord_CreateRole_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/CreateRole",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/CreateRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).CreateRole(ctx, req.(*milvuspb.CreateRoleRequest))
@@ -2091,7 +2091,7 @@ func _RootCoord_DropRole_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/DropRole",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/DropRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).DropRole(ctx, req.(*milvuspb.DropRoleRequest))
@@ -2109,7 +2109,7 @@ func _RootCoord_OperateUserRole_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/OperateUserRole",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/OperateUserRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).OperateUserRole(ctx, req.(*milvuspb.OperateUserRoleRequest))
@@ -2127,7 +2127,7 @@ func _RootCoord_SelectRole_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/SelectRole",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/SelectRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).SelectRole(ctx, req.(*milvuspb.SelectRoleRequest))
@@ -2145,7 +2145,7 @@ func _RootCoord_SelectUser_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/SelectUser",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/SelectUser",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).SelectUser(ctx, req.(*milvuspb.SelectUserRequest))
@@ -2163,7 +2163,7 @@ func _RootCoord_OperatePrivilege_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/OperatePrivilege",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/OperatePrivilege",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).OperatePrivilege(ctx, req.(*milvuspb.OperatePrivilegeRequest))
@@ -2181,7 +2181,7 @@ func _RootCoord_SelectGrant_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/SelectGrant",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/SelectGrant",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).SelectGrant(ctx, req.(*milvuspb.SelectGrantRequest))
@@ -2199,7 +2199,7 @@ func _RootCoord_ListPolicy_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/ListPolicy",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/ListPolicy",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).ListPolicy(ctx, req.(*internalpb.ListPolicyRequest))
@@ -2217,7 +2217,7 @@ func _RootCoord_CheckHealth_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.rootcoord.RootCoord/CheckHealth",
+		FullMethod: "/milvus.proto.rootcoord.RootCoord/CheckHealth",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RootCoordServer).CheckHealth(ctx, req.(*milvuspb.CheckHealthRequest))
@@ -2226,7 +2226,7 @@ func _RootCoord_CheckHealth_Handler(srv interface{}, ctx context.Context, dec fu
 }
 
 var _RootCoord_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "milvus.protov2.rootcoord.RootCoord",
+	ServiceName: "milvus.proto.rootcoord.RootCoord",
 	HandlerType: (*RootCoordServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

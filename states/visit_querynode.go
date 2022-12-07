@@ -7,7 +7,6 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
@@ -32,11 +31,15 @@ func (s *queryNodeState) SetupCommands() {
 	cmd.AddCommand(
 		// GetSegmentInfo collection_id
 		getQNGetSegmentsCmd(s.client),
-		// GetMetrics
-		getQNGetMetrics(s.client),
-
+		// metrics
+		getMetricsCmd(s.client),
+		// configuration
+		getConfigurationCmd(s.clientv2, s.session.ServerID),
+		// distribution
 		getQNGetDataDistributionCmd(s.clientv2, s.session.ServerID),
-
+		// segment-analysis --collection collection --segment
+		getQNGetSegmentInfoCmd(s.clientv2, s.session.ServerID),
+		// back
 		getBackCmd(s, s.prevState),
 		// exit
 		getExitCmd(s),
@@ -50,10 +53,10 @@ func (s *queryNodeState) SetupCommands() {
 func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 
 	state := &queryNodeState{
-		session: session,
 		cmdState: cmdState{
 			label: fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address),
 		},
+		session:   session,
 		client:    client,
 		clientv2:  querypbv2.NewQueryNodeClient(conn),
 		conn:      conn,
@@ -107,30 +110,11 @@ func getQNGetSegmentsCmd(client querypb.QueryNodeClient) *cobra.Command {
 	return cmd
 }
 
-func getQNGetMetrics(client querypb.QueryNodeClient) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "GetMetrics",
-		Short: "show the metrics provided by this querynode",
-		Run: func(cmd *cobra.Command, args []string) {
-
-			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
-				Base:    &commonpb.MsgBase{},
-				Request: `{"metric_type": "system_info"}`,
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			fmt.Printf("Metrics: %#v\n", resp.Response)
-		},
-	}
-
-	return cmd
-}
-
 func getQNGetDataDistributionCmd(clientv2 querypbv2.QueryNodeClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "GetDataDistribution",
+		Use:     "distribution",
+		Short:   "get data distribution",
+		Aliases: []string{"GetDataDistribution"},
 		Run: func(cmd *cobra.Command, args []string) {
 			resp, err := clientv2.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
 				Base: &commonpbv2.MsgBase{
@@ -143,8 +127,101 @@ func getQNGetDataDistributionCmd(clientv2 querypbv2.QueryNodeClient, id int64) *
 				return
 			}
 
-			fmt.Println(resp.String())
+			// print channel
+			for _, channel := range resp.GetChannels() {
+				fmt.Printf("Channel %s, collection: %d, version %d\n", channel.Channel, channel.Collection, channel.Version)
+			}
+
+			for _, lv := range resp.GetLeaderViews() {
+				fmt.Printf("Leader view for channel: %s\n", lv.GetChannel())
+				growings := lv.GetGrowingSegmentIDs()
+				fmt.Printf("Growing segments number: %d , ids: %v\n", len(growings), growings)
+			}
+
+			fmt.Printf("Node Loaded Segments number: %d\n", len(resp.GetSegments()))
 		},
 	}
+	return cmd
+}
+
+func getQNGetSegmentInfoCmd(clientv2 querypbv2.QueryNodeClient, id int64) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "segment-analysis",
+		Short:   "call ShowConfigurations for config inspection",
+		Aliases: []string{"GetConfigurations", "configurations"},
+		Run: func(cmd *cobra.Command, args []string) {
+			segmentID, err := cmd.Flags().GetInt64("segment")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			collectionID, err := cmd.Flags().GetInt64("collection")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			printBrute, err := cmd.Flags().GetBool("print")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			if segmentID == 0 && collectionID == 0 {
+				fmt.Println("segment id & collection id not provided")
+				return
+			}
+			req := &querypbv2.GetSegmentInfoRequest{
+				Base: &commonpbv2.MsgBase{
+					SourceID: -1,
+					TargetID: id,
+				},
+				CollectionID: collectionID,
+			}
+			if segmentID > 0 {
+				req.SegmentIDs = []int64{segmentID}
+			}
+
+			resp, err := clientv2.GetSegmentInfo(context.Background(), req)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			var growing, indexed, bruteForce int64
+		outer:
+			for _, info := range resp.GetInfos() {
+				if len(info.GetIndexInfos()) == 0 {
+					fmt.Printf("Brute force segment found: %d , state: %s\n", info.GetSegmentID(), info.GetSegmentState().String())
+					if printBrute {
+						fmt.Printf("%#v\n", info.String())
+					}
+					bruteForce++
+					continue
+				}
+				for _, idx := range info.GetIndexInfos() {
+					if len(idx.GetIndexFilePaths()) == 0 {
+						fmt.Printf("Brute force segment found: %d , state: %s, empty info: %+v\n", info.GetSegmentID(), info.GetSegmentState().String(), idx)
+						if printBrute {
+							fmt.Printf("%#v\n", info.String())
+						}
+						bruteForce++
+						continue outer
+					}
+				}
+				switch info.SegmentState {
+				case commonpbv2.SegmentState_Sealed:
+					indexed++
+				case commonpbv2.SegmentState_Growing:
+					growing++
+				}
+			}
+			fmt.Printf("Indexed :%d BruteForce: %d, Growing: %d\n", indexed, bruteForce, growing)
+		},
+	}
+
+	cmd.Flags().Int64("segment", 0, "segment id")
+	cmd.Flags().Int64("collection", 0, "collection id")
+	cmd.Flags().Bool("print", false, "print brute force segment info")
 	return cmd
 }
