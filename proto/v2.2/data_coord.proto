@@ -16,6 +16,7 @@ enum SegmentType {
   New = 0;
   Normal = 1;
   Flushed = 2;
+  Compacted = 3;
 }
 
 service DataCoord {
@@ -56,6 +57,7 @@ service DataCoord {
   // https://wiki.lfaidata.foundation/display/MIL/MEP+24+--+Support+bulk+load
   rpc Import(ImportTaskRequest) returns (ImportTaskResponse) {}
   rpc UpdateSegmentStatistics(UpdateSegmentStatisticsRequest) returns (common.Status) {}
+  rpc UpdateChannelCheckpoint(UpdateChannelCheckpointRequest) returns (common.Status) {}
 
   rpc AcquireSegmentLock(AcquireSegmentLockRequest) returns (common.Status) {}
   rpc ReleaseSegmentLock(ReleaseSegmentLockRequest) returns (common.Status) {}
@@ -63,6 +65,10 @@ service DataCoord {
   rpc SaveImportSegment(SaveImportSegmentRequest) returns(common.Status) {}
   rpc UnsetIsImportingState(UnsetIsImportingStateRequest) returns(common.Status) {}
   rpc MarkSegmentsDropped(MarkSegmentsDroppedRequest) returns(common.Status) {}
+
+  rpc BroadcastAlteredCollection(AlterCollectionRequest) returns (common.Status) {}
+
+  rpc CheckHealth(milvus.CheckHealthRequest) returns (milvus.CheckHealthResponse) {}
 }
 
 service DataNode {
@@ -109,7 +115,7 @@ message SegmentIDRequest {
   string channel_name = 2;
   int64 collectionID = 3;
   int64 partitionID = 4;
-  bool isImport = 5;        // Indicate whether this request comes from a bulk load task.
+  bool isImport = 5;        // Indicate whether this request comes from a bulk insert task.
   int64 importTaskID = 6;   // Needed for segment lock.
 }
 
@@ -236,19 +242,11 @@ message FlushSegmentsRequest {
   int64 dbID = 2;
   int64 collectionID = 3;
   repeated int64 segmentIDs = 4; // segments to flush
-  repeated int64 markSegmentIDs = 5; // segments to clean buffer and mark segment position, but NOT flushed
 }
 
 message SegmentMsg{
   common.MsgBase base = 1;
   SegmentInfo segment = 2;
-}
-
-message CollectionInfo {
-  int64 ID = 1;
-  schema.CollectionSchema schema = 2;
-  repeated int64 partitions = 3;
-  repeated common.KeyDataPair start_positions = 4;
 }
 
 message SegmentInfo {
@@ -271,9 +269,10 @@ message SegmentInfo {
   repeated int64 compactionFrom = 15;
   uint64 dropped_at = 16; // timestamp when segment marked drop
   // A flag indicating if:
-  // (1) this segment is created by bulk load, and
-  // (2) the bulk load task that creates this segment has not yet reached `ImportCompleted` state.
+  // (1) this segment is created by bulk insert, and
+  // (2) the bulk insert task that creates this segment has not yet reached `ImportCompleted` state.
   bool is_importing = 17;
+  bool is_fake = 18;
 }
 
 message SegmentStartPosition {
@@ -396,6 +395,7 @@ message GetFlushedSegmentsRequest {
   common.MsgBase base = 1;
   int64 collectionID = 2;
   int64 partitionID = 3;
+  bool includeUnhealthy = 4;
 }
 
 message GetFlushedSegmentsResponse {
@@ -454,6 +454,7 @@ message CompactionPlan {
   CompactionType type = 5;
   uint64 timetravel = 6;
   string channel = 7;
+  int64 collection_ttl = 8;
 }
 
 message CompactionResult {
@@ -463,6 +464,7 @@ message CompactionResult {
   repeated FieldBinlog insert_logs = 4;
   repeated FieldBinlog field2StatslogPaths = 5;
   repeated FieldBinlog deltalogs = 6;
+  string channel = 7;
 }
 
 message CompactionStateResult {
@@ -557,6 +559,8 @@ message ImportTaskInfo {
   ImportTaskState state = 11;                   // State of the import task.
   string collection_name = 12;                  // Collection name for the import task.
   string partition_name = 13;                   // Partition name for the import task.
+  repeated common.KeyValuePair infos = 14;      // extra information about the task, bucket, etc.
+  int64 start_ts = 15;                          // Timestamp when the import task is sent to datanode to execute.
 }
 
 message ImportTaskResponse {
@@ -573,6 +577,12 @@ message ImportTaskRequest {
 message UpdateSegmentStatisticsRequest {
   common.MsgBase base = 1;
   repeated SegmentStats stats = 2;
+}
+
+message UpdateChannelCheckpointRequest {
+  common.MsgBase base = 1;
+  string vChannel = 2;
+  internal.MsgPosition position = 3;
 }
 
 message ResendSegmentStatsRequest {
@@ -624,4 +634,13 @@ message SegmentReferenceLock {
   int64 taskID = 1;
   int64 nodeID = 2;
   repeated int64 segmentIDs = 3;
+}
+
+
+message AlterCollectionRequest {
+  int64  collectionID = 1;
+  schema.CollectionSchema schema = 2;
+  repeated int64 partitionIDs = 3;
+  repeated common.KeyDataPair start_positions = 4;
+  repeated common.KeyValuePair properties = 5;
 }

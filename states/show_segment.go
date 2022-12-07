@@ -52,23 +52,33 @@ func getEtcdShowSegments(cli *clientv3.Client, basePath string) *cobra.Command {
 
 			totalRC := int64(0)
 			healthy := 0
+			var growing, sealed, flushed int
 			for _, info := range segments {
 
 				if info.State != commonpb.SegmentState_Dropped {
-
 					totalRC += info.NumOfRows
 					healthy++
 				}
+				switch info.State {
+				case commonpb.SegmentState_Growing:
+					growing++
+				case commonpb.SegmentState_Sealed:
+					sealed++
+				case commonpb.SegmentState_Flushing, commonpb.SegmentState_Flushed:
+					flushed++
+				}
+
 				switch format {
 				case "table":
 					printSegmentInfo(info, detail)
 				case "line":
-					fmt.Printf("SegmentID:%d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
+					fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
 				}
 
 			}
 
-			fmt.Printf("--- Total Segments: %d , row count: %d\n", healthy, totalRC)
+			fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d\n", growing, sealed, flushed)
+			fmt.Printf("--- Total Segments: %d, row count: %d\n", healthy, totalRC)
 			return nil
 		},
 	}
@@ -375,7 +385,7 @@ func printSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 	}
 	if info.DmlPosition != nil {
 		dmlTime, _ := ParseTS(info.DmlPosition.Timestamp)
-		fmt.Printf("Dml Position ID: %v, time: %s\n", info.DmlPosition.MsgID, dmlTime.Format(tsPrintFormat))
+		fmt.Printf("Dml Position ID: %v, time: %s, channel name: %s\n", info.DmlPosition.MsgID, dmlTime.Format(tsPrintFormat), info.GetDmlPosition().GetChannelName())
 	} else {
 		fmt.Println("Dml Position: nil")
 	}

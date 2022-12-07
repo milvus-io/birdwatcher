@@ -2,11 +2,13 @@ package states
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
+	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -14,6 +16,7 @@ import (
 const (
 	collectionMetaPrefix = "queryCoord-collectionMeta"
 	ReplicaMetaPrefix    = "queryCoord-ReplicaMeta"
+	collectionLoadPrefix = "querycoord-collection-loadinfo"
 )
 
 func printLoadedCollections(infos []*querypb.CollectionInfo) {
@@ -45,6 +48,19 @@ func getLoadedCollectionInfo(cli *clientv3.Client, basePath string) ([]*querypb.
 	return ret, nil
 }
 
+func getLoadedCollectionInfoV2(cli *clientv3.Client, basePath string) ([]querypbv2.CollectionLoadInfo, error) {
+	prefix := path.Join(basePath, collectionLoadPrefix)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	info, _, err := listObject[querypbv2.CollectionLoadInfo](ctx, cli, prefix)
+	return info, err
+}
+
+func printCollectionLoadInfoV2(loadInfov2 querypbv2.CollectionLoadInfo) {
+	fmt.Println(loadInfov2.String())
+}
+
 func getShowLoadedCollectionCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "collection-loaded",
@@ -56,6 +72,15 @@ func getShowLoadedCollectionCmd(cli *clientv3.Client, basePath string) *cobra.Co
 				return err
 			}
 			printLoadedCollections(collectionLoadInfos)
+
+			loadInfov2, err := getLoadedCollectionInfoV2(cli, basePath)
+			if err != nil {
+				return err
+			}
+			for _, info := range loadInfov2 {
+				printCollectionLoadInfoV2(info)
+			}
+
 			return nil
 		},
 	}

@@ -172,7 +172,7 @@ func getQueryCoordTaskCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 			}
 
 			if taskType != "" && taskType != "activate" && taskType != "trigger" && taskType != "all" {
-				fmt.Println("worng taskType")
+				fmt.Println("wrong taskType")
 				return nil
 			}
 			triggerTasks, activateTasks, err := listQueryCoordTasks(cli, basePath, func(task queryCoordTask) bool {

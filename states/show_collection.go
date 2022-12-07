@@ -149,10 +149,10 @@ func fillFieldSchemaIfEmpty(cli *clientv3.Client, basePath string, collection *e
 
 func printCollection(collection *etcdpb.CollectionInfo) {
 	fmt.Println("================================================================================")
-	fmt.Printf("Collection ID: %d\tCollection Name:%s\n", collection.ID, collection.Schema.Name)
+	fmt.Printf("Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
 	fmt.Printf("Partitions:\n")
 	for idx, partID := range collection.GetPartitionIDs() {
-		fmt.Printf(" - Partition ID:%d\tPartition Name:%s\n", partID, collection.GetPartitionNames()[idx])
+		fmt.Printf(" - Partition ID: %d\tPartition Name: %s\n", partID, collection.GetPartitionNames()[idx])
 	}
 	fmt.Printf("Fields:\n")
 	fields := collection.Schema.Fields

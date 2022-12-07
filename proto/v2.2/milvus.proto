@@ -1,7 +1,7 @@
 syntax = "proto3";
 package milvus.protov2.milvus;
 
-option go_package = "github.com/milvus-io/milvus/api/milvuspb";
+option go_package = "github.com/milvus-io/milvus-proto/go-api/milvuspb";
 
 option java_multiple_files = true;
 option java_package = "io.milvus.grpc";
@@ -21,6 +21,7 @@ service MilvusService {
   rpc DescribeCollection(DescribeCollectionRequest) returns (DescribeCollectionResponse) {}
   rpc GetCollectionStatistics(GetCollectionStatisticsRequest) returns (GetCollectionStatisticsResponse) {}
   rpc ShowCollections(ShowCollectionsRequest) returns (ShowCollectionsResponse) {}
+  rpc AlterCollection(AlterCollectionRequest) returns (common.Status) {}
 
   rpc CreatePartition(CreatePartitionRequest) returns (common.Status) {}
   rpc DropPartition(DropPartitionRequest) returns (common.Status) {}
@@ -89,6 +90,9 @@ service MilvusService {
   rpc SelectUser(SelectUserRequest) returns (SelectUserResponse) {}
   rpc OperatePrivilege(OperatePrivilegeRequest) returns (common.Status) {}
   rpc SelectGrant(SelectGrantRequest) returns (SelectGrantResponse) {}
+
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse) {}
+  rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse) {}
 }
 
 message CreateAliasRequest {
@@ -133,6 +137,7 @@ message CreateCollectionRequest {
   int32 shards_num = 5;
   // The consistency level that the collection used, modification is not supported now.
   common.ConsistencyLevel consistency_level = 6;
+  repeated common.KeyValuePair properties = 7;
 }
 
 /**
@@ -150,6 +155,25 @@ message DropCollectionRequest {
   string db_name = 2;
   // The unique collection name in milvus.(Required)
   string collection_name = 3;
+}
+
+/**
+* Alter collection in milvus
+*/
+message AlterCollectionRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeCreateCollection
+    object_name_index: -1
+  };
+  // Not useful for now
+  common.MsgBase base = 1;
+  // Not useful for now
+  string db_name = 2;
+  // The unique collection name in milvus.(Required)
+  string collection_name = 3;
+  int64  collectionID = 4;
+  repeated common.KeyValuePair properties = 5;
 }
 
 /**
@@ -226,6 +250,7 @@ message DescribeCollectionResponse {
   common.ConsistencyLevel consistency_level = 11;
   // The collection name
   string collection_name = 12;
+  repeated common.KeyValuePair properties = 13;
 }
 
 /**
@@ -574,7 +599,7 @@ message DescribeIndexRequest {
   string db_name = 2;
   // The particular collection name in Milvus
   string collection_name = 3;
-   // The vector field name in this particular collection
+  // The vector field name in this particular collection
   string field_name = 4;
   // No need to set up for now @2021.06.30
   string index_name = 5;
@@ -811,8 +836,8 @@ message CalcDistanceResults {
   common.Status status = 1;
   // num(op_left)*num(op_right) distance values, "HAMMIN" return integer distance
   oneof array {
-    	schema.IntArray int_dist = 2;
-	schema.FloatArray float_dist = 3;
+    schema.IntArray int_dist = 2;
+    schema.FloatArray float_dist = 3;
   }
 }
 
@@ -1036,12 +1061,12 @@ message ReplicaInfo {    // ReplicaGroup
 }
 
 message ShardReplica {
-    int64 leaderID = 1;
-    string leader_addr = 2; // IP:port
-    string dm_channel_name = 3;
-    // optional, DO NOT save it in meta, set it only for GetReplicas()
-    // if with_shard_nodes is true
-    repeated int64 node_ids = 4;
+  int64 leaderID = 1;
+  string leader_addr = 2; // IP:port
+  string dm_channel_name = 3;
+  // optional, DO NOT save it in meta, set it only for GetReplicas()
+  // if with_shard_nodes is true
+  repeated int64 node_ids = 4;
 }
 
 service ProxyService {
@@ -1292,12 +1317,11 @@ message OperatePrivilegeRequest {
 message GetLoadingProgressRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  string collectionName = 2;
-  repeated string partitionNames = 3;
+  string collection_name = 2;
+  repeated string partition_names = 3;
 }
 
 message GetLoadingProgressResponse {
-  // Not useful for now
   common.Status status = 1;
   int64 progress = 2;
 }
@@ -1310,6 +1334,19 @@ extend google.protobuf.FileOptions {
   MilvusExt milvus_ext_obj = 1001;
 }
 
-option (milvus_ext_obj) = {
-  version: "2.1.0"
-};
+message GetVersionRequest {
+}
+
+message GetVersionResponse {
+  common.Status status = 1;
+  string version =2;
+}
+
+message CheckHealthRequest {
+}
+
+message CheckHealthResponse {
+  common.Status status = 1;
+  bool isHealthy = 2;
+  repeated string reasons = 3;
+}

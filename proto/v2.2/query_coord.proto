@@ -34,6 +34,8 @@ service QueryCoord {
   // https://wiki.lfaidata.foundation/display/MIL/MEP+23+--+Multiple+memory+replication+design
   rpc GetReplicas(milvus.GetReplicasRequest) returns (milvus.GetReplicasResponse) {}
   rpc GetShardLeaders(GetShardLeadersRequest) returns (GetShardLeadersResponse) {}
+
+  rpc CheckHealth(milvus.CheckHealthRequest) returns (milvus.CheckHealthResponse) {}
 }
 
 service QueryNode {
@@ -96,6 +98,8 @@ message LoadCollectionRequest {
   int64 collectionID = 3;
   schema.CollectionSchema schema = 4;
   int32 replica_number = 5;
+  // fieldID -> indexID
+  map<int64, int64> field_indexID = 6;
 }
 
 message ReleaseCollectionRequest {
@@ -120,6 +124,8 @@ message LoadPartitionsRequest {
   repeated int64 partitionIDs = 4;
   schema.CollectionSchema schema = 5;
   int32 replica_number = 6;
+  // fieldID -> indexID
+  map<int64, int64> field_indexID = 7;
 }
 
 message ReleasePartitionsRequest {
@@ -187,8 +193,10 @@ message WatchDmChannelsRequest {
   LoadMetaInfo load_meta = 8;
   int64 replicaID = 9;
   map<int64, data.SegmentInfo> segment_infos = 10;
+  // Deprecated
   // for node down load balance, need to remove offline node in time after every watchDmChannel finish.
   int64 offlineNodeID = 11;
+  int64 version = 12;
 }
 
 message UnsubDmChannelRequest {
@@ -225,6 +233,7 @@ message FieldIndexInfo {
   repeated string index_file_paths = 7;
   int64 index_size = 8;
   int64 index_version = 9;
+  int64 num_rows = 10;
 }
 
 message LoadSegmentsRequest {
@@ -372,6 +381,7 @@ message SegmentInfo {
   repeated int64 replica_ids = 14;
   repeated int64 node_ids = 15;
   bool enable_index = 16;
+  bool is_fake = 17;
 }
 
 message CollectionInfo {
@@ -459,6 +469,7 @@ message CollectionLoadInfo {
   repeated int64 released_partitions = 2;
   int32 replica_number = 3;
   LoadStatus status = 4;
+  map<int64, int64> field_indexID = 5;
 }
 
 message PartitionLoadInfo {
@@ -466,6 +477,7 @@ message PartitionLoadInfo {
   int64 partitionID = 2;
   int32 replica_number = 3;
   LoadStatus status = 4;
+  map<int64, int64> field_indexID = 5;
 }
 
 message Replica {

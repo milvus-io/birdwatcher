@@ -9,13 +9,18 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
+	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
+	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
 
 type queryNodeState struct {
 	cmdState
+	session   *models.Session
 	client    querypb.QueryNodeClient
+	clientv2  querypbv2.QueryNodeClient
 	conn      *grpc.ClientConn
 	prevState State
 }
@@ -30,6 +35,8 @@ func (s *queryNodeState) SetupCommands() {
 		// GetMetrics
 		getQNGetMetrics(s.client),
 
+		getQNGetDataDistributionCmd(s.clientv2, s.session.ServerID),
+
 		getBackCmd(s, s.prevState),
 		// exit
 		getExitCmd(s),
@@ -43,10 +50,12 @@ func (s *queryNodeState) SetupCommands() {
 func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 
 	state := &queryNodeState{
+		session: session,
 		cmdState: cmdState{
 			label: fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address),
 		},
 		client:    client,
+		clientv2:  querypbv2.NewQueryNodeClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -116,5 +125,26 @@ func getQNGetMetrics(client querypb.QueryNodeClient) *cobra.Command {
 		},
 	}
 
+	return cmd
+}
+
+func getQNGetDataDistributionCmd(clientv2 querypbv2.QueryNodeClient, id int64) *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "GetDataDistribution",
+		Run: func(cmd *cobra.Command, args []string) {
+			resp, err := clientv2.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
+				Base: &commonpbv2.MsgBase{
+					SourceID: -1,
+					TargetID: id,
+				},
+			})
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			fmt.Println(resp.String())
+		},
+	}
 	return cmd
 }

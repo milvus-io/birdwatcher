@@ -1,7 +1,7 @@
 syntax = "proto3";
 package milvus.protov2.common;
 
-option go_package="github.com/milvus-io/milvus/api/commonpb";
+option go_package="github.com/milvus-io/milvus-proto/go-api/commonpb";
 
 option java_multiple_files = true;
 option java_package = "io.milvus.grpc";
@@ -110,26 +110,26 @@ message Blob {
 }
 
 enum PlaceholderType {
-  None = 0;
-  BinaryVector = 100;
-  FloatVector = 101;
+    None = 0;
+    BinaryVector = 100;
+    FloatVector = 101;
 }
 
 message PlaceholderValue {
-  string tag = 1;
-  PlaceholderType type = 2;
-  // values is a 2d-array, every array contains a vector
-  repeated bytes values = 3;
+    string tag = 1;
+    PlaceholderType type = 2;
+    // values is a 2d-array, every array contains a vector
+    repeated bytes values = 3;
 }
 
 message PlaceholderGroup {
-  repeated PlaceholderValue placeholders = 1;
+    repeated PlaceholderValue placeholders = 1;
 }
 
 
 message Address {
-  string ip = 1;
-  int64 port = 2;
+    string ip = 1;
+    int64 port = 2;
 }
 
 enum MsgType {
@@ -146,6 +146,7 @@ enum MsgType {
     CreateAlias = 108;
     DropAlias = 109;
     AlterAlias = 110;
+    AlterCollection = 111;
 
 
     /* DEFINITION REQUESTS: PARTITION */
@@ -261,9 +262,9 @@ message DMLMsgHeader {
 }
 
 enum CompactionState {
-  UndefiedState = 0;
-  Executing = 1;
-  Completed = 2;
+    UndefiedState = 0;
+    Executing = 1;
+    Completed = 2;
 }
 
 enum ConsistencyLevel {
