@@ -24,6 +24,8 @@ service IndexCoord {
   rpc ShowConfigurations(internal.ShowConfigurationsRequest) returns (internal.ShowConfigurationsResponse){}
   // https://wiki.lfaidata.foundation/display/MIL/MEP+8+--+Add+metrics+for+proxy
   rpc GetMetrics(milvus.GetMetricsRequest) returns (milvus.GetMetricsResponse) {}
+
+  rpc CheckHealth(milvus.CheckHealthRequest) returns (milvus.CheckHealthResponse) {}
 }
 
 service IndexNode {
@@ -47,6 +49,7 @@ message IndexInfo {
   repeated common.KeyValuePair type_params = 5;
   repeated common.KeyValuePair index_params = 6;
   // index build progress
+  // The real-time statistics may not be expected due to the existence of the compaction mechanism.
   int64 indexed_rows = 7;
   int64 total_rows = 8;
   // index state
@@ -73,7 +76,7 @@ message SegmentIndex {
     int64 index_version = 8;
     common.IndexState state = 9;
     string fail_reason = 10;
-    repeated string index_files_paths = 11;
+    repeated string index_file_keys = 11;
     bool deleted = 12;
     uint64 create_time = 13;
     uint64 serialize_size = 14;
@@ -146,6 +149,7 @@ message IndexFilePathInfo {
   repeated string index_file_paths = 7;
   uint64 serialized_size = 8;
   int64 index_version = 9;
+  int64 num_rows = 10;
 }
 
 message SegmentInfo {
@@ -164,6 +168,7 @@ message DropIndexRequest {
   int64 collectionID = 1;
   repeated int64 partitionIDs = 2;
   string index_name = 3;
+  bool drop_all = 4;
 }
 
 message DescribeIndexRequest {
@@ -221,7 +226,7 @@ message QueryJobsRequest {
 message IndexTaskInfo {
   int64 buildID = 1;
   common.IndexState state = 2;
-  repeated string index_files = 3;
+  repeated string index_file_keys = 3;
   uint64 serialized_size = 4;
   string fail_reason = 5;
 }

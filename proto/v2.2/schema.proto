@@ -1,7 +1,7 @@
 syntax = "proto3";
 package milvus.protov2.schema;
 
-option go_package = "github.com/milvus-io/milvus/api/schemapb";
+option go_package = "github.com/milvus-io/milvus-proto/go-api/schemapb";
 
 option java_multiple_files = true;
 option java_package = "io.milvus.grpc";
@@ -10,7 +10,7 @@ option java_generate_equals_and_hash = true;
 
 import "common.proto";
 
-/** 
+/**
  * @brief Field data type
  */
 enum DataType {
