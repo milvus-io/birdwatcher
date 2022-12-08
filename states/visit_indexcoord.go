@@ -1,20 +1,20 @@
 package states
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
+	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
 
 type indexCoordState struct {
 	cmdState
+	session   *models.Session
 	client    indexpb.IndexCoordClient
+	clientv2  indexpbv2.IndexCoordClient
 	conn      *grpc.ClientConn
 	prevState State
 }
@@ -24,8 +24,10 @@ type indexCoordState struct {
 func (s *indexCoordState) SetupCommands() {
 	cmd := &cobra.Command{}
 	cmd.AddCommand(
-		//GetMetrics
-		getIndexCoordMetrics(s.client),
+		// metrics
+		getMetricsCmd(s.client),
+		// configuration
+		getConfigurationCmd(s.clientv2, s.session.ServerID),
 		//back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -43,7 +45,9 @@ func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, 
 		cmdState: cmdState{
 			label: fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address),
 		},
+		session:   session,
 		client:    client,
+		clientv2:  indexpbv2.NewIndexCoordClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -51,24 +55,4 @@ func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, 
 	state.SetupCommands()
 
 	return state
-}
-
-func getIndexCoordMetrics(client indexpb.IndexCoordClient) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "GetMetrics",
-		Short: "show the metrics provided by this indexcoord",
-		Run: func(cmd *cobra.Command, args []string) {
-
-			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
-				Base:    &commonpb.MsgBase{},
-				Request: `{"metric_type": "system_info"}`,
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			fmt.Printf("Metrics: %#v\n", resp.Response)
-		},
-	}
-	return cmd
 }

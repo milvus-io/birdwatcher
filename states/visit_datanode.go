@@ -1,20 +1,20 @@
 package states
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
+	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
 
 type dataNodeState struct {
 	cmdState
+	session   *models.Session
 	client    datapb.DataNodeClient
+	clientv2  datapbv2.DataNodeClient
 	conn      *grpc.ClientConn
 	prevState State
 }
@@ -24,8 +24,10 @@ type dataNodeState struct {
 func (s *dataNodeState) SetupCommands() {
 	cmd := &cobra.Command{}
 	cmd.AddCommand(
-		//GetMetrics
-		getDataNodeMetrics(s.client),
+		// metrics
+		getMetricsCmd(s.client),
+		// configuration
+		getConfigurationCmd(s.clientv2, s.session.ServerID),
 		//back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -43,7 +45,9 @@ func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev 
 		cmdState: cmdState{
 			label: fmt.Sprintf("DataNode-%d(%s)", session.ServerID, session.Address),
 		},
+		session:   session,
 		client:    client,
+		clientv2:  datapbv2.NewDataNodeClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -51,24 +55,4 @@ func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev 
 	state.SetupCommands()
 
 	return state
-}
-
-func getDataNodeMetrics(client datapb.DataNodeClient) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "GetMetrics",
-		Short: "show the metrics provided by this datanode",
-		Run: func(cmd *cobra.Command, args []string) {
-
-			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
-				Base:    &commonpb.MsgBase{},
-				Request: `{"metric_type": "system_info"}`,
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			fmt.Printf("Metrics: %#v\n", resp.Response)
-		},
-	}
-	return cmd
 }

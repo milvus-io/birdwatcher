@@ -1,20 +1,20 @@
 package states
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
+	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
 
 type indexNodeState struct {
 	cmdState
+	session   *models.Session
 	client    indexpb.IndexNodeClient
+	clientv2  indexpbv2.IndexNodeClient
 	conn      *grpc.ClientConn
 	prevState State
 }
@@ -24,8 +24,10 @@ type indexNodeState struct {
 func (s *indexNodeState) SetupCommands() {
 	cmd := &cobra.Command{}
 	cmd.AddCommand(
-		//GetMetrics
-		getIndexNodeMetrics(s.client),
+		// metrics
+		getMetricsCmd(s.client),
+		// configuration
+		getConfigurationCmd(s.clientv2, s.session.ServerID),
 		//back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -42,7 +44,9 @@ func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, pr
 		cmdState: cmdState{
 			label: fmt.Sprintf("IndexNode-%d(%s)", session.ServerID, session.Address),
 		},
+		session:   session,
 		client:    client,
+		clientv2:  indexpbv2.NewIndexNodeClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -50,24 +54,4 @@ func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, pr
 	state.SetupCommands()
 
 	return state
-}
-
-func getIndexNodeMetrics(client indexpb.IndexNodeClient) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "GetMetrics",
-		Short: "show the metrics provided by this indexnode",
-		Run: func(cmd *cobra.Command, args []string) {
-
-			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
-				Base:    &commonpb.MsgBase{},
-				Request: `{"metric_type": "system_info"}`,
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			fmt.Printf("Metrics: %#v\n", resp.Response)
-		},
-	}
-	return cmd
 }

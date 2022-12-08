@@ -1,20 +1,20 @@
 package states
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
+	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
 
 type rootCoordState struct {
 	cmdState
+	session   *models.Session
 	client    rootcoordpb.RootCoordClient
+	clientv2  rootcoordpbv2.RootCoordClient
 	conn      *grpc.ClientConn
 	prevState State
 }
@@ -24,8 +24,10 @@ type rootCoordState struct {
 func (s *rootCoordState) SetupCommands() {
 	cmd := &cobra.Command{}
 	cmd.AddCommand(
-		//GetMetrics
-		getRootCoordMetrics(s.client),
+		// metrics
+		getMetricsCmd(s.client),
+		// configuration
+		getConfigurationCmd(s.clientv2, s.session.ServerID),
 		//back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -40,10 +42,12 @@ func (s *rootCoordState) SetupCommands() {
 func getRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 
 	state := &rootCoordState{
+		session: session,
 		cmdState: cmdState{
 			label: fmt.Sprintf("RootCoord-%d(%s)", session.ServerID, session.Address),
 		},
 		client:    client,
+		clientv2:  rootcoordpbv2.NewRootCoordClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -51,24 +55,4 @@ func getRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn
 	state.SetupCommands()
 
 	return state
-}
-
-func getRootCoordMetrics(client rootcoordpb.RootCoordClient) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "GetMetrics",
-		Short: "show the metrics provided by this rootcoord",
-		Run: func(cmd *cobra.Command, args []string) {
-
-			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
-				Base:    &commonpb.MsgBase{},
-				Request: `{"metric_type": "system_info"}`,
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			fmt.Printf("Metrics: %#v\n", resp.Response)
-		},
-	}
-	return cmd
 }

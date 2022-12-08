@@ -6,6 +6,8 @@ package querypb
 import (
 	context "context"
 	fmt "fmt"
+	math "math"
+
 	proto "github.com/golang/protobuf/proto"
 	commonpb "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	datapb "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
@@ -15,7 +17,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -3994,7 +3995,7 @@ func NewQueryCoordClient(cc *grpc.ClientConn) QueryCoordClient {
 
 func (c *queryCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4003,7 +4004,7 @@ func (c *queryCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.
 
 func (c *queryCoordClient) GetTimeTickChannel(ctx context.Context, in *internalpb.GetTimeTickChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetTimeTickChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetTimeTickChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4012,7 +4013,7 @@ func (c *queryCoordClient) GetTimeTickChannel(ctx context.Context, in *internalp
 
 func (c *queryCoordClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4021,7 +4022,7 @@ func (c *queryCoordClient) GetStatisticsChannel(ctx context.Context, in *interna
 
 func (c *queryCoordClient) ShowCollections(ctx context.Context, in *ShowCollectionsRequest, opts ...grpc.CallOption) (*ShowCollectionsResponse, error) {
 	out := new(ShowCollectionsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/ShowCollections", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/ShowCollections", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4030,7 +4031,7 @@ func (c *queryCoordClient) ShowCollections(ctx context.Context, in *ShowCollecti
 
 func (c *queryCoordClient) ShowPartitions(ctx context.Context, in *ShowPartitionsRequest, opts ...grpc.CallOption) (*ShowPartitionsResponse, error) {
 	out := new(ShowPartitionsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/ShowPartitions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/ShowPartitions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4039,7 +4040,7 @@ func (c *queryCoordClient) ShowPartitions(ctx context.Context, in *ShowPartition
 
 func (c *queryCoordClient) LoadPartitions(ctx context.Context, in *LoadPartitionsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/LoadPartitions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/LoadPartitions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4048,7 +4049,7 @@ func (c *queryCoordClient) LoadPartitions(ctx context.Context, in *LoadPartition
 
 func (c *queryCoordClient) ReleasePartitions(ctx context.Context, in *ReleasePartitionsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/ReleasePartitions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/ReleasePartitions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4057,7 +4058,7 @@ func (c *queryCoordClient) ReleasePartitions(ctx context.Context, in *ReleasePar
 
 func (c *queryCoordClient) LoadCollection(ctx context.Context, in *LoadCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/LoadCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/LoadCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4066,7 +4067,7 @@ func (c *queryCoordClient) LoadCollection(ctx context.Context, in *LoadCollectio
 
 func (c *queryCoordClient) ReleaseCollection(ctx context.Context, in *ReleaseCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/ReleaseCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/ReleaseCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4075,7 +4076,7 @@ func (c *queryCoordClient) ReleaseCollection(ctx context.Context, in *ReleaseCol
 
 func (c *queryCoordClient) GetPartitionStates(ctx context.Context, in *GetPartitionStatesRequest, opts ...grpc.CallOption) (*GetPartitionStatesResponse, error) {
 	out := new(GetPartitionStatesResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetPartitionStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetPartitionStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4084,7 +4085,7 @@ func (c *queryCoordClient) GetPartitionStates(ctx context.Context, in *GetPartit
 
 func (c *queryCoordClient) GetSegmentInfo(ctx context.Context, in *GetSegmentInfoRequest, opts ...grpc.CallOption) (*GetSegmentInfoResponse, error) {
 	out := new(GetSegmentInfoResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetSegmentInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetSegmentInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4093,7 +4094,7 @@ func (c *queryCoordClient) GetSegmentInfo(ctx context.Context, in *GetSegmentInf
 
 func (c *queryCoordClient) LoadBalance(ctx context.Context, in *LoadBalanceRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/LoadBalance", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/LoadBalance", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4102,7 +4103,7 @@ func (c *queryCoordClient) LoadBalance(ctx context.Context, in *LoadBalanceReque
 
 func (c *queryCoordClient) ShowConfigurations(ctx context.Context, in *internalpb.ShowConfigurationsRequest, opts ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error) {
 	out := new(internalpb.ShowConfigurationsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/ShowConfigurations", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/ShowConfigurations", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4111,7 +4112,7 @@ func (c *queryCoordClient) ShowConfigurations(ctx context.Context, in *internalp
 
 func (c *queryCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4120,7 +4121,7 @@ func (c *queryCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetri
 
 func (c *queryCoordClient) GetReplicas(ctx context.Context, in *milvuspb.GetReplicasRequest, opts ...grpc.CallOption) (*milvuspb.GetReplicasResponse, error) {
 	out := new(milvuspb.GetReplicasResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetReplicas", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetReplicas", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4129,7 +4130,7 @@ func (c *queryCoordClient) GetReplicas(ctx context.Context, in *milvuspb.GetRepl
 
 func (c *queryCoordClient) GetShardLeaders(ctx context.Context, in *GetShardLeadersRequest, opts ...grpc.CallOption) (*GetShardLeadersResponse, error) {
 	out := new(GetShardLeadersResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/GetShardLeaders", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/GetShardLeaders", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4138,7 +4139,7 @@ func (c *queryCoordClient) GetShardLeaders(ctx context.Context, in *GetShardLead
 
 func (c *queryCoordClient) CheckHealth(ctx context.Context, in *milvuspb.CheckHealthRequest, opts ...grpc.CallOption) (*milvuspb.CheckHealthResponse, error) {
 	out := new(milvuspb.CheckHealthResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.query.QueryCoord/CheckHealth", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.query.QueryCoord/CheckHealth", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -4238,7 +4239,7 @@ func _QueryCoord_GetComponentStates_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetComponentStates",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -4256,7 +4257,7 @@ func _QueryCoord_GetTimeTickChannel_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetTimeTickChannel",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetTimeTickChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetTimeTickChannel(ctx, req.(*internalpb.GetTimeTickChannelRequest))
@@ -4274,7 +4275,7 @@ func _QueryCoord_GetStatisticsChannel_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetStatisticsChannel",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -4292,7 +4293,7 @@ func _QueryCoord_ShowCollections_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/ShowCollections",
+		FullMethod: "/milvus.proto.query.QueryCoord/ShowCollections",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).ShowCollections(ctx, req.(*ShowCollectionsRequest))
@@ -4310,7 +4311,7 @@ func _QueryCoord_ShowPartitions_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/ShowPartitions",
+		FullMethod: "/milvus.proto.query.QueryCoord/ShowPartitions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).ShowPartitions(ctx, req.(*ShowPartitionsRequest))
@@ -4328,7 +4329,7 @@ func _QueryCoord_LoadPartitions_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/LoadPartitions",
+		FullMethod: "/milvus.proto.query.QueryCoord/LoadPartitions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).LoadPartitions(ctx, req.(*LoadPartitionsRequest))
@@ -4346,7 +4347,7 @@ func _QueryCoord_ReleasePartitions_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/ReleasePartitions",
+		FullMethod: "/milvus.proto.query.QueryCoord/ReleasePartitions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).ReleasePartitions(ctx, req.(*ReleasePartitionsRequest))
@@ -4364,7 +4365,7 @@ func _QueryCoord_LoadCollection_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/LoadCollection",
+		FullMethod: "/milvus.proto.query.QueryCoord/LoadCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).LoadCollection(ctx, req.(*LoadCollectionRequest))
@@ -4382,7 +4383,7 @@ func _QueryCoord_ReleaseCollection_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/ReleaseCollection",
+		FullMethod: "/milvus.proto.query.QueryCoord/ReleaseCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).ReleaseCollection(ctx, req.(*ReleaseCollectionRequest))
@@ -4400,7 +4401,7 @@ func _QueryCoord_GetPartitionStates_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetPartitionStates",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetPartitionStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetPartitionStates(ctx, req.(*GetPartitionStatesRequest))
@@ -4418,7 +4419,7 @@ func _QueryCoord_GetSegmentInfo_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetSegmentInfo",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetSegmentInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetSegmentInfo(ctx, req.(*GetSegmentInfoRequest))
@@ -4436,7 +4437,7 @@ func _QueryCoord_LoadBalance_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/LoadBalance",
+		FullMethod: "/milvus.proto.query.QueryCoord/LoadBalance",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).LoadBalance(ctx, req.(*LoadBalanceRequest))
@@ -4454,7 +4455,7 @@ func _QueryCoord_ShowConfigurations_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/ShowConfigurations",
+		FullMethod: "/milvus.proto.query.QueryCoord/ShowConfigurations",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).ShowConfigurations(ctx, req.(*internalpb.ShowConfigurationsRequest))
@@ -4472,7 +4473,7 @@ func _QueryCoord_GetMetrics_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetMetrics",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
@@ -4490,7 +4491,7 @@ func _QueryCoord_GetReplicas_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetReplicas",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetReplicas",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetReplicas(ctx, req.(*milvuspb.GetReplicasRequest))
@@ -4508,7 +4509,7 @@ func _QueryCoord_GetShardLeaders_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/GetShardLeaders",
+		FullMethod: "/milvus.proto.query.QueryCoord/GetShardLeaders",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).GetShardLeaders(ctx, req.(*GetShardLeadersRequest))
@@ -4526,7 +4527,7 @@ func _QueryCoord_CheckHealth_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.query.QueryCoord/CheckHealth",
+		FullMethod: "/milvus.proto.query.QueryCoord/CheckHealth",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryCoordServer).CheckHealth(ctx, req.(*milvuspb.CheckHealthRequest))
@@ -4535,7 +4536,7 @@ func _QueryCoord_CheckHealth_Handler(srv interface{}, ctx context.Context, dec f
 }
 
 var _QueryCoord_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "milvus.protov2.query.QueryCoord",
+	ServiceName: "milvus.proto.query.QueryCoord",
 	HandlerType: (*QueryCoordServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

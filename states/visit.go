@@ -8,10 +8,14 @@ import (
 	"time"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
+	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
+	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -95,6 +99,7 @@ func getSessionConnect(cli *clientv3.Client, basePath string, id int64, sessionT
 	fmt.Printf("%s id:%d not found\n", sessionType, id)
 	return nil, nil, errors.New("invalid id")
 }
+
 func getVisitSessionCmds(state State, cli *clientv3.Client, basePath string) []*cobra.Command {
 	sessionCmds := make([]*cobra.Command, 0, len(getSessionTypes()))
 	sessionTypes := getSessionTypes()
@@ -127,4 +132,78 @@ func getVisitSessionCmds(state State, cli *clientv3.Client, basePath string) []*
 		sessionCmds = append(sessionCmds, callCmd)
 	}
 	return sessionCmds
+}
+
+type configurationSource interface {
+	ShowConfigurations(context.Context, *internalpbv2.ShowConfigurationsRequest, ...grpc.CallOption) (*internalpbv2.ShowConfigurationsResponse, error)
+}
+
+type metricsSource interface {
+	GetMetrics(context.Context, *milvuspb.GetMetricsRequest, ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error)
+}
+
+func getMetrics(ctx context.Context, client metricsSource) (string, error) {
+	req := &milvuspb.GetMetricsRequest{
+		Base:    &commonpb.MsgBase{},
+		Request: `{"metric_type": "system_info"}`,
+	}
+	resp, err := client.GetMetrics(ctx, req)
+	return resp.GetResponse(), err
+}
+
+func getConfiguration(ctx context.Context, client configurationSource, id int64) ([]*commonpbv2.KeyValuePair, error) {
+	resp, err := client.ShowConfigurations(context.Background(), &internalpbv2.ShowConfigurationsRequest{
+		Base: &commonpbv2.MsgBase{
+			SourceID: -1,
+			TargetID: id,
+		},
+	})
+	return resp.GetConfiguations(), err
+}
+
+func getMetricsCmd(client metricsSource) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "metrics",
+		Short:   "show the metrics provided by current server",
+		Aliases: []string{"GetMetrics"},
+		Run: func(cmd *cobra.Command, args []string) {
+
+			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
+				Base:    &commonpb.MsgBase{},
+				Request: `{"metric_type": "system_info"}`,
+			})
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			fmt.Printf("Metrics: %#v\n", resp.Response)
+		},
+	}
+
+	return cmd
+}
+
+func getConfigurationCmd(client configurationSource, id int64) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "configuration",
+		Short:   "call ShowConfigurations for config inspection",
+		Aliases: []string{"GetConfigurations", "configurations"},
+		Run: func(cmd *cobra.Command, args []string) {
+			resp, err := client.ShowConfigurations(context.Background(), &internalpbv2.ShowConfigurationsRequest{
+				Base: &commonpbv2.MsgBase{
+					SourceID: -1,
+					TargetID: id,
+				},
+			})
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			for _, item := range resp.GetConfiguations() {
+				fmt.Printf("Key: %s, Value: %s\n", item.Key, item.Value)
+			}
+		},
+	}
+
+	return cmd
 }
