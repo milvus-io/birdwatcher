@@ -1,13 +1,19 @@
 package states
 
 import (
+	"bufio"
+	"compress/gzip"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -25,7 +31,11 @@ type embedEtcdMockState struct {
 // Close implements State.
 // Clean up embed etcd folder content.
 func (s *embedEtcdMockState) Close() {
+	if s.client != nil {
+		s.client.Close()
+	}
 	if s.server != nil {
+		s.server.Close()
 		os.RemoveAll(s.server.Config().Dir)
 	}
 }
@@ -46,8 +56,16 @@ func (s *embedEtcdMockState) SetupCommands() {
 		cleanEmptySegments(s.client, path.Join(s.instanceName, metaPath)),
 		// remove-segment-by-id
 		removeSegmentByID(s.client, path.Join(s.instanceName, metaPath)),
+		// force-release
+		getForceReleaseCmd(s.client, path.Join(s.instanceName, metaPath)),
+
 		// disconnect
 		getDisconnectCmd(s),
+
+		// repair-segment
+		getRepairSegmentCmd(s.client, path.Join(s.instanceName, metaPath)),
+		// repair-channel
+		getRepairChannelCmd(s.client, path.Join(s.instanceName, metaPath)),
 
 		// raw get
 		getEtcdRawCmd(s.client),
@@ -59,6 +77,10 @@ func (s *embedEtcdMockState) SetupCommands() {
 
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands
+}
+
+func (s *embedEtcdMockState) SetInstance(instanceName string) {
+	s.cmdState.label = fmt.Sprintf("Backup(%s)", instanceName)
 }
 
 func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string) State {
@@ -74,6 +96,19 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 
 	state.SetupCommands()
 
+	return state
+}
+
+func getEmbedEtcdInstanceV2(server *embed.Etcd) *embedEtcdMockState {
+
+	client := v3client.New(server.Server)
+	state := &embedEtcdMockState{
+		cmdState: cmdState{},
+		server:   server,
+		client:   client,
+	}
+
+	state.SetupCommands()
 	return state
 }
 
@@ -106,27 +141,83 @@ func getLoadBackupCmd(state State) *cobra.Command {
 				return
 			}
 
+			f, err := os.Open(arg)
+			if err != nil {
+				fmt.Printf("failed to open backup file %s, err: %s\n", arg, err.Error())
+				return
+			}
+			r, err := gzip.NewReader(f)
+			if err != nil {
+				fmt.Println("failed to open gzip reader, err:", err.Error())
+				return
+			}
+			defer r.Close()
+
+			rd := bufio.NewReader(r)
+			var header models.BackupHeader
+			err = readFixLengthHeader(rd, &header)
+			if err != nil {
+				fmt.Println("failed to load backup header", err.Error())
+				return
+			}
+
 			server, err := startEmbedEtcdServer()
 			if err != nil {
 				fmt.Println("failed to start embed etcd server:", err.Error())
 				return
 			}
 			fmt.Println("using data dir:", server.Config().Dir)
-
-			var rootPath string
-			client := v3client.New(server.Server)
-			rootPath, _, err = restoreEtcd(client, arg)
-			if err != nil {
-				fmt.Printf("failed to restore file: %s, error: %s", arg, err.Error())
-				server.Close()
+			nextState := getEmbedEtcdInstanceV2(server)
+			switch header.Version {
+			case 1:
+				err = restoreFromV1File(nextState.client, rd, &header)
+				if err != nil {
+					fmt.Println("failed to restore v1 backup file", err.Error())
+					nextState.Close()
+					return
+				}
+				nextState.SetInstance(header.Instance)
+			case 2:
+				err = restoreV2File(rd, nextState)
+				if err != nil {
+					fmt.Println("failed to restore v2 backup file", err.Error())
+					nextState.Close()
+					return
+				}
+			default:
+				fmt.Printf("backup version %d not supported\n", header.Version)
+				nextState.Close()
 				return
 			}
 
-			state.SetNext(getEmbedEtcdInstance(server, client, rootPath))
+			state.SetNext(nextState)
 		},
 	}
 
 	return cmd
+}
+
+func readFixLengthHeader[T proto.Message](rd *bufio.Reader, header T) error {
+	lb := make([]byte, 8)
+	lenRead, err := rd.Read(lb)
+	if err == io.EOF || lenRead < 8 {
+		return fmt.Errorf("File does not contains valid header")
+	}
+
+	nextBytes := binary.LittleEndian.Uint64(lb)
+	headerBs := make([]byte, nextBytes)
+	lenRead, err = io.ReadFull(rd, headerBs)
+	if err != nil {
+		return fmt.Errorf("failed to read header bytes, %w", err)
+	}
+	if lenRead != int(nextBytes) {
+		return fmt.Errorf("not enough bytes for header")
+	}
+	err = proto.Unmarshal(headerBs, header)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal header, err: %w", err)
+	}
+	return nil
 }
 
 // testFile check file path exists and has access
