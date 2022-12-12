@@ -81,6 +81,8 @@ func (s *embedEtcdMockState) SetupCommands() {
 
 func (s *embedEtcdMockState) SetInstance(instanceName string) {
 	s.cmdState.label = fmt.Sprintf("Backup(%s)", instanceName)
+	s.instanceName = instanceName
+	s.SetupCommands()
 }
 
 func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string) State {
