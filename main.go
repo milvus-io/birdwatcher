@@ -19,8 +19,16 @@ var (
 )
 
 func main() {
+	defer handleExit()
 	app := states.Start()
 	runPrompt(app)
+}
+
+func handleExit() {
+	rawModeOff := exec.Command("/bin/stty", "-raw", "echo")
+	rawModeOff.Stdin = os.Stdin
+	_ = rawModeOff.Run()
+	rawModeOff.Wait()
 }
 
 // run start BirdWatcher with promptui. (disable suggestion and history)
@@ -45,13 +53,13 @@ func run(app states.State) {
 
 // promptApp model wraps states to provide function for go-prompt.
 type promptApp struct {
+	exited       bool
 	currentState states.State
 }
 
 // promptExecute actual execution logic entry.
 func (a *promptApp) promptExecute(in string) {
 	in = strings.TrimSpace(in)
-	var err error
 
 	// try to get $PAGER env
 	pager := os.Getenv("PAGER")
@@ -93,10 +101,10 @@ func (a *promptApp) promptExecute(in string) {
 			}()
 		}
 	}
-
-	a.currentState, err = a.currentState.Process(in)
-	if errors.Is(err, states.ExitErr) {
-		os.Exit(0)
+	a.currentState, _ = a.currentState.Process(in)
+	if a.currentState.IsEnding() {
+		fmt.Println("Bye!")
+		a.exited = true
 	}
 }
 
@@ -119,6 +127,9 @@ func (a *promptApp) completeInput(d prompt.Document) []prompt.Suggest {
 
 // livePrefix implements dynamic change prefix.
 func (a *promptApp) livePrefix() (string, bool) {
+	if a.exited {
+		return "", false
+	}
 	return fmt.Sprintf("%s > ", a.currentState.Label()), true
 }
 
@@ -132,6 +143,14 @@ func runPrompt(app states.State) {
 		prompt.OptionPrefixTextColor(prompt.Yellow),
 		prompt.OptionPreviewSuggestionTextColor(prompt.Blue),
 		prompt.OptionSelectedSuggestionBGColor(prompt.LightGray),
-		prompt.OptionSuggestionBGColor(prompt.DarkGray))
+		prompt.OptionSuggestionBGColor(prompt.DarkGray),
+		prompt.OptionSetExitCheckerOnInput(func(in string, breakline bool) bool {
+			// setup exit command
+			if strings.ToLower(in) == "exit" && breakline {
+				return true
+			}
+			return false
+		}),
+	)
 	p.Run()
 }
