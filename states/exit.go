@@ -21,6 +21,7 @@ func getExitCmd(state State) *cobra.Command {
 		Aliases: []string{"quit"},
 		RunE: func(*cobra.Command, []string) error {
 			state.SetNext(&exitState{})
+			// cannot return ExitErr here to avoid print help message
 			return nil
 		},
 	}
@@ -35,6 +36,9 @@ type exitState struct {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *exitState) SetupCommands() {}
+
+// IsEnding returns true for exit State
+func (s *exitState) IsEnding() bool { return true }
 
 // getDisconnectCmd disconnect from current state.
 // will call close method for current state.

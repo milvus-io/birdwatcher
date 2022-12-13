@@ -1,6 +1,7 @@
 package states
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,6 +17,7 @@ type State interface {
 	SetNext(state State)
 	Suggestions(input string) map[string]string
 	SetupCommands()
+	IsEnding() bool
 }
 
 // cmdState is the basic state to process input command.
@@ -133,15 +135,13 @@ func (s *cmdState) Process(cmd string) (State, error) {
 	}
 	s.rootCmd.SetArgs(args)
 	err = s.rootCmd.Execute()
+	if errors.Is(err, ExitErr) {
+		return s.nextState, ExitErr
+	}
 	if err != nil {
 		return s, err
 	}
 	if s.nextState != nil {
-		//defer s.Close()
-		// TODO fix ugly type cast
-		if _, ok := s.nextState.(*exitState); ok {
-			return s.nextState, ExitErr
-		}
 		nextState := s.nextState
 		s.nextState = nil
 		return nextState, nil
@@ -159,6 +159,9 @@ func (s *cmdState) SetNext(state State) {
 
 // Close empty method to implement State.
 func (s *cmdState) Close() {}
+
+// Check
+func (s *cmdState) IsEnding() bool { return false }
 
 // Start returns the first state - offline.
 func Start() State {
