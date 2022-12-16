@@ -8,6 +8,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/storage"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -22,7 +23,7 @@ func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 			var segments []*datapb.SegmentInfo
 			var err error
 			if len(args) == 0 {
-				segments, err = listSegments(cli, basePath, nil)
+				segments, err = common.ListSegments(cli, basePath, nil)
 			} else {
 				var segmentID int64
 				segmentID, err = strconv.ParseInt(args[0], 10, 64)
@@ -31,7 +32,7 @@ func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 					cmd.Help()
 					return
 				}
-				segments, err = listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool { return info.ID == segmentID })
+				segments, err = common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool { return info.ID == segmentID })
 			}
 			if err != nil {
 				fmt.Println("failed to parse argument:", err.Error())
@@ -49,7 +50,7 @@ func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				}
 				pkID, has := cachedCollection[segment.CollectionID]
 				if !has {
-					coll, err := getCollectionByID(cli, basePath, segment.CollectionID)
+					coll, err := common.GetCollectionByID(cli, basePath, segment.CollectionID)
 					if err != nil {
 						fmt.Println("Collection not found for id", segment.CollectionID)
 						return
@@ -68,7 +69,7 @@ func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 					}
 				}
 
-				fillFieldsIfV2(cli, basePath, segment)
+				common.FillFieldsIfV2(cli, basePath, segment)
 				for _, fieldBinlog := range segment.Binlogs {
 					if fieldBinlog.FieldID != pkID {
 						continue

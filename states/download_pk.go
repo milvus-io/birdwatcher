@@ -11,6 +11,7 @@ import (
 	"github.com/gosuri/uilive"
 	"github.com/manifoldco/promptui"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				return err
 			}
 
-			coll, err := getCollectionByID(cli, basePath, collectionID)
+			coll, err := common.GetCollectionByID(cli, basePath, collectionID)
 			if err != nil {
 				fmt.Println("Collection not found for id", collectionID)
 				return nil
@@ -47,7 +48,7 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				return nil
 			}
 
-			segments, err := listSegments(cli, basePath, func(segment *datapb.SegmentInfo) bool {
+			segments, err := common.ListSegments(cli, basePath, func(segment *datapb.SegmentInfo) bool {
 				return segment.CollectionID == collectionID
 			})
 
@@ -80,7 +81,7 @@ func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 			}
 
 			for _, segment := range segments {
-				fillFieldsIfV2(cli, basePath, segment)
+				common.FillFieldsIfV2(cli, basePath, segment)
 			}
 			downloadPks(minioClient, bucketName, collectionID, pkID, segments)
 

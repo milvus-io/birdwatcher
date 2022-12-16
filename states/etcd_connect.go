@@ -46,7 +46,7 @@ func getConnectCommand(state State) *cobra.Command {
 
 			etcdCli, err := clientv3.New(clientv3.Config{
 				Endpoints:   []string{etcdAddr},
-				DialTimeout: time.Second * 2,
+				DialTimeout: time.Second * 10,
 
 				// disable grpc logging
 				Logger: zap.NewNop(),
@@ -56,7 +56,7 @@ func getConnectCommand(state State) *cobra.Command {
 			}
 
 			// ping etcd
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
 			err = pingEtcd(ctx, etcdCli)
 			if err != nil {

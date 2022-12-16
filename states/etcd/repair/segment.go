@@ -1,12 +1,9 @@
-package states
+package repair
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"path"
-	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
@@ -14,15 +11,17 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-// getRepairSegmentCmd returns command for repair-segment.
-func getRepairSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+// SegmentCommand return repair segment command.
+func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "repair-segment",
-		Short: "do segment & index meta check and try to repair",
+		Use:     "segment",
+		Aliases: []string{"segments"},
+		Short:   "do segment & index meta check and try to repair",
 		Run: func(cmd *cobra.Command, args []string) {
 
 			collID, err := cmd.Flags().GetInt64("collection")
@@ -35,18 +34,19 @@ func getRepairSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
-			skipDownload, err := cmd.Flags().GetBool("skip-download")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+			/*
+				skipDownload, err := cmd.Flags().GetBool("skip-download")
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}*/
 			run, err := cmd.Flags().GetBool("run")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
 
-			segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
+			segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
 				return (collID == 0 || info.CollectionID == collID) &&
 					(segmentID == 0 || info.ID == segmentID)
 			})
@@ -56,13 +56,13 @@ func getRepairSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 			}
 
 			// use v1 meta for now
-			segmentIndexes, err := listSegmentIndex(cli, basePath)
+			segmentIndexes, err := common.ListSegmentIndex(cli, basePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
 
-			indexBuildInfo, err := listIndex(cli, basePath)
+			indexBuildInfo, err := common.ListIndex(cli, basePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -105,7 +105,7 @@ func getRepairSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 
 				coll, ok := collections[segment.CollectionID]
 				if !ok {
-					coll, err = getCollectionByID(cli, basePath, segment.CollectionID)
+					coll, err = common.GetCollectionByID(cli, basePath, segment.CollectionID)
 					if err != nil {
 						fmt.Printf("failed to query collection(id=%d) info error: %s", segment.CollectionID, err.Error())
 						continue
@@ -113,7 +113,7 @@ func getRepairSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 					collections[segment.CollectionID] = coll
 				}
 
-				fillFieldsIfV2(cli, basePath, segment)
+				common.FillFieldsIfV2(cli, basePath, segment)
 
 				for _, segIdx := range segIdxs {
 					var valid bool
@@ -150,51 +150,52 @@ func getRepairSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				return
 			}
 
-			if !skipDownload {
-				minioClient, bucketName, err := getMinioAccess()
+			/*
+				if !skipDownload {
+					minioClient, bucketName, err := getMinioAccess()
 
-				if err != nil {
-					fmt.Println("failed to get minio access", err.Error())
-				}
-
-				folder := fmt.Sprintf("repair_segment_%s", time.Now().Format("20060102150406"))
-				for segmentID, segment := range target {
-					fileName := fmt.Sprintf("segment_%d", segmentID)
-					oldSeg := targetOld[segmentID]
-					f, err := os.Create(path.Join(folder, fileName))
 					if err != nil {
-						fmt.Println("failed to open file", fileName, err.Error())
-						return
+						fmt.Println("failed to get minio access", err.Error())
 					}
-					bs, err := proto.Marshal(oldSeg)
-					w := bufio.NewWriter(f)
-					w.Write(bs)
-					w.Flush()
-					f.Close()
 
-					index, ok := targetIndex[segmentID]
-					if ok {
-						fileName = fmt.Sprintf("index_%d", segmentID)
-						f, err = os.Create(path.Join(folder, fileName))
+					folder := fmt.Sprintf("repair_segment_%s", time.Now().Format("20060102150406"))
+					for segmentID, segment := range target {
+						fileName := fmt.Sprintf("segment_%d", segmentID)
+						oldSeg := targetOld[segmentID]
+						f, err := os.Create(path.Join(folder, fileName))
 						if err != nil {
 							fmt.Println("failed to open file", fileName, err.Error())
 							return
 						}
-						bs, err = proto.Marshal(index)
+						bs, err := proto.Marshal(oldSeg)
 						w := bufio.NewWriter(f)
 						w.Write(bs)
 						w.Flush()
 						f.Close()
 
-					}
+						index, ok := targetIndex[segmentID]
+						if ok {
+							fileName = fmt.Sprintf("index_%d", segmentID)
+							f, err = os.Create(path.Join(folder, fileName))
+							if err != nil {
+								fmt.Println("failed to open file", fileName, err.Error())
+								return
+							}
+							bs, err = proto.Marshal(index)
+							w := bufio.NewWriter(f)
+							w.Write(bs)
+							w.Flush()
+							f.Close()
 
-					err = downloadSegment(minioClient, bucketName, segment, targetIndex[segmentID], folder)
-					if err != nil {
-						fmt.Println("failed to download segment", err.Error())
-						return
+						}
+
+						err = downloadSegment(minioClient, bucketName, segment, targetIndex[segmentID], folder)
+						if err != nil {
+							fmt.Println("failed to download segment", err.Error())
+							return
+						}
 					}
-				}
-			}
+				}*/
 
 			// row count check
 			for segmentID, segment := range target {

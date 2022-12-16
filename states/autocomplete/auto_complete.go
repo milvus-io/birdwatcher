@@ -1,4 +1,4 @@
-package states
+package autocomplete
 
 import (
 	"fmt"
@@ -110,6 +110,13 @@ func (c *flagCandidate) Suggest(target cComp) map[string]string {
 func (c *flagCandidate) NextCandidates(current []acCandidate) []acCandidate {
 	// TODO add next value match all candidate
 	return current
+}
+
+// SuggestInputCommands returns suggestions based on command setup.
+func SuggestInputCommands(input string, commands []*cobra.Command) map[string]string {
+	iResult := parseInput(input)
+
+	return findCmdSuggestions(iResult.parts, commands)
 }
 
 func findCmdSuggestions(comps []cComp, commands []*cobra.Command) map[string]string {

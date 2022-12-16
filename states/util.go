@@ -143,7 +143,7 @@ func reviseVChannelInfo(vChannel *datapb.VchannelInfo) {
 }
 
 type infoWithCollectionID interface {
-	GetCollectionID() UniqueID
+	GetCollectionID() int64
 	String() string
 }
 

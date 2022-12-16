@@ -13,6 +13,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
 // TODO read port from config
@@ -23,7 +24,7 @@ func getShowLogLevelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		Use:   "show-log-level",
 		Short: "show log level of milvus roles",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sessions, err := listSessions(cli, basePath)
+			sessions, err := common.ListSessions(cli, basePath)
 			if err != nil {
 				return err
 			}
@@ -66,7 +67,7 @@ func getUpdateLogLevelCmd(cli *clientv3.Client, basePath string) *cobra.Command 
 		Use:   "update-log-level log_level [component] [serverId]",
 		Short: "update log level of milvus role ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sessions, err := listSessions(cli, basePath)
+			sessions, err := common.ListSessions(cli, basePath)
 			if err != nil {
 				return err
 			}

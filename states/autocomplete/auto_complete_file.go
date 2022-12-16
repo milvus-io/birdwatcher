@@ -1,4 +1,4 @@
-package states
+package autocomplete
 
 import (
 	"fmt"

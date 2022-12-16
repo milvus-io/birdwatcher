@@ -14,6 +14,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/minio/minio-go/v7"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -38,7 +39,7 @@ func getDownloadSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command
 				}
 			}
 
-			segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
+			segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
 				_, ok := segSet[info.ID]
 				return ok
 			})
@@ -55,7 +56,7 @@ func getDownloadSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command
 
 			folder := fmt.Sprintf("dlsegment_%s", time.Now().Format("20060102150406"))
 			for _, segment := range segments {
-				fillFieldsIfV2(cli, basePath, segment)
+				common.FillFieldsIfV2(cli, basePath, segment)
 				downloadSegment(minioClient, bucketName, segment, nil, folder)
 			}
 

@@ -1,4 +1,4 @@
-package states
+package repair
 
 import (
 	"context"
@@ -15,14 +15,16 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/utils"
 )
 
 // Example:
 // reset-checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type kafka --address localhost:9092 --set_to latest-msgid
 // reset-checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type pulsar --address pulsar://localhost:6650 --set_to latest-msgid
-func getResetCheckpointCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func CheckpointCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "reset-checkpoint",
+		Use:     "checkpoint",
 		Short:   "reset checkpoint of vchannels to latest checkpoint(or latest msgID) of physical channel",
 		Aliases: []string{"rc"},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -44,7 +46,7 @@ func getResetCheckpointCmd(cli *clientv3.Client, basePath string) *cobra.Command
 				return
 			}
 
-			coll, err := getCollectionByID(cli, basePath, collID)
+			coll, err := common.GetCollectionByID(cli, basePath, collID)
 			if err != nil {
 				fmt.Println("failed to get collection", err.Error())
 				return
@@ -94,7 +96,7 @@ func setCheckPointWithLatestMsgID(cli *clientv3.Client, basePath string, coll *e
 			}
 
 			err = saveChannelCheckpoint(cli, basePath, ch, cp)
-			t, _ := ParseTS(cp.GetTimestamp())
+			t, _ := utils.ParseTS(cp.GetTimestamp())
 			if err != nil {
 				fmt.Printf("failed to set latest msgID(ts:%v) for vchannel:%s", t, ch)
 				return
@@ -115,7 +117,7 @@ func setCheckPointWithLatestCheckPoint(cli *clientv3.Client, basePath string, co
 
 	fmt.Println("list the latest checkpoint of all physical channels:")
 	for k, v := range pChannelName2LatestCP {
-		t, _ := ParseTS(v.GetTimestamp())
+		t, _ := utils.ParseTS(v.GetTimestamp())
 		fmt.Printf("pchannel: %s, the lastest checkpoint ts: %v\n", k, t)
 	}
 
@@ -129,7 +131,7 @@ func setCheckPointWithLatestCheckPoint(cli *clientv3.Client, basePath string, co
 			}
 
 			err := saveChannelCheckpoint(cli, basePath, ch, cp)
-			t, _ := ParseTS(cp.GetTimestamp())
+			t, _ := utils.ParseTS(cp.GetTimestamp())
 			if err != nil {
 				fmt.Printf("failed to set latest checkpoint(ts:%v) for vchannel:%s", t, ch)
 				return
@@ -153,7 +155,7 @@ func saveChannelCheckpoint(cli *clientv3.Client, basePath string, channelName st
 }
 
 func getLatestCheckpointFromPChannel(cli *clientv3.Client, basePath string) (map[string]*internalpb.MsgPosition, error) {
-	segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
+	segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
 		return true
 	})
 	if err != nil {

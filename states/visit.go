@@ -16,6 +16,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -74,7 +75,7 @@ func setNextState(sessionType string, conn *grpc.ClientConn, statePtr *State, se
 }
 
 func getSessionConnect(cli *clientv3.Client, basePath string, id int64, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
-	sessions, err := listSessions(cli, basePath)
+	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session, err:", err.Error())
 		return nil, nil, err

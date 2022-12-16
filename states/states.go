@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/samber/lo"
+	"github.com/milvus-io/birdwatcher/states/autocomplete"
 	"github.com/spf13/cobra"
 )
 
@@ -41,9 +41,7 @@ func (s *cmdState) Label() string {
 }
 
 func (s *cmdState) Suggestions(input string) map[string]string {
-	iResult := s.parseInput(input)
-
-	return findCmdSuggestions(iResult.parts, s.rootCmd.Commands())
+	return autocomplete.SuggestInputCommands(input, s.rootCmd.Commands())
 }
 
 func printCommands(cmds []*cobra.Command) {
@@ -51,78 +49,6 @@ func printCommands(cmds []*cobra.Command) {
 		fmt.Printf("\"%s\"", cmd.Use)
 	}
 	fmt.Println()
-}
-
-func (s *cmdState) parseInput(input string) inputResult {
-	// check is end with space
-	isEndBlank := strings.HasSuffix(input, " ")
-
-	parts := strings.Split(input, " ")
-	parts = lo.Filter(parts, func(part string, idx int) bool {
-		return part != ""
-	})
-
-	comps := make([]cComp, 0, len(parts))
-	currentFlagValue := false
-
-	for _, part := range parts {
-		// next part is flag value
-		// just set last comp cValue
-		if currentFlagValue {
-			comps[len(comps)-1].cValue = part
-			currentFlagValue = false
-			continue
-		}
-		// is flag
-		if strings.HasPrefix(part, "-") {
-			raw := strings.TrimLeft(part, "-")
-			if strings.Contains(raw, "=") {
-				parts := strings.Split(raw, "=")
-				// a=b
-				if len(parts) == 2 {
-					comps = append(comps, cComp{
-						raw:    part,
-						cTag:   parts[0],
-						cValue: parts[1],
-						cType:  cmdCompFlag,
-					})
-				}
-				// TODO handle part len != 2
-			} else {
-				currentFlagValue = true
-				comps = append(comps, cComp{
-					raw:   part,
-					cTag:  raw,
-					cType: cmdCompFlag,
-				})
-			}
-		} else {
-			comps = append(comps, cComp{
-				raw:   part,
-				cTag:  part,
-				cType: cmdCompCommand,
-			})
-		}
-	}
-
-	is := inputStateCmd
-	if currentFlagValue {
-		if isEndBlank {
-			is = inputStateFlagValue
-		} else {
-			is = inputStateFlagTag
-		}
-	}
-
-	// add empty comp if end with space
-	if isEndBlank {
-		comps = append(comps, cComp{cType: cmdCompCommand})
-	}
-
-	return inputResult{
-		parts: comps,
-		state: is,
-	}
 }
 
 // Process is the main entry for processing command.
@@ -160,30 +86,5 @@ func (s *cmdState) SetNext(state State) {
 // Close empty method to implement State.
 func (s *cmdState) Close() {}
 
-// Check
+// Check state is ending state.
 func (s *cmdState) IsEnding() bool { return false }
-
-// Start returns the first state - offline.
-func Start() State {
-	root := &cobra.Command{
-		Use:   "",
-		Short: "",
-	}
-
-	state := &cmdState{
-		label:   "Offline",
-		rootCmd: root,
-	}
-
-	root.AddCommand(
-		// connect
-		getConnectCommand(state),
-		// load-backup
-		getLoadBackupCmd(state),
-		// exit
-		getExitCmd(state))
-
-	root.AddCommand(getGlobalUtilCommands()...)
-
-	return state
-}
