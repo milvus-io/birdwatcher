@@ -103,7 +103,10 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 			}
 			state.SetInstance(instance)
 		case int32(models.MetricsBackup):
-			testRestoreMetrics(rd, ph)
+			restoreMetrics(rd, ph, func(session *models.Session, metrics, defaultMetrics []byte) {
+				state.metrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = metrics
+				state.defaultMetrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = defaultMetrics
+			})
 		case int32(models.Configurations):
 			testRestoreConfigurations(rd, ph)
 		case int32(models.AppMetrics):
@@ -191,6 +194,40 @@ func restoreEtcdFromBackV2(cli *clientv3.Client, rd io.Reader, ph models.PartHea
 		fmt.Fprintf(progressDisplay, progressFmt, progress, i, cnt)
 	}
 
+}
+
+func restoreMetrics(rd io.Reader, ph models.PartHeader, handler func(session *models.Session, metrics, defaultMetrics []byte)) error {
+	for {
+		bs, nb, err := readBackupBytes(rd)
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+		// stopper
+		if nb == 0 {
+			return nil
+		}
+
+		// session
+		session := &models.Session{}
+		err = json.Unmarshal(bs, session)
+		if err != nil {
+			return err
+		}
+
+		mbs, _, err := readBackupBytes(rd)
+		if err != nil {
+			return err
+		}
+
+		dmbs, _, err := readBackupBytes(rd)
+		if err != nil {
+			return err
+		}
+		handler(session, mbs, dmbs)
+	}
 }
 
 func testRestoreMetrics(rd io.Reader, ph models.PartHeader) error {

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -16,7 +17,7 @@ func getFetchMetricsCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 		Use:   "fetch-metrics",
 		Short: "fetch metrics from milvus instances",
 		Run: func(cmd *cobra.Command, args []string) {
-			sessions, err := listSessions(cli, basePath)
+			sessions, err := common.ListSessions(cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list session", err.Error())
 				return

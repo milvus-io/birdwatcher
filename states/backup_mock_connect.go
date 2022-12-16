@@ -2,7 +2,6 @@ package states
 
 import (
 	"bufio"
-	"compress/gzip"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -10,15 +9,18 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/mitchellh/go-homedir"
+	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
+)
+
+const (
+	workspaceMetaFile = `.bw_project`
 )
 
 type embedEtcdMockState struct {
@@ -26,6 +28,10 @@ type embedEtcdMockState struct {
 	client       *clientv3.Client
 	server       *embed.Etcd
 	instanceName string
+	workDir      string
+
+	metrics        map[string][]byte
+	defaultMetrics map[string][]byte
 }
 
 // Close implements State.
@@ -45,35 +51,32 @@ func (s *embedEtcdMockState) Close() {
 func (s *embedEtcdMockState) SetupCommands() {
 	cmd := &cobra.Command{}
 
+	rootPath := path.Join(s.instanceName, metaPath)
+
 	cmd.AddCommand(
 		// show [subcommand] options...
-		getEtcdShowCmd(s.client, path.Join(s.instanceName, metaPath)),
+		etcd.ShowCommand(s.client, rootPath),
 		// download-pk
-		getDownloadPKCmd(s.client, path.Join(s.instanceName, metaPath)),
+		getDownloadPKCmd(s.client, rootPath),
 		// inspect-pk
-		getInspectPKCmd(s.client, path.Join(s.instanceName, metaPath)),
-		// clean-empty-segment
-		cleanEmptySegments(s.client, path.Join(s.instanceName, metaPath)),
-		// remove-segment-by-id
-		removeSegmentByID(s.client, path.Join(s.instanceName, metaPath)),
+		getInspectPKCmd(s.client, rootPath),
+
 		// force-release
-		getForceReleaseCmd(s.client, path.Join(s.instanceName, metaPath)),
+		getForceReleaseCmd(s.client, rootPath),
 
 		// disconnect
 		getDisconnectCmd(s),
 
-		// repair-segment
-		getRepairSegmentCmd(s.client, path.Join(s.instanceName, metaPath)),
-		// repair-channel
-		getRepairChannelCmd(s.client, path.Join(s.instanceName, metaPath)),
+		// for testing
+		etcd.RepairCommand(s.client, rootPath),
 
-		// raw get
-		getEtcdRawCmd(s.client),
+		getPrintMetricsCmd(s),
 
 		// exit
 		getExitCmd(s),
 	)
 	cmd.AddCommand(getGlobalUtilCommands()...)
+	cmd.AddCommand(etcd.RawCommands(s.client)...)
 
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands
@@ -85,15 +88,86 @@ func (s *embedEtcdMockState) SetInstance(instanceName string) {
 	s.SetupCommands()
 }
 
+func (s *embedEtcdMockState) setupWorkDir(dir string) {
+	s.workDir = dir
+	s.syncWorkspaceInfo()
+}
+
+// syncWorkspaceInfo try to read pre-written workspace meta info.
+// if not exist or version is older, write a new one.
+func (s *embedEtcdMockState) syncWorkspaceInfo() {
+	metaFilePath := path.Join(s.workDir, workspaceMetaFile)
+	err := testFile(metaFilePath)
+	if os.IsNotExist(err) {
+		fmt.Printf("%s not exist, writing a new one", metaFilePath)
+		// meta file not exist
+		s.writeWorkspaceMeta(metaFilePath)
+	}
+	if err != nil {
+		// path is a folder
+		fmt.Printf("%s cannot setup as workspace meta, err: %s\n", metaFilePath, err.Error())
+		return
+	}
+
+	s.readWorkspaceMeta(metaFilePath)
+}
+
+func (s *embedEtcdMockState) writeWorkspaceMeta(path string) {
+	file, err := os.Create(path)
+	if err != nil {
+		fmt.Println("failed to open meta file to write", err.Error())
+		return
+	}
+	defer file.Close()
+
+	meta := &models.WorkspaceMeta{
+		Version:  "0.0.1",
+		Instance: s.instanceName,
+		MetaPath: metaPath,
+	}
+
+	bs, err := proto.Marshal(meta)
+	if err != nil {
+		fmt.Println("failed to marshal meta info", err.Error())
+		return
+	}
+	r := bufio.NewWriter(file)
+
+	writeBackupBytes(r, bs)
+	r.Flush()
+}
+
+func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Printf("failed to open meta file %s to read, err: %s\n", path, err.Error())
+		return
+	}
+	defer file.Close()
+
+	r := bufio.NewReader(file)
+
+	meta := models.WorkspaceMeta{}
+	err = readFixLengthHeader(r, &meta)
+	if err != nil {
+		fmt.Printf("failed to read %s as meta file, %s\n", path, err.Error())
+		return
+	}
+
+	s.SetInstance(meta.Instance)
+}
+
 func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string) State {
 
 	state := &embedEtcdMockState{
 		cmdState: cmdState{
 			label: fmt.Sprintf("Backup(%s)", instanceName),
 		},
-		instanceName: instanceName,
-		server:       server,
-		client:       cli,
+		instanceName:   instanceName,
+		server:         server,
+		client:         cli,
+		metrics:        make(map[string][]byte),
+		defaultMetrics: make(map[string][]byte),
 	}
 
 	state.SetupCommands()
@@ -105,97 +179,38 @@ func getEmbedEtcdInstanceV2(server *embed.Etcd) *embedEtcdMockState {
 
 	client := v3client.New(server.Server)
 	state := &embedEtcdMockState{
-		cmdState: cmdState{},
-		server:   server,
-		client:   client,
+		cmdState:       cmdState{},
+		server:         server,
+		client:         client,
+		metrics:        make(map[string][]byte),
+		defaultMetrics: make(map[string][]byte),
 	}
 
 	state.SetupCommands()
 	return state
 }
 
-func getLoadBackupCmd(state State) *cobra.Command {
+func getPrintMetricsCmd(state *embedEtcdMockState) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "load-backup [file]",
-		Short: "load etcd backup file as env",
+		Use:   "print-metrics",
+		Short: "print metrics restored from backup file",
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				fmt.Println("No backup file provided.")
-				return
-			}
-			if len(args) > 1 {
-				fmt.Println("only one backup file is allowed")
-				return
-			}
 
-			arg := args[0]
-			if strings.Contains(arg, "~") {
-				var err error
-				arg, err = homedir.Expand(arg)
-				if err != nil {
-					fmt.Println("path contains tilde, but cannot find home folder", err.Error())
-					return
-				}
-			}
-			err := testFile(arg)
+			node, err := cmd.Flags().GetString("node")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
-
-			f, err := os.Open(arg)
-			if err != nil {
-				fmt.Printf("failed to open backup file %s, err: %s\n", arg, err.Error())
+			metrics, ok := state.metrics[node]
+			if !ok {
+				fmt.Printf("not metrics found for node %s\n", node)
 				return
 			}
-			r, err := gzip.NewReader(f)
-			if err != nil {
-				fmt.Println("failed to open gzip reader, err:", err.Error())
-				return
-			}
-			defer r.Close()
-
-			rd := bufio.NewReader(r)
-			var header models.BackupHeader
-			err = readFixLengthHeader(rd, &header)
-			if err != nil {
-				fmt.Println("failed to load backup header", err.Error())
-				return
-			}
-
-			server, err := startEmbedEtcdServer()
-			if err != nil {
-				fmt.Println("failed to start embed etcd server:", err.Error())
-				return
-			}
-			fmt.Println("using data dir:", server.Config().Dir)
-			nextState := getEmbedEtcdInstanceV2(server)
-			switch header.Version {
-			case 1:
-				err = restoreFromV1File(nextState.client, rd, &header)
-				if err != nil {
-					fmt.Println("failed to restore v1 backup file", err.Error())
-					nextState.Close()
-					return
-				}
-				nextState.SetInstance(header.Instance)
-			case 2:
-				err = restoreV2File(rd, nextState)
-				if err != nil {
-					fmt.Println("failed to restore v2 backup file", err.Error())
-					nextState.Close()
-					return
-				}
-			default:
-				fmt.Printf("backup version %d not supported\n", header.Version)
-				nextState.Close()
-				return
-			}
-
-			state.SetNext(nextState)
+			fmt.Println(string(metrics))
 		},
 	}
 
+	cmd.Flags().String("node", "", "select node metrics to print")
 	return cmd
 }
 
@@ -222,25 +237,28 @@ func readFixLengthHeader[T proto.Message](rd *bufio.Reader, header T) error {
 	return nil
 }
 
-// testFile check file path exists and has access
-func testFile(file string) error {
-	fi, err := os.Stat(file)
-	if err != nil {
-		return err
-	}
-	// not support iterate all possible file under directory for now
-	if fi.IsDir() {
-		return fmt.Errorf("%s is a folder", file)
-	}
-	return nil
-}
-
 // startEmbedEtcdServer start an embed etcd server to mock with backup data
-func startEmbedEtcdServer() (*embed.Etcd, error) {
-	dir, err := ioutil.TempDir(os.TempDir(), "birdwatcher")
-	if err != nil {
-		return nil, err
+func startEmbedEtcdServer(workspaceName string, useWorkspace bool) (*embed.Etcd, error) {
+	var dir string
+	var err error
+	if useWorkspace {
+		info, err := os.Stat(workspaceName)
+		if err == nil {
+			if info.IsDir() {
+				dir = workspaceName
+			}
+		} else {
+			fmt.Println(err.Error())
+		}
 	}
+	if dir == "" {
+		fmt.Println("[Start Embed Etcd]using temp dir")
+		dir, err = ioutil.TempDir(os.TempDir(), "birdwatcher")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	fmt.Println("embed etcd use dir:", dir)
 
 	config := embed.NewConfig()

@@ -27,6 +27,7 @@ import (
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -239,7 +240,7 @@ func backupEtcdV2(cli *clientv3.Client, base, prefix string, w *bufio.Writer, ig
 }
 
 func backupMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) error {
-	sessions, err := listSessions(cli, basePath)
+	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err
 	}
@@ -280,7 +281,7 @@ func backupMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) error
 }
 
 func backupAppMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) error {
-	sessions, err := listSessions(cli, basePath)
+	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err
 	}
@@ -350,7 +351,7 @@ func backupAppMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) er
 }
 
 func backupConfiguration(cli *clientv3.Client, basePath string, w *bufio.Writer) error {
-	sessions, err := listSessions(cli, basePath)
+	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err
 	}

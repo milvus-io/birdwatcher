@@ -1,4 +1,4 @@
-package states
+package autocomplete
 
 type cmdCompType int
 

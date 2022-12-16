@@ -1,20 +1,4 @@
-// Licensed to the LF AI & Data foundation under one
-// or more contributor license agreements. See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership. The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License. You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package states
+package show
 
 import (
 	"errors"
@@ -24,6 +8,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
+	"github.com/milvus-io/birdwatcher/utils"
 )
 
 const (
@@ -287,7 +272,7 @@ func (lct *loadCollectionTask) String() string {
 	baseStr := lct.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", lct.msgType().String())
 	ts := lct.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, lct.LoadCollectionRequest.String())
 	return ret
@@ -327,7 +312,7 @@ func (rct *releaseCollectionTask) String() string {
 	baseStr := rct.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", rct.msgType().String())
 	ts := rct.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, rct.ReleaseCollectionRequest.String())
 	return ret
@@ -368,7 +353,7 @@ func (lpt *loadPartitionTask) String() string {
 	baseStr := lpt.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", lpt.msgType().String())
 	ts := lpt.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, lpt.LoadPartitionsRequest.String())
 	return ret
@@ -408,7 +393,7 @@ func (rpt *releasePartitionTask) String() string {
 	baseStr := rpt.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", rpt.msgType().String())
 	ts := rpt.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, rpt.ReleasePartitionsRequest.String())
 	return ret
@@ -448,7 +433,7 @@ func (lst *loadSegmentTask) String() string {
 	baseStr := lst.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", lst.msgType().String())
 	ts := lst.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, lst.LoadSegmentsRequest.String())
 	return ret
@@ -487,7 +472,7 @@ func (rst *releaseSegmentTask) String() string {
 	baseStr := rst.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", rst.msgType().String())
 	ts := rst.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, rst.ReleaseSegmentsRequest.String())
 	return ret
@@ -527,7 +512,7 @@ func (wdt *watchDmChannelTask) String() string {
 	baseStr := wdt.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", wdt.msgType().String())
 	ts := wdt.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, wdt.WatchDmChannelsRequest.String())
 	return ret
@@ -568,7 +553,7 @@ func (ht *handoffTask) String() string {
 	baseStr := ht.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", ht.msgType().String())
 	ts := ht.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
 	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, ht.HandoffSegmentsRequest.String())
 	return ret
@@ -607,9 +592,9 @@ func (lbt *loadBalanceTask) String() string {
 	baseStr := lbt.baseQueryCoordTask.String()
 	typeStr := fmt.Sprintf("type:%s", lbt.msgType().String())
 	ts := lbt.timestamp()
-	time, logic := ParseTS(ts)
+	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
-	ret := fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, lbt.LoadBalanceRequest.String())
+	ret := fmt.Sprintf("%s\t%s\t%s", baseStr, typeStr, timeStr) //fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, lbt.LoadBalanceRequest.String())
 	return ret
 }
 

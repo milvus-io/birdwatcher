@@ -1,9 +1,8 @@
-package states
+package show
 
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -16,16 +15,16 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
-// getEtcdShowCollection returns sub command for showCmd
+// CollectionCommand returns sub command for showCmd.
 // show collection [options...]
-func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command {
+func CollectionCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "collections",
 		Short:   "list current available collection from RootCoord",
-		Aliases: []string{"collections"},
+		Aliases: []string{"collection"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			collectionID, err := cmd.Flags().GetInt64("id")
 			if err != nil {
@@ -68,46 +67,8 @@ func getEtcdShowCollection(cli *clientv3.Client, basePath string) *cobra.Command
 	return cmd
 }
 
-var (
-	ErrCollectionDropped = errors.New("collection dropped")
-)
-
-func getCollectionByID(cli *clientv3.Client, basePath string, collID int64) (*etcdpb.CollectionInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	resp, err := cli.Get(ctx, path.Join(basePath, "root-coord/collection", strconv.FormatInt(collID, 10)))
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(resp.Kvs) != 1 {
-		return nil, errors.New("invalid collection id")
-	}
-
-	if bytes.Equal(resp.Kvs[0].Value, CollectionTombstone) {
-		return nil, fmt.Errorf("%w, collection id: %d", ErrCollectionDropped, collID)
-	}
-
-	coll := &etcdpb.CollectionInfo{}
-
-	err = proto.Unmarshal(resp.Kvs[0].Value, coll)
-	if err != nil {
-		return nil, err
-	}
-
-	err = fillFieldSchemaIfEmpty(cli, basePath, coll)
-	if err != nil {
-		return nil, err
-	}
-
-	return coll, nil
-}
-
-var CollectionTombstone = []byte{0xE2, 0x9B, 0xBC}
-
 func processCollectionKV(cli *clientv3.Client, basePath string, kv *mvccpb.KeyValue, handleErr func(key string, err error)) {
-	if bytes.Equal(kv.Value, CollectionTombstone) {
+	if bytes.Equal(kv.Value, common.CollectionTombstone) {
 		return
 	}
 
@@ -118,33 +79,13 @@ func processCollectionKV(cli *clientv3.Client, basePath string, kv *mvccpb.KeyVa
 		return
 	}
 
-	err = fillFieldSchemaIfEmpty(cli, basePath, collection)
+	err = common.FillFieldSchemaIfEmpty(cli, basePath, collection)
 	if err != nil {
 		handleErr(string(kv.Key), err)
 		return
 	}
 
 	printCollection(collection)
-}
-
-func fillFieldSchemaIfEmpty(cli *clientv3.Client, basePath string, collection *etcdpb.CollectionInfo) error {
-	if len(collection.GetSchema().GetFields()) == 0 { // fields separated from schema after 2.1.1
-		resp, err := cli.Get(context.TODO(), path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collection.ID)), clientv3.WithPrefix())
-		if err != nil {
-			return err
-		}
-		for _, kv := range resp.Kvs {
-			field := &schemapb.FieldSchema{}
-			err := proto.Unmarshal(kv.Value, field)
-			if err != nil {
-				fmt.Println("found error field:", string(kv.Key), err.Error())
-				continue
-			}
-			collection.Schema.Fields = append(collection.Schema.Fields, field)
-		}
-	}
-
-	return nil
 }
 
 func printCollection(collection *etcdpb.CollectionInfo) {

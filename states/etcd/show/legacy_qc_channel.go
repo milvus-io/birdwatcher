@@ -1,20 +1,4 @@
-// Licensed to the LF AI & Data foundation under one
-// or more contributor license agreements. See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership. The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License. You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package states
+package show
 
 import (
 	"context"
@@ -25,6 +9,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
@@ -33,8 +18,6 @@ import (
 
 const (
 	unsubscribeChannelInfoPrefix = "queryCoord-unsubscribeChannelInfo"
-	dmChannelMetaPrefix          = "queryCoord-dmChannelWatchInfo"
-	deltaChannelMetaPrefix       = "queryCoord-deltaChannel"
 )
 
 func printNodeUnsubChannelInfos(infos []*querypb.UnsubscribeChannelInfo) {
@@ -87,67 +70,23 @@ func listQueryCoordUnsubChannelInfos(cli *clientv3.Client, basePath string) ([]*
 }
 
 func printDMChannelWatchInfo(infos []*querypb.DmChannelWatchInfo) {
-	infos2 := make([]infoWithCollectionID, 0)
+	common.SortByCollection(infos)
 	for _, info := range infos {
-		infos2 = append(infos2, info)
+		//TODO beautify output
+		fmt.Println(info.String())
 	}
-	printInfoWithCollectionID(infos2)
-}
-
-func listQueryCoordDMLChannelInfos(cli *clientv3.Client, basePath string) ([]*querypb.DmChannelWatchInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	prefix := path.Join(basePath, dmChannelMetaPrefix)
-
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
-	if err != nil {
-		return nil, err
-	}
-
-	ret := make([]*querypb.DmChannelWatchInfo, 0)
-	for _, kv := range resp.Kvs {
-		channelInfo := &querypb.DmChannelWatchInfo{}
-		err = proto.Unmarshal(kv.Value, channelInfo)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, channelInfo)
-	}
-	return ret, nil
-}
-
-func listQueryCoordDeltaChannelInfos(cli *clientv3.Client, basePath string) ([]*datapb.VchannelInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	prefix := path.Join(basePath, deltaChannelMetaPrefix)
-
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
-	if err != nil {
-		return nil, err
-	}
-
-	ret := make([]*datapb.VchannelInfo, 0, len(resp.Kvs))
-	for _, kv := range resp.Kvs {
-		channelInfo := &datapb.VchannelInfo{}
-		err = proto.Unmarshal(kv.Value, channelInfo)
-		if err != nil {
-			return nil, err
-		}
-		reviseVChannelInfo(channelInfo)
-		ret = append(ret, channelInfo)
-	}
-	return ret, nil
 }
 
 func printDeltaChannelInfos(infos []*datapb.VchannelInfo) {
-	infos2 := make([]infoWithCollectionID, 0)
+	common.SortByCollection(infos)
 	for _, info := range infos {
-		infos2 = append(infos2, info)
+		// TODO beautify output
+		fmt.Println(info.String())
 	}
-	printInfoWithCollectionID(infos2)
 }
 
-func getQueryCoordChannelInfoCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+// QueryCoordChannelCommand returns show querycoord-channel command.
+func QueryCoordChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "querycoord-channel",
 		Short:   "display querynode information from querycoord cluster",
@@ -172,14 +111,14 @@ func getQueryCoordChannelInfoCmd(cli *clientv3.Client, basePath string) *cobra.C
 				printNodeUnsubChannelInfos(unsubInfos)
 			}
 
-			dmWatchInfo, err := listQueryCoordDMLChannelInfos(cli, basePath)
+			dmWatchInfo, err := common.ListQueryCoordDMLChannelInfos(cli, basePath)
 			if err != nil {
 				return err
 			}
 			if taskType == "" || taskType == "all" || taskType == "dml" {
 				printDMChannelWatchInfo(dmWatchInfo)
 			}
-			deltaChannels, err := listQueryCoordDeltaChannelInfos(cli, basePath)
+			deltaChannels, err := common.ListQueryCoordDeltaChannelInfos(cli, basePath)
 			if err != nil {
 				return err
 			}

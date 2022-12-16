@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -49,7 +50,7 @@ func getReleaseDroppedCollectionCmd(cli *clientv3.Client, basePath string) *cobr
 		Use:   "release-dropped-collection",
 		Short: "Clean loaded collections meta if it's dropped from QueryCoord",
 		Run: func(cmd *cobra.Command, args []string) {
-			collectionLoadInfos, err := getLoadedCollectionInfo(cli, basePath)
+			collectionLoadInfos, err := common.ListLoadedCollectionInfoV2_1(cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list loaded collections", err.Error())
 				return
@@ -57,7 +58,7 @@ func getReleaseDroppedCollectionCmd(cli *clientv3.Client, basePath string) *cobr
 
 			var missing []int64
 			for _, info := range collectionLoadInfos {
-				_, err := getCollectionByID(cli, basePath, info.CollectionID)
+				_, err := common.GetCollectionByID(cli, basePath, info.CollectionID)
 				if err != nil {
 					missing = append(missing, info.CollectionID)
 				}
@@ -86,7 +87,7 @@ func getReleaseDroppedCollectionCmd(cli *clientv3.Client, basePath string) *cobr
 }
 
 func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collectionID int64) error {
-	p := path.Join(basePath, collectionMetaPrefix, fmt.Sprintf("%d", collectionID))
+	p := path.Join(basePath, common.CollectionLoadPrefix, fmt.Sprintf("%d", collectionID))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	_, err := cli.Delete(ctx, p)
@@ -95,7 +96,7 @@ func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collection
 		return err
 	}
 
-	segments, err := listLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
+	segments, err := common.ListLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
 		return info.CollectionID == collectionID
 	})
 
@@ -108,7 +109,7 @@ func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collection
 		cli.Delete(ctx, p)
 	}
 
-	dmChannels, err := listQueryCoordDMLChannelInfos(cli, basePath)
+	dmChannels, err := common.ListQueryCoordDMLChannelInfos(cli, basePath)
 	if err != nil {
 		return err
 	}
@@ -117,16 +118,16 @@ func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collection
 		if dmChannel.CollectionID != collectionID {
 			continue
 		}
-		p := path.Join(basePath, dmChannelMetaPrefix, fmt.Sprintf("%d/%s", dmChannel.CollectionID, dmChannel.DmChannel))
+		p := path.Join(basePath, common.QCDmChannelMetaPrefix, fmt.Sprintf("%d/%s", dmChannel.CollectionID, dmChannel.DmChannel))
 		cli.Delete(ctx, p)
 	}
 
-	deltaChannels, err := listQueryCoordDeltaChannelInfos(cli, basePath)
+	deltaChannels, err := common.ListQueryCoordDeltaChannelInfos(cli, basePath)
 	for _, deltaChannel := range deltaChannels {
 		if deltaChannel.CollectionID != collectionID {
 			continue
 		}
-		p := path.Join(basePath, deltaChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
+		p := path.Join(basePath, common.QCDeltaChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
 		cli.Delete(ctx, p)
 	}
 

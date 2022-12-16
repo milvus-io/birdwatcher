@@ -1,4 +1,4 @@
-package states
+package repair
 
 import (
 	"context"
@@ -7,15 +7,18 @@ import (
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 )
 
-func getRepairChannelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+// ChannelCommand returns repair channel command.
+func ChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "repair-channel",
-		Short: "do channel watch change and try to repair",
+		Use:     "channel",
+		Aliases: []string{"channels"},
+		Short:   "do channel watch change and try to repair",
 		Run: func(cmd *cobra.Command, args []string) {
 			collID, err := cmd.Flags().GetInt64("collection")
 			if err != nil {
@@ -33,7 +36,7 @@ func getRepairChannelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				return
 			}
 
-			coll, err := getCollectionByID(cli, basePath, collID)
+			coll, err := common.GetCollectionByID(cli, basePath, collID)
 			if err != nil {
 				fmt.Println("collection not found")
 				return
@@ -44,7 +47,7 @@ func getRepairChannelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 				chans[vchan] = struct{}{}
 			}
 
-			infos, _, err := listChannelWatchV1(cli, basePath)
+			infos, _, err := common.ListChannelWatchV1(cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list channel watch info", err.Error())
 				return
@@ -77,7 +80,7 @@ func getRepairChannelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 func doDatacoordWatch(cli *clientv3.Client, basePath string, collectionID int64, vchannels []string) {
-	sessions, err := listSessions(cli, basePath)
+	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session")
 		return

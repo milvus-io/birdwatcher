@@ -1,17 +1,18 @@
-package states
+package show
 
 import (
-	"context"
 	"fmt"
-	"path"
 	"time"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/utils"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getEtcdShowChannelWatch(cli *clientv3.Client, basePath string) *cobra.Command {
+// ChannelWatchedCommand return show channel-watched commands.
+func ChannelWatchedCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "channel-watch",
 		Short:   "display channel watching info from data coord meta store",
@@ -23,18 +24,16 @@ func getEtcdShowChannelWatch(cli *clientv3.Client, basePath string) *cobra.Comma
 				return
 			}
 
-			infos, _, err := listChannelWatchV1(cli, basePath)
+			infos, keys, err := common.ListChannelWatchV1(cli, basePath, func(channel *datapb.ChannelWatchInfo) bool {
+				return collID == 0 || channel.GetVchan().GetCollectionID() == collID
+			})
 			if err != nil {
 				fmt.Println("failed to list channel watch info", err.Error())
 				return
 			}
 
-			for _, info := range infos {
-				if collID > 0 && info.GetVchan().GetCollectionID() != collID {
-					continue
-				}
-
-				printChannelWatchInfo(info)
+			for i, info := range infos {
+				printChannelWatchInfo(info, keys[i])
 			}
 
 			fmt.Printf("--- Total Channels: %d\n", len(infos))
@@ -44,16 +43,9 @@ func getEtcdShowChannelWatch(cli *clientv3.Client, basePath string) *cobra.Comma
 	return cmd
 }
 
-func listChannelWatchV1(cli *clientv3.Client, basePath string) ([]datapb.ChannelWatchInfo, []string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
-	prefix := path.Join(basePath, "channelwatch") + "/"
-	return listObject[datapb.ChannelWatchInfo](ctx, cli, prefix)
-}
-
-func printChannelWatchInfo(info datapb.ChannelWatchInfo) {
+func printChannelWatchInfo(info datapb.ChannelWatchInfo, key string) {
 	fmt.Println("=============================")
+	fmt.Printf("key: %s\n", key)
 	fmt.Printf("Channel Name:%s \t WatchState: %s\n", info.GetVchan().GetChannelName(), info.GetState().String())
 	//t, _ := ParseTS(uint64(info.GetStartTs()))
 	//to, _ := ParseTS(uint64(info.GetTimeoutTs()))
@@ -62,7 +54,7 @@ func printChannelWatchInfo(info datapb.ChannelWatchInfo) {
 	fmt.Printf("Channel Watch start from: %s, timeout at: %s\n", t.Format(tsPrintFormat), to.Format(tsPrintFormat))
 
 	pos := info.GetVchan().GetSeekPosition()
-	startTime, _ := ParseTS(pos.GetTimestamp())
+	startTime, _ := utils.ParseTS(pos.GetTimestamp())
 	fmt.Printf("Start Position ID: %v, time: %s\n", pos.GetMsgID(), startTime.Format(tsPrintFormat))
 
 	fmt.Printf("Unflushed segments: %v\n", info.Vchan.GetUnflushedSegmentIds())

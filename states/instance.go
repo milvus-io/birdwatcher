@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -25,41 +26,39 @@ func (s *instanceState) SetupCommands() {
 	cli := s.client
 	instanceName := s.instanceName
 
+	basePath := path.Join(instanceName, metaPath)
+
 	cmd.AddCommand(
 		// download-segment
-		getDownloadSegmentCmd(cli, path.Join(instanceName, metaPath)),
+		getDownloadSegmentCmd(cli, basePath),
 		// show [subcommand] options...
-		getEtcdShowCmd(cli, path.Join(instanceName, metaPath)),
+		etcd.ShowCommand(cli, basePath),
+		// repair [subcommand] options...
+		etcd.RepairCommand(cli, basePath),
 		// backup [component]
-		getBackupEtcdCmd(cli, path.Join(instanceName, metaPath)),
+		getBackupEtcdCmd(cli, basePath),
 		// kill --component [component] --id [id]
-		getEtcdKillCmd(cli, path.Join(instanceName, metaPath)),
+		getEtcdKillCmd(cli, basePath),
 		// force-release
-		getForceReleaseCmd(cli, path.Join(instanceName, metaPath)),
+		getForceReleaseCmd(cli, basePath),
 		// download-pk
-		getDownloadPKCmd(cli, path.Join(instanceName, metaPath)),
+		getDownloadPKCmd(cli, basePath),
 		// visit [component] [id]
-		getVisitCmd(s, cli, path.Join(instanceName, metaPath)),
+		getVisitCmd(s, cli, basePath),
 		// show-log-level
-		getShowLogLevelCmd(cli, path.Join(instanceName, metaPath)),
+		getShowLogLevelCmd(cli, basePath),
 		// update-log-level log_level_name component serverId
-		getUpdateLogLevelCmd(cli, path.Join(instanceName, metaPath)),
-		// clean-empty-segment
-		cleanEmptySegments(cli, path.Join(instanceName, metaPath)),
+		getUpdateLogLevelCmd(cli, basePath),
+
 		// remove-segment-by-id
-		removeSegmentByID(cli, path.Join(instanceName, metaPath)),
+		//removeSegmentByID(cli, basePath),
 		// garbage-collect
-		getGarbageCollectCmd(cli, path.Join(instanceName, metaPath)),
+		getGarbageCollectCmd(cli, basePath),
 		// release-dropped-collection
-		getReleaseDroppedCollectionCmd(cli, path.Join(instanceName, metaPath)),
-		// repair-segment
-		getRepairSegmentCmd(cli, path.Join(instanceName, metaPath)),
-		// repair-channel
-		getRepairChannelCmd(cli, path.Join(instanceName, metaPath)),
-		// reset-checkpoint
-		getResetCheckpointCmd(cli, path.Join(instanceName, metaPath)),
+		getReleaseDroppedCollectionCmd(cli, basePath),
+
 		// fetch-metrics
-		getFetchMetricsCmd(cli, path.Join(instanceName, metaPath)),
+		getFetchMetricsCmd(cli, basePath),
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
 		// disconnect

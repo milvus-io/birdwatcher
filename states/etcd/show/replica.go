@@ -1,4 +1,4 @@
-package states
+package show
 
 import (
 	"context"
@@ -6,14 +6,14 @@ import (
 	"path"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-// getEtcdShowReplica returns command for show querycoord replicas
-func getEtcdShowReplica(cli *clientv3.Client, basePath string) *cobra.Command {
+// ReplicaCommand returns command for show querycoord replicas.
+func ReplicaCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replica",
 		Short:   "list current replica information from QueryCoord",
@@ -35,28 +35,21 @@ func getEtcdShowReplica(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func listReplicas(cli *clientv3.Client, basePath string) ([]*milvuspb.ReplicaInfo, error) {
+func listReplicas(cli *clientv3.Client, basePath string) ([]milvuspb.ReplicaInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	resp, err := cli.Get(ctx, path.Join(basePath, "queryCoord-ReplicaMeta"), clientv3.WithPrefix())
+	prefix := path.Join(basePath, "queryCoord-ReplicaMeta")
+
+	replicas, _, err := common.ListProtoObjects[milvuspb.ReplicaInfo](ctx, cli, prefix)
 
 	if err != nil {
 		return nil, err
 	}
 
-	replicas := make([]*milvuspb.ReplicaInfo, 0, len(resp.Kvs))
-	for _, kv := range resp.Kvs {
-		replica := &milvuspb.ReplicaInfo{}
-		if err != proto.Unmarshal(kv.Value, replica) {
-			continue
-		}
-		replicas = append(replicas, replica)
-	}
-
 	return replicas, nil
 }
 
-func printReplica(replica *milvuspb.ReplicaInfo) {
+func printReplica(replica milvuspb.ReplicaInfo) {
 	fmt.Println("================================================================================")
 	fmt.Printf("ReplicaID: %d CollectionID: %d\n", replica.ReplicaID, replica.CollectionID)
 	for _, shardReplica := range replica.ShardReplicas {
