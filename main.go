@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,11 +17,21 @@ import (
 
 var (
 	simple = flag.Bool("simple", false, "use simple ui without suggestion and history")
+	logger *log.Logger
 )
 
 func main() {
 	defer handleExit()
 	app := states.Start()
+	// open file and create if non-existent
+	file, err := os.OpenFile("bw_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	logger = log.New(file, "Custom Log", log.LstdFlags)
+
 	runPrompt(app)
 }
 
@@ -63,6 +74,11 @@ func (a *promptApp) promptExecute(in string) {
 
 	// try to get $PAGER env
 	pager := os.Getenv("PAGER")
+
+	pagerSig := make(chan struct{})
+	stdout := os.Stdout
+
+	var writer *os.File
 	if pager != "" {
 		var args []string
 		// refine less behavior
@@ -83,7 +99,7 @@ func (a *promptApp) promptExecute(in string) {
 
 		// Capture STDOUT for the Pager. Keep the old
 		// value so we can restore it later.
-		stdout := os.Stdout
+		writer = w
 		os.Stdout = w
 		cmd.Stdin = r
 		cmd.Stdout = stdout
@@ -92,16 +108,29 @@ func (a *promptApp) promptExecute(in string) {
 		err = cmd.Start()
 		if err != nil {
 			fmt.Printf("[WARNING] Cannot use %%PAGER(%s), set output back to stdout\n", pager)
-			os.Stdout = stdout
+			close(pagerSig)
 		} else {
-			defer func() {
-				w.Close()
-				os.Stdout = stdout
+			go func() {
+				// wait here in case of pager exit early
 				cmd.Wait()
+				logger.Printf("[DEBUG] wait pager done, state: %#v", cmd.ProcessState)
+				// set to /dev/null to discard not wanted output
+				os.Stdout, _ = os.Open(os.DevNull)
+				w.Close()
+				close(pagerSig)
 			}()
 		}
+	} else {
+		close(pagerSig)
 	}
 	a.currentState, _ = a.currentState.Process(in)
+	if writer != nil {
+		writer.Close()
+	}
+	<-pagerSig
+	// recovery normal output
+	os.Stdout = stdout
+
 	if a.currentState.IsEnding() {
 		fmt.Println("Bye!")
 		a.exited = true
