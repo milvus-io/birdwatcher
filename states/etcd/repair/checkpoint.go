@@ -19,9 +19,9 @@ import (
 	"github.com/milvus-io/birdwatcher/utils"
 )
 
-// Example:
-// reset-checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type kafka --address localhost:9092 --set_to latest-msgid
-// reset-checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type pulsar --address pulsar://localhost:6650 --set_to latest-msgid
+// CheckpointCommand usage:
+// repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type kafka --address localhost:9092 --set_to latest-msgid
+// repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type pulsar --address pulsar://localhost:6650 --set_to latest-msgid
 func CheckpointCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "checkpoint",
