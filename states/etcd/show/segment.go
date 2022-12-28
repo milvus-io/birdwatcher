@@ -3,6 +3,7 @@ package show
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -108,7 +109,12 @@ const (
 func printSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Segment ID: %d\n", info.ID)
-	fmt.Printf("Segment State:%v\n", info.State)
+	fmt.Printf("Segment State:%v", info.State)
+	if info.State == commonpb.SegmentState_Dropped {
+		dropTime := time.Unix(0, int64(info.DroppedAt))
+		fmt.Printf("\tDropped Time: %s", dropTime.Format(tsPrintFormat))
+	}
+	fmt.Println()
 	fmt.Printf("Collection ID: %d\t\tPartitionID: %d\n", info.CollectionID, info.PartitionID)
 	fmt.Printf("Insert Channel:%s\n", info.InsertChannel)
 	fmt.Printf("Num of Rows: %d\t\tMax Row Num: %d\n", info.NumOfRows, info.MaxRowNum)
@@ -138,7 +144,6 @@ func printSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 			return info.Binlogs[i].FieldID < info.Binlogs[j].FieldID
 		})
 		for _, log := range info.Binlogs {
-			fmt.Printf("Field %d:\n", log.FieldID)
 			for _, binlog := range log.Binlogs {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
 				tf, _ := utils.ParseTS(binlog.TimestampFrom)
