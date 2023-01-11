@@ -1,10 +1,7 @@
 package repair
 
 import (
-	"context"
 	"fmt"
-	"path"
-	"time"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -37,7 +34,7 @@ func EmptySegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 					fmt.Printf("suspect segment %d found:\n", info.GetID())
 					fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
 					if run {
-						err := removeSegment(cli, basePath, info)
+						err := common.RemoveSegment(cli, basePath, info)
 						if err == nil {
 							fmt.Printf("remove segment %d from meta succeed\n", info.GetID())
 						} else {
@@ -74,14 +71,4 @@ func isEmptySegment(info *datapb.SegmentInfo) bool {
 		}
 	}
 	return true
-}
-
-func removeSegment(cli *clientv3.Client, basePath string, info *datapb.SegmentInfo) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
-	path := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
-	_, err := cli.Delete(ctx, path)
-
-	return err
 }

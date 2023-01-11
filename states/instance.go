@@ -35,6 +35,9 @@ func (s *instanceState) SetupCommands() {
 		etcd.ShowCommand(cli, basePath),
 		// repair [subcommand] options...
 		etcd.RepairCommand(cli, basePath),
+		// remove [subcommand] options...
+		etcd.RemoveCommand(cli, basePath),
+
 		// backup [component]
 		getBackupEtcdCmd(cli, basePath),
 		// kill --component [component] --id [id]

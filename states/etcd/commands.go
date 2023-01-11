@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	"github.com/spf13/cobra"
@@ -73,6 +74,21 @@ func RepairCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	return repairCmd
 }
 
+// RemoveCommand returns etcd remove commands.
+// WARNING this command shall be used with EXTRA CARE!
+func RemoveCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+	removeCmd := &cobra.Command{
+		Use: "remove",
+	}
+
+	removeCmd.AddCommand(
+		// remove segment
+		remove.SegmentCommand(cli, basePath),
+	)
+
+	return removeCmd
+}
+
 // RawCommands provides raw "get" command to list kv in etcd
 func RawCommands(cli *clientv3.Client) []*cobra.Command {
 	cmd := &cobra.Command{
@@ -95,54 +111,3 @@ func RawCommands(cli *clientv3.Client) []*cobra.Command {
 
 	return []*cobra.Command{cmd}
 }
-
-/*
-func removeSegmentByID(cli *clientv3.Client, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "remove-segment-by-id",
-		Short: "Remove segment from meta with specified segment id",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			targetSegmentID, err := cmd.Flags().GetInt64("segment")
-			if err != nil {
-				return err
-			}
-			run, err := cmd.Flags().GetBool("run")
-			if err != nil {
-				return err
-			}
-			segments, err := listSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
-				return true
-			})
-			if err != nil {
-				fmt.Println("failed to list segments", err.Error())
-				return nil
-			}
-
-			for _, info := range segments {
-				if info.GetID() == targetSegmentID {
-					fmt.Printf("target segment %d found:\n", info.GetID())
-					printSegmentInfo(info, false)
-					if run {
-						err := removeSegment(cli, basePath, info)
-						if err == nil {
-							fmt.Printf("remove segment %d from meta succeed\n", info.GetID())
-						} else {
-							fmt.Printf("remove segment %d failed, err: %s\n", info.GetID(), err.Error())
-						}
-						return nil
-					}
-					if !isEmptySegment(info) {
-						fmt.Printf("\n[WARN] segment %d is not empty, please make sure you know what you're doing\n", targetSegmentID)
-					}
-					return nil
-				}
-			}
-			fmt.Printf("[WARN] cannot find segment %d\n", targetSegmentID)
-			return nil
-		},
-	}
-
-	cmd.Flags().Bool("run", false, "flags indicating whether to remove segment from meta")
-	cmd.Flags().Int64("segment", 0, "segment id to remove")
-	return cmd
-}*/
