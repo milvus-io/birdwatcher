@@ -151,3 +151,38 @@ func ListLoadedSegments(cli *clientv3.Client, basePath string, filter func(*quer
 
 	return segments, nil
 }
+
+// RemoveSegment delete segment entry from etcd.
+func RemoveSegment(cli *clientv3.Client, basePath string, info *datapb.SegmentInfo) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	segmentPath := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
+	_, err := cli.Delete(ctx, segmentPath)
+	if err != nil {
+		return err
+	}
+
+	// delete binlog entries
+	binlogPrefix := path.Join(basePath, "datacoord-meta/binlog", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
+	_, err = cli.Delete(ctx, binlogPrefix, clientv3.WithPrefix())
+	if err != nil {
+		fmt.Printf("failed to delete binlogs from etcd for segment %d, err: %s\n", info.GetID(), err.Error())
+	}
+
+	// delete deltalog entries
+	deltalogPrefix := path.Join(basePath, "datacoord-meta/deltalog", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
+	_, err = cli.Delete(ctx, deltalogPrefix, clientv3.WithPrefix())
+	if err != nil {
+		fmt.Printf("failed to delete deltalogs from etcd for segment %d, err: %s\n", info.GetID(), err.Error())
+	}
+
+	// delete statslog entries
+	statslogPrefix := path.Join(basePath, "datacoord-meta/statslog", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
+	_, err = cli.Delete(ctx, statslogPrefix, clientv3.WithPrefix())
+	if err != nil {
+		fmt.Printf("failed to delete statslogs from etcd for segment %d, err: %s\n", info.GetID(), err.Error())
+	}
+
+	return err
+}

@@ -70,7 +70,7 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 				switch format {
 				case "table":
 					common.FillFieldsIfV2(cli, basePath, info)
-					printSegmentInfo(info, detail)
+					PrintSegmentInfo(info, detail)
 				case "line":
 					fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
 				case "statistics":
@@ -106,7 +106,8 @@ const (
 	tsPrintFormat = "2006-01-02 15:04:05.999 -0700"
 )
 
-func printSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
+// PrintSegmentInfo prints segments info
+func PrintSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Segment ID: %d\n", info.ID)
 	fmt.Printf("Segment State:%v", info.State)
