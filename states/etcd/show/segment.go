@@ -38,10 +38,15 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			state, err := cmd.Flags().GetString("state")
+			if err != nil {
+				return err
+			}
 
 			segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
 				return (collID == 0 || info.CollectionID == collID) &&
-					(segmentID == 0 || info.ID == segmentID)
+					(segmentID == 0 || info.ID == segmentID) &&
+					(state == "" || info.State.String() == state)
 			})
 			if err != nil {
 				fmt.Println("failed to list segments", err.Error())
@@ -99,6 +104,7 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	cmd.Flags().String("format", "line", "segment display format")
 	cmd.Flags().Bool("detail", false, "flags indicating whether pring detail binlog info")
 	cmd.Flags().Int64("segment", 0, "segment id to filter with")
+	cmd.Flags().String("state", "", "target segment state")
 	return cmd
 }
 
