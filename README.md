@@ -69,7 +69,7 @@ Consistency Level: Strong
 ### backup etcd
 
 ```
-Milvus(by-dev): backup --component all
+Milvus(by-dev): backup
 found 37 keys, at revision 533816, starting backup...
 Backing up ... 100%(37/37)
 backup etcd for prefix by-dev/meta done, stored in file: bw_etcd_ALL.220707-152246.bak.gz
