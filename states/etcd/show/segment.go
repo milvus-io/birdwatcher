@@ -57,6 +57,7 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 			healthy := 0
 			var statslogSize int64
 			var growing, sealed, flushed int
+			fieldSize := make(map[int64]int64)
 			for _, info := range segments {
 
 				if info.State != commonpb.SegmentState_Dropped {
@@ -81,6 +82,11 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 				case "statistics":
 					if info.GetState() != commonpb.SegmentState_Dropped {
 						common.FillFieldsIfV2(cli, basePath, info)
+						for _, binlog := range info.GetBinlogs() {
+							for _, log := range binlog.GetBinlogs() {
+								fieldSize[binlog.FieldID] += log.GetLogSize()
+							}
+						}
 						for _, statslog := range info.GetStatslogs() {
 							for _, binlog := range statslog.GetBinlogs() {
 								statslogSize += binlog.LogSize
@@ -92,7 +98,13 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 
 			}
 			if format == "statistics" {
-				fmt.Printf("--- Total statslog size: %d\n", statslogSize)
+				var totalBinlogSize int64
+				for fieldID, size := range fieldSize {
+					fmt.Printf("\t field binlog size[%d]: %s\n", fieldID, hrSize(size))
+					totalBinlogSize += size
+				}
+				fmt.Printf("--- Total binlog size: %s\n", hrSize(totalBinlogSize))
+				fmt.Printf("--- Total statslog size: %s\n", hrSize(statslogSize))
 			}
 
 			fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d\n", growing, sealed, flushed)
@@ -101,11 +113,23 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64("collection", 0, "collection id to filter with")
+	cmd.Flags().Int64("partition", 0, "partition id to filter with")
 	cmd.Flags().String("format", "line", "segment display format")
 	cmd.Flags().Bool("detail", false, "flags indicating whether pring detail binlog info")
 	cmd.Flags().Int64("segment", 0, "segment id to filter with")
 	cmd.Flags().String("state", "", "target segment state")
 	return cmd
+}
+
+func hrSize(size int64) string {
+	sf := float64(size)
+	units := []string{"Bytes", "KB", "MB", "GB"}
+	idx := 0
+	for sf > 1024.0 && idx < 3 {
+		sf /= 1024.0
+		idx++
+	}
+	return fmt.Sprintf("%f %s", sf, units[idx])
 }
 
 const (
