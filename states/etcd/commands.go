@@ -84,6 +84,8 @@ func RemoveCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	removeCmd.AddCommand(
 		// remove segment
 		remove.SegmentCommand(cli, basePath),
+		// remove channel
+		remove.ChannelCommand(cli, basePath),
 	)
 
 	return removeCmd
