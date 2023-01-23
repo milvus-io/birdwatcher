@@ -3,10 +3,12 @@ package remove
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -50,6 +52,7 @@ func ChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 					validChannels[vchan] = struct{}{}
 				}
 			}
+			fmt.Println(lo.Keys(validChannels))
 
 			watchChannels, paths, err := common.ListChannelWatchV2(cli, basePath, func(info *datapbv2.ChannelWatchInfo) bool {
 				if len(channelName) > 0 {
@@ -70,9 +73,16 @@ func ChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 			if !run {
 				return
 			}
-			fmt.Printf("Start to delete orphan watch channel info...")
-			for _, path := range paths {
-				cli.Delete(context.Background(), path)
+			fmt.Printf("Start to delete orphan watch channel info...\n")
+			for _, path := range targets {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+				_, err := cli.Delete(ctx, path)
+				cancel()
+				if err != nil {
+					fmt.Printf("failed to remove watch key %s, error: %s\n", path, err.Error())
+					continue
+				}
+				fmt.Printf("remove orphan channel %s done\n", path)
 			}
 		},
 	}
