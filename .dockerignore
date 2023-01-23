@@ -1,0 +1,4 @@
+.git
+*.bak.gz
+dlsegment*
+bw_workspace

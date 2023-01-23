@@ -30,6 +30,18 @@ var (
 	CollectionTombstone = []byte{0xE2, 0x9B, 0xBC}
 )
 
+// ListCollections returns collection information.
+// the field info might not include.
+func ListCollections(cli *clientv3.Client, basePath string, filter func(*etcdpb.CollectionInfo) bool) ([]etcdpb.CollectionInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	colls, _, err := ListProtoObjectsAdv(ctx, cli, path.Join(basePath, "root-coord/collection"), func(value []byte) bool {
+		return !bytes.Equal(value, CollectionTombstone)
+	}, filter)
+	return colls, err
+}
+
 // GetCollectionByID returns collection info from etcd with provided id.
 func GetCollectionByID(cli *clientv3.Client, basePath string, collID int64) (*etcdpb.CollectionInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
