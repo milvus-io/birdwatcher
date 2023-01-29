@@ -97,7 +97,7 @@ func RawCommands(cli *clientv3.Client) []*cobra.Command {
 		Use: "get",
 		Run: func(cmd *cobra.Command, args []string) {
 			for _, arg := range args {
-				fmt.Println("list wrth", arg)
+				fmt.Println("list with", arg)
 				resp, err := cli.Get(context.Background(), arg, clientv3.WithPrefix())
 				if err != nil {
 					fmt.Println(err.Error())
