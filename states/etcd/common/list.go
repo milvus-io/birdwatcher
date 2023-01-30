@@ -46,7 +46,7 @@ LOOP:
 func ListProtoObjectsAdv[T any, P interface {
 	*T
 	protoiface.MessageV1
-}](ctx context.Context, cli *clientv3.Client, prefix string, preFilter func([]byte) bool, filters ...func(t *T) bool) ([]T, []string, error) {
+}](ctx context.Context, cli *clientv3.Client, prefix string, preFilter func(string, []byte) bool, filters ...func(t *T) bool) ([]T, []string, error) {
 	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, nil, err
@@ -55,7 +55,7 @@ func ListProtoObjectsAdv[T any, P interface {
 	keys := make([]string, 0, len(resp.Kvs))
 LOOP:
 	for _, kv := range resp.Kvs {
-		if !preFilter(kv.Value) {
+		if !preFilter(string(kv.Key), kv.Value) {
 			continue
 		}
 		var elem T

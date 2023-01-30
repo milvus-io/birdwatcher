@@ -22,6 +22,8 @@ func ShowCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	showCmd.AddCommand(
 		// show collection
 		show.CollectionCommand(cli, basePath),
+		// show collection-history
+		show.CollectionHistoryCommand(cli, basePath),
 		// show sessions
 		show.SessionCommand(cli, basePath),
 		// show segments
