@@ -1,12 +1,9 @@
 package show
 
 import (
-	"context"
 	"fmt"
-	"path"
-	"time"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -18,42 +15,33 @@ func ReplicaCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 		Use:     "replica",
 		Short:   "list current replica information from QueryCoord",
 		Aliases: []string{"replicas"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			replicas, err := listReplicas(cli, basePath)
-
+		Run: func(cmd *cobra.Command, args []string) {
+			collID, err := cmd.Flags().GetInt64("collection")
 			if err != nil {
-				return err
+				fmt.Println(err.Error())
+				return
+			}
+			replicas, err := common.ListReplica(cli, basePath, collID)
+			if err != nil {
+				fmt.Println("failed to list replicas", err.Error())
+				return
 			}
 
 			for _, replica := range replicas {
 				printReplica(replica)
 			}
-			return nil
 		},
 	}
 
+	cmd.Flags().Int64("collection", 0, "collection id to filter with")
 	return cmd
 }
 
-func listReplicas(cli *clientv3.Client, basePath string) ([]milvuspb.ReplicaInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	prefix := path.Join(basePath, "queryCoord-ReplicaMeta")
-
-	replicas, _, err := common.ListProtoObjects[milvuspb.ReplicaInfo](ctx, cli, prefix)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return replicas, nil
-}
-
-func printReplica(replica milvuspb.ReplicaInfo) {
+func printReplica(replica *models.Replica) {
 	fmt.Println("================================================================================")
-	fmt.Printf("ReplicaID: %d CollectionID: %d\n", replica.ReplicaID, replica.CollectionID)
+	fmt.Printf("ReplicaID: %d CollectionID: %d version:%s\n", replica.ID, replica.CollectionID, replica.Version)
+	fmt.Printf("All Nodes:%v\n", replica.NodeIDs)
 	for _, shardReplica := range replica.ShardReplicas {
-		fmt.Printf("Channel %s leader %d\n", shardReplica.DmChannelName, shardReplica.LeaderID)
+		fmt.Printf("-- Shard Replica: Leader ID:%d(%s) Nodes:%v\n", shardReplica.LeaderID, shardReplica.LeaderAddr, shardReplica.NodeIDs)
 	}
-	fmt.Printf("Nodes:%v\n", replica.NodeIds)
 }
