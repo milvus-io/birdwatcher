@@ -1,0 +1,111 @@
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-binary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+          cache: true
+
+      - uses: goreleaser/goreleaser-action@v4
+        with:
+          # either 'goreleaser' (default) or 'goreleaser-pro':
+          distribution: goreleaser
+          version: latest
+          args: release --skip-publish --config .goreleaser-linux.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: birdwatcher-linux
+          path: |
+            dist/birdwatcher*
+            dist/checksums.txt
+
+  build-darwin-binary:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+          cache: true
+
+      - uses: goreleaser/goreleaser-action@v4
+        with:
+          # either 'goreleaser' (default) or 'goreleaser-pro':
+          distribution: goreleaser
+          version: latest
+          args: release --skip-publish --config .goreleaser-darwin.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}    
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: birdwatcher-darwin
+          path: |
+            dist/birdwatcher* 
+            dist/checksums.txt 
+  merge-and-release:
+    needs: [build-linux-binary, build-darwin-binary]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+          cache: true
+      - name: Make directories
+        run: |
+          mkdir -p ./birdwatcher-build/linux
+          mkdir -p ./birdwatcher-build/darwin
+      - name: Download linux binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: birdwatcher-linux
+          path: ./birdwatcher-build/linux
+      - name: Download darwin binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: birdwatcher-darwin
+          path: ./birdwatcher-build/darwin          
+      - name: Merge checksum file
+        run: |
+          cd ./birdwatcher-build
+          cat ./darwin/checksums.txt >> checksums.txt
+          cat ./linux/checksums.txt >> checksums.txt
+          rm ./darwin/checksums.txt
+          rm ./linux/checksums.txt
+      - name: Check git status
+        run: |
+          tree
+          git status
+      - name: Release
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          args: release --clean --config .goreleaser-release.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }} 

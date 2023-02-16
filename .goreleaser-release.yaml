@@ -1,0 +1,20 @@
+builds:
+  - skip: true
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+release:
+  draft: true
+  mode: append
+  extra_files:
+    - glob: ./birdwatcher-build/**/*.tar.gz
+    - glob: ./birdwatcher-build/checksums.txt
+  name_template: "Release {{.Tag}}"
+  header: |
+    # What's Changed
+    ## 🚀 Features
+    ## 🎄 Enhancements
+    ## 🐛 Bug Fixes
