@@ -15,7 +15,7 @@ import (
 )
 
 // IndexCommand returns show index command.
-func IndexCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func IndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "index",
 		Aliases: []string{"indexes"},
@@ -54,7 +54,7 @@ type IndexInfoV1 struct {
 	collectionID int64
 }
 
-func listIndexMeta(cli *clientv3.Client, basePath string) ([]IndexInfoV1, error) {
+func listIndexMeta(cli clientv3.KV, basePath string) ([]IndexInfoV1, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
@@ -75,7 +75,7 @@ func listIndexMeta(cli *clientv3.Client, basePath string) ([]IndexInfoV1, error)
 	return result, err
 }
 
-func listIndexMetaV2(cli *clientv3.Client, basePath string) ([]indexpbv2.FieldIndex, error) {
+func listIndexMetaV2(cli clientv3.KV, basePath string) ([]indexpbv2.FieldIndex, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, cli, path.Join(basePath, "field-index"))

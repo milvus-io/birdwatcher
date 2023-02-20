@@ -14,7 +14,7 @@ import (
 )
 
 // ChannelCommand returns remove channel command.
-func ChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "channel",
 		Short: "Remove channel from datacoord meta with specified condition if orphan",

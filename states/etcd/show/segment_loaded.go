@@ -10,7 +10,7 @@ import (
 )
 
 // SegmentLoadedCommand returns show segment-loaded command.
-func SegmentLoadedCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func SegmentLoadedCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "segment-loaded",
 		Short:   "display segment information from querycoord",

@@ -22,7 +22,7 @@ import (
 // CheckpointCommand usage:
 // repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type kafka --address localhost:9092 --set_to latest-msgid
 // repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type pulsar --address pulsar://localhost:6650 --set_to latest-msgid
-func CheckpointCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "checkpoint",
 		Short:   "reset checkpoint of vchannels to latest checkpoint(or latest msgID) of physical channel",
@@ -85,7 +85,7 @@ func CheckpointCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func setCheckPointWithLatestMsgID(cli *clientv3.Client, basePath string, coll *etcdpb.CollectionInfo, mqType, address, vchannel string) {
+func setCheckPointWithLatestMsgID(cli clientv3.KV, basePath string, coll *etcdpb.CollectionInfo, mqType, address, vchannel string) {
 	for _, ch := range coll.GetVirtualChannelNames() {
 		if ch == vchannel {
 			pChannel := ToPhysicalChannel(ch)
@@ -108,7 +108,7 @@ func setCheckPointWithLatestMsgID(cli *clientv3.Client, basePath string, coll *e
 	fmt.Printf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.ID)
 }
 
-func setCheckPointWithLatestCheckPoint(cli *clientv3.Client, basePath string, coll *etcdpb.CollectionInfo, vchannel string) {
+func setCheckPointWithLatestCheckPoint(cli clientv3.KV, basePath string, coll *etcdpb.CollectionInfo, vchannel string) {
 	pChannelName2LatestCP, err := getLatestCheckpointFromPChannel(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to get latest cp of all pchannel", err.Error())
@@ -144,7 +144,7 @@ func setCheckPointWithLatestCheckPoint(cli *clientv3.Client, basePath string, co
 	fmt.Printf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.ID)
 }
 
-func saveChannelCheckpoint(cli *clientv3.Client, basePath string, channelName string, pos *internalpb.MsgPosition) error {
+func saveChannelCheckpoint(cli clientv3.KV, basePath string, channelName string, pos *internalpb.MsgPosition) error {
 	key := path.Join(basePath, "datacoord-meta", "channel-cp", channelName)
 	bs, err := proto.Marshal(pos)
 	if err != nil {
@@ -154,7 +154,7 @@ func saveChannelCheckpoint(cli *clientv3.Client, basePath string, channelName st
 	return err
 }
 
-func getLatestCheckpointFromPChannel(cli *clientv3.Client, basePath string) (map[string]*internalpb.MsgPosition, error) {
+func getLatestCheckpointFromPChannel(cli clientv3.KV, basePath string) (map[string]*internalpb.MsgPosition, error) {
 	segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
 		return true
 	})

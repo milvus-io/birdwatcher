@@ -8,17 +8,106 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
+	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+const (
+	segmentMetaPrefix = "datacoord-meta/s"
+)
+
+// ListSegmentsVersion list segment info as specified version.
+func ListSegmentsVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
+	prefix := path.Join(basePath, segmentMetaPrefix) + "/"
+	switch version {
+	case models.LTEVersion2_1:
+		segments, keys, err := ListProtoObjects[datapb.SegmentInfo](ctx, cli, prefix)
+		if err != nil {
+			return nil, err
+		}
+
+		return lo.FilterMap(segments, func(segment datapb.SegmentInfo, idx int) (*models.Segment, bool) {
+			s := models.NewSegmentFromV2_1(&segment, keys[idx])
+			for _, filter := range filters {
+				if !filter(s) {
+					return nil, false
+				}
+			}
+			return s, true
+		}), nil
+	case models.GTEVersion2_2:
+		segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
+		if err != nil {
+			return nil, err
+		}
+
+		return lo.FilterMap(segments, func(segment datapbv2.SegmentInfo, idx int) (*models.Segment, bool) {
+			s := models.NewSegmentFromV2_2(&segment, keys[idx], getSegmentLazyFunc(cli, basePath, segment))
+			for _, filter := range filters {
+				if !filter(s) {
+					return nil, false
+				}
+			}
+			return s, true
+		}), nil
+	default:
+		return nil, fmt.Errorf("undefined version: %s", version)
+	}
+}
+
+func getSegmentLazyFunc(cli clientv3.KV, basePath string, segment datapbv2.SegmentInfo) func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error) {
+	return func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error) {
+		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
+
+		f := func(pb func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string) ([]datapbv2.FieldBinlog, error) {
+			fields, _, err := ListProtoObjects[datapbv2.FieldBinlog](context.Background(), cli, prefix)
+			if err != nil {
+				return nil, err
+			}
+			for _, field := range fields {
+				for _, binlog := range field.GetBinlogs() {
+					binlog.LogPath = pb(segment, field.GetFieldID(), binlog.GetLogID())
+				}
+			}
+			return fields, err
+		}
+
+		binlogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
+			return fmt.Sprintf("files/insert_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
+		})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
+		statslogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
+			return fmt.Sprintf("files/statslog/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, logID)
+		})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("deltalog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
+		deltalogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
+			return fmt.Sprintf("files/delta_log/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, logID)
+		})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		return binlogs, statslogs, deltalogs, nil
+	}
+}
+
 // ListSegments list segment info from etcd
-func ListSegments(cli *clientv3.Client, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
+func ListSegments(cli clientv3.KV, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	resp, err := cli.Get(ctx, path.Join(basePath, "datacoord-meta/s")+"/", clientv3.WithPrefix())
+	resp, err := cli.Get(ctx, path.Join(basePath, segmentMetaPrefix)+"/", clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +130,7 @@ func ListSegments(cli *clientv3.Client, basePath string, filter func(*datapb.Seg
 }
 
 // FillFieldsIfV2 fill binlog paths fields for v2 segment info.
-func FillFieldsIfV2(cli *clientv3.Client, basePath string, segment *datapb.SegmentInfo) error {
+func FillFieldsIfV2(cli clientv3.KV, basePath string, segment *datapb.SegmentInfo) error {
 	if len(segment.Binlogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 		fields, _, err := ListProtoObjects[datapbv2.FieldBinlog](context.Background(), cli, prefix)
@@ -139,7 +228,7 @@ func FillFieldsIfV2(cli *clientv3.Client, basePath string, segment *datapb.Segme
 }
 
 // ListLoadedSegments list v2.1 loaded segment info.
-func ListLoadedSegments(cli *clientv3.Client, basePath string, filter func(*querypb.SegmentInfo) bool) ([]querypb.SegmentInfo, error) {
+func ListLoadedSegments(cli clientv3.KV, basePath string, filter func(*querypb.SegmentInfo) bool) ([]querypb.SegmentInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, "queryCoord-segmentMeta")
@@ -153,7 +242,7 @@ func ListLoadedSegments(cli *clientv3.Client, basePath string, filter func(*quer
 }
 
 // RemoveSegment delete segment entry from etcd.
-func RemoveSegment(cli *clientv3.Client, basePath string, info *datapb.SegmentInfo) error {
+func RemoveSegment(cli clientv3.KV, basePath string, info *datapb.SegmentInfo) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 

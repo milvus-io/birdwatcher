@@ -6,25 +6,75 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
+	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
+	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
-type CollectionHistory struct {
-	Info    etcdpb.CollectionInfo
-	Ts      uint64
-	Dropped bool
+// ListCollectionHistory list collection history from snapshots.
+func ListCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string, version string, collectionID int64) ([]*models.CollectionHistory, error) {
+	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
+
+	var dropped, paths []string
+	var err error
+	var result []*models.CollectionHistory
+	switch version {
+	case models.LTEVersion2_1:
+		var colls []etcdpb.CollectionInfo
+		colls, paths, dropped, err = ListHistoryCollection[etcdpb.CollectionInfo](ctx, cli, prefix)
+		if err != nil {
+			return nil, err
+		}
+		result = lo.Map(colls, func(coll etcdpb.CollectionInfo, idx int) *models.CollectionHistory {
+			ch := &models.CollectionHistory{}
+			ch.Collection = *models.NewCollectionFromV2_1(&coll, paths[idx])
+			ch.Ts = parseHistoryTs(paths[idx])
+			return ch
+		})
+	case models.GTEVersion2_2:
+		var colls []etcdpbv2.CollectionInfo
+		colls, paths, dropped, err = ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
+		if err != nil {
+			return nil, err
+		}
+		result = lo.Map(colls, func(coll etcdpbv2.CollectionInfo, idx int) *models.CollectionHistory {
+			ch := &models.CollectionHistory{}
+			//TODO add history field schema
+			ch.Collection = *models.NewCollectionFromV2_2(&coll, paths[idx], nil)
+			ch.Ts = parseHistoryTs(paths[idx])
+			return ch
+		})
+	}
+
+	for _, entry := range dropped {
+		collHistory := &models.CollectionHistory{Dropped: true}
+		collHistory.Ts = parseHistoryTs(entry)
+		result = append(result, collHistory)
+	}
+
+	return result, nil
 }
 
-// ListCollectionHistory list collection history from snapshots.
-func ListCollectionHistory(cli *clientv3.Client, basePath string, collectionID int64) ([]CollectionHistory, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
+func parseHistoryTs(entry string) uint64 {
+	parts := strings.Split(entry, "_ts")
+	if len(parts) != 2 {
+		return 0
+	}
 
+	result, _ := strconv.ParseUint(parts[1], 10, 64)
+	return result
+}
+
+func ListHistoryCollection[T any, P interface {
+	*T
+	protoiface.MessageV1
+}](ctx context.Context, cli clientv3.KV, prefix string) ([]T, []string, []string, error) {
 	var dropped []string
-	colls, paths, err := ListProtoObjectsAdv[etcdpb.CollectionInfo](ctx, cli, path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10)),
+	colls, paths, err := ListProtoObjectsAdv[T, P](ctx, cli, prefix,
 		func(key string, value []byte) bool {
 			isTombstone := bytes.Equal(value, CollectionTombstone)
 			if isTombstone {
@@ -33,29 +83,8 @@ func ListCollectionHistory(cli *clientv3.Client, basePath string, collectionID i
 			return !isTombstone
 		})
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	result := make([]CollectionHistory, 0, len(colls)+len(dropped))
-	for _, entry := range dropped {
-		collHistory := CollectionHistory{Dropped: true}
-		parts := strings.Split(entry, "_ts")
-		if len(parts) == 2 {
-			collHistory.Ts, _ = strconv.ParseUint(parts[1], 10, 64)
-		}
-		result = append(result, collHistory)
-	}
-
-	for idx, coll := range colls {
-		collHistory := CollectionHistory{
-			Info: coll,
-		}
-		path := paths[idx]
-		parts := strings.Split(path, "_ts")
-		if len(parts) == 2 {
-			collHistory.Ts, _ = strconv.ParseUint(parts[1], 10, 64)
-		}
-		result = append(result, collHistory)
-	}
-	return result, nil
+	return colls, paths, dropped, nil
 }

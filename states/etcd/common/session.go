@@ -15,13 +15,13 @@ const (
 )
 
 // ListSessions returns all session.
-func ListSessions(cli *clientv3.Client, basePath string) ([]*models.Session, error) {
+func ListSessions(cli clientv3.KV, basePath string) ([]*models.Session, error) {
 	prefix := path.Join(basePath, sessionPrefix)
 	return ListSessionsByPrefix(cli, prefix)
 }
 
 // ListSessionsByPrefix returns all session with provided prefix.
-func ListSessionsByPrefix(cli *clientv3.Client, prefix string) ([]*models.Session, error) {
+func ListSessionsByPrefix(cli clientv3.KV, prefix string) ([]*models.Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())

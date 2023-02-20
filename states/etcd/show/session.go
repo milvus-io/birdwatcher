@@ -10,7 +10,7 @@ import (
 
 // SessionCommand returns show session command.
 // usage: show session
-func SessionCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func SessionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "session",
 		Short:   "list online milvus components",

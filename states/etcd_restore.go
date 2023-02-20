@@ -18,7 +18,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func restoreFromV1File(cli *clientv3.Client, rd io.Reader, header *models.BackupHeader) error {
+func restoreFromV1File(cli clientv3.KV, rd io.Reader, header *models.BackupHeader) error {
 	var nextBytes uint64
 	var bs []byte
 
@@ -115,7 +115,7 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 	}
 }
 
-func restoreEtcdFromBackV2(cli *clientv3.Client, rd io.Reader, ph models.PartHeader) (string, error) {
+func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) (string, error) {
 	meta := make(map[string]string)
 	err := json.Unmarshal(ph.Extra, &meta)
 	if err != nil {

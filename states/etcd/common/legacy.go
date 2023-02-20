@@ -16,7 +16,7 @@ const (
 	QCDeltaChannelMetaPrefix = "queryCoord-deltaChannel"
 )
 
-func ListQueryCoordDMLChannelInfos(cli *clientv3.Client, basePath string) ([]*querypb.DmChannelWatchInfo, error) {
+func ListQueryCoordDMLChannelInfos(cli clientv3.KV, basePath string) ([]*querypb.DmChannelWatchInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, QCDmChannelMetaPrefix)
@@ -38,7 +38,7 @@ func ListQueryCoordDMLChannelInfos(cli *clientv3.Client, basePath string) ([]*qu
 	return ret, nil
 }
 
-func ListQueryCoordDeltaChannelInfos(cli *clientv3.Client, basePath string) ([]*datapb.VchannelInfo, error) {
+func ListQueryCoordDeltaChannelInfos(cli clientv3.KV, basePath string) ([]*datapb.VchannelInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, QCDeltaChannelMetaPrefix)

@@ -12,7 +12,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getFetchMetricsCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getFetchMetricsCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fetch-metrics",
 		Short: "fetch metrics from milvus instances",

@@ -69,7 +69,7 @@ func (c *milvusComponent) Type() string {
 
 // getBackupEtcdCmd returns command for backup etcd
 // usage: backup [component] [options...]
-func getBackupEtcdCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
 
 	component := compAll
 	cmd := &cobra.Command{
@@ -149,7 +149,7 @@ func writeBackupHeader(w io.Writer, version int32) error {
 	return nil
 }
 
-func backupEtcdV2(cli *clientv3.Client, base, prefix string, w *bufio.Writer, ignoreRevision bool) error {
+func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, ignoreRevision bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	resp, err := cli.Get(ctx, path.Join(base, prefix), clientv3.WithCountOnly(), clientv3.WithPrefix())
@@ -239,7 +239,7 @@ func backupEtcdV2(cli *clientv3.Client, base, prefix string, w *bufio.Writer, ig
 	return nil
 }
 
-func backupMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) error {
+func backupMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err
@@ -280,7 +280,7 @@ func backupMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) error
 	return nil
 }
 
-func backupAppMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) error {
+func backupAppMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err
@@ -350,7 +350,7 @@ func backupAppMetrics(cli *clientv3.Client, basePath string, w *bufio.Writer) er
 
 }
 
-func backupConfiguration(cli *clientv3.Client, basePath string, w *bufio.Writer) error {
+func backupConfiguration(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err

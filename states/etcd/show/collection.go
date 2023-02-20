@@ -1,65 +1,54 @@
 package show
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"path"
 	"sort"
-	"strconv"
-	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
-	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 // CollectionCommand returns sub command for showCmd.
 // show collection [options...]
-func CollectionCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "collections",
 		Short:   "list current available collection from RootCoord",
 		Aliases: []string{"collection"},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			collectionID, err := cmd.Flags().GetInt64("id")
 			if err != nil {
-				return err
+				fmt.Println(err.Error())
+				return
 			}
 
-			var kvs []*mvccpb.KeyValue
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			var collections []*models.Collection
+			// perform get by id to accelerate
 			if collectionID > 0 {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-				defer cancel()
-				resp, err := cli.Get(ctx, path.Join(basePath, "root-coord/collection", strconv.FormatInt(collectionID, 10)))
-				if err != nil {
-					return err
+				var collection *models.Collection
+				collection, err = common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collectionID)
+				if err == nil {
+					collections = append(collections, collection)
 				}
-				kvs = resp.Kvs
 			} else {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-				defer cancel()
-				resp, err := cli.Get(ctx, path.Join(basePath, "root-coord/collection"), clientv3.WithPrefix())
-				if err != nil {
-					return err
-				}
-				kvs = resp.Kvs
+				collections, err = common.ListCollectionsVersion(ctx, cli, basePath, etcdversion.GetVersion())
 			}
 
-			errors := make(map[string]error)
-			for _, kv := range kvs {
-				processCollectionKV(cli, basePath, kv, func(key string, err error) {
-					errors[key] = err
-				})
+			if err != nil {
+				fmt.Println(err.Error())
+				return
 			}
-			for key, err := range errors {
-				fmt.Printf("key:%s meet error when trying to parse as Collection: %v\n", key, err)
+			for _, collection := range collections {
+				printCollection(collection)
 			}
-			return nil
 		},
 	}
 
@@ -67,34 +56,15 @@ func CollectionCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func processCollectionKV(cli *clientv3.Client, basePath string, kv *mvccpb.KeyValue, handleErr func(key string, err error)) {
-	if bytes.Equal(kv.Value, common.CollectionTombstone) {
-		return
-	}
-
-	collection := &etcdpb.CollectionInfo{}
-	err := proto.Unmarshal(kv.Value, collection)
-	if err != nil {
-		handleErr(string(kv.Key), err)
-		return
-	}
-
-	err = common.FillFieldSchemaIfEmpty(cli, basePath, collection)
-	if err != nil {
-		handleErr(string(kv.Key), err)
-		return
-	}
-
-	printCollection(collection)
-}
-
-func printCollection(collection *etcdpb.CollectionInfo) {
+func printCollection(collection *models.Collection) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
-	fmt.Printf("Partitions:\n")
-	for idx, partID := range collection.GetPartitionIDs() {
-		fmt.Printf(" - Partition ID: %d\tPartition Name: %s\n", partID, collection.GetPartitionNames()[idx])
-	}
+	fmt.Printf("Collection State: %s\n", collection.State.String())
+	/*
+		fmt.Printf("Partitions:\n")
+		for idx, partID := range collection.GetPartitionIDs() {
+			fmt.Printf(" - Partition ID: %d\tPartition Name: %s\n", partID, collection.GetPartitionNames()[idx])
+		}*/
 	fmt.Printf("Fields:\n")
 	fields := collection.Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
@@ -105,13 +75,13 @@ func printCollection(collection *etcdpb.CollectionInfo) {
 		if field.IsPrimaryKey {
 			fmt.Printf("\t - Primary Key, AutoID: %v\n", field.AutoID)
 		}
-		for _, tp := range field.TypeParams {
-			fmt.Printf("\t - Type Param %s: %s\n", tp.Key, tp.Value)
+		for key, value := range field.Properties {
+			fmt.Printf("\t - Type Param %s: %s\n", key, value)
 		}
 	}
 
-	fmt.Printf("Consistency Level: %s\n", collection.GetConsistencyLevel().String())
-	for _, startPos := range collection.StartPositions {
-		fmt.Printf("Start position for channel %s: %v\n", startPos.Key, startPos.Data)
+	fmt.Printf("Consistency Level: %s\n", collection.ConsistencyLevel.String())
+	for _, channel := range collection.Channels {
+		fmt.Printf("Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 // ListIndex list all index with all filter satified.
-func ListIndex(cli *clientv3.Client, basePath string, filters ...func(index *indexpb.IndexMeta) bool) ([]indexpb.IndexMeta, error) {
+func ListIndex(cli clientv3.KV, basePath string, filters ...func(index *indexpb.IndexMeta) bool) ([]indexpb.IndexMeta, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, "indexes") + "/"
@@ -21,7 +21,7 @@ func ListIndex(cli *clientv3.Client, basePath string, filters ...func(index *ind
 }
 
 // ListSegmentIndex list segment index info.
-func ListSegmentIndex(cli *clientv3.Client, basePath string, filters ...func(segIdx *etcdpb.SegmentIndexInfo) bool) ([]etcdpb.SegmentIndexInfo, error) {
+func ListSegmentIndex(cli clientv3.KV, basePath string, filters ...func(segIdx *etcdpb.SegmentIndexInfo) bool) ([]etcdpb.SegmentIndexInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 

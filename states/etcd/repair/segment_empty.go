@@ -11,7 +11,7 @@ import (
 )
 
 // EmptySegmentCommand returns repair empty-segment command.
-func EmptySegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func EmptySegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "empty-segment",
 		Short: "Remove empty segment from meta",

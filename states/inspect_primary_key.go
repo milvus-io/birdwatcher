@@ -14,7 +14,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getInspectPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getInspectPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect-pk [segment id]",

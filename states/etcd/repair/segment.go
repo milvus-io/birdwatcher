@@ -17,7 +17,7 @@ import (
 )
 
 // SegmentCommand return repair segment command.
-func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "segment",
 		Aliases: []string{"segments"},
@@ -284,7 +284,7 @@ func integrityCheck(segment *datapb.SegmentInfo) bool {
 	return true
 }
 
-func writeRepairedSegment(cli *clientv3.Client, basePath string, segment *datapb.SegmentInfo) error {
+func writeRepairedSegment(cli clientv3.KV, basePath string, segment *datapb.SegmentInfo) error {
 	p := path.Join(basePath, fmt.Sprintf("datacoord-meta/s/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 
 	bs, err := proto.Marshal(segment)

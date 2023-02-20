@@ -51,7 +51,7 @@ func ParseTS(ts uint64) (time.Time, uint64) {
 }
 
 // listSessions returns all session
-func listSessionsByPrefix(cli *clientv3.Client, prefix string) ([]*models.Session, error) {
+func listSessionsByPrefix(cli clientv3.KV, prefix string) ([]*models.Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())

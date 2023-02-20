@@ -1,14 +1,13 @@
 package show
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"path"
-	"strconv"
 	"time"
 
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -16,7 +15,7 @@ import (
 
 // CollectionHistoryCommand returns sub command for showCmd.
 // show collection-history [options...]
-func CollectionHistoryCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func CollectionHistoryCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "collection-history",
 		Short: "display collection change history",
@@ -35,25 +34,22 @@ func CollectionHistoryCommand(cli *clientv3.Client, basePath string) *cobra.Comm
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
 
-			resp, err := cli.Get(ctx, path.Join(basePath, "root-coord/collection/", strconv.FormatInt(collectionID, 10)))
+			collection, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collectionID)
 			if err != nil {
-				fmt.Println("failed to get current collection status", err.Error())
-				return
-			}
-			if len(resp.Kvs) == 0 {
-				fmt.Printf("collection id %d does not exist\n", collectionID)
-			}
-
-			for _, kv := range resp.Kvs {
-				if bytes.Equal(kv.Value, common.CollectionTombstone) {
-					fmt.Println("[Current] Collection Already Dropped")
-					continue
+				switch {
+				case errors.Is(err, common.ErrCollectionDropped):
+					fmt.Printf("[Current] collection id %d already marked with Tombstone\n", collectionID)
+				case errors.Is(err, common.ErrCollectionNotFound):
+					fmt.Printf("[Current] collection id %d not found\n", collectionID)
+					return
+				default:
+					fmt.Println("failed to get current collection state:", err.Error())
+					return
 				}
-				fmt.Println("[Current] Collection still healthy")
 			}
-
+			printCollection(collection)
 			// fetch history
-			items, err := common.ListCollectionHistory(cli, basePath, collectionID)
+			items, err := common.ListCollectionHistory(ctx, cli, basePath, etcdversion.GetVersion(), collectionID)
 			if err != nil {
 				fmt.Println("failed to list history", err.Error())
 				return
@@ -66,10 +62,8 @@ func CollectionHistoryCommand(cli *clientv3.Client, basePath string) *cobra.Comm
 					fmt.Println("Collection Dropped")
 					continue
 				}
-				common.FillFieldSchemaIfEmpty(cli, basePath, &item.Info)
-				printCollection(&item.Info)
+				printCollection(&item.Collection)
 			}
-
 		},
 	}
 

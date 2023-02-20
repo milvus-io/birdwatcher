@@ -14,7 +14,7 @@ import (
 )
 
 // ChannelCommand returns repair channel command.
-func ChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "channel",
 		Aliases: []string{"channels"},
@@ -79,7 +79,7 @@ func ChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func doDatacoordWatch(cli *clientv3.Client, basePath string, collectionID int64, vchannels []string) {
+func doDatacoordWatch(cli clientv3.KV, basePath string, collectionID int64, vchannels []string) {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session")
