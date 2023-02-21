@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/models"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/spf13/cobra"
 )
 
@@ -29,6 +31,8 @@ func Start() State {
 		// run by default, just printing warning.
 		fmt.Println("[WARN] load config file failed", err.Error())
 	}
+
+	etcdversion.SetVersion(models.GTEVersion2_2)
 
 	root.AddCommand(
 		// connect

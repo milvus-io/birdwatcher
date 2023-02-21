@@ -18,7 +18,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getDownloadPKCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getDownloadPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "download-pk",
 		Short: "download pk column of a collection",

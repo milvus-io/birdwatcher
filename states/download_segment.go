@@ -20,7 +20,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getDownloadSegmentCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getDownloadSegmentCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "download-segment",
 		Short: "download segment file with provided segment id",

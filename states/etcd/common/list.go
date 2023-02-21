@@ -13,7 +13,7 @@ import (
 func ListProtoObjects[T any, P interface {
 	*T
 	protoiface.MessageV1
-}](ctx context.Context, cli *clientv3.Client, prefix string, filters ...func(t *T) bool) ([]T, []string, error) {
+}](ctx context.Context, cli clientv3.KV, prefix string, filters ...func(t *T) bool) ([]T, []string, error) {
 	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, nil, err
@@ -46,7 +46,7 @@ LOOP:
 func ListProtoObjectsAdv[T any, P interface {
 	*T
 	protoiface.MessageV1
-}](ctx context.Context, cli *clientv3.Client, prefix string, preFilter func(string, []byte) bool, filters ...func(t *T) bool) ([]T, []string, error) {
+}](ctx context.Context, cli clientv3.KV, prefix string, preFilter func(string, []byte) bool, filters ...func(t *T) bool) ([]T, []string, error) {
 	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, nil, err

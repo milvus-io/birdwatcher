@@ -6,15 +6,17 @@ import (
 	"path"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // getForceReleaseCmd returns command for force-release
 // usage: force-release [flags]
-func getForceReleaseCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getForceReleaseCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "force-release",
 		Short: "Force release the collections from QueryCoord",
@@ -45,12 +47,19 @@ func getForceReleaseCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 // getReleaseDroppedCollectionCmd returns command for release-dropped-collection
-func getReleaseDroppedCollectionCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getReleaseDroppedCollectionCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "release-dropped-collection",
 		Short: "Clean loaded collections meta if it's dropped from QueryCoord",
 		Run: func(cmd *cobra.Command, args []string) {
-			collectionLoadInfos, err := common.ListLoadedCollectionInfoV2_1(cli, basePath)
+			if etcdversion.GetVersion() != models.LTEVersion2_1 {
+				fmt.Println("force-release only for Milvus version <= 2.1.4")
+				return
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			// force release only for version <= v2.1.4
+			collectionLoadInfos, err := common.ListCollectionLoadedInfo(ctx, cli, basePath, models.LTEVersion2_1)
 			if err != nil {
 				fmt.Println("failed to list loaded collections", err.Error())
 				return
@@ -86,7 +95,7 @@ func getReleaseDroppedCollectionCmd(cli *clientv3.Client, basePath string) *cobr
 	return cmd
 }
 
-func releaseQueryCoordLoadMeta(cli *clientv3.Client, basePath string, collectionID int64) error {
+func releaseQueryCoordLoadMeta(cli clientv3.KV, basePath string, collectionID int64) error {
 	p := path.Join(basePath, common.CollectionLoadPrefix, fmt.Sprintf("%d", collectionID))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()

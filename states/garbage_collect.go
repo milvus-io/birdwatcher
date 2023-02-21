@@ -19,7 +19,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getGarbageCollectCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getGarbageCollectCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "garbage-collect",
 		Short: "scan oss of milvus instance for garbage(dry-run)",
@@ -64,7 +64,7 @@ const (
 	deltaLogPrefix  = `delta_log`
 )
 
-func garbageCollect(cli *clientv3.Client, basePath string, minioClient *minio.Client, minioRootPath string, bucketName string) {
+func garbageCollect(cli clientv3.KV, basePath string, minioClient *minio.Client, minioRootPath string, bucketName string) {
 
 	segments, err := common.ListSegments(cli, basePath, func(*datapb.SegmentInfo) bool { return true })
 	if err != nil {

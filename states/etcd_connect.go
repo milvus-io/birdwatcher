@@ -15,7 +15,7 @@ const (
 	metaPath = `meta`
 )
 
-func pingEtcd(ctx context.Context, cli *clientv3.Client) error {
+func pingEtcd(ctx context.Context, cli clientv3.KV) error {
 	_, err := cli.Get(ctx, "ping")
 	return err
 }
@@ -87,7 +87,7 @@ func getConnectCommand(state State) *cobra.Command {
 }
 
 // findMilvusInstance iterate all possible rootPath
-func findMilvusInstance(cli *clientv3.Client) ([]string, error) {
+func findMilvusInstance(cli clientv3.KV) ([]string, error) {
 	var apps []string
 	current := ""
 	for {
@@ -116,7 +116,7 @@ func findMilvusInstance(cli *clientv3.Client) ([]string, error) {
 	return apps, nil
 }
 
-func getFindMilvusCmd(cli *clientv3.Client, state *etcdConnectedState) *cobra.Command {
+func getFindMilvusCmd(cli clientv3.KV, state *etcdConnectedState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "find-milvus",
 		Short: "search etcd kvs to find milvus instance",
@@ -137,7 +137,7 @@ func getFindMilvusCmd(cli *clientv3.Client, state *etcdConnectedState) *cobra.Co
 	return cmd
 }
 
-func getUseCmd(cli *clientv3.Client, state State) *cobra.Command {
+func getUseCmd(cli clientv3.KV, state State) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "use [instance name]",
 		Short: "use specified milvus instance",

@@ -14,7 +14,7 @@ import (
 // ShowCommand returns sub command for instanceState.
 // show [subCommand] [options...]
 // sub command [collection|session|segment]
-func ShowCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	showCmd := &cobra.Command{
 		Use: "show",
 	}
@@ -57,7 +57,7 @@ func ShowCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 // RepairCommand returns etcd repair commands.
-func RepairCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	repairCmd := &cobra.Command{
 		Use: "repair",
 	}
@@ -78,7 +78,7 @@ func RepairCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 
 // RemoveCommand returns etcd remove commands.
 // WARNING this command shall be used with EXTRA CARE!
-func RemoveCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func RemoveCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	removeCmd := &cobra.Command{
 		Use: "remove",
 	}
@@ -94,7 +94,7 @@ func RemoveCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 }
 
 // RawCommands provides raw "get" command to list kv in etcd
-func RawCommands(cli *clientv3.Client) []*cobra.Command {
+func RawCommands(cli clientv3.KV) []*cobra.Command {
 	cmd := &cobra.Command{
 		Use: "get",
 		Run: func(cmd *cobra.Command, args []string) {

@@ -8,13 +8,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // SegmentCommand returns remove segment command.
-func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "segment",
 		Short: "Remove segment from meta with specified segment id",
@@ -45,7 +44,8 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 
 			// dry run, display segment first
 			if !run {
-				show.PrintSegmentInfo(segments[0], false)
+				//show.PrintSegmentInfo(segments[0], false)
+				fmt.Printf("segment info %v", segments[0])
 				return
 			}
 

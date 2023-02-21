@@ -47,7 +47,7 @@ func printNodeUnsubChannelInfos(infos []*querypb.UnsubscribeChannelInfo) {
 	}
 }
 
-func listQueryCoordUnsubChannelInfos(cli *clientv3.Client, basePath string) ([]*querypb.UnsubscribeChannelInfo, error) {
+func listQueryCoordUnsubChannelInfos(cli clientv3.KV, basePath string) ([]*querypb.UnsubscribeChannelInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, unsubscribeChannelInfoPrefix)
@@ -86,7 +86,7 @@ func printDeltaChannelInfos(infos []*datapb.VchannelInfo) {
 }
 
 // QueryCoordChannelCommand returns show querycoord-channel command.
-func QueryCoordChannelCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func QueryCoordChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "querycoord-channel",
 		Short:   "display querynode information from querycoord cluster",

@@ -1,12 +1,14 @@
 package show
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -26,33 +28,35 @@ func printLoadedCollections(infos []*querypb.CollectionInfo) {
 	}
 }
 
-func printCollectionLoadInfoV2(loadInfov2 querypbv2.CollectionLoadInfo) {
-	fmt.Println(loadInfov2.String())
+func printCollectionLoaded(info *models.CollectionLoaded) {
+	fmt.Printf("Version: [%s]\tCollectionID: %d\n", info.Version, info.CollectionID)
+	fmt.Printf("ReplicaNumber: %d", info.ReplicaNumber)
+	switch info.Version {
+	case models.LTEVersion2_1:
+		fmt.Printf("\tInMemoryPercent: %d\n", info.InMemoryPercentage)
+	case models.GTEVersion2_2:
+		fmt.Printf("\tLoadStatus: %s\n", info.Status.String())
+	}
 }
 
 // CollectionLoadedCommand return show collection-loaded command.
-func CollectionLoadedCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func CollectionLoadedCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "collection-loaded",
 		Short:   "display information of loaded collection from querycoord",
 		Aliases: []string{"collection-load"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			collectionLoadInfos, err := common.ListLoadedCollectionInfoV2_1(cli, basePath)
-
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			infos, err := common.ListCollectionLoadedInfo(ctx, cli, basePath, etcdversion.GetVersion())
 			if err != nil {
-				return err
-			}
-			printLoadedCollections(collectionLoadInfos)
-
-			loadInfov2, err := common.ListLoadedCollectionInfoV2_2(cli, basePath)
-			if err != nil {
-				return err
-			}
-			for _, info := range loadInfov2 {
-				printCollectionLoadInfoV2(info)
+				fmt.Println("failed to list collection load info:", err.Error())
+				return
 			}
 
-			return nil
+			for _, info := range infos {
+				printCollectionLoaded(info)
+			}
 		},
 	}
 	return cmd

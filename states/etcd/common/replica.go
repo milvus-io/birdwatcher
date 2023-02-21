@@ -13,7 +13,7 @@ import (
 )
 
 // ListReplica list current replica info
-func ListReplica(cli *clientv3.Client, basePath string, collectionID int64) ([]*models.Replica, error) {
+func ListReplica(cli clientv3.KV, basePath string, collectionID int64) ([]*models.Replica, error) {
 	v1Results, err := listReplicas(cli, basePath, func(replica *milvuspb.ReplicaInfo) bool {
 		return collectionID == 0 || replica.GetCollectionID() == collectionID
 	})
@@ -60,7 +60,7 @@ func ListReplica(cli *clientv3.Client, basePath string, collectionID int64) ([]*
 	return results, nil
 
 }
-func listReplicas(cli *clientv3.Client, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
+func listReplicas(cli clientv3.KV, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, "queryCoord-ReplicaMeta")
@@ -74,7 +74,7 @@ func listReplicas(cli *clientv3.Client, basePath string, filters ...func(*milvus
 	return replicas, nil
 }
 
-func listQCReplicas(cli *clientv3.Client, basePath string, filters ...func(*querypb.Replica) bool) ([]querypb.Replica, error) {
+func listQCReplicas(cli clientv3.KV, basePath string, filters ...func(*querypb.Replica) bool) ([]querypb.Replica, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 

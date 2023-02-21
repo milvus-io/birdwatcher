@@ -1,13 +1,14 @@
 package show
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
 
 	"github.com/spf13/cobra"
@@ -15,7 +16,7 @@ import (
 )
 
 // SegmentCommand returns show segments command.
-func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "segment",
 		Short:   "display segment information from data coord meta store",
@@ -43,10 +44,10 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 				return err
 			}
 
-			segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
-				return (collID == 0 || info.CollectionID == collID) &&
-					(segmentID == 0 || info.ID == segmentID) &&
-					(state == "" || info.State.String() == state)
+			segments, err := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
+				return (collID == 0 || segment.CollectionID == collID) &&
+					(segmentID == 0 || segment.ID == segmentID) &&
+					(state == "" || segment.State.String() == state)
 			})
 			if err != nil {
 				fmt.Println("failed to list segments", err.Error())
@@ -60,35 +61,33 @@ func SegmentCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 			fieldSize := make(map[int64]int64)
 			for _, info := range segments {
 
-				if info.State != commonpb.SegmentState_Dropped {
+				if info.State != models.SegmentStateDropped {
 					totalRC += info.NumOfRows
 					healthy++
 				}
 				switch info.State {
-				case commonpb.SegmentState_Growing:
+				case models.SegmentStateGrowing:
 					growing++
-				case commonpb.SegmentState_Sealed:
+				case models.SegmentStateSealed:
 					sealed++
-				case commonpb.SegmentState_Flushing, commonpb.SegmentState_Flushed:
+				case models.SegmentStateFlushing, models.SegmentStateFlushed:
 					flushed++
 				}
 
 				switch format {
 				case "table":
-					common.FillFieldsIfV2(cli, basePath, info)
 					PrintSegmentInfo(info, detail)
 				case "line":
 					fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
 				case "statistics":
-					if info.GetState() != commonpb.SegmentState_Dropped {
-						common.FillFieldsIfV2(cli, basePath, info)
+					if info.State != models.SegmentStateDropped {
 						for _, binlog := range info.GetBinlogs() {
-							for _, log := range binlog.GetBinlogs() {
-								fieldSize[binlog.FieldID] += log.GetLogSize()
+							for _, log := range binlog.Binlogs {
+								fieldSize[binlog.FieldID] += log.LogSize
 							}
 						}
 						for _, statslog := range info.GetStatslogs() {
-							for _, binlog := range statslog.GetBinlogs() {
+							for _, binlog := range statslog.Binlogs {
 								statslogSize += binlog.LogSize
 							}
 						}
@@ -137,11 +136,11 @@ const (
 )
 
 // PrintSegmentInfo prints segments info
-func PrintSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
+func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Segment ID: %d\n", info.ID)
 	fmt.Printf("Segment State:%v", info.State)
-	if info.State == commonpb.SegmentState_Dropped {
+	if info.State == models.SegmentStateDropped {
 		dropTime := time.Unix(0, int64(info.DroppedAt))
 		fmt.Printf("\tDropped Time: %s", dropTime.Format(tsPrintFormat))
 	}
@@ -154,7 +153,7 @@ func PrintSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 	fmt.Printf("Compact from %v \n", info.CompactionFrom)
 	if info.StartPosition != nil {
 		startTime, _ := utils.ParseTS(info.GetStartPosition().GetTimestamp())
-		fmt.Printf("Start Position ID: %v, time: %s\n", info.StartPosition.MsgID, startTime.Format(tsPrintFormat))
+		fmt.Printf("Start Position ID: %v, time: %s, channel name %s\n", info.GetStartPosition().MsgID, startTime.Format(tsPrintFormat), info.GetStartPosition().GetChannelName())
 	} else {
 		fmt.Println("Start Position: nil")
 	}
@@ -165,16 +164,17 @@ func PrintSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 		fmt.Println("Dml Position: nil")
 	}
 	fmt.Printf("Binlog Nums %d\tStatsLog Nums: %d\tDeltaLog Nums:%d\n",
-		countBinlogNum(info.Binlogs), countBinlogNum(info.Statslogs), countBinlogNum(info.Deltalogs))
+		countBinlogNum(info.GetBinlogs()), countBinlogNum(info.GetStatslogs()), countBinlogNum(info.GetDeltalogs()))
 
 	if detailBinlog {
 		var binlogSize int64
 		fmt.Println("**************************************")
 		fmt.Println("Binlogs:")
-		sort.Slice(info.Binlogs, func(i, j int) bool {
-			return info.Binlogs[i].FieldID < info.Binlogs[j].FieldID
+		sort.Slice(info.GetBinlogs(), func(i, j int) bool {
+			return info.GetBinlogs()[i].FieldID < info.GetBinlogs()[j].FieldID
 		})
-		for _, log := range info.Binlogs {
+		for _, log := range info.GetBinlogs() {
+			fmt.Printf("Field %d:\n", log.FieldID)
 			for _, binlog := range log.Binlogs {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
 				tf, _ := utils.ParseTS(binlog.TimestampFrom)
@@ -188,16 +188,24 @@ func PrintSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 
 		fmt.Println("**************************************")
 		fmt.Println("Statslogs:")
-		sort.Slice(info.Statslogs, func(i, j int) bool {
-			return info.Statslogs[i].FieldID < info.Statslogs[j].FieldID
+		sort.Slice(info.GetStatslogs(), func(i, j int) bool {
+			return info.GetStatslogs()[i].FieldID < info.GetStatslogs()[j].FieldID
 		})
-		for _, log := range info.Statslogs {
-			fmt.Printf("Field %d: %v\n", log.FieldID, log.Binlogs)
+		for _, log := range info.GetStatslogs() {
+			fmt.Printf("Field %d:\n", log.FieldID)
+			for _, binlog := range log.Binlogs {
+				fmt.Printf("Path: %s\n", binlog.LogPath)
+				tf, _ := utils.ParseTS(binlog.TimestampFrom)
+				tt, _ := utils.ParseTS(binlog.TimestampTo)
+				fmt.Printf("Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
+					binlog.LogSize, binlog.EntriesNum,
+					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
+			}
 		}
 
 		fmt.Println("**************************************")
 		fmt.Println("Delta Logs:")
-		for _, log := range info.Deltalogs {
+		for _, log := range info.GetDeltalogs() {
 			for _, l := range log.Binlogs {
 				fmt.Printf("Entries: %d From: %v - To: %v\n", l.EntriesNum, l.TimestampFrom, l.TimestampTo)
 				fmt.Printf("Path: %v\n", l.LogPath)
@@ -208,7 +216,7 @@ func PrintSegmentInfo(info *datapb.SegmentInfo, detailBinlog bool) {
 	fmt.Println("================================================================================")
 }
 
-func countBinlogNum(fbl []*datapb.FieldBinlog) int {
+func countBinlogNum(fbl []*models.FieldBinlog) int {
 	result := 0
 	for _, f := range fbl {
 		result += len(f.Binlogs)

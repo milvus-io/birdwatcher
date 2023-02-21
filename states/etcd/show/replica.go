@@ -10,7 +10,7 @@ import (
 )
 
 // ReplicaCommand returns command for show querycoord replicas.
-func ReplicaCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func ReplicaCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "replica",
 		Short:   "list current replica information from QueryCoord",

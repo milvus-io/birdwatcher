@@ -15,7 +15,7 @@ import (
 )
 
 // CheckpointCommand returns show checkpoint command.
-func CheckpointCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "checkpoint",
 		Short:   "list checkpoint collection vchannels",
@@ -48,7 +48,7 @@ func CheckpointCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 					fmt.Printf("vchannel %s position nil\n", vchannel)
 				} else {
 					t, _ := utils.ParseTS(cp.GetTimestamp())
-					fmt.Printf("vchannel %s seek to %v", vchannel, t)
+					fmt.Printf("vchannel %s seek to %v, cp channel: %s", vchannel, t, cp.ChannelName)
 					if segmentID > 0 {
 						fmt.Printf(", for segment ID:%d\n", segmentID)
 					} else {
@@ -62,7 +62,7 @@ func CheckpointCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func getChannelCheckpoint(cli *clientv3.Client, basePath string, channelName string) (*internalpb.MsgPosition, error) {
+func getChannelCheckpoint(cli clientv3.KV, basePath string, channelName string) (*internalpb.MsgPosition, error) {
 	prefix := path.Join(basePath, "datacoord-meta", "channel-cp", channelName)
 	results, _, err := common.ListProtoObjects[internalpb.MsgPosition](context.Background(), cli, prefix)
 	if err != nil {
@@ -76,7 +76,7 @@ func getChannelCheckpoint(cli *clientv3.Client, basePath string, channelName str
 	return &results[0], nil
 }
 
-func getCheckpointFromSegments(cli *clientv3.Client, basePath string, collID int64, vchannel string) (*internalpb.MsgPosition, int64, error) {
+func getCheckpointFromSegments(cli clientv3.KV, basePath string, collID int64, vchannel string) (*internalpb.MsgPosition, int64, error) {
 	segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
 		return info.CollectionID == collID && info.InsertChannel == vchannel
 	})

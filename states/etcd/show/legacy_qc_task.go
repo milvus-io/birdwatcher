@@ -15,7 +15,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func listQueryCoordTriggerTasks(cli *clientv3.Client, basePath string) (map[UniqueID]queryCoordTask, error) {
+func listQueryCoordTriggerTasks(cli clientv3.KV, basePath string) (map[UniqueID]queryCoordTask, error) {
 	prefix := path.Join(basePath, triggerTaskPrefix)
 	triggerTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
 	if err != nil {
@@ -27,7 +27,7 @@ func listQueryCoordTriggerTasks(cli *clientv3.Client, basePath string) (map[Uniq
 	return triggerTasks, nil
 }
 
-func listQueryCoordActivateTasks(cli *clientv3.Client, basePath string) (map[UniqueID]queryCoordTask, error) {
+func listQueryCoordActivateTasks(cli clientv3.KV, basePath string) (map[UniqueID]queryCoordTask, error) {
 	prefix := path.Join(basePath, activeTaskPrefix)
 	activateTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
 	if err != nil {
@@ -39,7 +39,7 @@ func listQueryCoordActivateTasks(cli *clientv3.Client, basePath string) (map[Uni
 	return activateTasks, nil
 }
 
-func listQueryCoordTasksByPrefix(cli *clientv3.Client, prefix string) (map[UniqueID]queryCoordTask, error) {
+func listQueryCoordTasksByPrefix(cli clientv3.KV, prefix string) (map[UniqueID]queryCoordTask, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	tasks := make(map[int64]queryCoordTask)
@@ -64,7 +64,7 @@ func listQueryCoordTasksByPrefix(cli *clientv3.Client, prefix string) (map[Uniqu
 	return tasks, nil
 }
 
-func listQueryCoordTaskStates(cli *clientv3.Client, basePath string) (map[UniqueID]taskState, error) {
+func listQueryCoordTaskStates(cli clientv3.KV, basePath string) (map[UniqueID]taskState, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, taskInfoPrefix)
@@ -101,7 +101,7 @@ func checkAndSetTaskState(tasks map[UniqueID]queryCoordTask, states map[UniqueID
 	return nil
 }
 
-func listQueryCoordTasks(cli *clientv3.Client, basePath string, filter func(task queryCoordTask) bool) (map[UniqueID]queryCoordTask, map[UniqueID]queryCoordTask, error) {
+func listQueryCoordTasks(cli clientv3.KV, basePath string, filter func(task queryCoordTask) bool) (map[UniqueID]queryCoordTask, map[UniqueID]queryCoordTask, error) {
 	triggerTasks, err := listQueryCoordTriggerTasks(cli, basePath)
 	if err != nil {
 		return nil, nil, err
@@ -140,7 +140,7 @@ func listQueryCoordTasks(cli *clientv3.Client, basePath string, filter func(task
 
 // QueryCoordTasks returns show querycoord-tasks commands.
 // DEPRECATED from milvus 2.2.0.
-func QueryCoordTasks(cli *clientv3.Client, basePath string) *cobra.Command {
+func QueryCoordTasks(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "querycoord-task",
 		Short:   "display task information from querycoord",

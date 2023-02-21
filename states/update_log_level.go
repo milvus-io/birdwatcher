@@ -19,7 +19,7 @@ import (
 // TODO read port from config
 const httpAPIListenPort = 9091
 
-func getShowLogLevelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getShowLogLevelCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show-log-level",
 		Short: "show log level of milvus roles",
@@ -62,7 +62,7 @@ func GetLogLevel(httpClient *http.Client, session *models.Session) error {
 	return nil
 }
 
-func getUpdateLogLevelCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getUpdateLogLevelCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-log-level log_level [component] [serverId]",
 		Short: "update log level of milvus role ",

@@ -16,7 +16,7 @@ import (
 
 // getEtcdKillCmd returns command for kill component session
 // usage: kill component
-func getEtcdKillCmd(cli *clientv3.Client, basePath string) *cobra.Command {
+func getEtcdKillCmd(cli clientv3.KV, basePath string) *cobra.Command {
 
 	component := compAll
 	cmd := &cobra.Command{
@@ -45,7 +45,7 @@ func getEtcdKillCmd(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func etcdKillComponent(cli *clientv3.Client, key string, id int64) error {
+func etcdKillComponent(cli clientv3.KV, key string, id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	resp, err := cli.Get(ctx, key)

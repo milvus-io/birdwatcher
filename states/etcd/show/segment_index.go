@@ -17,7 +17,7 @@ import (
 )
 
 // SegmentIndexCommand returns show segment-index command.
-func SegmentIndexCommand(cli *clientv3.Client, basePath string) *cobra.Command {
+func SegmentIndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "segment-index",
 		Aliases: []string{"segments-index", "segment-indexes", "segments-indexes"},
@@ -142,7 +142,7 @@ func SegmentIndexCommand(cli *clientv3.Client, basePath string) *cobra.Command {
 	return cmd
 }
 
-func listSegmentIndexV2(cli *clientv3.Client, basePath string) ([]indexpbv2.SegmentIndex, error) {
+func listSegmentIndexV2(cli clientv3.KV, basePath string) ([]indexpbv2.SegmentIndex, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
