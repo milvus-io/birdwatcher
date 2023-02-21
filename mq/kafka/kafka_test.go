@@ -1,3 +1,6 @@
+//go:build WKAFKA
+// +build WKAFKA
+
 package kafka
 
 import (
