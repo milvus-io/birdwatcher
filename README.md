@@ -27,6 +27,8 @@ go build -o birdwatcher main.go
 
 ### connect to etcd 
 
+<img alt="connect to etcd" src="./docs/images/connect.gif" width="600" />
+
 ```shell
 ❯ birdwatcher
 # execute connect command, using default config, equal to connect --etcd localhost:2379 --rootPath by-dev
@@ -48,6 +50,9 @@ Using meta path: instanceName/meta/
 
 ### inspect some meta
 
+
+<img alt="inspect meta" src="./docs/images/show.gif" width="600" />
+
 ```
 Milvus(by-dev): show collections
 ================================================================================
@@ -67,6 +72,9 @@ Consistency Level: Strong
 ```
 
 ### backup etcd
+
+
+<img alt="inspect meta" src="./docs/images/backup.gif" width="600" />
 
 ```
 Milvus(by-dev): backup

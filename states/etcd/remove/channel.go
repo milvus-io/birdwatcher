@@ -8,7 +8,6 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -52,7 +51,6 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 					validChannels[vchan] = struct{}{}
 				}
 			}
-			fmt.Println(lo.Keys(validChannels))
 
 			watchChannels, paths, err := common.ListChannelWatchV2(cli, basePath, func(info *datapbv2.ChannelWatchInfo) bool {
 				if len(channelName) > 0 {
