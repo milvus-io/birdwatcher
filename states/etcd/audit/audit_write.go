@@ -35,10 +35,13 @@ func (c *FileAuditKV) writeKeyValue(key, value string) {
 func (c *FileAuditKV) writeData(data []byte) {
 	lb := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lb, uint64(len(data)))
-	n, err := c.file.Write(lb)
-	fmt.Println(n, err)
+	_, err := c.file.Write(lb)
+	if err != nil {
+		fmt.Println("failed to write audit header", err.Error())
+		return
+	}
 	if len(data) > 0 {
-		n, err = c.file.Write(data)
-		fmt.Println(n, err)
+		_, err = c.file.Write(data)
+		fmt.Println("failed to write audit log", err.Error())
 	}
 }

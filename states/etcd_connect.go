@@ -2,7 +2,9 @@ package states
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -15,9 +17,22 @@ const (
 	metaPath = `meta`
 )
 
-func pingEtcd(ctx context.Context, cli clientv3.KV) error {
-	_, err := cli.Get(ctx, "ping")
-	return err
+var (
+	// ErrNotMilvsuRootPath sample error for non-valid root path.
+	ErrNotMilvsuRootPath = errors.New("not a Milvus RootPath")
+)
+
+func pingEtcd(ctx context.Context, cli clientv3.KV, rootPath string, metaPath string) error {
+	key := path.Join(rootPath, metaPath, "session/id")
+	resp, err := cli.Get(ctx, key)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.Kvs) == 0 {
+		return fmt.Errorf("\"%s\" %w", rootPath, ErrNotMilvsuRootPath)
+	}
+	return nil
 }
 
 // getConnectCommand returns the command for connect etcd.
@@ -58,8 +73,13 @@ func getConnectCommand(state State) *cobra.Command {
 			// ping etcd
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
-			err = pingEtcd(ctx, etcdCli)
+			err = pingEtcd(ctx, etcdCli, rootPath, metaPath)
 			if err != nil {
+				if errors.Is(err, ErrNotMilvsuRootPath) {
+					etcdCli.Close()
+					fmt.Printf("Connection established, but %s, please check your config or use Dry mode\n", err.Error())
+					return nil
+				}
 				fmt.Println("cannot connect to etcd with addr:", etcdAddr, err.Error())
 				return nil
 			}
