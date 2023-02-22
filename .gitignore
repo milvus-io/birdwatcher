@@ -1,3 +1,7 @@
 *.bak
 .idea
 bin/
+
+dist/
+
+birdwatcher-build
