@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/mitchellh/go-homedir"
@@ -98,7 +99,11 @@ func getLoadBackupCmd(state State, config *configs.Config) *cobra.Command {
 				nextState.Close()
 				return
 			}
-			nextState.setupWorkDir(server.Config().Dir)
+			err = nextState.setupWorkDir(server.Config().Dir)
+			if err != nil {
+				fmt.Println("failed to setup workspace for backup file", err.Error())
+				return
+			}
 
 			state.SetNext(nextState)
 		},
@@ -174,7 +179,7 @@ func testFile(file string) error {
 	}
 	// not support iterate all possible file under directory for now
 	if fi.IsDir() {
-		return fmt.Errorf("%s is a folder", file)
+		return errors.Wrap(ErrPathIsDir, file)
 	}
 	return nil
 }

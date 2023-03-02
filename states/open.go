@@ -44,7 +44,10 @@ func getOpenWorkspaceCmd(state State, config *configs.Config) *cobra.Command {
 			}
 
 			nextState := getEmbedEtcdInstanceV2(server)
-			nextState.setupWorkDir(workPath)
+			err = nextState.setupWorkDir(workPath)
+			if err != nil {
+				fmt.Printf("failed to setup workspace for %s, err: %s\n", workspaceName, err.Error())
+			}
 
 			state.SetNext(nextState)
 		},
