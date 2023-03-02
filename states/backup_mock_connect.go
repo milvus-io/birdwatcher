@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd"
@@ -92,28 +93,33 @@ func (s *embedEtcdMockState) SetInstance(instanceName string) {
 	s.SetupCommands()
 }
 
-func (s *embedEtcdMockState) setupWorkDir(dir string) {
+func (s *embedEtcdMockState) setupWorkDir(dir string) error {
 	s.workDir = dir
-	s.syncWorkspaceInfo()
+	return s.syncWorkspaceInfo()
 }
 
 // syncWorkspaceInfo try to read pre-written workspace meta info.
 // if not exist or version is older, write a new one.
-func (s *embedEtcdMockState) syncWorkspaceInfo() {
+func (s *embedEtcdMockState) syncWorkspaceInfo() error {
 	metaFilePath := path.Join(s.workDir, workspaceMetaFile)
 	err := testFile(metaFilePath)
-	if os.IsNotExist(err) {
-		fmt.Printf("%s not exist, writing a new one", metaFilePath)
-		// meta file not exist
-		s.writeWorkspaceMeta(metaFilePath)
-	}
 	if err != nil {
-		// path is a folder
-		fmt.Printf("%s cannot setup as workspace meta, err: %s\n", metaFilePath, err.Error())
-		return
+		switch {
+		case os.IsNotExist(err):
+			fmt.Printf("%s not exist, writing a new one", metaFilePath)
+			// meta file not exist
+			s.writeWorkspaceMeta(metaFilePath)
+		case errors.Is(err, ErrPathIsDir):
+			fmt.Printf("%s is a directory, init workspace failed\n", metaFilePath)
+			return err
+		default:
+			fmt.Printf("%s cannot setup as workspace meta, err: %s\n", metaFilePath, err.Error())
+			return err
+		}
 	}
 
 	s.readWorkspaceMeta(metaFilePath)
+	return nil
 }
 
 func (s *embedEtcdMockState) writeWorkspaceMeta(path string) {
