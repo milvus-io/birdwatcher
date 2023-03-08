@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ShowCommand returns sub command for instanceState.
@@ -88,6 +89,8 @@ func RemoveCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		remove.SegmentCommand(cli, basePath),
 		// remove channel
 		remove.ChannelCommand(cli, basePath),
+		// remove binlog file
+		remove.BinlogCommand(cli, basePath),
 	)
 
 	return removeCmd
