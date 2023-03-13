@@ -39,6 +39,24 @@ type CollectionHistory struct {
 	Dropped bool
 }
 
+func (c *Collection) GetPKField() (FieldSchema, bool) {
+	for _, field := range c.Schema.Fields {
+		if field.IsPrimaryKey {
+			return field, true
+		}
+	}
+	return FieldSchema{}, false
+}
+
+func (c *Collection) GetVectorField() (FieldSchema, bool) {
+	for _, field := range c.Schema.Fields {
+		if field.DataType == DataTypeBinaryVector || field.DataType == DataTypeFloatVector {
+			return field, true
+		}
+	}
+	return FieldSchema{}, false
+}
+
 // newCollectionFromBase fetchs common base information form proto objects
 func newCollectionFromBase[collectionBase interface {
 	GetID() int64

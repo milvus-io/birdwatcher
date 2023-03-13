@@ -70,6 +70,9 @@ func (s *instanceState) SetupCommands() {
 		// segment-loaded
 		GetDistributionCommand(cli, basePath),
 
+		// probe
+		GetProbeCmd(cli, basePath),
+
 		// set current-version
 		SetCurrentVersionCommand(),
 
