@@ -300,8 +300,8 @@ func getSearchPlan(isBinary bool, pkFieldID, vectorFieldID int64, topk int64, me
 }
 
 func genSearchHNSWParamBytes(ef int64) []byte {
-	m := make(map[string]string)
-	m["ef"] = fmt.Sprintf("%d", ef)
+	m := make(map[string]any)
+	m["ef"] = ef
 	bs, _ := json.Marshal(m)
 	return bs
 }
