@@ -1,5 +1,10 @@
 package models
 
+import (
+	"errors"
+	"strconv"
+)
+
 type CollectionSchema struct {
 	Name   string
 	Fields []FieldSchema
@@ -13,6 +18,19 @@ type FieldSchema struct {
 	DataType     DataType
 	Description  string
 	Properties   map[string]string
+}
+
+func (fs *FieldSchema) GetDim() (int64, error) {
+	if fs.DataType != DataTypeFloatVector && fs.DataType != DataTypeBinaryVector {
+		return -1, errors.New("field is not vector")
+	}
+	raw, ok := fs.Properties["dim"]
+	if !ok {
+		return -1, errors.New("field not has dim property")
+	}
+
+	dim, err := strconv.ParseInt(raw, 10, 64)
+	return dim, err
 }
 
 func newSchemaFromBase[schemaBase interface {
