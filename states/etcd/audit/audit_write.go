@@ -42,6 +42,8 @@ func (c *FileAuditKV) writeData(data []byte) {
 	}
 	if len(data) > 0 {
 		_, err = c.file.Write(data)
-		fmt.Println("failed to write audit log", err.Error())
+		if err != nil {
+			fmt.Println("failed to write audit log", err.Error())
+		}
 	}
 }
