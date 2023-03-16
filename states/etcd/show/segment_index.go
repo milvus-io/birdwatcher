@@ -117,6 +117,8 @@ func SegmentIndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
 						if ok {
 							fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(idx.GetIndexInfo().GetIndexParams(), "index_type"), idx.GetIndexInfo().GetFieldID())
 						}
+						fmt.Printf("\tSerailized Size: %d\n", segIdx.GetSerializeSize())
+						//					segIdxv2
 					}
 					fmt.Println()
 					continue
@@ -130,6 +132,7 @@ func SegmentIndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
 					}
 					fmt.Printf("\n\tIndex build ID: %d, state: %s", info.IndexBuildID, info.State.String())
 					fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(info.GetReq().GetIndexParams(), "index_type"), segIdx.GetFieldID())
+					fmt.Printf("\t info.SerializeSize: %d\n", info.GetSerializeSize())
 				}
 				fmt.Println()
 			}
