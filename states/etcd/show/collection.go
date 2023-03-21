@@ -31,6 +31,7 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			defer cancel()
 
 			var collections []*models.Collection
+			var total int64
 			// perform get by id to accelerate
 			if collectionID > 0 {
 				var collection *models.Collection
@@ -39,7 +40,10 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 					collections = append(collections, collection)
 				}
 			} else {
-				collections, err = common.ListCollectionsVersion(ctx, cli, basePath, etcdversion.GetVersion())
+				collections, err = common.ListCollectionsVersion(ctx, cli, basePath, etcdversion.GetVersion(), func(_ *models.Collection) bool {
+					total++
+					return true
+				})
 			}
 
 			if err != nil {
@@ -49,6 +53,8 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			for _, collection := range collections {
 				printCollection(collection)
 			}
+			fmt.Println("================================================================================")
+			fmt.Printf("--- Total collections:  %d\t Matched collections:  %dn", total, len(collections))
 		},
 	}
 
