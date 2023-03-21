@@ -48,7 +48,11 @@ func CollectionLoadedCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			infos, err := common.ListCollectionLoadedInfo(ctx, cli, basePath, etcdversion.GetVersion())
+			var total int
+			infos, err := common.ListCollectionLoadedInfo(ctx, cli, basePath, etcdversion.GetVersion(), func(_ any) bool {
+				total++
+				return true
+			})
 			if err != nil {
 				fmt.Println("failed to list collection load info:", err.Error())
 				return
@@ -57,6 +61,7 @@ func CollectionLoadedCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			for _, info := range infos {
 				printCollectionLoaded(info)
 			}
+			fmt.Printf("--- Collections Loaded: %d\n", len(infos))
 		},
 	}
 	return cmd
