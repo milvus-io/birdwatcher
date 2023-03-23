@@ -72,6 +72,8 @@ func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		repair.CheckpointCommand(cli, basePath),
 		// repair empty-segment
 		repair.EmptySegmentCommand(cli, basePath),
+		// repair miss index metric_type
+		repair.IndexMetricCommand(cli, basePath),
 	)
 
 	return repairCmd
