@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/c-bata/go-prompt"
@@ -151,6 +152,9 @@ func (a *promptApp) completeInput(d prompt.Document) []prompt.Suggest {
 			Description: short,
 		})
 	}
+	sort.Slice(s, func(i, j int) bool {
+		return s[i].Text < s[j].Text
+	})
 	return s
 }
 
