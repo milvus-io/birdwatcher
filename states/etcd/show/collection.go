@@ -54,7 +54,7 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				printCollection(collection)
 			}
 			fmt.Println("================================================================================")
-			fmt.Printf("--- Total collections:  %d\t Matched collections:  %dn", total, len(collections))
+			fmt.Printf("--- Total collections:  %d\t Matched collections:  %d\n", total, len(collections))
 		},
 	}
 
