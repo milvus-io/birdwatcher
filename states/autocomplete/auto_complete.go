@@ -2,6 +2,7 @@ package autocomplete
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -38,6 +39,9 @@ func (c *cmdCandidate) args() []acCandidate {
 			name := part[1 : len(part)-1]
 			if name == "file" {
 				result = append(result, &fileCandidate{previousCandidates: []acCandidate{}})
+			}
+			if name == "directory" {
+				result = append(result, &fileCandidate{previousCandidates: []acCandidate{}, validator: func(info os.FileInfo) bool { return info.IsDir() }})
 			}
 		}
 	}

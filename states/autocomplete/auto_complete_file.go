@@ -12,6 +12,7 @@ import (
 
 type fileCandidate struct {
 	previousCandidates []acCandidate
+	validator          func(file os.FileInfo) bool
 }
 
 func (c *fileCandidate) Match(input cComp) bool {
@@ -63,6 +64,9 @@ func (c *fileCandidate) Suggest(target cComp) map[string]string {
 	result := make(map[string]string)
 	for _, f := range fs {
 		if strings.HasPrefix(f.Name(), part) {
+			if c.validator != nil && !c.validator(f) {
+				continue
+			}
 			result[path.Join(d, f.Name())] = ""
 		}
 	}
