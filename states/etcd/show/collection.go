@@ -26,6 +26,11 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
+			collectionName, err := cmd.Flags().GetString("name")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -40,7 +45,10 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 					collections = append(collections, collection)
 				}
 			} else {
-				collections, err = common.ListCollectionsVersion(ctx, cli, basePath, etcdversion.GetVersion(), func(_ *models.Collection) bool {
+				collections, err = common.ListCollectionsVersion(ctx, cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
+					if collectionName != "" && coll.Schema.Name != collectionName {
+						return false
+					}
 					total++
 					return true
 				})
@@ -59,6 +67,7 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	}
 
 	cmd.Flags().Int64("id", 0, "collection id to display")
+	cmd.Flags().String("name", "", "collection name to display")
 	return cmd
 }
 
