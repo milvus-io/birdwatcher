@@ -85,7 +85,7 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("run", false, "flags indicating whether to remove segment from meta")
+	cmd.Flags().Bool("run", false, "flags indicating whether to remove channel from meta")
 	cmd.Flags().String("channel", "", "channel name to remove")
 	return cmd
 }
