@@ -13,15 +13,23 @@ import (
 	"github.com/c-bata/go-prompt"
 	"github.com/manifoldco/promptui"
 	_ "github.com/milvus-io/birdwatcher/asap"
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/states"
 )
 
 var (
-	simple = flag.Bool("simple", false, "use simple ui without suggestion and history")
-	logger *log.Logger
+	simple       = flag.Bool("simple", false, "use simple ui without suggestion and history")
+	printVersion = flag.Bool("version", false, "print version")
+	logger       *log.Logger
 )
 
 func main() {
+	flag.Parse()
+	if *printVersion {
+		fmt.Println("Birdwatcher Version", common.Version)
+		return
+	}
+
 	defer handleExit()
 	app := states.Start()
 	// open file and create if non-existent
