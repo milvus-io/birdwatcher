@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/spf13/cobra"
@@ -40,6 +41,7 @@ const (
 func getGlobalUtilCommands() []*cobra.Command {
 	return []*cobra.Command{
 		getParseTSCmd(),
+		getPrintVersionCommand(),
 	}
 }
 
@@ -93,6 +95,17 @@ func getParseTSCmd() *cobra.Command {
 				t, _ := ParseTS(ts)
 				fmt.Printf("Parse ts result, ts:%d, time: %v\n", ts, t)
 			}
+		},
+	}
+	return cmd
+}
+
+func getPrintVersionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "version",
+		Short: "print version",
+		Run: func(_ *cobra.Command, args []string) {
+			fmt.Println("Birdwatcher Version", common.Version)
 		},
 	}
 	return cmd
