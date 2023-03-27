@@ -99,7 +99,8 @@ func RemoveCommand(cli clientv3.KV, basePath string) *cobra.Command {
 // RawCommands provides raw "get" command to list kv in etcd
 func RawCommands(cli clientv3.KV) []*cobra.Command {
 	cmd := &cobra.Command{
-		Use: "get",
+		Use:   "get",
+		Short: "equivalent to etcd get(withPrefix) command to fetch raw kv values from backup file",
 		Run: func(cmd *cobra.Command, args []string) {
 			for _, arg := range args {
 				fmt.Println("list with", arg)
