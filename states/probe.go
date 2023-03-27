@@ -245,6 +245,14 @@ func getMockSearchRequest(ctx context.Context, cli clientv3.KV, basePath string,
 			efConstruction = 360 // in case of auto index
 		}
 		metricType := common.GetKVPair(index.GetIndexInfo().GetIndexParams(), "metric_type")
+		if metricType == "" {
+			metricType = common.GetKVPair(index.GetIndexInfo().GetTypeParams(), "metric_type")
+			if metricType == "" {
+				fmt.Println("no metric_type in IndexParams or TypeParams")
+				return nil, fmt.Errorf("no metric_type in IndexParams or TypeParams, bad meta")
+			}
+			fmt.Println("metric_type is in TypeParams instead of IndexParams")
+		}
 		topK := rand.Int63n(efConstruction-1) + 1
 
 		/*
