@@ -76,7 +76,7 @@ func getLoadBackupCmd(state State, config *configs.Config) *cobra.Command {
 			}
 			fmt.Println("using data dir:", server.Config().Dir)
 			// TODO
-			nextState := getEmbedEtcdInstanceV2(server)
+			nextState := getEmbedEtcdInstanceV2(server, config)
 			switch header.Version {
 			case 1:
 				fmt.Printf("Found backup version: %d, instance name :%s\n", header.Version, header.Instance)

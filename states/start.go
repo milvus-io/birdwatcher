@@ -1,8 +1,6 @@
 package states
 
 import (
-	"fmt"
-
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/models"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
@@ -10,7 +8,7 @@ import (
 )
 
 // Start returns the first state - offline.
-func Start() State {
+func Start(config *configs.Config) State {
 	root := &cobra.Command{
 		Use:   "",
 		Short: "",
@@ -24,19 +22,13 @@ func Start() State {
 		State: state,
 	}
 
-	var err error
-	app.config, err = configs.NewConfig(".bw_config")
-
-	if err != nil {
-		// run by default, just printing warning.
-		fmt.Println("[WARN] load config file failed", err.Error())
-	}
+	app.config = config
 
 	etcdversion.SetVersion(models.GTEVersion2_2)
 
 	root.AddCommand(
 		// connect
-		getConnectCommand(state),
+		getConnectCommand(state, app.config),
 		// load-backup
 		getLoadBackupCmd(state, app.config),
 		// open-workspace

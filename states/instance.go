@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/audit"
 	"github.com/spf13/cobra"
@@ -19,6 +20,7 @@ type instanceState struct {
 	auditFile    *os.File
 
 	etcdState State
+	config    *configs.Config
 }
 
 func (s *instanceState) Close() {
@@ -88,7 +90,7 @@ func (s *instanceState) SetupCommands() {
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
 		// disconnect
-		getDisconnectCmd(s),
+		getDisconnectCmd(s, s.config),
 		// exit
 		getExitCmd(s),
 	)
@@ -109,7 +111,7 @@ func getDryModeCmd(cli clientv3.KV, state *instanceState, etcdState State) *cobr
 	return cmd
 }
 
-func getInstanceState(cli clientv3.KV, instanceName string, etcdState State) State {
+func getInstanceState(cli clientv3.KV, instanceName string, etcdState State, config *configs.Config) State {
 
 	var kv clientv3.KV
 	file, err := os.OpenFile("audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
@@ -129,6 +131,7 @@ func getInstanceState(cli clientv3.KV, instanceName string, etcdState State) Sta
 		auditFile:    file,
 
 		etcdState: etcdState,
+		config:    config,
 	}
 
 	state.SetupCommands()
