@@ -12,16 +12,16 @@ import (
 	"github.com/samber/lo"
 )
 
-type HistoryItem struct {
+type Item struct {
 	Cmd string
 	Ts  int64
 }
 
-func NewHistoryHelper(filePath string) *HistoryHelper {
+func NewHistoryHelper(filePath string) *Helper {
 	filePath = path.Join(filePath, ".bw_history")
 	// read all
 	readFile, err := os.Open(filePath)
-	var lines []HistoryItem
+	var lines []Item
 	if err == nil {
 		fileScanner := bufio.NewScanner(readFile)
 
@@ -29,7 +29,7 @@ func NewHistoryHelper(filePath string) *HistoryHelper {
 
 		for fileScanner.Scan() {
 			bs := fileScanner.Bytes()
-			hi := HistoryItem{}
+			hi := Item{}
 			err := json.Unmarshal(bs, &hi)
 			if err == nil {
 				lines = append(lines, hi)
@@ -44,25 +44,25 @@ func NewHistoryHelper(filePath string) *HistoryHelper {
 		fmt.Println("[WARN] failed to open history file", err.Error())
 	}
 
-	return &HistoryHelper{
+	return &Helper{
 		hFile: hFile,
 		items: lines,
 	}
 }
 
-// HistoryHelper command history helper.
-type HistoryHelper struct {
-	items []HistoryItem
+// Helper command history helper.
+type Helper struct {
+	items []Item
 	hFile *os.File
 }
 
 // AddLog add cmd log into history helper.
-func (h *HistoryHelper) AddLog(cmd string) {
+func (h *Helper) AddLog(cmd string) {
 	// skip empty line
 	if len(strings.TrimSpace(cmd)) == 0 {
 		return
 	}
-	hi := HistoryItem{
+	hi := Item{
 		Ts:  time.Now().Unix(),
 		Cmd: cmd,
 	}
@@ -71,20 +71,20 @@ func (h *HistoryHelper) AddLog(cmd string) {
 		h.hFile.Write(bs)
 		h.hFile.WriteString("\n")
 	}
-	h.items = append(h.items, HistoryItem{
+	h.items = append(h.items, Item{
 		Ts:  time.Now().Unix(),
 		Cmd: cmd,
 	})
 }
 
 // List all history items with prefix.
-func (h *HistoryHelper) List(input string) []HistoryItem {
-	return lo.Filter(h.items, func(item HistoryItem, _ int) bool {
+func (h *Helper) List(input string) []Item {
+	return lo.Filter(h.items, func(item Item, _ int) bool {
 		return strings.HasPrefix(item.Cmd, input)
 	})
 }
 
-func (h *HistoryHelper) Close() {
+func (h *Helper) Close() {
 	if h.hFile != nil {
 		h.hFile.Close()
 	}
