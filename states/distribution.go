@@ -15,7 +15,7 @@ import (
 
 func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "segment-loaded",
+		Use:   "segment-loaded-grpc",
 		Short: "list segments loaded infomration",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sessions, err := common.ListSessions(cli, basePath)
