@@ -41,7 +41,12 @@ func (s *instanceState) SetupCommands() {
 
 	showCmd := etcd.ShowCommand(cli, basePath)
 	showCmd.AddCommand(
+		// show current-version
 		CurrentVersionCommand(),
+		// show segment-loaded-grpc
+		GetDistributionCommand(cli, basePath),
+		// show configurations
+		GetConfigurationCommand(cli, basePath),
 	)
 
 	cmd.AddCommand(

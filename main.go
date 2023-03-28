@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	simple       = flag.Bool("simple", false, "use simple ui without suggestion and history")
-	printVersion = flag.Bool("version", false, "print version")
+	oneLineCommand = flag.String("olc", "", "one line command execution mode")
+	simple         = flag.Bool("simple", false, "use simple ui without suggestion and history")
+	printVersion   = flag.Bool("version", false, "print version")
 )
 
 func main() {
@@ -31,6 +32,8 @@ func main() {
 		return
 	case *simple:
 		appFactory = func(*configs.Config) bapps.BApp { return bapps.NewSimpleApp() }
+	case len(*oneLineCommand) > 0:
+		appFactory = func(*configs.Config) bapps.BApp { return bapps.NewOlcApp(*oneLineCommand) }
 	default:
 		defer handleExit()
 		// open file and create if non-existent

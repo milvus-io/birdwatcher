@@ -1,5 +1,7 @@
 package common
 
+import "github.com/samber/lo"
+
 // GetKVPair iterates KV pairs to find specified key.
 func GetKVPair[T interface {
 	GetKey() string
@@ -11,4 +13,13 @@ func GetKVPair[T interface {
 		}
 	}
 	return ""
+}
+
+func KVListMap[T interface {
+	GetKey() string
+	GetValue() string
+}](pairs []T) map[string]string {
+	return lo.SliceToMap(pairs, func(pair T) (string, string) {
+		return pair.GetKey(), pair.GetValue()
+	})
 }
