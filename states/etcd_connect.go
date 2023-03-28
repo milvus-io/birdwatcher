@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
@@ -37,7 +38,7 @@ func pingEtcd(ctx context.Context, cli clientv3.KV, rootPath string, metaPath st
 
 // getConnectCommand returns the command for connect etcd.
 // usage: connect --etcd [address] --rootPath [rootPath]
-func getConnectCommand(state State) *cobra.Command {
+func getConnectCommand(state State, config *configs.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "connect [options]",
 		Short: "Connect to etcd instance",
@@ -74,7 +75,7 @@ func getConnectCommand(state State) *cobra.Command {
 				return err
 			}
 
-			etcdState := getEtcdConnectedState(etcdCli, etcdAddr)
+			etcdState := getEtcdConnectedState(etcdCli, etcdAddr, config)
 			if !dry {
 				// ping etcd
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -96,7 +97,7 @@ func getConnectCommand(state State) *cobra.Command {
 				fmt.Println("Using meta path:", fmt.Sprintf("%s/%s/", rootPath, metaPath))
 
 				// use rootPath as instanceName
-				state.SetNext(getInstanceState(etcdCli, rootPath, etcdState))
+				state.SetNext(getInstanceState(etcdCli, rootPath, etcdState, config))
 			} else {
 				fmt.Println("using dry mode, ignore rootPath and metaPath")
 				// rootPath empty fall back to etcd connected state
@@ -164,7 +165,7 @@ func getFindMilvusCmd(cli clientv3.KV, state *etcdConnectedState) *cobra.Command
 	return cmd
 }
 
-func getUseCmd(cli clientv3.KV, state State) *cobra.Command {
+func getUseCmd(cli clientv3.KV, state State, config *configs.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "use [instance name]",
 		Short: "use specified milvus instance",
@@ -203,7 +204,7 @@ func getUseCmd(cli clientv3.KV, state State) *cobra.Command {
 
 			fmt.Printf("Using meta path: %s/%s/\n", rootPath, metaPath)
 
-			state.SetNext(getInstanceState(cli, rootPath, state))
+			state.SetNext(getInstanceState(cli, rootPath, state, config))
 		},
 	}
 	cmd.Flags().Bool("force", false, "force connect ignoring ping Etcd rootPath check")
@@ -216,6 +217,7 @@ type etcdConnectedState struct {
 	client     *clientv3.Client
 	addr       string
 	candidates []string
+	config     *configs.Config
 }
 
 // SetupCommands setups the command.
@@ -227,9 +229,9 @@ func (s *etcdConnectedState) SetupCommands() {
 		// find-milvus
 		getFindMilvusCmd(s.client, s),
 		// use
-		getUseCmd(s.client, s),
+		getUseCmd(s.client, s, s.config),
 		// disconnect
-		getDisconnectCmd(s),
+		getDisconnectCmd(s, s.config),
 		// exit
 		getExitCmd(s),
 	)
@@ -239,7 +241,7 @@ func (s *etcdConnectedState) SetupCommands() {
 }
 
 // TBD for testing only
-func getEtcdConnectedState(cli *clientv3.Client, addr string) State {
+func getEtcdConnectedState(cli *clientv3.Client, addr string, config *configs.Config) State {
 
 	state := &etcdConnectedState{
 		cmdState: cmdState{
@@ -247,6 +249,7 @@ func getEtcdConnectedState(cli *clientv3.Client, addr string) State {
 		},
 		client: cli,
 		addr:   addr,
+		config: config,
 	}
 
 	state.SetupCommands()

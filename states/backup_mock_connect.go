@@ -12,6 +12,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
+	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/spf13/cobra"
@@ -33,6 +34,7 @@ type embedEtcdMockState struct {
 
 	metrics        map[string][]byte
 	defaultMetrics map[string][]byte
+	config         *configs.Config
 }
 
 // Close implements State.
@@ -70,7 +72,7 @@ func (s *embedEtcdMockState) SetupCommands() {
 		getForceReleaseCmd(s.client, rootPath),
 
 		// disconnect
-		getDisconnectCmd(s),
+		getDisconnectCmd(s, s.config),
 
 		// for testing
 		etcd.RepairCommand(s.client, rootPath),
@@ -167,7 +169,7 @@ func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
 	s.SetInstance(meta.Instance)
 }
 
-func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string) State {
+func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string, config *configs.Config) State {
 
 	state := &embedEtcdMockState{
 		cmdState: cmdState{
@@ -178,6 +180,7 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 		client:         cli,
 		metrics:        make(map[string][]byte),
 		defaultMetrics: make(map[string][]byte),
+		config:         config,
 	}
 
 	state.SetupCommands()
@@ -185,7 +188,7 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 	return state
 }
 
-func getEmbedEtcdInstanceV2(server *embed.Etcd) *embedEtcdMockState {
+func getEmbedEtcdInstanceV2(server *embed.Etcd, config *configs.Config) *embedEtcdMockState {
 
 	client := v3client.New(server.Server)
 	state := &embedEtcdMockState{
@@ -194,6 +197,7 @@ func getEmbedEtcdInstanceV2(server *embed.Etcd) *embedEtcdMockState {
 		client:         client,
 		metrics:        make(map[string][]byte),
 		defaultMetrics: make(map[string][]byte),
+		config:         config,
 	}
 
 	state.SetupCommands()

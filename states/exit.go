@@ -1,6 +1,9 @@
 package states
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/spf13/cobra"
+)
 
 // ExitErr is the error indicates user needs to exit application.
 var ExitErr = exitErr{}
@@ -42,12 +45,12 @@ func (s *exitState) IsEnding() bool { return true }
 
 // getDisconnectCmd disconnect from current state.
 // will call close method for current state.
-func getDisconnectCmd(state State) *cobra.Command {
+func getDisconnectCmd(state State, config *configs.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "disconnect",
 		Short: "disconnect from current state",
 		Run: func(*cobra.Command, []string) {
-			state.SetNext(Start())
+			state.SetNext(Start(config))
 			state.Close()
 		},
 	}

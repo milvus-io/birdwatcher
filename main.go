@@ -9,12 +9,16 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/c-bata/go-prompt"
 	"github.com/manifoldco/promptui"
 	_ "github.com/milvus-io/birdwatcher/asap"
 	"github.com/milvus-io/birdwatcher/common"
+	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/history"
 	"github.com/milvus-io/birdwatcher/states"
+	"github.com/samber/lo"
 )
 
 var (
@@ -31,7 +35,13 @@ func main() {
 	}
 
 	defer handleExit()
-	app := states.Start()
+	config, err := configs.NewConfig(".bw_config")
+	if err != nil {
+		// run by default, just printing warning.
+		fmt.Println("[WARN] load config file failed", err.Error())
+	}
+
+	app := states.Start(config)
 	// open file and create if non-existent
 	file, err := os.OpenFile("bw_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -41,7 +51,7 @@ func main() {
 
 	logger = log.New(file, "Custom Log", log.LstdFlags)
 
-	runPrompt(app)
+	runPrompt(app, config)
 }
 
 func handleExit() {
@@ -73,8 +83,10 @@ func run(app states.State) {
 
 // promptApp model wraps states to provide function for go-prompt.
 type promptApp struct {
-	exited       bool
-	currentState states.State
+	exited          bool
+	currentState    states.State
+	sugguestHistory bool
+	historyHelper   *history.HistoryHelper
 }
 
 // promptExecute actual execution logic entry.
@@ -139,6 +151,9 @@ func (a *promptApp) promptExecute(in string) {
 	<-pagerSig
 	// recovery normal output
 	os.Stdout = stdout
+	// back to normal mode
+	a.historyHelper.AddLog(in)
+	a.sugguestHistory = false
 
 	if a.currentState.IsEnding() {
 		fmt.Println("Bye!")
@@ -148,7 +163,11 @@ func (a *promptApp) promptExecute(in string) {
 
 // completeInput auto-complete logic entry.
 func (a *promptApp) completeInput(d prompt.Document) []prompt.Suggest {
+
 	input := d.CurrentLineBeforeCursor()
+	if a.sugguestHistory {
+		return a.historySuggestions(input)
+	}
 	if input == "" {
 		return nil
 	}
@@ -166,6 +185,20 @@ func (a *promptApp) completeInput(d prompt.Document) []prompt.Suggest {
 	return s
 }
 
+func (a *promptApp) historySuggestions(input string) []prompt.Suggest {
+	items := a.historyHelper.List(input)
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Ts > items[j].Ts
+	})
+	return lo.Map(items, func(item history.HistoryItem, _ int) prompt.Suggest {
+		t := time.Unix(item.Ts, 0)
+		return prompt.Suggest{
+			Text:        item.Cmd,
+			Description: t.Format("2006-01-02 15:03:04"),
+		}
+	})
+}
+
 // livePrefix implements dynamic change prefix.
 func (a *promptApp) livePrefix() (string, bool) {
 	if a.exited {
@@ -175,11 +208,18 @@ func (a *promptApp) livePrefix() (string, bool) {
 }
 
 // runPrompt start BirdWatcher with go-prompt.
-func runPrompt(app states.State) {
-	pa := &promptApp{currentState: app}
+func runPrompt(app states.State, config *configs.Config) {
+	// use workspace path to open&store history log
+	hh := history.NewHistoryHelper(config.WorkspacePath)
+	pa := &promptApp{currentState: app, historyHelper: hh}
+	historyItems := hh.List("")
+	sort.Slice(historyItems, func(i, j int) bool {
+		return historyItems[i].Ts < historyItems[j].Ts
+	})
+
 	p := prompt.New(pa.promptExecute, pa.completeInput,
 		prompt.OptionTitle("BirdWatcher"),
-		prompt.OptionHistory([]string{""}),
+		prompt.OptionHistory(lo.Map(historyItems, func(hi history.HistoryItem, _ int) string { return hi.Cmd })),
 		prompt.OptionLivePrefix(pa.livePrefix),
 		prompt.OptionPrefixTextColor(prompt.Yellow),
 		prompt.OptionPreviewSuggestionTextColor(prompt.Blue),
@@ -191,6 +231,12 @@ func runPrompt(app states.State) {
 				return true
 			}
 			return false
+		}),
+		prompt.OptionAddKeyBind(prompt.KeyBind{
+			Key: prompt.ControlR,
+			Fn: func(buffer *prompt.Buffer) {
+				pa.sugguestHistory = !pa.sugguestHistory
+			},
 		}),
 	)
 	p.Run()
