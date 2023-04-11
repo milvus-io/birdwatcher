@@ -91,6 +91,8 @@ func RemoveCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		remove.ChannelCommand(cli, basePath),
 		// remove binlog file
 		remove.BinlogCommand(cli, basePath),
+		// remove collection-drop
+		remove.CollectionDropCommand(cli, basePath),
 	)
 
 	return removeCmd

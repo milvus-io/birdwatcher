@@ -32,6 +32,10 @@ type Collection struct {
 	lazyLoad func(*Collection)
 }
 
+func (c *Collection) Key() string {
+	return c.key
+}
+
 // CollectionHistory collection models with extra history data.
 type CollectionHistory struct {
 	Collection
