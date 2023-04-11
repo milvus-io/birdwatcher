@@ -30,15 +30,20 @@ func getForceReleaseCmd(cli clientv3.KV, basePath string) *cobra.Command {
 					fmt.Printf("backup etcd failed, error: %v, stop doing force-release\n", err)
 				}*/
 
-			// remove all keys start with [basePath]/queryCoord-
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			// remove all keys start with [basePath]/queryCoord- qcv1 meta
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
 			_, err := cli.Delete(ctx, path.Join(basePath, "queryCoord-"), clientv3.WithPrefix())
 			if err != nil {
-				fmt.Printf("failed to remove queryCoord etcd kv, err: %v\n", err)
+				fmt.Printf("failed to remove queryCoord v1 etcd kv, err: %v\n", err)
 			}
-			// release all collections from online querynodes
+			// remove all keys start with [basePath]/querycoord- qcv2 meta
+			_, err = cli.Delete(ctx, path.Join(basePath, "querycoord-"), clientv3.WithPrefix())
+			if err != nil {
+				fmt.Printf("failed to remove queryCoord v2 etcd kv, err: %v\n", err)
+			}
 
+			// release all collections from online querynodes
 			// maybe? kill session of queryCoord?
 		},
 	}
