@@ -9,6 +9,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
+	"github.com/milvus-io/birdwatcher/states/etcd/set"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 )
 
@@ -46,6 +47,8 @@ func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		// show collection-loaded
 		show.CollectionLoadedCommand(cli, basePath),
 
+		show.ConfigEtcdCommand(cli, basePath),
+
 		// v2.1 legacy commands
 		// show querycoord-tasks
 		show.QueryCoordTasks(cli, basePath),
@@ -75,6 +78,20 @@ func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	)
 
 	return repairCmd
+}
+
+// SetCommand, returns etcd set commands.
+func SetCommand(cli clientv3.KV, instanceName string, metaPath string) *cobra.Command {
+	setCmd := &cobra.Command{
+		Use: "set",
+	}
+
+	setCmd.AddCommand(
+		// by-dev/config not by-dev/meta/config
+		set.EtcdConfigCommand(cli, instanceName),
+	)
+
+	return setCmd
 }
 
 // RemoveCommand returns etcd remove commands.
