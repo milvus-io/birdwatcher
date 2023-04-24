@@ -93,6 +93,8 @@ func RemoveCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		remove.BinlogCommand(cli, basePath),
 		// remove collection-drop
 		remove.CollectionDropCommand(cli, basePath),
+		// remove sgements with collection dropped
+		remove.SegmentCollectionDroppedCommand(cli, basePath),
 	)
 
 	return removeCmd
