@@ -22,6 +22,8 @@ import (
 const (
 	// CollectionMetaPrefix is prefix for rootcoord collection meta.
 	CollectionMetaPrefix = `root-coord/collection`
+	// DBCollectionMetaPrefix is prefix for rootcoord database collection meta
+	DBCollectionMetaPrefix = `root-coord/database/collection-info`
 	// CollectionLoadPrefix is prefix for querycoord collection loaded in milvus v2.1.x
 	CollectionLoadPrefix = "queryCoord-collectionMeta"
 	// CollectionLoadPrefixV2 is prefix for querycoord collection loaded in milvus v2.2.x
@@ -51,48 +53,58 @@ func ListCollections(cli clientv3.KV, basePath string, filter func(*etcdpb.Colle
 
 // ListCollectionsVersion returns collection information as provided version.
 func ListCollectionsVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
-	prefix := path.Join(basePath, CollectionMetaPrefix)
 
+	prefixes := []string{
+		path.Join(basePath, CollectionMetaPrefix),
+		path.Join(basePath, DBCollectionMetaPrefix),
+	}
+	var result []*models.Collection
 	switch version {
 	case models.LTEVersion2_1:
-		collections, keys, err := ListProtoObjectsAdv[etcdpb.CollectionInfo](ctx, cli, prefix, func(_ string, value []byte) bool {
-			// TODO maybe add dropped collection info in result?
-			return !bytes.Equal(value, CollectionTombstone)
-		})
-		if err != nil {
-			return nil, err
-		}
-		return lo.FilterMap(collections, func(collection etcdpb.CollectionInfo, idx int) (*models.Collection, bool) {
-			c := models.NewCollectionFromV2_1(&collection, keys[idx])
-			for _, filter := range filters {
-				if !filter(c) {
-					return nil, false
-				}
+		for _, prefix := range prefixes {
+			collections, keys, err := ListProtoObjectsAdv[etcdpb.CollectionInfo](ctx, cli, prefix, func(_ string, value []byte) bool {
+				// TODO maybe add dropped collection info in result?
+				return !bytes.Equal(value, CollectionTombstone)
+			})
+			if err != nil {
+				return nil, err
 			}
-			return c, true
-		}), nil
-	case models.GTEVersion2_2:
-		collections, keys, err := ListProtoObjectsAdv[etcdpbv2.CollectionInfo](ctx, cli, prefix, func(_ string, value []byte) bool {
-			return !bytes.Equal(value, CollectionTombstone)
-		})
-		if err != nil {
-			return nil, err
+			result = append(result, lo.FilterMap(collections, func(collection etcdpb.CollectionInfo, idx int) (*models.Collection, bool) {
+				c := models.NewCollectionFromV2_1(&collection, keys[idx])
+				for _, filter := range filters {
+					if !filter(c) {
+						return nil, false
+					}
+				}
+				return c, true
+			})...)
 		}
 
-		return lo.FilterMap(collections, func(collection etcdpbv2.CollectionInfo, idx int) (*models.Collection, bool) {
-			fields, err := getCollectionFields(ctx, cli, basePath, collection.ID)
+		return result, nil
+	case models.GTEVersion2_2:
+		for _, prefix := range prefixes {
+			collections, keys, err := ListProtoObjectsAdv[etcdpbv2.CollectionInfo](ctx, cli, prefix, func(_ string, value []byte) bool {
+				return !bytes.Equal(value, CollectionTombstone)
+			})
 			if err != nil {
-				fmt.Println(err.Error())
-				return nil, false
+				return nil, err
 			}
-			c := models.NewCollectionFromV2_2(&collection, keys[idx], fields)
-			for _, filter := range filters {
-				if !filter(c) {
+			result = append(result, lo.FilterMap(collections, func(collection etcdpbv2.CollectionInfo, idx int) (*models.Collection, bool) {
+				fields, err := getCollectionFields(ctx, cli, basePath, collection.ID)
+				if err != nil {
+					fmt.Println(err.Error())
 					return nil, false
 				}
-			}
-			return c, true
-		}), nil
+				c := models.NewCollectionFromV2_2(&collection, keys[idx], fields)
+				for _, filter := range filters {
+					if !filter(c) {
+						return nil, false
+					}
+				}
+				return c, true
+			})...)
+		}
+		return result, nil
 	default:
 		return nil, fmt.Errorf("undefined version: %s", version)
 	}
