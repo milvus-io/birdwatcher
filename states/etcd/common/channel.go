@@ -3,14 +3,19 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"path"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
+	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -53,6 +58,7 @@ func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, ver
 			return nil, err
 		}
 		result = lo.Map(infos, func(info datapbv2.ChannelWatchInfo, idx int) *models.ChannelWatch {
+			fmt.Println(info.String())
 			return models.GetChannelWatchInfo[*datapbv2.ChannelWatchInfo, datapbv2.ChannelWatchState, *datapbv2.VchannelInfo, *internalpbv2.MsgPosition](&info, paths[idx])
 
 		})
@@ -68,4 +74,48 @@ func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, ver
 		return true
 	})
 	return result, nil
+}
+
+func SetChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, channelName string, collection *models.Collection) error {
+	removelKey := path.Join(basePath, "datacoord-meta/channel-removal", channelName)
+	_, err := cli.Put(ctx, removelKey, "non-removed")
+	if err != nil {
+		return err
+	}
+
+	watchKey := path.Join(basePath, "channelwatch", fmt.Sprintf("%d", math.MinInt64), channelName)
+
+	info := &datapbv2.ChannelWatchInfo{
+		Vchan: &datapbv2.VchannelInfo{
+			CollectionID: collection.ID,
+			ChannelName:  channelName,
+			//		SeekPosition: collection.Sc
+
+		},
+		Schema: &schemapbv2.CollectionSchema{
+			Name: collection.Schema.Name,
+			Fields: lo.Map(collection.Schema.Fields, func(field models.FieldSchema, idx int) *schemapbv2.FieldSchema {
+				return &schemapbv2.FieldSchema{
+					FieldID:     field.FieldID,
+					Name:        field.Name,
+					Description: field.Description,
+					DataType:    schemapbv2.DataType(field.DataType),
+					TypeParams: lo.MapToSlice(field.Properties, func(key, value string) *commonpb.KeyValuePair {
+						return &commonpb.KeyValuePair{
+							Key:   key,
+							Value: value,
+						}
+					}),
+				}
+			}),
+		},
+	}
+
+	bs, err := proto.Marshal(info)
+	if err != nil {
+		return err
+	}
+
+	_, err = cli.Put(ctx, watchKey, string(bs))
+	return err
 }
