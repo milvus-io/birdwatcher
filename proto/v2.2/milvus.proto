@@ -8,6 +8,8 @@ option java_package = "io.milvus.grpc";
 option java_outer_classname = "MilvusProto";
 option java_generate_equals_and_hash = true;
 
+option csharp_namespace = "IO.Milvus.Grpc";
+
 import "common.proto";
 import "schema.proto";
 import "google/protobuf/descriptor.proto";
@@ -32,6 +34,7 @@ service MilvusService {
   rpc ShowPartitions(ShowPartitionsRequest) returns (ShowPartitionsResponse) {}
 
   rpc GetLoadingProgress(GetLoadingProgressRequest) returns (GetLoadingProgressResponse) {}
+  rpc GetLoadState(GetLoadStateRequest) returns (GetLoadStateResponse) {}
 
   rpc CreateAlias(CreateAliasRequest) returns (common.Status) {}
   rpc DropAlias(DropAliasRequest) returns (common.Status) {}
@@ -51,8 +54,10 @@ service MilvusService {
   rpc Flush(FlushRequest) returns (FlushResponse) {}
   rpc Query(QueryRequest) returns (QueryResults) {}
   rpc CalcDistance(CalcDistanceRequest) returns (CalcDistanceResults) {}
+  rpc FlushAll(FlushAllRequest) returns (FlushAllResponse) {}
 
   rpc GetFlushState(GetFlushStateRequest) returns (GetFlushStateResponse) {}
+  rpc GetFlushAllState(GetFlushAllStateRequest) returns (GetFlushAllStateResponse) {}
   rpc GetPersistentSegmentInfo(GetPersistentSegmentInfoRequest) returns (GetPersistentSegmentInfoResponse) {}
   rpc GetQuerySegmentInfo(GetQuerySegmentInfoRequest) returns (GetQuerySegmentInfoResponse) {}
   rpc GetReplicas(GetReplicasRequest) returns (GetReplicasResponse) {}
@@ -93,6 +98,21 @@ service MilvusService {
 
   rpc GetVersion(GetVersionRequest) returns (GetVersionResponse) {}
   rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse) {}
+
+  rpc CreateResourceGroup(CreateResourceGroupRequest) returns (common.Status) {}
+  rpc DropResourceGroup(DropResourceGroupRequest) returns (common.Status) {}
+  rpc TransferNode(TransferNodeRequest) returns (common.Status) {}
+  rpc TransferReplica(TransferReplicaRequest) returns (common.Status) {}
+  rpc ListResourceGroups(ListResourceGroupsRequest) returns (ListResourceGroupsResponse) {}
+  rpc DescribeResourceGroup(DescribeResourceGroupRequest) returns (DescribeResourceGroupResponse) {}
+
+  rpc RenameCollection(RenameCollectionRequest) returns (common.Status) {}
+
+  rpc CreateDatabase(CreateDatabaseRequest) returns (common.Status) {}
+  rpc DropDatabase(DropDatabaseRequest) returns (common.Status) {}
+  rpc ListDatabases(ListDatabasesRequest) returns (ListDatabasesResponse) {}
+
+  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
 }
 
 message CreateAliasRequest {
@@ -126,7 +146,6 @@ message CreateCollectionRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The unique collection name in milvus.(Required)
   string collection_name = 3;
@@ -138,6 +157,7 @@ message CreateCollectionRequest {
   // The consistency level that the collection used, modification is not supported now.
   common.ConsistencyLevel consistency_level = 6;
   repeated common.KeyValuePair properties = 7;
+  int64 num_partitions = 8; // num of default physical partitions, only used in partition key mode and changes are not supported
 }
 
 /**
@@ -151,7 +171,6 @@ message DropCollectionRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The unique collection name in milvus.(Required)
   string collection_name = 3;
@@ -168,7 +187,6 @@ message AlterCollectionRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The unique collection name in milvus.(Required)
   string collection_name = 3;
@@ -182,7 +200,6 @@ message AlterCollectionRequest {
 message HasCollectionRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name you want to check.
   string collection_name = 3;
@@ -212,7 +229,6 @@ message DescribeCollectionRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name you want to describe, you can pass collection_name or collectionID
   string collection_name = 3;
@@ -251,6 +267,8 @@ message DescribeCollectionResponse {
   // The collection name
   string collection_name = 12;
   repeated common.KeyValuePair properties = 13;
+  string db_name = 14;
+  int64 num_partitions = 15;
 }
 
 /**
@@ -264,12 +282,15 @@ message LoadCollectionRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name you want to load
   string collection_name = 3;
   // The replica number to load, default by 1
   int32 replica_number = 4;
+  // create replica used resource group 
+  repeated string resource_groups = 5;
+  // Whether to enable refresh mode.
+  bool refresh = 6;
 }
 
 /**
@@ -283,7 +304,6 @@ message ReleaseCollectionRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name you want to release
   string collection_name = 3;
@@ -301,7 +321,6 @@ message GetStatisticsRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name you want get statistics
   string collection_name = 3;
@@ -333,7 +352,6 @@ message GetCollectionStatisticsRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name you want get statistics
   string collection_name = 3;
@@ -371,7 +389,6 @@ message ShowCollectionsRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // Not useful for now
   uint64 time_stamp = 3;
@@ -409,7 +426,6 @@ message ShowCollectionsResponse {
 message CreatePartitionRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name in milvus
   string collection_name = 3;
@@ -423,7 +439,6 @@ message CreatePartitionRequest {
 message DropPartitionRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name in milvus
   string collection_name = 3;
@@ -437,7 +452,6 @@ message DropPartitionRequest {
 message HasPartitionRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name in milvus
   string collection_name = 3;
@@ -452,7 +466,6 @@ message HasPartitionRequest {
 message LoadPartitionsRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name in milvus
   string collection_name = 3;
@@ -460,6 +473,10 @@ message LoadPartitionsRequest {
   repeated string partition_names = 4;
   // The replicas number you would load, 1 by default
   int32 replica_number = 5;
+  // create replica used resource group 
+  repeated string resource_groups = 6;
+  // Whether to enable refresh mode.
+  bool refresh = 7;
 }
 
 /*
@@ -469,7 +486,6 @@ message LoadPartitionsRequest {
 message ReleasePartitionsRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name in milvus
   string collection_name = 3;
@@ -483,7 +499,6 @@ message ReleasePartitionsRequest {
 message GetPartitionStatisticsRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name in milvus
   string collection_name = 3;
@@ -502,7 +517,6 @@ message GetPartitionStatisticsResponse {
 message ShowPartitionsRequest {
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The collection name you want to describe, you can pass collection_name or collectionID
   string collection_name = 3;
@@ -571,7 +585,6 @@ message CreateIndexRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The particular collection name you want to create index.
   string collection_name = 3;
@@ -595,7 +608,6 @@ message DescribeIndexRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2;
   // The particular collection name in Milvus
   string collection_name = 3;
@@ -646,7 +658,6 @@ message GetIndexBuildProgressRequest {
   };
   // Not useful for now
   common.MsgBase base = 1;
-  // Not useful for now
   string db_name = 2 ;
   // The collection name in milvus
   string collection_name = 3;
@@ -755,6 +766,7 @@ message SearchRequest {
   uint64 travel_timestamp = 10;
   uint64 guarantee_timestamp = 11; // guarantee_timestamp
   int64  nq = 12;
+  bool not_return_all_meta = 13;
 }
 
 message Hits {
@@ -803,12 +815,14 @@ message QueryRequest {
   uint64 travel_timestamp = 7;
   uint64 guarantee_timestamp = 8; // guarantee_timestamp
   repeated common.KeyValuePair query_params = 9; // optional
+  bool not_return_all_meta = 10;
 }
 
 message QueryResults {
   common.Status status = 1;
   repeated schema.FieldData fields_data = 2;
   string collection_name = 3;
+  repeated string output_fields = 4;
 }
 
 message VectorIDs {
@@ -839,6 +853,14 @@ message CalcDistanceResults {
     schema.IntArray int_dist = 2;
     schema.FloatArray float_dist = 3;
   }
+}
+
+message FlushAllRequest {
+}
+
+message FlushAllResponse {
+  common.Status status = 1;
+  uint64 flush_all_ts = 2;
 }
 
 message PersistentSegmentInfo {
@@ -942,6 +964,7 @@ message LoadBalanceRequest {
   repeated int64 dst_nodeIDs = 3;
   repeated int64 sealed_segmentIDs = 4;
   string collectionName = 5;
+  string db_name = 6;
 }
 
 message ManualCompactionRequest {
@@ -996,6 +1019,16 @@ message GetFlushStateResponse {
   bool flushed = 2;
 }
 
+message GetFlushAllStateRequest {
+  common.MsgBase base = 1;
+  uint64 flush_all_ts = 2;
+}
+
+message GetFlushAllStateResponse {
+  common.Status status = 1;
+  bool flushed = 2;
+}
+
 message ImportRequest {
   option (common.privilege_ext_obj) = {
     object_type: Collection
@@ -1008,6 +1041,7 @@ message ImportRequest {
   bool row_based = 4;                        // the file is row-based or column-based
   repeated string files = 5;                 // file paths to be imported
   repeated common.KeyValuePair options = 6;  // import options, bucket, etc.
+  string db_name = 7;
 }
 
 message ImportResponse {
@@ -1034,6 +1068,7 @@ message GetImportStateResponse {
 message ListImportTasksRequest {
   string collection_name = 1; // target collection, list all tasks if the name is empty
   int64 limit = 2;            // maximum number of tasks returned, list all tasks if the value is 0
+  string db_name = 3;
 }
 
 message ListImportTasksResponse {
@@ -1045,6 +1080,8 @@ message GetReplicasRequest {
   common.MsgBase base = 1;
   int64 collectionID = 2;
   bool with_shard_nodes = 3;
+  string collection_name = 4;
+  string db_name = 5;
 }
 
 message GetReplicasResponse {
@@ -1058,6 +1095,9 @@ message ReplicaInfo {    // ReplicaGroup
   repeated int64 partition_ids = 3;    // empty indicates to load collection
   repeated ShardReplica shard_replicas = 4;
   repeated int64 node_ids = 5; // include leaders
+  string resource_group_name = 6;
+  // outbound access rg -> node num
+  map<string, int32> num_outbound_node = 7;
 }
 
 message ShardReplica {
@@ -1274,6 +1314,8 @@ message GrantEntity {
   string object_name = 3;
   // privilege
   GrantorEntity grantor = 4;
+  // db name
+  string db_name = 5;
 }
 
 message SelectGrantRequest {
@@ -1315,15 +1357,39 @@ message OperatePrivilegeRequest {
 }
 
 message GetLoadingProgressRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeGetLoadingProgress
+    object_name_index: 2
+  };
   // Not useful for now
   common.MsgBase base = 1;
   string collection_name = 2;
   repeated string partition_names = 3;
+  string db_name = 4;
 }
 
 message GetLoadingProgressResponse {
   common.Status status = 1;
   int64 progress = 2;
+}
+
+message GetLoadStateRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeGetLoadState
+    object_name_index: 2
+  };
+  // Not useful for now
+  common.MsgBase base = 1;
+  string collection_name = 2;
+  repeated string partition_names = 3;
+  string db_name = 4;
+}
+
+message GetLoadStateResponse {
+  common.Status status = 1;
+  common.LoadState state = 2;
 }
 
 message MilvusExt {
@@ -1342,6 +1408,14 @@ message GetVersionResponse {
   string version =2;
 }
 
+enum QuotaState {
+  Unknown = 0;
+  ReadLimited = 2;
+  WriteLimited = 3;
+  DenyToRead = 4;
+  DenyToWrite = 5;
+}
+
 message CheckHealthRequest {
 }
 
@@ -1349,4 +1423,156 @@ message CheckHealthResponse {
   common.Status status = 1;
   bool isHealthy = 2;
   repeated string reasons = 3;
+  repeated QuotaState quota_states = 4;
+}
+
+message CreateResourceGroupRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeCreateResourceGroup
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string resource_group = 2;
+}
+
+message DropResourceGroupRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeDropResourceGroup
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string resource_group = 2;
+}
+
+// transfer `nodeNum` nodes from `source_resource_group` to `target_resource_group` 
+message TransferNodeRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeTransferNode
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string source_resource_group = 2;
+  string target_resource_group = 3;
+  int32  num_node = 4;
+}
+
+// transfer `replicaNum` replicas in `collectionID` from `source_resource_group` to `target_resource_group`
+message TransferReplicaRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeTransferReplica
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string source_resource_group = 2;
+  string target_resource_group = 3;
+  string  collection_name = 4;
+  int64  num_replica = 5;
+  string db_name = 6;
+}
+
+message ListResourceGroupsRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeListResourceGroups
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+}
+
+message ListResourceGroupsResponse {
+  common.Status status = 1;
+  repeated string  resource_groups = 2;
+}
+
+message DescribeResourceGroupRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeDescribeResourceGroup
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string resource_group = 2;
+}
+
+message DescribeResourceGroupResponse {
+  common.Status status = 1;
+  ResourceGroup  resource_group = 2;
+}
+
+message ResourceGroup {
+  string name = 1;
+  int32 capacity = 2;
+  int32 num_available_node = 3;
+  // collection name -> loaded replica num
+  map<string, int32> num_loaded_replica = 4;
+  // collection name -> accessed other rg's node num 
+  map<string, int32> num_outgoing_node = 5;
+   // collection name -> be accessed node num by other rg
+  map<string, int32> num_incoming_node = 6;
+}
+
+message RenameCollectionRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeRenameCollection
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string db_name = 2;
+  string oldName = 3;
+  string newName = 4;
+}
+
+message CreateDatabaseRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeCreateDatabase
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string db_name = 2;
+}
+
+message DropDatabaseRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeDropDatabase
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string db_name = 2;
+}
+
+message ListDatabasesRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeListDatabases
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+}
+
+message ListDatabasesResponse {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeShowCollections
+    object_name_index: -1
+  };
+  common.Status status = 1;
+  repeated string db_names = 2;
+}
+
+message ConnectRequest {
+  common.MsgBase base = 1;
+  common.ClientInfo client_info = 2;
+}
+
+message ConnectResponse {
+  common.Status status = 1;
+  common.ServerInfo server_info = 2;
+  int64 identifier = 3;
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
@@ -20,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func getSessionTypes() []string {
@@ -84,9 +84,8 @@ func getSessionConnect(cli clientv3.KV, basePath string, id int64, sessionType s
 	for _, session := range sessions {
 		if id == session.ServerID && session.ServerName == sessionType {
 			opts := []grpc.DialOption{
-				grpc.WithInsecure(),
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithBlock(),
-				grpc.WithTimeout(2 * time.Second),
 			}
 
 			conn, err = grpc.DialContext(context.Background(), session.Address, opts...)
@@ -116,6 +115,32 @@ func getVisitSessionCmds(state State, cli clientv3.KV, basePath string) []*cobra
 				cmd.Usage()
 				return
 			}
+			addr, err := cmd.Flags().GetString("addr")
+			if err != nil {
+				cmd.Usage()
+				return
+			}
+			sType, err := cmd.Flags().GetString("sessionType")
+			if err != nil {
+				cmd.Usage()
+				return
+			}
+			if addr != "" && sType != "" {
+				opts := []grpc.DialOption{
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
+					grpc.WithBlock(),
+				}
+
+				conn, err := grpc.DialContext(context.Background(), addr, opts...)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				setNextState(sessionType, conn, &state, &models.Session{
+					Address: addr,
+				})
+				return
+			}
 			session, conn, err := getSessionConnect(cli, basePath, id, sessionType)
 			if err != nil {
 				return
@@ -130,6 +155,8 @@ func getVisitSessionCmds(state State, cli clientv3.KV, basePath string) []*cobra
 			Short: "component of " + sessionTypes[i] + "s",
 			Run:   RunFuncFactory(sessionTypes[i]),
 		}
+		callCmd.Flags().String("addr", "", "manual specified grpc addr")
+		callCmd.Flags().String("sessionType", "", "")
 		sessionCmds = append(sessionCmds, callCmd)
 	}
 	return sessionCmds

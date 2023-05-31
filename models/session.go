@@ -12,5 +12,5 @@ type Session struct {
 }
 
 func (s Session) String() string {
-	return fmt.Sprintf("Session:%s, ServerID: %d, Version: %s", s.ServerName, s.ServerID, s.Version)
+	return fmt.Sprintf("Session:%s, ServerID: %d, Version: %s, Address: %s", s.ServerName, s.ServerID, s.Version, s.Address)
 }

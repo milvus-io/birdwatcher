@@ -113,8 +113,11 @@ func NewCollectionFromV2_2(info *etcdpbv2.CollectionInfo, key string, fields []*
 	c.Schema.Fields = lo.Map(fields, func(fieldSchema *schemapbv2.FieldSchema, _ int) FieldSchema {
 		fs := NewFieldSchemaFromBase[*schemapbv2.FieldSchema, schemapbv2.DataType](fieldSchema)
 		fs.Properties = GetMapFromKVPairs(fieldSchema.GetTypeParams())
+		fs.IsDynamic = fieldSchema.GetIsDynamic()
+		fs.IsPartitionKey = fieldSchema.GetIsPartitionKey()
 		return fs
 	})
+	c.Schema.EnableDynamicSchema = info.GetSchema().GetEnableDynamicField()
 
 	c.ConsistencyLevel = ConsistencyLevel(info.GetConsistencyLevel())
 	info.GetStartPositions()

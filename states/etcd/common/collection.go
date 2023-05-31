@@ -234,3 +234,26 @@ func FillFieldSchemaIfEmptyV2(cli clientv3.KV, basePath string, collection *etcd
 
 	return nil
 }
+
+func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo)) error {
+	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collectionID, 10))
+	resp, err := cli.Get(ctx, prefix)
+	if err != nil {
+		return err
+	}
+	info := &etcdpbv2.CollectionInfo{}
+	err = proto.Unmarshal(resp.Kvs[0].Value, info)
+	if err != nil {
+		return err
+	}
+
+	fn(info)
+
+	bs, err := proto.Marshal(info)
+	if err != nil {
+		return err
+	}
+
+	_, err = cli.Put(ctx, prefix, string(bs))
+	return err
+}

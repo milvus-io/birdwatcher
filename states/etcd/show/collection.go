@@ -58,11 +58,18 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
+			channels := 0
+			healthy := 0
 			for _, collection := range collections {
 				printCollection(collection)
+				if collection.State == models.CollectionStateCollectionCreated {
+					channels += len(collection.Channels)
+					healthy++
+				}
 			}
 			fmt.Println("================================================================================")
 			fmt.Printf("--- Total collections:  %d\t Matched collections:  %d\n", total, len(collections))
+			fmt.Printf("--- Total channel: %d\t Healthy collections: %d\n", channels, healthy)
 		},
 	}
 
@@ -88,13 +95,20 @@ func printCollection(collection *models.Collection) {
 	for _, field := range fields {
 		fmt.Printf(" - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
 		if field.IsPrimaryKey {
-			fmt.Printf("\t - Primary Key, AutoID: %v\n", field.AutoID)
+			fmt.Printf("\t - Primary Key: %t, AutoID: %t\n", field.IsPrimaryKey, field.AutoID)
+		}
+		if field.IsDynamic {
+			fmt.Printf("\t - Dynamic Field\n")
+		}
+		if field.IsPartitionKey {
+			fmt.Printf("\t - Partition Key\n")
 		}
 		for key, value := range field.Properties {
 			fmt.Printf("\t - Type Param %s: %s\n", key, value)
 		}
 	}
 
+	fmt.Printf("Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicSchema)
 	fmt.Printf("Consistency Level: %s\n", collection.ConsistencyLevel.String())
 	for _, channel := range collection.Channels {
 		fmt.Printf("Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)

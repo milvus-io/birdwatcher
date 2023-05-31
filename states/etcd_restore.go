@@ -186,7 +186,7 @@ func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) 
 		_, err = cli.Put(ctx, entry.Key, string(entry.Data))
 		if err != nil {
 			fmt.Println("failed save kv into etcd, ", err.Error())
-			return "", err
+			continue
 		}
 		i++
 		progress := i * 100 / int(cnt)

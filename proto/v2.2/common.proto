@@ -8,6 +8,8 @@ option java_package = "io.milvus.grpc";
 option java_outer_classname = "CommonProto";
 option java_generate_equals_and_hash = true;
 
+option csharp_namespace = "IO.Milvus.Grpc";
+
 import "google/protobuf/descriptor.proto";
 
 enum ErrorCode {
@@ -61,6 +63,16 @@ enum ErrorCode {
     ForceDeny = 48;
     RateLimit = 49;
     NodeIDNotMatch = 50;
+    UpsertAutoIDTrue = 51;
+    InsufficientMemoryToLoad = 52;
+    MemoryQuotaExhausted = 53;
+    DiskQuotaExhausted = 54;
+    TimeTickLongDelay = 55;
+    NotReadyServe = 56;
+    // Coord is switching from standby mode to active mode 
+    NotReadyCoordActivating = 57;
+
+    NotFoundTSafer = 58;
 
     // Service availability.
     // NA: Not Available.
@@ -147,7 +159,7 @@ enum MsgType {
     DropAlias = 109;
     AlterAlias = 110;
     AlterCollection = 111;
-
+    RenameCollection = 112;
 
     /* DEFINITION REQUESTS: PARTITION */
     CreatePartition = 200;
@@ -216,6 +228,8 @@ enum MsgType {
     SegmentFlushDone = 1207;
 
     DataNodeTt = 1208;
+    Connect = 1209;
+    ListClientInfos = 1210;
 
     /* Credential */
     CreateCredential = 1500;
@@ -235,6 +249,19 @@ enum MsgType {
     SelectGrant = 1607;
     RefreshPolicyInfoCache = 1608;
     ListPolicy = 1609;
+
+    /* Resource group */
+    CreateResourceGroup = 1700;
+    DropResourceGroup = 1701;
+    ListResourceGroups = 1702;
+    DescribeResourceGroup = 1703;
+    TransferNode = 1704;
+    TransferReplica = 1705;
+
+    /* Database group */
+    CreateDatabase = 1801;
+    DropDatabase = 1802;
+    ListDatabases = 1803;
 }
 
 message MsgBase {
@@ -317,6 +344,20 @@ enum ObjectPrivilege {
     PrivilegeSelectOwnership = 22;
     PrivilegeManageOwnership = 23;
     PrivilegeSelectUser = 24;
+
+    PrivilegeCreateResourceGroup = 26;
+    PrivilegeDropResourceGroup = 27;
+    PrivilegeDescribeResourceGroup = 28;
+    PrivilegeListResourceGroups = 29;
+    PrivilegeTransferNode = 30;
+    PrivilegeTransferReplica = 31;
+    PrivilegeGetLoadingProgress = 32;
+    PrivilegeGetLoadState = 33;
+
+    PrivilegeRenameCollection = 34;
+    PrivilegeCreateDatabase = 35;
+    PrivilegeDropDatabase = 36;
+    PrivilegeListDatabases = 37;
 }
 
 message PrivilegeExt {
@@ -335,4 +376,34 @@ enum StateCode {
     Healthy = 1;
     Abnormal = 2;
     StandBy = 3;
+    Stopping = 4;
+}
+
+enum LoadState {
+    LoadStateNotExist = 0;
+    LoadStateNotLoad = 1;
+    LoadStateLoading = 2;
+    LoadStateLoaded = 3;
+}
+
+message ClientInfo {
+    // sdk_type can be `python`, `golang`, `nodejs` and etc. It's not proper to make `sdk_type` an
+    // enumerate type, since we cannot always update the enum value everytime when newly sdk is supported.
+    string sdk_type = 1;
+    string sdk_version = 2;
+    string local_time = 3;
+    string user = 4;
+    string host = 5;
+    // reserved for newly-added feature if necessary.
+    map<string, string> reserved = 6;
+}
+
+message ServerInfo {
+    string build_tags = 1;
+    string build_time = 2;
+    string git_commit = 3;
+    string go_version = 4;
+    string deploy_mode = 5;
+    // reserved for newly-added feature if necessary.
+    map<string, string> reserved = 6;
 }

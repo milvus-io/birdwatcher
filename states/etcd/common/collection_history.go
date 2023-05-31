@@ -88,3 +88,21 @@ func ListHistoryCollection[T any, P interface {
 
 	return colls, paths, dropped, nil
 }
+
+func RemoveCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string, version string, collectionID int64) error {
+
+	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
+	colls, paths, _, err := ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
+	if err != nil {
+		return err
+	}
+	for idx, coll := range colls {
+		if coll.GetID() != collectionID {
+			continue
+		}
+		if coll.State == etcdpbv2.CollectionState_CollectionDropped || coll.State == etcdpbv2.CollectionState_CollectionDropping {
+			cli.Delete(ctx, paths[idx])
+		}
+	}
+	return nil
+}

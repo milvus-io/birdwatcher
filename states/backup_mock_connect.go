@@ -79,6 +79,8 @@ func (s *embedEtcdMockState) SetupCommands() {
 
 		getPrintMetricsCmd(s),
 
+		getListMetricsNodeCmd(s),
+
 		// exit
 		getExitCmd(s),
 	)
@@ -226,6 +228,34 @@ func getPrintMetricsCmd(state *embedEtcdMockState) *cobra.Command {
 
 	cmd.Flags().String("node", "", "select node metrics to print")
 	return cmd
+}
+
+func getListMetricsNodeCmd(state *embedEtcdMockState) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list-metrics-nodes",
+		Short: "print metrics restored from backup file",
+		Run: func(cmd *cobra.Command, args []string) {
+			/*
+				node, err := cmd.Flags().GetString("node")
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				metrics, ok := state.metrics[node]
+				if !ok {
+					fmt.Printf("not metrics found for node %s\n", node)
+					return
+				}
+				fmt.Println(string(metrics))*/
+			for node := range state.metrics {
+				fmt.Println(node)
+			}
+		},
+	}
+
+	cmd.Flags().String("node", "", "select node metrics to print")
+	return cmd
+
 }
 
 func readFixLengthHeader[T proto.Message](rd *bufio.Reader, header T) error {

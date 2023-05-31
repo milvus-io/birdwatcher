@@ -97,6 +97,7 @@ func SegmentIndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			for _, info := range indexBuildInfo {
 				buildID2Info[info.IndexBuildID] = info
 			}
+			count := make(map[string]int)
 
 			for _, segment := range segments {
 				if segment.State != commonpb.SegmentState_Flushed {
@@ -113,6 +114,7 @@ func SegmentIndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
 					}
 					for _, segIdx := range segIdxv2 {
 						fmt.Printf("\n\tIndexV2 build ID: %d, states %s", segIdx.GetBuildID(), segIdx.GetState().String())
+						count[segIdx.GetState().String()]++
 						idx, ok := idIdx[segIdx.GetIndexID()]
 						if ok {
 							fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(idx.GetIndexInfo().GetIndexParams(), "index_type"), idx.GetIndexInfo().GetFieldID())
@@ -134,7 +136,11 @@ func SegmentIndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				}
 				fmt.Println()
 			}
-
+			// Print count statistics
+			for idxSta, cnt := range count {
+				fmt.Printf("[%s]: %d\t", idxSta, cnt)
+			}
+			fmt.Println()
 		},
 	}
 

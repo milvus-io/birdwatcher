@@ -251,19 +251,82 @@ func (m *RefreshPolicyInfoCacheRequest) GetOpKey() string {
 	return ""
 }
 
+type CollectionRate struct {
+	Collection           int64                 `protobuf:"varint,1,opt,name=collection,proto3" json:"collection,omitempty"`
+	Rates                []*internalpb.Rate    `protobuf:"bytes,2,rep,name=rates,proto3" json:"rates,omitempty"`
+	States               []milvuspb.QuotaState `protobuf:"varint,3,rep,packed,name=states,proto3,enum=milvus.protov2.milvus.QuotaState" json:"states,omitempty"`
+	Codes                []commonpb.ErrorCode  `protobuf:"varint,4,rep,packed,name=codes,proto3,enum=milvus.protov2.common.ErrorCode" json:"codes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
+}
+
+func (m *CollectionRate) Reset()         { *m = CollectionRate{} }
+func (m *CollectionRate) String() string { return proto.CompactTextString(m) }
+func (*CollectionRate) ProtoMessage()    {}
+func (*CollectionRate) Descriptor() ([]byte, []int) {
+	return fileDescriptor_700b50b08ed8dbaf, []int{4}
+}
+
+func (m *CollectionRate) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CollectionRate.Unmarshal(m, b)
+}
+func (m *CollectionRate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CollectionRate.Marshal(b, m, deterministic)
+}
+func (m *CollectionRate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CollectionRate.Merge(m, src)
+}
+func (m *CollectionRate) XXX_Size() int {
+	return xxx_messageInfo_CollectionRate.Size(m)
+}
+func (m *CollectionRate) XXX_DiscardUnknown() {
+	xxx_messageInfo_CollectionRate.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CollectionRate proto.InternalMessageInfo
+
+func (m *CollectionRate) GetCollection() int64 {
+	if m != nil {
+		return m.Collection
+	}
+	return 0
+}
+
+func (m *CollectionRate) GetRates() []*internalpb.Rate {
+	if m != nil {
+		return m.Rates
+	}
+	return nil
+}
+
+func (m *CollectionRate) GetStates() []milvuspb.QuotaState {
+	if m != nil {
+		return m.States
+	}
+	return nil
+}
+
+func (m *CollectionRate) GetCodes() []commonpb.ErrorCode {
+	if m != nil {
+		return m.Codes
+	}
+	return nil
+}
+
 type SetRatesRequest struct {
-	Base                 *commonpb.MsgBase  `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
-	Rates                []*internalpb.Rate `protobuf:"bytes,2,rep,name=rates,proto3" json:"rates,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	Base                 *commonpb.MsgBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
+	Rates                []*CollectionRate `protobuf:"bytes,2,rep,name=rates,proto3" json:"rates,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *SetRatesRequest) Reset()         { *m = SetRatesRequest{} }
 func (m *SetRatesRequest) String() string { return proto.CompactTextString(m) }
 func (*SetRatesRequest) ProtoMessage()    {}
 func (*SetRatesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_700b50b08ed8dbaf, []int{4}
+	return fileDescriptor_700b50b08ed8dbaf, []int{5}
 }
 
 func (m *SetRatesRequest) XXX_Unmarshal(b []byte) error {
@@ -291,9 +354,95 @@ func (m *SetRatesRequest) GetBase() *commonpb.MsgBase {
 	return nil
 }
 
-func (m *SetRatesRequest) GetRates() []*internalpb.Rate {
+func (m *SetRatesRequest) GetRates() []*CollectionRate {
 	if m != nil {
 		return m.Rates
+	}
+	return nil
+}
+
+type ListClientInfosRequest struct {
+	Base                 *commonpb.MsgBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *ListClientInfosRequest) Reset()         { *m = ListClientInfosRequest{} }
+func (m *ListClientInfosRequest) String() string { return proto.CompactTextString(m) }
+func (*ListClientInfosRequest) ProtoMessage()    {}
+func (*ListClientInfosRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_700b50b08ed8dbaf, []int{6}
+}
+
+func (m *ListClientInfosRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListClientInfosRequest.Unmarshal(m, b)
+}
+func (m *ListClientInfosRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListClientInfosRequest.Marshal(b, m, deterministic)
+}
+func (m *ListClientInfosRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListClientInfosRequest.Merge(m, src)
+}
+func (m *ListClientInfosRequest) XXX_Size() int {
+	return xxx_messageInfo_ListClientInfosRequest.Size(m)
+}
+func (m *ListClientInfosRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListClientInfosRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListClientInfosRequest proto.InternalMessageInfo
+
+func (m *ListClientInfosRequest) GetBase() *commonpb.MsgBase {
+	if m != nil {
+		return m.Base
+	}
+	return nil
+}
+
+type ListClientInfosResponse struct {
+	Status               *commonpb.Status       `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	ClientInfos          []*commonpb.ClientInfo `protobuf:"bytes,2,rep,name=client_infos,json=clientInfos,proto3" json:"client_infos,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
+}
+
+func (m *ListClientInfosResponse) Reset()         { *m = ListClientInfosResponse{} }
+func (m *ListClientInfosResponse) String() string { return proto.CompactTextString(m) }
+func (*ListClientInfosResponse) ProtoMessage()    {}
+func (*ListClientInfosResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_700b50b08ed8dbaf, []int{7}
+}
+
+func (m *ListClientInfosResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListClientInfosResponse.Unmarshal(m, b)
+}
+func (m *ListClientInfosResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListClientInfosResponse.Marshal(b, m, deterministic)
+}
+func (m *ListClientInfosResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListClientInfosResponse.Merge(m, src)
+}
+func (m *ListClientInfosResponse) XXX_Size() int {
+	return xxx_messageInfo_ListClientInfosResponse.Size(m)
+}
+func (m *ListClientInfosResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListClientInfosResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListClientInfosResponse proto.InternalMessageInfo
+
+func (m *ListClientInfosResponse) GetStatus() *commonpb.Status {
+	if m != nil {
+		return m.Status
+	}
+	return nil
+}
+
+func (m *ListClientInfosResponse) GetClientInfos() []*commonpb.ClientInfo {
+	if m != nil {
+		return m.ClientInfos
 	}
 	return nil
 }
@@ -303,49 +452,62 @@ func init() {
 	proto.RegisterType((*InvalidateCredCacheRequest)(nil), "milvus.protov2.proxy.InvalidateCredCacheRequest")
 	proto.RegisterType((*UpdateCredCacheRequest)(nil), "milvus.protov2.proxy.UpdateCredCacheRequest")
 	proto.RegisterType((*RefreshPolicyInfoCacheRequest)(nil), "milvus.protov2.proxy.RefreshPolicyInfoCacheRequest")
+	proto.RegisterType((*CollectionRate)(nil), "milvus.protov2.proxy.CollectionRate")
 	proto.RegisterType((*SetRatesRequest)(nil), "milvus.protov2.proxy.SetRatesRequest")
+	proto.RegisterType((*ListClientInfosRequest)(nil), "milvus.protov2.proxy.ListClientInfosRequest")
+	proto.RegisterType((*ListClientInfosResponse)(nil), "milvus.protov2.proxy.ListClientInfosResponse")
 }
 
 func init() { proto.RegisterFile("proxy.proto", fileDescriptor_700b50b08ed8dbaf) }
 
 var fileDescriptor_700b50b08ed8dbaf = []byte{
-	// 577 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x54, 0xdd, 0x6a, 0xdb, 0x30,
-	0x18, 0xad, 0xdb, 0xa6, 0xed, 0xbe, 0x86, 0x16, 0x44, 0xd7, 0x65, 0x86, 0x94, 0x60, 0xe8, 0x96,
-	0x41, 0x97, 0x14, 0xa7, 0x4f, 0xd0, 0x14, 0x42, 0x18, 0x19, 0xc5, 0xd9, 0x6e, 0x76, 0x33, 0x64,
-	0xfb, 0x4b, 0x22, 0xb0, 0x25, 0xcf, 0x92, 0xb3, 0x65, 0x77, 0x83, 0x3d, 0xd5, 0xde, 0x63, 0xef,
-	0x33, 0xfc, 0x13, 0x27, 0x71, 0x9d, 0x64, 0x23, 0xb0, 0x3b, 0x1f, 0xe9, 0x7c, 0x3a, 0xe7, 0xd8,
-	0x3a, 0x86, 0xd3, 0x20, 0x14, 0xdf, 0x66, 0xad, 0x20, 0x14, 0x4a, 0x90, 0x0b, 0x9f, 0x79, 0xd3,
-	0x48, 0xa6, 0x68, 0x6a, 0xb6, 0x92, 0x3d, 0xbd, 0xea, 0x08, 0xdf, 0x17, 0x3c, 0x5d, 0xd5, 0xcf,
-	0x18, 0x57, 0x18, 0x72, 0xea, 0x65, 0xb8, 0xba, 0x3c, 0x63, 0xfc, 0xd2, 0xe0, 0xaa, 0xcf, 0xa7,
-	0xd4, 0x63, 0x2e, 0x55, 0xd8, 0x15, 0x9e, 0x37, 0x40, 0x45, 0xbb, 0xd4, 0x99, 0xa0, 0x85, 0x5f,
-	0x22, 0x94, 0x8a, 0x98, 0x70, 0x68, 0x53, 0x89, 0x35, 0xad, 0xa1, 0x35, 0x4f, 0xcd, 0xab, 0x56,
-	0x41, 0x33, 0x13, 0x1b, 0xc8, 0xf1, 0x3d, 0x95, 0x68, 0x25, 0x5c, 0xf2, 0x02, 0x8e, 0x5d, 0xfb,
-	0x33, 0xa7, 0x3e, 0xd6, 0xf6, 0x1b, 0x5a, 0xf3, 0x99, 0x75, 0xe4, 0xda, 0xef, 0xa9, 0x8f, 0xe4,
-	0x35, 0x9c, 0x3b, 0xc2, 0xf3, 0xd0, 0x51, 0x4c, 0xf0, 0x94, 0x70, 0x90, 0x10, 0xce, 0x16, 0xcb,
-	0x09, 0xd1, 0x80, 0xea, 0x62, 0xa5, 0xff, 0x50, 0x3b, 0x6c, 0x68, 0xcd, 0x03, 0x6b, 0x65, 0xcd,
-	0xf0, 0x40, 0x5f, 0xf2, 0x1e, 0xa2, 0xbb, 0xb3, 0x6f, 0x1d, 0x4e, 0x22, 0x19, 0xbf, 0xad, 0xdc,
-	0x78, 0x8e, 0x8d, 0x9f, 0x1a, 0x5c, 0x7e, 0x0c, 0xfe, 0x87, 0x54, 0xbc, 0x17, 0x50, 0x29, 0xbf,
-	0x8a, 0xd0, 0xcd, 0x5e, 0x4f, 0x8e, 0x8d, 0x1f, 0x1a, 0xd4, 0x2d, 0x1c, 0x85, 0x28, 0x27, 0x8f,
-	0xc2, 0x63, 0xce, 0xac, 0xcf, 0x47, 0x62, 0x67, 0x37, 0x97, 0x70, 0x24, 0x82, 0x0f, 0xb3, 0x20,
-	0xf5, 0x52, 0xb1, 0x32, 0x44, 0x2e, 0xa0, 0x22, 0x82, 0x77, 0x38, 0xcb, 0x6c, 0xa4, 0xc0, 0xf8,
-	0x0e, 0xe7, 0x43, 0x54, 0x16, 0x55, 0x28, 0x77, 0x11, 0xed, 0x40, 0x25, 0x8c, 0xcf, 0xa8, 0xed,
-	0x37, 0x0e, 0x9a, 0xa7, 0x66, 0xbd, 0x38, 0x94, 0xdf, 0xdc, 0x58, 0xc9, 0x4a, 0xb9, 0xe6, 0xef,
-	0x63, 0xa8, 0x3c, 0xc6, 0xf7, 0x9c, 0x04, 0x40, 0x7a, 0xa8, 0xba, 0xc2, 0x0f, 0x04, 0x47, 0xae,
-	0x86, 0x2a, 0xde, 0x27, 0xb7, 0xc5, 0x53, 0x32, 0xf8, 0x94, 0x9a, 0x59, 0xd7, 0x5f, 0xad, 0x99,
-	0x28, 0xd0, 0x8d, 0x3d, 0x12, 0xc1, 0x45, 0x0f, 0x13, 0xc8, 0xa4, 0x62, 0x8e, 0xec, 0x4e, 0x28,
-	0xe7, 0xe8, 0x91, 0xbb, 0xb5, 0xce, 0xcb, 0xe8, 0x73, 0xdd, 0xeb, 0x35, 0xba, 0x43, 0x15, 0x32,
-	0x3e, 0xb6, 0x50, 0x06, 0x82, 0x4b, 0x34, 0xf6, 0xc8, 0x14, 0xea, 0xab, 0x1d, 0x4d, 0x1b, 0x90,
-	0x37, 0xf5, 0xa9, 0x7e, 0xfa, 0x93, 0xd8, 0x5c, 0x6c, 0xbd, 0xbe, 0xe6, 0x23, 0xc5, 0x86, 0xa3,
-	0x38, 0x2e, 0x42, 0xb5, 0x87, 0xea, 0xc1, 0x9d, 0xc7, 0xbc, 0xd9, 0x14, 0x33, 0xa7, 0xfd, 0x73,
-	0x3c, 0x0e, 0x2f, 0x57, 0x6b, 0x8c, 0x5c, 0x31, 0xea, 0xa5, 0xd1, 0x6e, 0xb7, 0x46, 0x2b, 0x94,
-	0x71, 0x7b, 0xac, 0x11, 0x3c, 0x5f, 0xf4, 0x78, 0x59, 0xeb, 0xa6, 0x5c, 0xab, 0xbc, 0xf4, 0xdb,
-	0x75, 0x38, 0x5c, 0x96, 0x17, 0x95, 0x74, 0xca, 0x85, 0x36, 0xd6, 0x7a, 0xbb, 0xde, 0x04, 0xce,
-	0x7b, 0xa8, 0x92, 0x6e, 0x0c, 0x50, 0x85, 0xcc, 0x91, 0xa4, 0xb9, 0xbe, 0x0c, 0x19, 0x65, 0x7e,
-	0xfa, 0x9b, 0xbf, 0x60, 0xe6, 0x5f, 0xcc, 0x82, 0x93, 0x79, 0xff, 0xc9, 0x75, 0x79, 0x96, 0xc2,
-	0xff, 0x61, 0xab, 0xfb, 0xfb, 0xbb, 0x4f, 0xe6, 0x98, 0xa9, 0x49, 0x64, 0xc7, 0x3b, 0xed, 0x94,
-	0xfc, 0x96, 0x89, 0xec, 0xa9, 0x3d, 0xbf, 0x6a, 0xed, 0x64, 0xbe, 0x9d, 0x88, 0x04, 0xb6, 0x7d,
-	0x94, 0xc0, 0xce, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc9, 0xa4, 0x20, 0xb3, 0x17, 0x07, 0x00,
+	// 737 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x54, 0xdd, 0x6e, 0xda, 0x4c,
+	0x10, 0x8d, 0x43, 0xe0, 0xcb, 0x37, 0x20, 0x90, 0x56, 0x29, 0xa1, 0x48, 0x44, 0xc4, 0x6a, 0x5a,
+	0x2a, 0x25, 0x10, 0x91, 0xb4, 0x52, 0x7b, 0x19, 0x52, 0xa1, 0xa8, 0x49, 0x95, 0x9a, 0xf6, 0xa6,
+	0x37, 0xd1, 0x62, 0x4f, 0xc2, 0x4a, 0x66, 0xd7, 0xf5, 0x2e, 0xb4, 0x5c, 0x56, 0xea, 0x33, 0xf4,
+	0x61, 0xfa, 0x02, 0x7d, 0x85, 0x3e, 0x4e, 0xe5, 0x1f, 0x0c, 0x38, 0x36, 0xa4, 0x42, 0xea, 0x9d,
+	0x67, 0x7d, 0x66, 0xce, 0x99, 0x99, 0xdd, 0x03, 0x79, 0xc7, 0x15, 0x5f, 0x27, 0x4d, 0xc7, 0x15,
+	0x4a, 0x90, 0x9d, 0x21, 0xb3, 0xc7, 0x23, 0x19, 0x44, 0xe3, 0x76, 0xd3, 0xff, 0x57, 0x2d, 0x98,
+	0x62, 0x38, 0x14, 0x3c, 0x38, 0xad, 0x16, 0x19, 0x57, 0xe8, 0x72, 0x6a, 0x87, 0x71, 0x61, 0x3e,
+	0x47, 0xff, 0xa9, 0xc1, 0xde, 0x05, 0x1f, 0x53, 0x9b, 0x59, 0x54, 0x61, 0x47, 0xd8, 0xf6, 0x15,
+	0x2a, 0xda, 0xa1, 0xe6, 0x00, 0x0d, 0xfc, 0x3c, 0x42, 0xa9, 0x48, 0x1b, 0xb6, 0xfa, 0x54, 0x62,
+	0x45, 0xab, 0x6b, 0x8d, 0x7c, 0x7b, 0xaf, 0x19, 0xe3, 0x0c, 0xc9, 0xae, 0xe4, 0xdd, 0x19, 0x95,
+	0x68, 0xf8, 0x58, 0xb2, 0x0b, 0xff, 0x59, 0xfd, 0x1b, 0x4e, 0x87, 0x58, 0xd9, 0xac, 0x6b, 0x8d,
+	0xff, 0x8d, 0x9c, 0xd5, 0x7f, 0x47, 0x87, 0x48, 0x9e, 0x41, 0xc9, 0x14, 0xb6, 0x8d, 0xa6, 0x62,
+	0x82, 0x07, 0x80, 0x8c, 0x0f, 0x28, 0xce, 0x8e, 0x7d, 0xa0, 0x0e, 0x85, 0xd9, 0xc9, 0xc5, 0x79,
+	0x65, 0xab, 0xae, 0x35, 0x32, 0xc6, 0xc2, 0x99, 0x6e, 0x43, 0x75, 0x4e, 0xbb, 0x8b, 0xd6, 0xda,
+	0xba, 0xab, 0xb0, 0x3d, 0x92, 0xde, 0xb4, 0x22, 0xe1, 0x51, 0xac, 0x7f, 0xd7, 0xa0, 0xfc, 0xd1,
+	0xf9, 0x17, 0x54, 0xde, 0x3f, 0x87, 0x4a, 0xf9, 0x45, 0xb8, 0x56, 0x38, 0x9e, 0x28, 0xd6, 0xbf,
+	0x69, 0x50, 0x33, 0xf0, 0xd6, 0x45, 0x39, 0xb8, 0x16, 0x36, 0x33, 0x27, 0x17, 0xfc, 0x56, 0xac,
+	0xad, 0xa6, 0x0c, 0x39, 0xe1, 0x7c, 0x98, 0x38, 0x81, 0x96, 0xac, 0x11, 0x46, 0x64, 0x07, 0xb2,
+	0xc2, 0x79, 0x8b, 0x93, 0x50, 0x46, 0x10, 0xe8, 0xbf, 0x35, 0x28, 0x76, 0xa2, 0x4d, 0x18, 0x54,
+	0x21, 0xd9, 0x03, 0x98, 0xed, 0xc6, 0xa7, 0xce, 0x18, 0x73, 0x27, 0xe4, 0x04, 0xb2, 0x2e, 0x55,
+	0x28, 0x2b, 0x9b, 0xf5, 0x4c, 0x23, 0xdf, 0xae, 0xc5, 0x55, 0x45, 0xb7, 0xd4, 0xab, 0x66, 0x04,
+	0x58, 0xf2, 0x0a, 0x72, 0x52, 0xf9, 0x59, 0x99, 0x7a, 0xa6, 0x51, 0x6c, 0xef, 0xc7, 0xb3, 0xc2,
+	0xf0, 0xfd, 0x48, 0x28, 0xda, 0xf3, 0x90, 0x46, 0x98, 0x40, 0x5e, 0x42, 0xd6, 0x14, 0x16, 0xca,
+	0xca, 0x96, 0x9f, 0x59, 0x4f, 0x99, 0xc2, 0x1b, 0xd7, 0x15, 0x6e, 0x47, 0x58, 0x68, 0x04, 0x70,
+	0x6f, 0xbc, 0xa5, 0x1e, 0x2a, 0x4f, 0x85, 0x5c, 0x67, 0xa0, 0xaf, 0x17, 0xfb, 0x7d, 0xd2, 0x4c,
+	0x7a, 0xaa, 0xcd, 0xc5, 0x21, 0x86, 0x6d, 0xeb, 0x97, 0x50, 0xbe, 0x64, 0x52, 0x75, 0x6c, 0x86,
+	0x5c, 0x79, 0xeb, 0x5d, 0x47, 0x89, 0xfe, 0x43, 0x83, 0xdd, 0x7b, 0xe5, 0xa4, 0x23, 0xb8, 0x44,
+	0xf2, 0x22, 0x18, 0xf0, 0x48, 0x86, 0x15, 0x6b, 0x29, 0x15, 0x7b, 0x3e, 0xc8, 0x08, 0xc1, 0xe4,
+	0x1c, 0x0a, 0xa6, 0x5f, 0xed, 0x86, 0x79, 0xe5, 0xc2, 0x1e, 0xf7, 0x53, 0x92, 0x67, 0xc4, 0x46,
+	0xde, 0x9c, 0x89, 0x68, 0xff, 0xda, 0x86, 0xec, 0xb5, 0x37, 0x06, 0xe2, 0x00, 0xe9, 0xa2, 0xea,
+	0x88, 0xa1, 0x23, 0x38, 0x72, 0xd5, 0x0b, 0x56, 0x78, 0x9c, 0xb2, 0xed, 0xfb, 0xd0, 0x70, 0x3c,
+	0xd5, 0xa7, 0x29, 0x19, 0x31, 0xb8, 0xbe, 0x41, 0x46, 0xb0, 0xd3, 0x45, 0x3f, 0x64, 0x52, 0x31,
+	0x53, 0x76, 0x06, 0x94, 0x73, 0xb4, 0xc9, 0x69, 0xea, 0xbd, 0x4c, 0x82, 0x4f, 0x79, 0x0f, 0x52,
+	0x78, 0x7b, 0xca, 0x65, 0xfc, 0x6e, 0x3a, 0x6d, 0x7d, 0x83, 0x8c, 0xa1, 0xb6, 0xe8, 0xb6, 0xc1,
+	0xf2, 0x23, 0xcf, 0xbd, 0xcf, 0x1f, 0xdc, 0x93, 0xe5, 0x16, 0x5d, 0x5d, 0xbe, 0x36, 0x7d, 0x83,
+	0x20, 0x14, 0xba, 0xa8, 0xce, 0xad, 0x69, 0x9b, 0x87, 0xcb, 0xda, 0x8c, 0x60, 0x7f, 0xdd, 0x1e,
+	0x87, 0xc7, 0x8b, 0x86, 0x8c, 0x5c, 0x31, 0x6a, 0x07, 0xad, 0x1d, 0xaf, 0x6c, 0x2d, 0x66, 0xab,
+	0xab, 0xdb, 0xba, 0x85, 0x47, 0x33, 0x47, 0x9e, 0xe7, 0x3a, 0x4c, 0xe6, 0x4a, 0xb6, 0xef, 0xd5,
+	0x3c, 0x1c, 0xca, 0xc9, 0x96, 0x4b, 0x4e, 0x92, 0x89, 0x96, 0x1a, 0xf4, 0x6a, 0xbe, 0x01, 0x94,
+	0xba, 0xa8, 0xfc, 0xb7, 0x71, 0x85, 0xca, 0x65, 0xa6, 0x24, 0x8d, 0xf4, 0xc7, 0x10, 0x42, 0xa6,
+	0xd5, 0x9f, 0x3f, 0x00, 0x19, 0x6d, 0xcc, 0x80, 0xed, 0xa9, 0xdb, 0x91, 0x83, 0xe4, 0x5e, 0x62,
+	0x6e, 0xb8, 0x5a, 0xbd, 0x03, 0xa5, 0x98, 0xdf, 0xa4, 0xed, 0x23, 0xd9, 0xe5, 0xaa, 0x47, 0x0f,
+	0x44, 0x4f, 0xbb, 0x38, 0x3b, 0xfd, 0xd4, 0xbe, 0x63, 0x6a, 0x30, 0xea, 0x7b, 0x5a, 0x5a, 0x41,
+	0xf2, 0x11, 0x13, 0xe1, 0x57, 0x6b, 0x7a, 0xb9, 0x5b, 0x7e, 0xbd, 0x96, 0x5f, 0xcd, 0xe9, 0xf7,
+	0x73, 0x7e, 0x78, 0xf2, 0x27, 0x00, 0x00, 0xff, 0xff, 0x5d, 0x1b, 0xdf, 0x71, 0x53, 0x09, 0x00,
 	0x00,
 }
 
@@ -370,6 +532,7 @@ type ProxyClient interface {
 	RefreshPolicyInfoCache(ctx context.Context, in *RefreshPolicyInfoCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error)
 	GetProxyMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error)
 	SetRates(ctx context.Context, in *SetRatesRequest, opts ...grpc.CallOption) (*commonpb.Status, error)
+	ListClientInfos(ctx context.Context, in *ListClientInfosRequest, opts ...grpc.CallOption) (*ListClientInfosResponse, error)
 }
 
 type proxyClient struct {
@@ -382,7 +545,7 @@ func NewProxyClient(cc *grpc.ClientConn) ProxyClient {
 
 func (c *proxyClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +554,7 @@ func (c *proxyClient) GetComponentStates(ctx context.Context, in *milvuspb.GetCo
 
 func (c *proxyClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +563,7 @@ func (c *proxyClient) GetStatisticsChannel(ctx context.Context, in *internalpb.G
 
 func (c *proxyClient) InvalidateCollectionMetaCache(ctx context.Context, in *InvalidateCollMetaCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/InvalidateCollectionMetaCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/InvalidateCollectionMetaCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +572,7 @@ func (c *proxyClient) InvalidateCollectionMetaCache(ctx context.Context, in *Inv
 
 func (c *proxyClient) GetDdChannel(ctx context.Context, in *internalpb.GetDdChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetDdChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetDdChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +581,7 @@ func (c *proxyClient) GetDdChannel(ctx context.Context, in *internalpb.GetDdChan
 
 func (c *proxyClient) InvalidateCredentialCache(ctx context.Context, in *InvalidateCredCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/InvalidateCredentialCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/InvalidateCredentialCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +590,7 @@ func (c *proxyClient) InvalidateCredentialCache(ctx context.Context, in *Invalid
 
 func (c *proxyClient) UpdateCredentialCache(ctx context.Context, in *UpdateCredCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/UpdateCredentialCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/UpdateCredentialCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +599,7 @@ func (c *proxyClient) UpdateCredentialCache(ctx context.Context, in *UpdateCredC
 
 func (c *proxyClient) RefreshPolicyInfoCache(ctx context.Context, in *RefreshPolicyInfoCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/RefreshPolicyInfoCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/RefreshPolicyInfoCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +608,7 @@ func (c *proxyClient) RefreshPolicyInfoCache(ctx context.Context, in *RefreshPol
 
 func (c *proxyClient) GetProxyMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetProxyMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetProxyMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +617,16 @@ func (c *proxyClient) GetProxyMetrics(ctx context.Context, in *milvuspb.GetMetri
 
 func (c *proxyClient) SetRates(ctx context.Context, in *SetRatesRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/SetRates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/SetRates", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *proxyClient) ListClientInfos(ctx context.Context, in *ListClientInfosRequest, opts ...grpc.CallOption) (*ListClientInfosResponse, error) {
+	out := new(ListClientInfosResponse)
+	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/ListClientInfos", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -472,6 +644,7 @@ type ProxyServer interface {
 	RefreshPolicyInfoCache(context.Context, *RefreshPolicyInfoCacheRequest) (*commonpb.Status, error)
 	GetProxyMetrics(context.Context, *milvuspb.GetMetricsRequest) (*milvuspb.GetMetricsResponse, error)
 	SetRates(context.Context, *SetRatesRequest) (*commonpb.Status, error)
+	ListClientInfos(context.Context, *ListClientInfosRequest) (*ListClientInfosResponse, error)
 }
 
 // UnimplementedProxyServer can be embedded to have forward compatible implementations.
@@ -505,6 +678,9 @@ func (*UnimplementedProxyServer) GetProxyMetrics(ctx context.Context, req *milvu
 func (*UnimplementedProxyServer) SetRates(ctx context.Context, req *SetRatesRequest) (*commonpb.Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetRates not implemented")
 }
+func (*UnimplementedProxyServer) ListClientInfos(ctx context.Context, req *ListClientInfosRequest) (*ListClientInfosResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListClientInfos not implemented")
+}
 
 func RegisterProxyServer(s *grpc.Server, srv ProxyServer) {
 	s.RegisterService(&_Proxy_serviceDesc, srv)
@@ -520,7 +696,7 @@ func _Proxy_GetComponentStates_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/GetComponentStates",
+		FullMethod: "/milvus.proto.proxy.Proxy/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -538,7 +714,7 @@ func _Proxy_GetStatisticsChannel_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/GetStatisticsChannel",
+		FullMethod: "/milvus.proto.proxy.Proxy/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -556,7 +732,7 @@ func _Proxy_InvalidateCollectionMetaCache_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/InvalidateCollectionMetaCache",
+		FullMethod: "/milvus.proto.proxy.Proxy/InvalidateCollectionMetaCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).InvalidateCollectionMetaCache(ctx, req.(*InvalidateCollMetaCacheRequest))
@@ -574,7 +750,7 @@ func _Proxy_GetDdChannel_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/GetDdChannel",
+		FullMethod: "/milvus.proto.proxy.Proxy/GetDdChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetDdChannel(ctx, req.(*internalpb.GetDdChannelRequest))
@@ -592,7 +768,7 @@ func _Proxy_InvalidateCredentialCache_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/InvalidateCredentialCache",
+		FullMethod: "/milvus.proto.proxy.Proxy/InvalidateCredentialCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).InvalidateCredentialCache(ctx, req.(*InvalidateCredCacheRequest))
@@ -610,7 +786,7 @@ func _Proxy_UpdateCredentialCache_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/UpdateCredentialCache",
+		FullMethod: "/milvus.proto.proxy.Proxy/UpdateCredentialCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).UpdateCredentialCache(ctx, req.(*UpdateCredCacheRequest))
@@ -628,7 +804,7 @@ func _Proxy_RefreshPolicyInfoCache_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/RefreshPolicyInfoCache",
+		FullMethod: "/milvus.proto.proxy.Proxy/RefreshPolicyInfoCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).RefreshPolicyInfoCache(ctx, req.(*RefreshPolicyInfoCacheRequest))
@@ -646,7 +822,7 @@ func _Proxy_GetProxyMetrics_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/GetProxyMetrics",
+		FullMethod: "/milvus.proto.proxy.Proxy/GetProxyMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetProxyMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
@@ -664,10 +840,28 @@ func _Proxy_SetRates_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.proxy.Proxy/SetRates",
+		FullMethod: "/milvus.proto.proxy.Proxy/SetRates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).SetRates(ctx, req.(*SetRatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Proxy_ListClientInfos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListClientInfosRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProxyServer).ListClientInfos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/milvus.proto.proxy.Proxy/ListClientInfos",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProxyServer).ListClientInfos(ctx, req.(*ListClientInfosRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -711,6 +905,10 @@ var _Proxy_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetRates",
 			Handler:    _Proxy_SetRates_Handler,
+		},
+		{
+			MethodName: "ListClientInfos",
+			Handler:    _Proxy_ListClientInfos_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

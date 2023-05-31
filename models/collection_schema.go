@@ -6,18 +6,21 @@ import (
 )
 
 type CollectionSchema struct {
-	Name   string
-	Fields []FieldSchema
+	Name                string
+	Fields              []FieldSchema
+	EnableDynamicSchema bool
 }
 
 type FieldSchema struct {
-	FieldID      int64
-	Name         string
-	IsPrimaryKey bool
-	AutoID       bool
-	DataType     DataType
-	Description  string
-	Properties   map[string]string
+	FieldID        int64
+	Name           string
+	IsPrimaryKey   bool
+	AutoID         bool
+	DataType       DataType
+	Description    string
+	Properties     map[string]string
+	IsDynamic      bool
+	IsPartitionKey bool
 }
 
 func (fs *FieldSchema) GetDim() (int64, error) {

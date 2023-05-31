@@ -1,5 +1,5 @@
 syntax = "proto3";
-package milvus.protov2.plan;
+package milvus.proto.plan;
 
 option go_package = "github.com/milvus-io/milvus/internal/proto/planpb";
 import "schema.proto";
@@ -50,9 +50,15 @@ message ColumnInfo {
   schema.DataType data_type = 2;
   bool is_primary_key = 3;
   bool is_autoID = 4;
+  repeated string nested_path = 5;
+  bool is_partition_key = 6;
 }
 
 message ColumnExpr {
+  ColumnInfo info = 1;
+}
+
+message ExistsExpr {
   ColumnInfo info = 1;
 }
 
@@ -137,6 +143,7 @@ message Expr {
     BinaryArithExpr binary_arith_expr = 8;
     ValueExpr value_expr = 9;
     ColumnExpr column_expr = 10;
+    ExistsExpr exists_expr = 11;
   };
 }
 
