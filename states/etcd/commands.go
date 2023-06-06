@@ -22,6 +22,8 @@ func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	}
 
 	showCmd.AddCommand(
+		// show database
+		show.DatabaseCommand(cli, basePath),
 		// show collection
 		show.CollectionCommand(cli, basePath),
 		// show collection-history
