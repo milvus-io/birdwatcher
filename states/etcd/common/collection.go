@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -16,6 +17,7 @@ import (
 	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/samber/lo"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -145,24 +147,42 @@ func GetCollectionByID(cli clientv3.KV, basePath string, collID int64) (*etcdpb.
 
 // GetCollectionByIDVersion retruns collection info from etcd with provided version & id.
 func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, collID int64) (*models.Collection, error) {
+
+	var result []*mvccpb.KeyValue
+
+	// meta before database
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collID, 10))
 	resp, err := cli.Get(ctx, prefix)
 	if err != nil {
+		fmt.Println("get error", err.Error())
 		return nil, err
 	}
+	result = append(result, resp.Kvs...)
 
-	if len(resp.Kvs) != 1 {
+	// with database, dbID unknown here
+	prefix = path.Join(basePath, DBCollectionMetaPrefix)
+	resp, err = cli.Get(ctx, prefix, clientv3.WithPrefix())
+	suffix := strconv.FormatInt(collID, 10)
+	for _, kv := range resp.Kvs {
+		if strings.HasSuffix(string(kv.Key), suffix) {
+			result = append(result, kv)
+		}
+	}
+
+	if len(result) != 1 {
 		return nil, fmt.Errorf("collection %d not found in etcd", collID)
 	}
 
-	if bytes.Equal(resp.Kvs[0].Value, CollectionTombstone) {
+	kv := result[0]
+
+	if bytes.Equal(kv.Value, CollectionTombstone) {
 		return nil, fmt.Errorf("%w, collection id: %d", ErrCollectionDropped, collID)
 	}
 
 	switch version {
 	case models.LTEVersion2_1:
 		info := &etcdpb.CollectionInfo{}
-		err := proto.Unmarshal(resp.Kvs[0].Value, info)
+		err := proto.Unmarshal(kv.Value, info)
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +191,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath str
 
 	case models.GTEVersion2_2:
 		info := &etcdpbv2.CollectionInfo{}
-		err := proto.Unmarshal(resp.Kvs[0].Value, info)
+		err := proto.Unmarshal(kv.Value, info)
 		if err != nil {
 			return nil, err
 		}
