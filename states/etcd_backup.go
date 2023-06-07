@@ -2,6 +2,7 @@ package states
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/binary"
@@ -29,6 +30,7 @@ import (
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 )
@@ -76,9 +78,8 @@ func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
 		Use:   "backup",
 		Short: "backup etcd key-values",
 		Run: func(cmd *cobra.Command, args []string) {
-
-			ignoreRevision, err := cmd.Flags().GetBool("ignoreRevision")
-			if err != nil {
+			opt := &backupOption{}
+			if err := opt.getArgs(cmd.Flags()); err != nil {
 				fmt.Println(err.Error())
 				return
 			}
@@ -109,7 +110,7 @@ func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
 			// version 2 used for now
 			err = writeBackupHeader(w, 2)
 
-			err = backupEtcdV2(cli, basePath, prefix, w, ignoreRevision)
+			err = backupEtcdV2(cli, basePath, prefix, w, opt)
 			if err != nil {
 				fmt.Printf("backup etcd failed, error: %v\n", err)
 			}
@@ -122,6 +123,7 @@ func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
 
 	cmd.Flags().Var(&component, "ALL", "component to backup")
 	cmd.Flags().Bool("ignoreRevision", false, "backup ignore revision change, ONLY shall works with no nodes online")
+	cmd.Flags().Int("batchSize", 100, "batch fetch size for etcd backup operation")
 	return cmd
 }
 
@@ -149,7 +151,22 @@ func writeBackupHeader(w io.Writer, version int32) error {
 	return nil
 }
 
-func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, ignoreRevision bool) error {
+type backupOption struct {
+	ignoreRevision bool
+	batchSize      int
+}
+
+func (opt *backupOption) getArgs(fs *pflag.FlagSet) error {
+	var err error
+	opt.ignoreRevision, err = fs.GetBool("ignoreRevision")
+	if err != nil {
+		return err
+	}
+	opt.batchSize, err = fs.GetInt("batchSize")
+	return err
+}
+
+func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, opt *backupOption) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	resp, err := cli.Get(ctx, path.Join(base, prefix), clientv3.WithCountOnly(), clientv3.WithPrefix())
@@ -157,8 +174,8 @@ func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, ignoreR
 		return err
 	}
 
-	if ignoreRevision {
-		fmt.Println("WARNING!!! doing backup ignore revision! please make sure no instanc of milvus is online!")
+	if opt.ignoreRevision {
+		fmt.Println("WARNING!!! doing backup ignore revision! please make sure no instance of milvus is online!")
 	}
 
 	// meta stored in extra
@@ -197,32 +214,37 @@ func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, ignoreR
 	progressDisplay.Start()
 	fmt.Fprintf(progressDisplay, progressFmt, 0, 0, cnt)
 
-	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(1)}
-	if !ignoreRevision {
+	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(int64(opt.batchSize))}
+	if !opt.ignoreRevision {
 		options = append(options, clientv3.WithRev(rev))
 	}
 
 	currentKey := path.Join(base, prefix)
-	for i := 0; int64(i) < cnt; i++ {
-
+	var i int
+	prefixBS := []byte(base)
+	for int64(i) < cnt {
 		resp, err = cli.Get(context.Background(), currentKey, options...)
 		if err != nil {
 			return err
 		}
 
+		valid := 0
 		for _, kvs := range resp.Kvs {
-
+			if !bytes.HasPrefix(kvs.Key, prefixBS) {
+				continue
+			}
+			valid++
 			entry := &commonpb.KeyDataPair{Key: string(kvs.Key), Data: kvs.Value}
 			bs, err = proto.Marshal(entry)
 			if err != nil {
 				fmt.Println("failed to marshal kv pair", err.Error())
 				return err
 			}
-
 			writeBackupBytes(w, bs)
 
 			currentKey = string(append(kvs.Key, 0))
 		}
+		i += valid
 
 		progress := (i + 1) * 100 / int(cnt)
 		fmt.Fprintf(progressDisplay, progressFmt, progress, i+1, cnt)
