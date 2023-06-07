@@ -140,7 +140,6 @@ func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) 
 	defer progressDisplay.Stop()
 
 	for {
-
 		bsRead, err := io.ReadFull(rd, lb) //rd.Read(lb)
 		// all file read
 		if err == io.EOF {
@@ -193,7 +192,6 @@ func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) 
 
 		fmt.Fprintf(progressDisplay, progressFmt, progress, i, cnt)
 	}
-
 }
 
 func restoreMetrics(rd io.Reader, ph models.PartHeader, handler func(session *models.Session, metrics, defaultMetrics []byte)) error {
