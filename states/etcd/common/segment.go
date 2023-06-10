@@ -85,7 +85,7 @@ func getSegmentLazyFunc(cli clientv3.KV, basePath string, segment datapbv2.Segme
 
 		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 		statslogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
-			return fmt.Sprintf("files/statslog/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, logID)
+			return fmt.Sprintf("files/stats_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
 		})
 		if err != nil {
 			return nil, nil, nil, err

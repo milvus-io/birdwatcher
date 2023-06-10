@@ -14,3 +14,6 @@ bw_debug.log
 
 # vim
 *.sw[op]
+
+# backup file
+*.bak.gz
