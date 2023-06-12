@@ -186,7 +186,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath str
 		if err != nil {
 			return nil, err
 		}
-		c := models.NewCollectionFromV2_1(info, string(resp.Kvs[0].Key))
+		c := models.NewCollectionFromV2_1(info, string(kv.Key))
 		return c, nil
 
 	case models.GTEVersion2_2:
@@ -199,7 +199,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath str
 		if err != nil {
 			return nil, err
 		}
-		c := models.NewCollectionFromV2_2(info, string(resp.Kvs[0].Key), fields)
+		c := models.NewCollectionFromV2_2(info, string(kv.Key), fields)
 		return c, nil
 	default:
 		return nil, errors.New("not supported version")

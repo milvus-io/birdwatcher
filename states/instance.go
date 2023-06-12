@@ -79,6 +79,9 @@ func (s *instanceState) SetupCommands() {
 		// segment-loaded
 		GetDistributionCommand(cli, basePath),
 
+		//
+		getVerifySegmentCmd(cli, basePath),
+
 		// probe
 		GetProbeCmd(cli, basePath),
 
