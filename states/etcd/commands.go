@@ -38,6 +38,8 @@ func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		show.IndexCommand(cli, basePath),
 		// show segment-index
 		show.SegmentIndexCommand(cli, basePath),
+		// show partition
+		show.PartitionCommand(cli, basePath),
 
 		// show replica
 		show.ReplicaCommand(cli, basePath),
