@@ -9,6 +9,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -28,27 +29,27 @@ func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			coll, err := common.GetCollectionByID(cli, basePath, collID)
+			coll, err := common.GetCollectionByIDVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), collID)
 			if err != nil {
 				fmt.Println("failed to get collection", err.Error())
 				return
 			}
 
-			for _, vchannel := range coll.GetVirtualChannelNames() {
+			for _, channel := range coll.Channels {
 				var cp *internalpb.MsgPosition
 				var segmentID int64
 				var err error
-				cp, err = getChannelCheckpoint(cli, basePath, vchannel)
+				cp, err = getChannelCheckpoint(cli, basePath, channel.VirtualName)
 
 				if err != nil {
-					cp, segmentID, err = getCheckpointFromSegments(cli, basePath, collID, vchannel)
+					cp, segmentID, err = getCheckpointFromSegments(cli, basePath, collID, channel.VirtualName)
 				}
 
 				if cp == nil {
-					fmt.Printf("vchannel %s position nil\n", vchannel)
+					fmt.Printf("vchannel %s position nil\n", channel.VirtualName)
 				} else {
 					t, _ := utils.ParseTS(cp.GetTimestamp())
-					fmt.Printf("vchannel %s seek to %v, cp channel: %s", vchannel, t, cp.ChannelName)
+					fmt.Printf("vchannel %s seek to %v, cp channel: %s", channel.VirtualName, t, cp.ChannelName)
 					if segmentID > 0 {
 						fmt.Printf(", for segment ID:%d\n", segmentID)
 					} else {

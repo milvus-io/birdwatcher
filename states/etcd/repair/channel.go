@@ -8,6 +8,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -36,15 +37,17 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			coll, err := common.GetCollectionByID(cli, basePath, collID)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
 			if err != nil {
 				fmt.Println("collection not found")
 				return
 			}
 
 			chans := make(map[string]struct{})
-			for _, vchan := range coll.GetVirtualChannelNames() {
-				chans[vchan] = struct{}{}
+			for _, c := range coll.Channels {
+				chans[c.VirtualName] = struct{}{}
 			}
 
 			infos, _, err := common.ListChannelWatchV1(cli, basePath)

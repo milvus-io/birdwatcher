@@ -72,7 +72,7 @@ func getReleaseDroppedCollectionCmd(cli clientv3.KV, basePath string) *cobra.Com
 
 			var missing []int64
 			for _, info := range collectionLoadInfos {
-				_, err := common.GetCollectionByID(cli, basePath, info.CollectionID)
+				_, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), info.CollectionID)
 				if err != nil {
 					missing = append(missing, info.CollectionID)
 				}

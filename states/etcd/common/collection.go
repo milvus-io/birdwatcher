@@ -112,39 +112,6 @@ func ListCollectionsVersion(ctx context.Context, cli clientv3.KV, basePath strin
 	}
 }
 
-// GetCollectionByID returns collection info from etcd with provided id.
-func GetCollectionByID(cli clientv3.KV, basePath string, collID int64) (*etcdpb.CollectionInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	resp, err := cli.Get(ctx, path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collID, 10)))
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(resp.Kvs) != 1 {
-		return nil, errors.New("invalid collection id")
-	}
-
-	if bytes.Equal(resp.Kvs[0].Value, CollectionTombstone) {
-		return nil, fmt.Errorf("%w, collection id: %d", ErrCollectionDropped, collID)
-	}
-
-	coll := &etcdpb.CollectionInfo{}
-
-	err = proto.Unmarshal(resp.Kvs[0].Value, coll)
-	if err != nil {
-		return nil, err
-	}
-
-	err = FillFieldSchemaIfEmpty(cli, basePath, coll)
-	if err != nil {
-		return nil, err
-	}
-
-	return coll, nil
-}
-
 // GetCollectionByIDVersion retruns collection info from etcd with provided version & id.
 func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, collID int64) (*models.Collection, error) {
 

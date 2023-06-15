@@ -12,6 +12,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spf13/cobra"
@@ -28,7 +29,9 @@ func getDownloadPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
 				return err
 			}
 
-			coll, err := common.GetCollectionByID(cli, basePath, collectionID)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collectionID)
 			if err != nil {
 				fmt.Println("Collection not found for id", collectionID)
 				return nil
