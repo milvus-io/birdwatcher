@@ -10,12 +10,13 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/mq"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
 )
 
@@ -46,7 +47,11 @@ func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			coll, err := common.GetCollectionByID(cli, basePath, collID)
+			//coll, err := common.GetCollectionByID(cli, basePath, collID)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
+
 			if err != nil {
 				fmt.Println("failed to get collection", err.Error())
 				return
@@ -85,20 +90,20 @@ func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func setCheckPointWithLatestMsgID(cli clientv3.KV, basePath string, coll *etcdpb.CollectionInfo, mqType, address, vchannel string) {
-	for _, ch := range coll.GetVirtualChannelNames() {
-		if ch == vchannel {
-			pChannel := ToPhysicalChannel(ch)
+func setCheckPointWithLatestMsgID(cli clientv3.KV, basePath string, coll *models.Collection, mqType, address, vchannel string) {
+	for _, ch := range coll.Channels {
+		if ch.VirtualName == vchannel {
+			pChannel := ch.PhysicalName
 			cp, err := getLatestFromPChannel(mqType, address, vchannel)
 			if err != nil {
-				fmt.Printf("vchannel:%s -> pchannel:%s, get latest msgID faile, err:%s\n", ch, pChannel, err.Error())
+				fmt.Printf("vchannel:%s -> pchannel:%s, get latest msgID faile, err:%s\n", ch.VirtualName, pChannel, err.Error())
 				return
 			}
 
-			err = saveChannelCheckpoint(cli, basePath, ch, cp)
+			err = saveChannelCheckpoint(cli, basePath, ch.VirtualName, cp)
 			t, _ := utils.ParseTS(cp.GetTimestamp())
 			if err != nil {
-				fmt.Printf("failed to set latest msgID(ts:%v) for vchannel:%s", t, ch)
+				fmt.Printf("failed to set latest msgID(ts:%v) for vchannel:%s", t, ch.VirtualName)
 				return
 			}
 			fmt.Printf("vchannel:%s set to latest msgID(ts:%v) finshed\n", vchannel, t)
@@ -108,7 +113,7 @@ func setCheckPointWithLatestMsgID(cli clientv3.KV, basePath string, coll *etcdpb
 	fmt.Printf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.ID)
 }
 
-func setCheckPointWithLatestCheckPoint(cli clientv3.KV, basePath string, coll *etcdpb.CollectionInfo, vchannel string) {
+func setCheckPointWithLatestCheckPoint(cli clientv3.KV, basePath string, coll *models.Collection, vchannel string) {
 	pChannelName2LatestCP, err := getLatestCheckpointFromPChannel(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to get latest cp of all pchannel", err.Error())
@@ -121,19 +126,19 @@ func setCheckPointWithLatestCheckPoint(cli clientv3.KV, basePath string, coll *e
 		fmt.Printf("pchannel: %s, the lastest checkpoint ts: %v\n", k, t)
 	}
 
-	for _, ch := range coll.GetVirtualChannelNames() {
-		if ch == vchannel {
-			pChannel := ToPhysicalChannel(ch)
+	for _, ch := range coll.Channels {
+		if ch.VirtualName == vchannel {
+			pChannel := ch.PhysicalName
 			cp, ok := pChannelName2LatestCP[pChannel]
 			if !ok {
-				fmt.Printf("vchannel:%s -> pchannel:%s, the pchannel doesn't exists\n", ch, pChannel)
+				fmt.Printf("vchannel:%s -> pchannel:%s, the pchannel doesn't exists\n", ch.VirtualName, pChannel)
 				return
 			}
 
-			err := saveChannelCheckpoint(cli, basePath, ch, cp)
+			err := saveChannelCheckpoint(cli, basePath, ch.VirtualName, cp)
 			t, _ := utils.ParseTS(cp.GetTimestamp())
 			if err != nil {
-				fmt.Printf("failed to set latest checkpoint(ts:%v) for vchannel:%s", t, ch)
+				fmt.Printf("failed to set latest checkpoint(ts:%v) for vchannel:%s", t, ch.VirtualName)
 				return
 			}
 			fmt.Printf("vchannel:%s set to latest checkpoint(ts:%v) finshed\n", vchannel, t)

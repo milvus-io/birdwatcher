@@ -1,6 +1,7 @@
 package states
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -9,6 +10,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -50,7 +52,10 @@ func getInspectPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
 				}
 				pkID, has := cachedCollection[segment.CollectionID]
 				if !has {
-					coll, err := common.GetCollectionByID(cli, basePath, segment.CollectionID)
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), segment.GetCollectionID())
+
 					if err != nil {
 						fmt.Println("Collection not found for id", segment.CollectionID)
 						return

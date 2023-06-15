@@ -6,12 +6,13 @@ import (
 	"path"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -86,7 +87,7 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				buildID2Info[info.IndexBuildID] = info
 			}
 
-			collections := make(map[int64]*etcdpb.CollectionInfo)
+			collections := make(map[int64]*models.Collection)
 
 			targetOld := make(map[int64]*datapb.SegmentInfo)
 			target := make(map[int64]*datapb.SegmentInfo)
@@ -105,7 +106,11 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 				coll, ok := collections[segment.CollectionID]
 				if !ok {
-					coll, err = common.GetCollectionByID(cli, basePath, segment.CollectionID)
+					//coll, err = common.GetCollectionByID(cli, basePath, segment.CollectionID)
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
+
 					if err != nil {
 						fmt.Printf("failed to query collection(id=%d) info error: %s", segment.CollectionID, err.Error())
 						continue
@@ -117,9 +122,9 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 				for _, segIdx := range segIdxs {
 					var valid bool
-					for _, field := range coll.GetSchema().GetFields() {
-						if field.GetFieldID() == segIdx.GetFieldID() {
-							if field.GetDataType() == schemapb.DataType_FloatVector || field.GetDataType() == schemapb.DataType_BinaryVector {
+					for _, field := range coll.Schema.Fields {
+						if field.FieldID == segIdx.GetFieldID() {
+							if field.DataType == models.DataTypeFloatVector || field.DataType == models.DataTypeBinaryVector {
 								valid = true
 							}
 							break
