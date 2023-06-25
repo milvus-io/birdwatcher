@@ -28,7 +28,7 @@ func (s *rootCoordState) SetupCommands() {
 		getMetricsCmd(s.client),
 		// configuration
 		getConfigurationCmd(s.clientv2, s.session.ServerID),
-		//back
+		// back
 		getBackCmd(s, s.prevState),
 		// exit
 		getExitCmd(s),
