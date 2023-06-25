@@ -63,6 +63,7 @@ func NewPromptApp(config *configs.Config, opts ...AppOption) BApp {
 				pa.sugguestHistory = !pa.sugguestHistory
 			},
 		}),
+		HandleFD,
 	)
 	pa.prompt = p
 	return pa
@@ -128,6 +129,7 @@ func (a *PromptApp) promptExecute(in string) {
 			}()
 		}
 	} else {
+		os.Stdout = stdout
 		close(pagerSig)
 	}
 	a.currentState, _ = a.currentState.Process(in)
