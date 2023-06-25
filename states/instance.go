@@ -95,6 +95,8 @@ func (s *instanceState) SetupCommands() {
 		// release-dropped-collection
 		getReleaseDroppedCollectionCmd(cli, basePath),
 
+		// web
+		getWebCmd(s, cli, basePath),
 		// fetch-metrics
 		getFetchMetricsCmd(cli, basePath),
 		// dry-mode
