@@ -11,6 +11,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/utils"
 )
 
 // CollectionCommand returns sub command for showCmd.
@@ -81,7 +82,8 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 func printCollection(collection *models.Collection) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
-	fmt.Printf("Collection State: %s\n", collection.State.String())
+	t, _ := utils.ParseTS(collection.CreateTime)
+	fmt.Printf("Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
 	/*
 		fmt.Printf("Partitions:\n")
 		for idx, partID := range collection.GetPartitionIDs() {

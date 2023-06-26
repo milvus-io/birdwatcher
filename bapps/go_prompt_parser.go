@@ -42,5 +42,6 @@ func HandleFD(p *prompt.Prompt) error {
 }
 
 func GetUnexportedField(field reflect.Value) interface{} {
+	// nolint
 	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
