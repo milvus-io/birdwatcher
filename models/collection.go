@@ -1,6 +1,8 @@
 package models
 
 import (
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
@@ -23,6 +25,7 @@ type Collection struct {
 	ConsistencyLevel ConsistencyLevel
 	State            CollectionState
 	Properties       map[string]string
+	DBID             int64
 
 	// etcd collection key
 	key string
@@ -105,6 +108,7 @@ func NewCollectionFromV2_1(info *etcdpb.CollectionInfo, key string) *Collection 
 func NewCollectionFromV2_2(info *etcdpbv2.CollectionInfo, key string, fields []*schemapbv2.FieldSchema) *Collection {
 	c := newCollectionFromBase[*etcdpbv2.CollectionInfo, *commonpbv2.KeyDataPair](info)
 	c.key = key
+	c.DBID = parseDBID(key)
 	c.State = CollectionState(info.GetState())
 	schema := info.GetSchema()
 	schema.Fields = fields
@@ -123,6 +127,18 @@ func NewCollectionFromV2_2(info *etcdpbv2.CollectionInfo, key string, fields []*
 	info.GetStartPositions()
 
 	return c
+}
+
+func parseDBID(key string) int64 {
+	parts := strings.Split(key, "/")
+	if len(parts) < 2 {
+		return 0
+	}
+	id, err := strconv.ParseInt(parts[len(parts)-2], 10, 64)
+	if err != nil {
+		return 0
+	}
+	return id
 }
 
 func getChannels[cp interface {
