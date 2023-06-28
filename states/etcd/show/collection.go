@@ -32,6 +32,11 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
+			dbID, err := cmd.Flags().GetInt64("dbid")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -48,6 +53,9 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			} else {
 				collections, err = common.ListCollectionsVersion(ctx, cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
 					if collectionName != "" && coll.Schema.Name != collectionName {
+						return false
+					}
+					if dbID > -1 && coll.DBID != dbID {
 						return false
 					}
 					total++
@@ -76,11 +84,13 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 	cmd.Flags().Int64("id", 0, "collection id to display")
 	cmd.Flags().String("name", "", "collection name to display")
+	cmd.Flags().Int64("dbid", -1, "database id")
 	return cmd
 }
 
 func printCollection(collection *models.Collection) {
 	fmt.Println("================================================================================")
+	fmt.Printf("DBID: %d\n", collection.DBID)
 	fmt.Printf("Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
 	t, _ := utils.ParseTS(collection.CreateTime)
 	fmt.Printf("Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
