@@ -21,6 +21,7 @@ type instanceState struct {
 
 	etcdState State
 	config    *configs.Config
+	basePath  string
 }
 
 func (s *instanceState) Close() {
@@ -37,7 +38,7 @@ func (s *instanceState) SetupCommands() {
 	cli := s.client
 	instanceName := s.instanceName
 
-	basePath := path.Join(instanceName, metaPath)
+	basePath := s.basePath
 
 	showCmd := etcd.ShowCommand(cli, basePath)
 	showCmd.AddCommand(
@@ -46,7 +47,7 @@ func (s *instanceState) SetupCommands() {
 		// show segment-loaded-grpc
 		GetDistributionCommand(cli, basePath),
 		// show configurations
-		GetConfigurationCommand(cli, basePath),
+		// GetConfigurationCommand(cli, basePath),
 	)
 
 	cmd.AddCommand(
@@ -60,6 +61,8 @@ func (s *instanceState) SetupCommands() {
 		etcd.RemoveCommand(cli, basePath),
 		// set [subcommand] options...
 		etcd.SetCommand(cli, instanceName, metaPath),
+		// restore [subcommand] options...
+		etcd.RestoreCommand(cli, basePath),
 
 		// backup [component]
 		getBackupEtcdCmd(cli, basePath),
@@ -101,12 +104,10 @@ func (s *instanceState) SetupCommands() {
 		getFetchMetricsCmd(cli, basePath),
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
-		// disconnect
-		getDisconnectCmd(s, s.config),
-		// exit
-		getExitCmd(s),
 	)
 
+	//cmd.AddCommand(etcd.RawCommands(cli)...)
+	s.mergeFunctionCommands(cmd, s)
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands
 }
@@ -123,8 +124,7 @@ func getDryModeCmd(cli clientv3.KV, state *instanceState, etcdState State) *cobr
 	return cmd
 }
 
-func getInstanceState(cli clientv3.KV, instanceName string, etcdState State, config *configs.Config) State {
-
+func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState State, config *configs.Config) State {
 	var kv clientv3.KV
 	file, err := os.OpenFile("audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
@@ -133,6 +133,9 @@ func getInstanceState(cli clientv3.KV, instanceName string, etcdState State, con
 	} else {
 		kv = audit.NewFileAuditKV(cli, file)
 	}
+
+	basePath := path.Join(instanceName, metaPath)
+
 	// use audit kv
 	state := &instanceState{
 		cmdState: cmdState{
@@ -144,6 +147,7 @@ func getInstanceState(cli clientv3.KV, instanceName string, etcdState State, con
 
 		etcdState: etcdState,
 		config:    config,
+		basePath:  basePath,
 	}
 
 	state.SetupCommands()

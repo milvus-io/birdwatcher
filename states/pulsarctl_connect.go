@@ -1,6 +1,7 @@
 package states
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -8,6 +9,32 @@ import (
 	"github.com/streamnative/pulsarctl/pkg/pulsar/common"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/utils"
 )
+
+type pulsarctlParam struct {
+	ParamBase  `use:"pulsarctl" desc:"connect to pulsar admin with pulsarctl"`
+	Address    string `name:"addr" default:"http://localhost:18080" desc:"pulsar admin address"`
+	AuthPlugin string `name:"authPlugin" default:"" desc:"pulsar admin auth plugin"`
+	AuthParam  string `name:"authParam" default:"" desc:"pulsar admin auth parameters"`
+}
+
+func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *pulsarctlParam) error {
+
+	config := common.Config{
+		WebServiceURL:    p.Address,
+		AuthPlugin:       p.AuthPlugin,
+		AuthParams:       p.AuthParam,
+		PulsarAPIVersion: common.V2,
+	}
+	admin, err := pulsarctl.New(&config)
+	if err != nil {
+		fmt.Println("failed to build pulsar admin client, error:", err.Error())
+		return err
+	}
+
+	adminState := getPulsarAdminState(admin, p.Address)
+	s.SetNext(adminState)
+	return nil
+}
 
 func getPulsarctlCmd(state State) *cobra.Command {
 	cmd := &cobra.Command{

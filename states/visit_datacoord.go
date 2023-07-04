@@ -30,10 +30,12 @@ func (s *dataCoordState) SetupCommands() {
 		getConfigurationCmd(s.clientv2, s.session.ServerID),
 		//back
 		getBackCmd(s, s.prevState),
+
 		// exit
 		getExitCmd(s),
 	)
-	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.mergeFunctionCommands(cmd, s)
 
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands

@@ -1,7 +1,8 @@
 package states
 
 import (
-	"github.com/milvus-io/birdwatcher/configs"
+	"context"
+
 	"github.com/spf13/cobra"
 )
 
@@ -43,16 +44,11 @@ func (s *exitState) SetupCommands() {}
 // IsEnding returns true for exit State
 func (s *exitState) IsEnding() bool { return true }
 
-// getDisconnectCmd disconnect from current state.
-// will call close method for current state.
-func getDisconnectCmd(state State, config *configs.Config) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "disconnect",
-		Short: "disconnect from current state",
-		Run: func(*cobra.Command, []string) {
-			state.SetNext(Start(config))
-			state.Close()
-		},
-	}
-	return cmd
+type disconnectParam struct {
+	ParamBase `use:"disconnect" desc:"disconnect from current etcd instance"`
+}
+
+func (s *instanceState) DisconnectCommand(ctx context.Context, _ *disconnectParam) {
+	s.SetNext(Start(s.config))
+	s.Close()
 }
