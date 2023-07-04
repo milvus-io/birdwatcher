@@ -15,6 +15,8 @@ import (
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd"
+	"github.com/milvus-io/birdwatcher/states/etcd/remove"
+	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
@@ -27,6 +29,8 @@ const (
 
 type embedEtcdMockState struct {
 	cmdState
+	*show.ComponentShow
+	*remove.ComponentRemove
 	client       *clientv3.Client
 	server       *embed.Etcd
 	instanceName string
@@ -89,6 +93,9 @@ func (s *embedEtcdMockState) SetupCommands() {
 func (s *embedEtcdMockState) SetInstance(instanceName string) {
 	s.cmdState.label = fmt.Sprintf("Backup(%s)", instanceName)
 	s.instanceName = instanceName
+	rootPath := path.Join(instanceName, metaPath)
+	s.ComponentShow = show.NewComponent(s.client, s.config, rootPath)
+	s.ComponentRemove = remove.NewComponent(s.client, s.config, rootPath)
 	s.SetupCommands()
 }
 
@@ -168,16 +175,20 @@ func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
 
 func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string, config *configs.Config) State {
 
+	basePath := path.Join(instanceName, metaPath)
+
 	state := &embedEtcdMockState{
 		cmdState: cmdState{
 			label: fmt.Sprintf("Backup(%s)", instanceName),
 		},
-		instanceName:   instanceName,
-		server:         server,
-		client:         cli,
-		metrics:        make(map[string][]byte),
-		defaultMetrics: make(map[string][]byte),
-		config:         config,
+		ComponentShow:   show.NewComponent(cli, config, basePath),
+		ComponentRemove: remove.NewComponent(cli, config, basePath),
+		instanceName:    instanceName,
+		server:          server,
+		client:          cli,
+		metrics:         make(map[string][]byte),
+		defaultMetrics:  make(map[string][]byte),
+		config:          config,
 	}
 
 	state.SetupCommands()
@@ -186,7 +197,6 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 }
 
 func getEmbedEtcdInstanceV2(server *embed.Etcd, config *configs.Config) *embedEtcdMockState {
-
 	client := v3client.New(server.Server)
 	state := &embedEtcdMockState{
 		cmdState:       cmdState{},

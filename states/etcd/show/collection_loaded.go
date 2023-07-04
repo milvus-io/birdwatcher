@@ -3,30 +3,16 @@ package show
 import (
 	"context"
 	"fmt"
-	"sort"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
 	ReplicaMetaPrefix = "queryCoord-ReplicaMeta"
 )
-
-func printLoadedCollections(infos []*querypb.CollectionInfo) {
-	sort.Slice(infos, func(i, j int) bool {
-		return infos[i].GetCollectionID() < infos[j].GetCollectionID()
-	})
-
-	for _, info := range infos {
-		// TODO beautify output
-		fmt.Println(info.String())
-	}
-}
 
 func printCollectionLoaded(info *models.CollectionLoaded) {
 	fmt.Printf("Version: [%s]\tCollectionID: %d\n", info.Version, info.CollectionID)
@@ -39,30 +25,25 @@ func printCollectionLoaded(info *models.CollectionLoaded) {
 	}
 }
 
-// CollectionLoadedCommand return show collection-loaded command.
-func CollectionLoadedCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "collection-loaded",
-		Short:   "display information of loaded collection from querycoord",
-		Aliases: []string{"collection-load"},
-		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			var total int
-			infos, err := common.ListCollectionLoadedInfo(ctx, cli, basePath, etcdversion.GetVersion(), func(_ any) bool {
-				total++
-				return true
-			})
-			if err != nil {
-				fmt.Println("failed to list collection load info:", err.Error())
-				return
-			}
+type CollectionLoadedParam struct {
+	framework.ParamBase `use:"show collection-loaded" desc:"display information of loaded collection from querycoord" alias:"collection-load"`
+	//CollectionID int64 `name:""`
+}
 
-			for _, info := range infos {
-				printCollectionLoaded(info)
-			}
-			fmt.Printf("--- Collections Loaded: %d\n", len(infos))
-		},
+// CollectionLoadedCommand return show collection-loaded command.
+func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *CollectionLoadedParam) {
+	var total int
+	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(_ any) bool {
+		total++
+		return true
+	})
+	if err != nil {
+		fmt.Println("failed to list collection load info:", err.Error())
+		return
 	}
-	return cmd
+
+	for _, info := range infos {
+		printCollectionLoaded(info)
+	}
+	fmt.Printf("--- Collections Loaded: %d\n", len(infos))
 }

@@ -4,31 +4,23 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+type ConfigEtcdParam struct {
+	framework.ParamBase `use:"show config-etcd" desc:"list configuations set by etcd source"`
+}
+
 // ConfigEtcdCommand return show config-etcd command.
-func ConfigEtcdCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "config-etcd",
-		Short: "list configuations set by etcd source",
-		Run: func(cmd *cobra.Command, args []string) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			keys, values, err := common.ListEtcdConfigs(ctx, cli, basePath)
-			if err != nil {
-				fmt.Println("failed to list configurations from etcd", err.Error())
-				return
-			}
-
-			for i, key := range keys {
-				fmt.Printf("Key: %s, Value: %s\n", key, values[i])
-			}
-		},
+func (c *ComponentShow) ConfigEtcdCommand(ctx context.Context, p *ConfigEtcdParam) {
+	keys, values, err := common.ListEtcdConfigs(ctx, c.client, c.basePath)
+	if err != nil {
+		fmt.Println("failed to list configurations from etcd", err.Error())
+		return
 	}
 
-	return cmd
+	for i, key := range keys {
+		fmt.Printf("Key: %s, Value: %s\n", key, values[i])
+	}
 }

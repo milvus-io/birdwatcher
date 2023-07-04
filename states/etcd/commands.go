@@ -22,38 +22,10 @@ func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	}
 
 	showCmd.AddCommand(
-		// show database
-		show.DatabaseCommand(cli, basePath),
-		// show collection
-		show.CollectionCommand(cli, basePath),
-		// show collection-history
-		show.CollectionHistoryCommand(cli, basePath),
-		// show sessions
-		show.SessionCommand(cli, basePath),
-		// show segments
-		show.SegmentCommand(cli, basePath),
+		// v2.1 legacy commands
 		// show segment-loaded
 		show.SegmentLoadedCommand(cli, basePath),
-		// show index
-		show.IndexCommand(cli, basePath),
-		// show segment-index
-		show.SegmentIndexCommand(cli, basePath),
-		// show partition
-		show.PartitionCommand(cli, basePath),
 
-		// show replica
-		show.ReplicaCommand(cli, basePath),
-		// show checkpoint
-		show.CheckpointCommand(cli, basePath),
-		// show channel-watched
-		show.ChannelWatchedCommand(cli, basePath),
-
-		// show collection-loaded
-		show.CollectionLoadedCommand(cli, basePath),
-
-		show.ConfigEtcdCommand(cli, basePath),
-
-		// v2.1 legacy commands
 		// show querycoord-tasks
 		show.QueryCoordTasks(cli, basePath),
 		// show querycoord-channels

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/errors"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/spf13/cobra"
@@ -22,8 +23,8 @@ func CurrentVersionCommand() *cobra.Command {
 }
 
 type setCurrentVersionParam struct {
-	ParamBase  `use:"set current-version" desc:"set current version for etcd meta parsing"`
-	newVersion string
+	framework.ParamBase `use:"set current-version" desc:"set current version for etcd meta parsing"`
+	newVersion          string
 }
 
 func (p *setCurrentVersionParam) ParseArgs(args []string) error {

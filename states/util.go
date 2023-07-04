@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/milvus-io/birdwatcher/common"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -37,17 +38,17 @@ const (
 	logicalBitsMask = (1 << logicalBits) - 1
 )
 
-type parseTSParam struct {
-	ParamBase `use:"parse-ts" desc:"parse hybrid timestamp"`
-	args      []string
+type ParseTSParam struct {
+	framework.ParamBase `use:"parse-ts" desc:"parse hybrid timestamp"`
+	args                []string
 }
 
-func (p *parseTSParam) ParseArgs(args []string) error {
+func (p *ParseTSParam) ParseArgs(args []string) error {
 	p.args = args
 	return nil
 }
 
-func (s *cmdState) ParseTSCommand(ctx context.Context, p *parseTSParam) {
+func (s *cmdState) ParseTSCommand(ctx context.Context, p *ParseTSParam) {
 	if len(p.args) == 0 {
 		fmt.Println("no ts provided")
 	}
@@ -64,11 +65,11 @@ func (s *cmdState) ParseTSCommand(ctx context.Context, p *parseTSParam) {
 	}
 }
 
-type printVerParam struct {
-	ParamBase `use:"version" desc:"print version"`
+type PrintVerParam struct {
+	framework.ParamBase `use:"version" desc:"print version"`
 }
 
-func (s *cmdState) PrintVersionCommand(ctx context.Context, _ *printVerParam) {
+func (s *cmdState) PrintVersionCommand(ctx context.Context, _ *PrintVerParam) {
 	fmt.Println("Birdwatcher Version", common.Version)
 }
 

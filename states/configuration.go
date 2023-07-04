@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
@@ -18,8 +19,8 @@ import (
 )
 
 type GetConfigurationParam struct {
-	ParamBase `use:"show configurations" desc:"iterate all online components and inspect configuration"`
-	Format    string `name:"format" default:"line" desc:"output format"`
+	framework.ParamBase `use:"show configurations" desc:"iterate all online components and inspect configuration"`
+	Format              string `name:"format" default:"line" desc:"output format"`
 }
 
 func (s *instanceState) GetConfigurationCommand(ctx context.Context, p *GetConfigurationParam) error {

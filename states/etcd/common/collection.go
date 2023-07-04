@@ -128,7 +128,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath str
 
 	// with database, dbID unknown here
 	prefix = path.Join(basePath, DBCollectionMetaPrefix)
-	resp, err = cli.Get(ctx, prefix, clientv3.WithPrefix())
+	resp, _ = cli.Get(ctx, prefix, clientv3.WithPrefix())
 	suffix := strconv.FormatInt(collID, 10)
 	for _, kv := range resp.Kvs {
 		if strings.HasSuffix(string(kv.Key), suffix) {
@@ -137,7 +137,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath str
 	}
 
 	if len(result) != 1 {
-		return nil, fmt.Errorf("collection %d not found in etcd", collID)
+		return nil, fmt.Errorf("collection %d not found in etcd %w", collID, ErrCollectionNotFound)
 	}
 
 	kv := result[0]

@@ -4,20 +4,21 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
 	pulsarctl "github.com/streamnative/pulsarctl/pkg/pulsar"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/common"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/utils"
 )
 
-type pulsarctlParam struct {
-	ParamBase  `use:"pulsarctl" desc:"connect to pulsar admin with pulsarctl"`
-	Address    string `name:"addr" default:"http://localhost:18080" desc:"pulsar admin address"`
-	AuthPlugin string `name:"authPlugin" default:"" desc:"pulsar admin auth plugin"`
-	AuthParam  string `name:"authParam" default:"" desc:"pulsar admin auth parameters"`
+type PulsarctlParam struct {
+	framework.ParamBase `use:"pulsarctl" desc:"connect to pulsar admin with pulsarctl"`
+	Address             string `name:"addr" default:"http://localhost:18080" desc:"pulsar admin address"`
+	AuthPlugin          string `name:"authPlugin" default:"" desc:"pulsar admin auth plugin"`
+	AuthParam           string `name:"authParam" default:"" desc:"pulsar admin auth parameters"`
 }
 
-func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *pulsarctlParam) error {
+func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *PulsarctlParam) error {
 
 	config := common.Config{
 		WebServiceURL:    p.Address,

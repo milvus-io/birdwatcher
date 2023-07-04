@@ -7,15 +7,16 @@ import (
 	"path"
 
 	"github.com/cockroachdb/errors"
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
-type openParam struct {
-	ParamBase     `use:"open-workspace [workspace-name]" desc:"Open workspace"`
-	workspaceName string
+type OpenParam struct {
+	framework.ParamBase `use:"open-workspace [workspace-name]" desc:"Open workspace"`
+	workspaceName       string
 }
 
 // ParseArgs parse args
-func (p *openParam) ParseArgs(args []string) error {
+func (p *OpenParam) ParseArgs(args []string) error {
 	if len(args) == 0 {
 		return errors.New("no backup file provided")
 	}
@@ -27,7 +28,7 @@ func (p *openParam) ParseArgs(args []string) error {
 }
 
 // OpenCommand implements open workspace command
-func (s *disconnectState) OpenCommand(ctx context.Context, p *openParam) error {
+func (s *disconnectState) OpenCommand(ctx context.Context, p *OpenParam) error {
 	workspaceName := p.workspaceName
 	workPath := path.Join(s.config.WorkspacePath, workspaceName)
 	info, err := os.Stat(workPath)

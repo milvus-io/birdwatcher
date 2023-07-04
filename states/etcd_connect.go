@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
@@ -37,12 +38,12 @@ func pingEtcd(ctx context.Context, cli clientv3.KV, rootPath string, metaPath st
 }
 
 type ConnectParams struct {
-	ParamBase `use:"connect" desc:"Connect to etcd"`
-	EtcdAddr  string `name:"etcd" default:"127.0.0.1:2379" desc:"the etcd endpoint to connect"`
-	RootPath  string `name:"rootPath" default:"by-dev" desc:"meta root paht milvus is using"`
-	MetaPath  string `name:"metaPath" default:"meta" desc:"meta path prefix"`
-	Force     bool   `name:"force" default:"false" desc:"force connect ignoring ping Etcd & rootPath check"`
-	Dry       bool   `name:"dry" default:"false" desc:"dry connect without specifying milvus instance"`
+	framework.ParamBase `use:"connect" desc:"Connect to etcd"`
+	EtcdAddr            string `name:"etcd" default:"127.0.0.1:2379" desc:"the etcd endpoint to connect"`
+	RootPath            string `name:"rootPath" default:"by-dev" desc:"meta root paht milvus is using"`
+	MetaPath            string `name:"metaPath" default:"meta" desc:"meta path prefix"`
+	Force               bool   `name:"force" default:"false" desc:"force connect ignoring ping Etcd & rootPath check"`
+	Dry                 bool   `name:"dry" default:"false" desc:"dry connect without specifying milvus instance"`
 }
 
 func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams) error {
@@ -173,14 +174,14 @@ func getEtcdConnectedState(cli *clientv3.Client, addr string, config *configs.Co
 	return state
 }
 
-func (s *etcdConnectedState) DisconnectCommand(ctx context.Context, p *disconnectParam) error {
+func (s *etcdConnectedState) DisconnectCommand(ctx context.Context, p *DisconnectParam) error {
 	s.SetNext(Start(s.config))
 	s.Close()
 	return nil
 }
 
 type FindMilvusParam struct {
-	ParamBase `use:"find-milvus" desc:"search etcd kvs to find milvus instance"`
+	framework.ParamBase `use:"find-milvus" desc:"search etcd kvs to find milvus instance"`
 }
 
 func (s *etcdConnectedState) FindMilvusCommand(ctx context.Context, p *FindMilvusParam) error {
@@ -197,10 +198,10 @@ func (s *etcdConnectedState) FindMilvusCommand(ctx context.Context, p *FindMilvu
 }
 
 type UseParam struct {
-	ParamBase    `use:"use [instance-name]" desc:"use specified milvus instance"`
-	instanceName string
-	Force        bool   `name:"force" default:"false" desc:"force connect ignoring ping result"`
-	MetaPath     string `name:"metaPath" default:"meta" desc:"meta path prefix"`
+	framework.ParamBase `use:"use [instance-name]" desc:"use specified milvus instance"`
+	instanceName        string
+	Force               bool   `name:"force" default:"false" desc:"force connect ignoring ping result"`
+	MetaPath            string `name:"metaPath" default:"meta" desc:"meta path prefix"`
 }
 
 func (p *UseParam) ParseArgs(args []string) error {

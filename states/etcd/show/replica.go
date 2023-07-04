@@ -1,40 +1,30 @@
 package show
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-// ReplicaCommand returns command for show querycoord replicas.
-func ReplicaCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "replica",
-		Short:   "list current replica information from QueryCoord",
-		Aliases: []string{"replicas"},
-		Run: func(cmd *cobra.Command, args []string) {
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			replicas, err := common.ListReplica(cli, basePath, collID)
-			if err != nil {
-				fmt.Println("failed to list replicas", err.Error())
-				return
-			}
+type ReplicaParam struct {
+	framework.ParamBase `use:"show replica" desc:"list current replica information from QueryCoord" alias:"replicas"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+}
 
-			for _, replica := range replicas {
-				printReplica(replica)
-			}
-		},
+// ReplicaCommand returns command for show querycoord replicas.
+func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) {
+	replicas, err := common.ListReplica(ctx, c.client, c.basePath, p.CollectionID)
+	if err != nil {
+		fmt.Println("failed to list replicas", err.Error())
+		return
 	}
 
-	cmd.Flags().Int64("collection", 0, "collection id to filter with")
-	return cmd
+	for _, replica := range replicas {
+		printReplica(replica)
+	}
 }
 
 func printReplica(replica *models.Replica) {
