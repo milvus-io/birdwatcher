@@ -16,6 +16,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -64,6 +65,29 @@ func getDownloadSegmentCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	}
 
 	return cmd
+}
+
+func getMinioWithInfo(addr string, ak, sk string, bucketName string) (*minio.Client, string, error) {
+	cred := credentials.NewStaticV4(ak, sk, "")
+	minioClient, err := minio.New(addr, &minio.Options{
+		Creds:  cred,
+		Secure: false,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	exists, err := minioClient.BucketExists(context.Background(), bucketName)
+	if !exists {
+		fmt.Printf("bucket %s not exists\n", bucketName)
+		return nil, "", err
+	}
+
+	if !exists {
+		fmt.Printf("Bucket not exist\n")
+		return nil, "", errors.New("bucket not exists")
+	}
+
+	return minioClient, bucketName, nil
 }
 
 func getMinioAccess() (*minio.Client, string, error) {

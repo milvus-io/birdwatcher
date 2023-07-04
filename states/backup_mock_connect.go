@@ -71,21 +71,16 @@ func (s *embedEtcdMockState) SetupCommands() {
 		// force-release
 		getForceReleaseCmd(s.client, rootPath),
 
-		// disconnect
-		getDisconnectCmd(s, s.config),
-
 		// for testing
 		etcd.RepairCommand(s.client, rootPath),
 
 		getPrintMetricsCmd(s),
 
 		getListMetricsNodeCmd(s),
-
-		// exit
-		getExitCmd(s),
 	)
-	cmd.AddCommand(getGlobalUtilCommands()...)
 	cmd.AddCommand(etcd.RawCommands(s.client)...)
+
+	s.mergeFunctionCommands(cmd, s)
 
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands

@@ -3,6 +3,7 @@ package states
 import (
 	"bufio"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -12,106 +13,95 @@ import (
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/mitchellh/go-homedir"
-	"github.com/spf13/cobra"
 )
 
-func getLoadBackupCmd(state State, config *configs.Config) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "load-backup [file]",
-		Short: "load etcd backup file as env",
-		Run: func(cmd *cobra.Command, args []string) {
-			useWorkspace, err := cmd.Flags().GetBool("use-workspace")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			workspaceName, err := cmd.Flags().GetString("workspace-name")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if len(args) == 0 {
-				fmt.Println("No backup file provided.")
-				return
-			}
-			if len(args) > 1 {
-				fmt.Println("only one backup file is allowed")
-				return
-			}
+type LoadBackupParam struct {
+	ParamBase     `use:"load-backup [file]" desc:"load etcd backup file"`
+	backupFile    string
+	UseWorkspace  bool   `name:"use-workspace" default:"false"`
+	WorkspaceName string `name:"workspace-name" default:""`
+}
 
-			arg := args[0]
-			f, err := openBackupFile(arg)
-			if err != nil {
-				return
-			}
-			defer f.Close()
-
-			r, err := gzip.NewReader(f)
-			if err != nil {
-				fmt.Println("failed to open gzip reader, err:", err.Error())
-				return
-			}
-			defer r.Close()
-
-			rd := bufio.NewReader(r)
-			var header models.BackupHeader
-			err = readFixLengthHeader(rd, &header)
-			if err != nil {
-				fmt.Println("failed to load backup header", err.Error())
-				return
-			}
-
-			if useWorkspace {
-				if workspaceName == "" {
-					fileName := path.Base(arg)
-					workspaceName = fileName
-				}
-				workspaceName = createWorkspaceFolder(config, workspaceName)
-			}
-
-			server, err := startEmbedEtcdServer(workspaceName, useWorkspace)
-			if err != nil {
-				fmt.Println("failed to start embed etcd server:", err.Error())
-				return
-			}
-			fmt.Println("using data dir:", server.Config().Dir)
-			// TODO
-			nextState := getEmbedEtcdInstanceV2(server, config)
-			switch header.Version {
-			case 1:
-				fmt.Printf("Found backup version: %d, instance name :%s\n", header.Version, header.Instance)
-				err = restoreFromV1File(nextState.client, rd, &header)
-				if err != nil {
-					fmt.Println("failed to restore v1 backup file", err.Error())
-					nextState.Close()
-					return
-				}
-				nextState.SetInstance(header.Instance)
-			case 2:
-				err = restoreV2File(rd, nextState)
-				if err != nil {
-					fmt.Println("failed to restore v2 backup file", err.Error())
-					nextState.Close()
-					return
-				}
-			default:
-				fmt.Printf("backup version %d not supported\n", header.Version)
-				nextState.Close()
-				return
-			}
-			err = nextState.setupWorkDir(server.Config().Dir)
-			if err != nil {
-				fmt.Println("failed to setup workspace for backup file", err.Error())
-				return
-			}
-
-			state.SetNext(nextState)
-		},
+func (p *LoadBackupParam) ParseArgs(args []string) error {
+	if len(args) == 0 {
+		return errors.New("no backup file provided")
+	}
+	if len(args) > 1 {
+		return errors.New("only one backup file is allowed")
 	}
 
-	cmd.Flags().Bool("use-workspace", false, "load backup into workspace")
-	cmd.Flags().String("workspace-name", "", "workspace name if used")
-	return cmd
+	p.backupFile = args[0]
+	return nil
+}
+
+func (s *disconnectState) LoadBackupCommand(ctx context.Context, p *LoadBackupParam) error {
+	f, err := openBackupFile(p.backupFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r, err := gzip.NewReader(f)
+	if err != nil {
+		fmt.Println("failed to open gzip reader, err:", err.Error())
+		return err
+	}
+	defer r.Close()
+
+	rd := bufio.NewReader(r)
+	var header models.BackupHeader
+	err = readFixLengthHeader(rd, &header)
+	if err != nil {
+		fmt.Println("failed to load backup header", err.Error())
+		return err
+	}
+
+	if p.UseWorkspace {
+		if p.WorkspaceName == "" {
+			fileName := path.Base(p.backupFile)
+			p.WorkspaceName = fileName
+		}
+		p.WorkspaceName = createWorkspaceFolder(s.config, p.WorkspaceName)
+	}
+
+	server, err := startEmbedEtcdServer(p.WorkspaceName, p.UseWorkspace)
+	if err != nil {
+		fmt.Println("failed to start embed etcd server:", err.Error())
+		return err
+	}
+	fmt.Println("using data dir:", server.Config().Dir)
+	// TODO
+	nextState := getEmbedEtcdInstanceV2(server, s.config)
+	switch header.Version {
+	case 1:
+		fmt.Printf("Found backup version: %d, instance name :%s\n", header.Version, header.Instance)
+		err = restoreFromV1File(nextState.client, rd, &header)
+		if err != nil {
+			fmt.Println("failed to restore v1 backup file", err.Error())
+			nextState.Close()
+			return err
+		}
+		nextState.SetInstance(header.Instance)
+	case 2:
+		err = restoreV2File(rd, nextState)
+		if err != nil {
+			fmt.Println("failed to restore v2 backup file", err.Error())
+			nextState.Close()
+			return err
+		}
+	default:
+		fmt.Printf("backup version %d not supported\n", header.Version)
+		nextState.Close()
+		return err
+	}
+	err = nextState.setupWorkDir(server.Config().Dir)
+	if err != nil {
+		fmt.Println("failed to setup workspace for backup file", err.Error())
+		return err
+	}
+
+	s.SetNext(nextState)
+	return nil
 }
 
 func openBackupFile(arg string) (*os.File, error) {

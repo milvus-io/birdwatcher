@@ -44,7 +44,8 @@ func (s *queryNodeState) SetupCommands() {
 		// exit
 		getExitCmd(s),
 	)
-	cmd.AddCommand(getGlobalUtilCommands()...)
+
+	s.mergeFunctionCommands(cmd, s)
 
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands

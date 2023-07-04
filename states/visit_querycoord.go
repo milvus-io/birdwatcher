@@ -33,11 +33,43 @@ func (s *queryCoordState) SetupCommands() {
 		// exit
 		getExitCmd(s),
 	)
-	cmd.AddCommand(getGlobalUtilCommands()...)
+	s.mergeFunctionCommands(cmd, s)
 
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands
 }
+
+/*
+func (s *queryCoordState) ShowCollectionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "show-collection",
+		Run: func(cmd *cobra.Command, args []string) {
+			collection, err := cmd.Flags().GetInt64("collection")
+			if err != nil {
+				cmd.Usage()
+				return
+			}
+
+			req := &querypbv2.ShowCollectionsRequest{
+				Base: &commonpbv2.MsgBase{
+					TargetID: s.session.ServerID,
+				},
+				CollectionIDs: []int64{collection},
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			resp, err := s.clientv2.ShowCollections(ctx, req)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			fmt.Printf("%s, %s", resp.GetStatus().GetErrorCode().String(), resp.GetStatus().GetReason())
+		},
+	}
+
+	cmd.Flags().Int64("collection", 0, "collection to show")
+	return cmd
+}*/
 
 func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
 

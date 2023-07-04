@@ -2,6 +2,7 @@ package states
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -15,105 +16,106 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/storage"
-	"github.com/spf13/cobra"
 )
 
-func GetParseIndexParamCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "parse-indexparam [file]",
-		Short: "parse index params",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) != 1 {
-				fmt.Println("should provide only one file path")
-				return
-			}
-			f, err := openBackupFile(args[0])
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			defer f.Close()
-
-			r, evt, err := storage.NewIndexReader(f)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			extra := make(map[string]any)
-			json.Unmarshal(evt.ExtraBytes, &extra)
-			key := extra["key"].(string)
-			if key != "indexParams" && key != "SLICE_META" {
-				fmt.Println("index data file found", extra)
-				return
-			}
-			data, err := r.NextEventReader(f, evt.PayloadDataType)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			if len(data) != 1 {
-				fmt.Println("event data length is not 1")
-				return
-			}
-
-			switch key {
-			case "indexParams":
-				params := make(map[string]string)
-				json.Unmarshal(data[0], &params)
-				fmt.Println(params)
-			case "SLICE_META":
-				fmt.Println(string(data[0]))
-			}
-
-		},
-	}
-	return cmd
+type ParseIndexParam struct {
+	ParamBase `use:"parse-indexparam [file]" desc:"parse index params"`
+	filePath  string
 }
 
-func GetValidateIndexFilesCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use: "validate-indexfiles [directory]",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) != 1 {
-				fmt.Println("should provide only one file path")
-				return
-			}
-
-			folder := args[0]
-			if err := testFolder(folder); err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			filepath.WalkDir(folder, func(fp string, d fs.DirEntry, err error) error {
-				if d.IsDir() {
-					idxParam := path.Join(fp, "indexParams")
-					if info, err := os.Stat(idxParam); err == nil {
-						if !info.IsDir() {
-							bs, err := readIndexFile(idxParam, func(key string) bool {
-								return key == "indexParams"
-							})
-							if err != nil {
-								return nil
-							}
-							params := make(map[string]string)
-							json.Unmarshal(bs, &params)
-							indexType := params["index_type"]
-							fmt.Printf("Path:[%s] IndexParam file found, index type is %s\n", fp, indexType)
-							validateIndexFolder(fp, params)
-						}
-					} else if errors.Is(err, os.ErrNotExist) {
-						// file not exist
-					} else {
-						fmt.Println(err.Error())
-					}
-				}
-				return nil
-			})
-		},
+func (p *ParseIndexParam) ParseArgs(args []string) error {
+	if len(args) != 1 {
+		return errors.New("should provide only one file path")
 	}
-	return cmd
+	p.filePath = args[0]
+	return nil
+}
+
+// ParseIndexParamCommand parses index params from file.
+func (s *disconnectState) ParseIndexParamCommand(ctx context.Context, p *ParseIndexParam) error {
+	f, err := openBackupFile(p.filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r, evt, err := storage.NewIndexReader(f)
+	if err != nil {
+		return err
+	}
+	extra := make(map[string]any)
+	json.Unmarshal(evt.ExtraBytes, &extra)
+	key := extra["key"].(string)
+	if key != "indexParams" && key != "SLICE_META" {
+		fmt.Println("index data file found", extra)
+		return nil
+	}
+	data, err := r.NextEventReader(f, evt.PayloadDataType)
+	if err != nil {
+		return err
+	}
+
+	if len(data) != 1 {
+		fmt.Println("event data length is not 1")
+		return nil
+	}
+
+	switch key {
+	case "indexParams":
+		params := make(map[string]string)
+		json.Unmarshal(data[0], &params)
+		fmt.Println(params)
+	case "SLICE_META":
+		fmt.Println(string(data[0]))
+	}
+	return nil
+}
+
+type ValidateIndexParam struct {
+	ParamBase `use:"validate-indexfiles [directory]" desc:"validate index file size"`
+	directory string
+}
+
+func (p *ValidateIndexParam) ParseArgs(args []string) error {
+	if len(args) != 1 {
+		return errors.New("should provide only one folder path")
+	}
+	p.directory = args[0]
+	return nil
+}
+
+func (s *disconnectState) ValidateIndexFilesCommand(ctx context.Context, p *ValidateIndexParam) error {
+	folder := p.directory
+	if err := testFolder(folder); err != nil {
+		return err
+	}
+
+	filepath.WalkDir(folder, func(fp string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			idxParam := path.Join(fp, "indexParams")
+			if info, err := os.Stat(idxParam); err == nil {
+				if !info.IsDir() {
+					bs, err := readIndexFile(idxParam, func(key string) bool {
+						return key == "indexParams"
+					})
+					if err != nil {
+						return nil
+					}
+					params := make(map[string]string)
+					json.Unmarshal(bs, &params)
+					indexType := params["index_type"]
+					fmt.Printf("Path:[%s] IndexParam file found, index type is %s\n", fp, indexType)
+					validateIndexFolder(fp, params)
+				}
+			} else if errors.Is(err, os.ErrNotExist) {
+				// file not exist
+			} else {
+				fmt.Println(err.Error())
+			}
+		}
+		return nil
+	})
+	return nil
 }
 
 func validateIndexFolder(fp string, params map[string]string) {
@@ -126,7 +128,6 @@ func validateIndexFolder(fp string, params map[string]string) {
 		case "":
 			fallthrough
 		case "STL_SORT":
-			//fmt.Println(file, d.Name())
 			switch d.Name() {
 			case "index_length":
 				bs, err := readIndexFile(file, func(key string) bool { return key == "index_length" })
@@ -171,89 +172,87 @@ func validateIndexFolder(fp string, params map[string]string) {
 	case "STL_SORT":
 		fmt.Printf("indexSize: %d, dataSize:%d, multipler: %f\n", indexSize, dataSize, float64(dataSize)/float64(indexSize))
 	}
-
 }
 
-func GetAssembleIndexFilesCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use: "assemble-indexfiles [directory]",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) != 1 {
-				fmt.Println("should provide only one file path")
-				return
-			}
+type AssembleIndexFilesParam struct {
+	ParamBase `use:"assemble-indexfiles [directory]" desc:""`
+	directory string
+}
 
-			folder := args[0]
-			if err := testFolder(folder); err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			sliceMetaFile := path.Join(folder, "SLICE_META")
-			prefix, num, err := tryParseSliceMeta(sliceMetaFile)
-			if err != nil {
-				fmt.Println("failed to parse SLICE_META", err.Error())
-				return
-			}
-
-			fmt.Printf("original file name: %s, slice num: %d\n", prefix, num)
-
-			m := make(map[int64]struct{})
-
-			filepath.Walk(folder, func(file string, info os.FileInfo, err error) error {
-				file = path.Base(file)
-				if !strings.HasPrefix(file, prefix+"_") {
-					fmt.Println("skip file", file)
-					return nil
-				}
-
-				suffix := file[len(prefix)+1:]
-				idx, err := strconv.ParseInt(suffix, 10, 64)
-				if err != nil {
-					fmt.Println(err.Error())
-					return nil
-				}
-
-				m[idx] = struct{}{}
-				return nil
-			})
-			if len(m) != num {
-				fmt.Println("slice files not complete", m)
-				return
-			}
-
-			outputPath := fmt.Sprintf("%s_%s", prefix, time.Now().Format("060102150406"))
-			output, err := os.OpenFile(outputPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			defer output.Close()
-			totalLen := int64(0)
-
-			for i := 0; i < num; i++ {
-				key := fmt.Sprintf("%s_%d", prefix, i)
-				fmt.Print("processing file:", key)
-				data, err := readIndexFile(path.Join(folder, key), func(metaKey string) bool {
-					return metaKey == key
-				})
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				fmt.Println(" read data size:", len(data), hrSize(int64(len(data))))
-
-				_, err = output.Write(data)
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				totalLen += int64(len(data))
-			}
-			fmt.Printf("index file write to %s success, total len %d\n", outputPath, totalLen)
-		},
+func (p *AssembleIndexFilesParam) ParseArgs(args []string) error {
+	if len(args) != 1 {
+		return errors.New("should provide only one folder path")
 	}
-	return cmd
+	p.directory = args[0]
+	return nil
+}
+
+func (s *disconnectState) AssembleIndexFilesCommand(ctx context.Context, p *AssembleIndexFilesParam) error {
+	folder := p.directory
+	if err := testFolder(folder); err != nil {
+		return err
+	}
+
+	sliceMetaFile := path.Join(folder, "SLICE_META")
+	prefix, num, err := tryParseSliceMeta(sliceMetaFile)
+	if err != nil {
+		fmt.Println("failed to parse SLICE_META", err.Error())
+		return err
+	}
+
+	fmt.Printf("original file name: %s, slice num: %d\n", prefix, num)
+
+	m := make(map[int64]struct{})
+
+	filepath.Walk(folder, func(file string, info os.FileInfo, _ error) error {
+		file = path.Base(file)
+		if !strings.HasPrefix(file, prefix+"_") {
+			fmt.Println("skip file", file)
+			return nil
+		}
+
+		suffix := file[len(prefix)+1:]
+		idx, err := strconv.ParseInt(suffix, 10, 64)
+		if err != nil {
+			fmt.Println(err.Error())
+			return nil
+		}
+
+		m[idx] = struct{}{}
+		return nil
+	})
+	if len(m) != num {
+		fmt.Println("slice files not complete", m)
+		return nil
+	}
+
+	outputPath := fmt.Sprintf("%s_%s", prefix, time.Now().Format("060102150406"))
+	output, err := os.OpenFile(outputPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+	totalLen := int64(0)
+
+	for i := 0; i < num; i++ {
+		key := fmt.Sprintf("%s_%d", prefix, i)
+		fmt.Print("processing file:", key)
+		data, err := readIndexFile(path.Join(folder, key), func(metaKey string) bool {
+			return metaKey == key
+		})
+		if err != nil {
+			return err
+		}
+		fmt.Println("read data size:", len(data), hrSize(int64(len(data))))
+
+		_, err = output.Write(data)
+		if err != nil {
+			return err
+		}
+		totalLen += int64(len(data))
+	}
+	fmt.Printf("index file write to %s success, total len %d\n", outputPath, totalLen)
+	return nil
 }
 
 func hrSize(size int64) string {

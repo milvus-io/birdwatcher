@@ -29,7 +29,6 @@ import (
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -38,11 +37,39 @@ const (
 	logicalBitsMask = (1 << logicalBits) - 1
 )
 
-func getGlobalUtilCommands() []*cobra.Command {
-	return []*cobra.Command{
-		getParseTSCmd(),
-		getPrintVersionCommand(),
+type parseTSParam struct {
+	ParamBase `use:"parse-ts" desc:"parse hybrid timestamp"`
+	args      []string
+}
+
+func (p *parseTSParam) ParseArgs(args []string) error {
+	p.args = args
+	return nil
+}
+
+func (s *cmdState) ParseTSCommand(ctx context.Context, p *parseTSParam) {
+	if len(p.args) == 0 {
+		fmt.Println("no ts provided")
 	}
+
+	for _, arg := range p.args {
+		ts, err := strconv.ParseUint(arg, 10, 64)
+		if err != nil {
+			fmt.Printf("failed to parse ts from %s, err: %s\n", arg, err.Error())
+			continue
+		}
+
+		t, _ := ParseTS(ts)
+		fmt.Printf("Parse ts result, ts:%d, time: %v\n", ts, t)
+	}
+}
+
+type printVerParam struct {
+	ParamBase `use:"version" desc:"print version"`
+}
+
+func (s *cmdState) PrintVersionCommand(ctx context.Context, _ *printVerParam) {
+	fmt.Println("Birdwatcher Version", common.Version)
 }
 
 func ParseTS(ts uint64) (time.Time, uint64) {
@@ -72,43 +99,6 @@ func listSessionsByPrefix(cli clientv3.KV, prefix string) ([]*models.Session, er
 		sessions = append(sessions, session)
 	}
 	return sessions, nil
-}
-
-// getParseTSCmd returns command for parse timestamp
-func getParseTSCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "parse-ts",
-		Short: "parse hybrid timestamp",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				fmt.Println("no ts provided")
-				return
-			}
-
-			for _, arg := range args {
-				ts, err := strconv.ParseUint(arg, 10, 64)
-				if err != nil {
-					fmt.Printf("failed to parse ts from %s, err: %s\n", arg, err.Error())
-					continue
-				}
-
-				t, _ := ParseTS(ts)
-				fmt.Printf("Parse ts result, ts:%d, time: %v\n", ts, t)
-			}
-		},
-	}
-	return cmd
-}
-
-func getPrintVersionCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "print version",
-		Run: func(_ *cobra.Command, args []string) {
-			fmt.Println("Birdwatcher Version", common.Version)
-		},
-	}
-	return cmd
 }
 
 // reviseVChannelInfo will revise the datapb.VchannelInfo for upgrade compatibility from 2.0.2
