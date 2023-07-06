@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"time"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
@@ -13,15 +12,15 @@ import (
 )
 
 // ListReplica list current replica info
-func ListReplica(cli clientv3.KV, basePath string, collectionID int64) ([]*models.Replica, error) {
-	v1Results, err := listReplicas(cli, basePath, func(replica *milvuspb.ReplicaInfo) bool {
+func ListReplica(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64) ([]*models.Replica, error) {
+	v1Results, err := listReplicas(ctx, cli, basePath, func(replica *milvuspb.ReplicaInfo) bool {
 		return collectionID == 0 || replica.GetCollectionID() == collectionID
 	})
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 
-	v2Results, err := listQCReplicas(cli, basePath, func(replica *querypb.Replica) bool {
+	v2Results, err := listQCReplicas(ctx, cli, basePath, func(replica *querypb.Replica) bool {
 		return collectionID == 0 || replica.GetCollectionID() == collectionID
 	})
 	if err != nil {
@@ -45,6 +44,7 @@ func ListReplica(cli clientv3.KV, basePath string, collectionID int64) ([]*model
 			NodeIDs:       r.GetNodeIds(),
 			ResourceGroup: "n/a",
 			Version:       "<=2.1.4",
+			ShardReplicas: srs,
 		})
 	}
 
@@ -60,9 +60,7 @@ func ListReplica(cli clientv3.KV, basePath string, collectionID int64) ([]*model
 	return results, nil
 
 }
-func listReplicas(cli clientv3.KV, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
+func listReplicas(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
 	prefix := path.Join(basePath, "queryCoord-ReplicaMeta")
 
 	replicas, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
@@ -74,10 +72,7 @@ func listReplicas(cli clientv3.KV, basePath string, filters ...func(*milvuspb.Re
 	return replicas, nil
 }
 
-func listQCReplicas(cli clientv3.KV, basePath string, filters ...func(*querypb.Replica) bool) ([]querypb.Replica, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
+func listQCReplicas(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(*querypb.Replica) bool) ([]querypb.Replica, error) {
 	prefix := path.Join(basePath, "querycoord-replica")
 
 	replicas, _, err := ListProtoObjects(ctx, cli, prefix, filters...)

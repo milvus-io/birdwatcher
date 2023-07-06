@@ -4,44 +4,32 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func PartitionCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "partition",
-		Short: "list partitions of provided collection",
-		Run: func(cmd *cobra.Command, args []string) {
-			collectionID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+type PartitionParam struct {
+	framework.ParamBase `use:"partition" desc:"list partitions of provided collection"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to list"`
+}
 
-			if collectionID == 0 {
-				fmt.Println("please provided collection id")
-				return
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			partitions, err := common.ListCollectionPartitions(ctx, cli, basePath, collectionID)
-			if err != nil {
-				fmt.Println("failed to list partition info", err.Error())
-			}
-
-			if len(partitions) == 0 {
-				fmt.Printf("no partition found for collection %d\n", collectionID)
-			}
-
-			for _, partition := range partitions {
-				fmt.Printf("Parition ID: %d\tName: %s\tState: %s\n", partition.ID, partition.Name, partition.State.String())
-			}
-		},
+// PartitionCommand returns command to list partition info for provided collection.
+func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam) {
+	if p.CollectionID == 0 {
+		fmt.Println("please provided collection id")
+		return
 	}
 
-	cmd.Flags().Int64("collection", 0, "collection id to list")
-	return cmd
+	partitions, err := common.ListCollectionPartitions(ctx, c.client, c.basePath, p.CollectionID)
+	if err != nil {
+		fmt.Println("failed to list partition info", err.Error())
+	}
+
+	if len(partitions) == 0 {
+		fmt.Printf("no partition found for collection %d\n", p.CollectionID)
+	}
+
+	for _, partition := range partitions {
+		fmt.Printf("Parition ID: %d\tName: %s\tState: %s\n", partition.ID, partition.Name, partition.State.String())
+	}
 }

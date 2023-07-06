@@ -63,7 +63,7 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			indexBuildInfo, err := common.ListIndex(cli, basePath)
+			indexBuildInfo, err := common.ListIndex(context.Background(), cli, basePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return

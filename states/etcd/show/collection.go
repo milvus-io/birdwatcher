@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
-
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
@@ -16,76 +14,54 @@ import (
 
 // CollectionCommand returns sub command for showCmd.
 // show collection [options...]
-func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "collections",
-		Short:   "list current available collection from RootCoord",
-		Aliases: []string{"collection"},
-		Run: func(cmd *cobra.Command, args []string) {
-			collectionID, err := cmd.Flags().GetInt64("id")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			collectionName, err := cmd.Flags().GetString("name")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			dbID, err := cmd.Flags().GetInt64("dbid")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+type CollectionParam struct {
+	framework.ParamBase `use:"show collections" desc:"list current available collection from RootCoord"`
+	CollectionID        int64  `name:"id" default:"0" desc:"collection id to display"`
+	CollectionName      string `name:"name" default:"" desc:"collection name to display"`
+	DatabaseID          int64  `name:"dbid" default:"-1" desc:"database id to filter"`
+}
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			var collections []*models.Collection
-			var total int64
-			// perform get by id to accelerate
-			if collectionID > 0 {
-				var collection *models.Collection
-				collection, err = common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collectionID)
-				if err == nil {
-					collections = append(collections, collection)
-				}
-			} else {
-				collections, err = common.ListCollectionsVersion(ctx, cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
-					if collectionName != "" && coll.Schema.Name != collectionName {
-						return false
-					}
-					if dbID > -1 && coll.DBID != dbID {
-						return false
-					}
-					total++
-					return true
-				})
+func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) error {
+	var collections []*models.Collection
+	var total int64
+	var err error
+	// perform get by id to accelerate
+	if p.CollectionID > 0 {
+		var collection *models.Collection
+		collection, err = common.GetCollectionByIDVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
+		if err == nil {
+			collections = append(collections, collection)
+		}
+	} else {
+		collections, err = common.ListCollectionsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
+			if p.CollectionName != "" && coll.Schema.Name != p.CollectionName {
+				return false
 			}
-
-			if err != nil {
-				fmt.Println(err.Error())
-				return
+			if p.DatabaseID > -1 && coll.DBID != p.DatabaseID {
+				return false
 			}
-			channels := 0
-			healthy := 0
-			for _, collection := range collections {
-				printCollection(collection)
-				if collection.State == models.CollectionStateCollectionCreated {
-					channels += len(collection.Channels)
-					healthy++
-				}
-			}
-			fmt.Println("================================================================================")
-			fmt.Printf("--- Total collections:  %d\t Matched collections:  %d\n", total, len(collections))
-			fmt.Printf("--- Total channel: %d\t Healthy collections: %d\n", channels, healthy)
-		},
+			total++
+			return true
+		})
 	}
 
-	cmd.Flags().Int64("id", 0, "collection id to display")
-	cmd.Flags().String("name", "", "collection name to display")
-	cmd.Flags().Int64("dbid", -1, "database id")
-	return cmd
+	if err != nil {
+		return err
+	}
+	channels := 0
+	healthy := 0
+	for _, collection := range collections {
+		printCollection(collection)
+		if collection.State == models.CollectionStateCollectionCreated {
+			channels += len(collection.Channels)
+			healthy++
+		}
+	}
+	fmt.Println("================================================================================")
+	fmt.Printf("--- Total collections:  %d\t Matched collections:  %d\n", total, len(collections))
+	fmt.Printf("--- Total channel: %d\t Healthy collections: %d\n", channels, healthy)
+
+	return nil
 }
 
 func printCollection(collection *models.Collection) {

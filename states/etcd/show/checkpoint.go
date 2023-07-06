@@ -5,67 +5,58 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-// CheckpointCommand returns show checkpoint command.
-func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "checkpoint",
-		Short:   "list checkpoint collection vchannels",
-		Aliases: []string{"checkpoints", "cp"},
-		Run: func(cmd *cobra.Command, args []string) {
-
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			coll, err := common.GetCollectionByIDVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), collID)
-			if err != nil {
-				fmt.Println("failed to get collection", err.Error())
-				return
-			}
-
-			for _, channel := range coll.Channels {
-				var cp *internalpb.MsgPosition
-				var segmentID int64
-				var err error
-				cp, err = getChannelCheckpoint(cli, basePath, channel.VirtualName)
-
-				if err != nil {
-					cp, segmentID, err = getCheckpointFromSegments(cli, basePath, collID, channel.VirtualName)
-				}
-
-				if cp == nil {
-					fmt.Printf("vchannel %s position nil\n", channel.VirtualName)
-				} else {
-					t, _ := utils.ParseTS(cp.GetTimestamp())
-					fmt.Printf("vchannel %s seek to %v, cp channel: %s", channel.VirtualName, t, cp.ChannelName)
-					if segmentID > 0 {
-						fmt.Printf(", for segment ID:%d\n", segmentID)
-					} else {
-						fmt.Printf(", from channel checkpoint\n")
-					}
-				}
-			}
-		},
-	}
-	cmd.Flags().Int64("collection", 0, "collection id to filter with")
-	return cmd
+type CheckpointParam struct {
+	framework.ParamBase `use:"show checkpoint" desc:"list checkpoint collection vchannels" alias:"checkpoints,cp"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
 }
 
-func getChannelCheckpoint(cli clientv3.KV, basePath string, channelName string) (*internalpb.MsgPosition, error) {
-	prefix := path.Join(basePath, "datacoord-meta", "channel-cp", channelName)
-	results, _, err := common.ListProtoObjects[internalpb.MsgPosition](context.Background(), cli, prefix)
+// CheckpointCommand returns show checkpoint command.
+func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) {
+	coll, err := common.GetCollectionByIDVersion(context.Background(), c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
+	if err != nil {
+		fmt.Println("failed to get collection", err.Error())
+		return
+	}
+
+	for _, channel := range coll.Channels {
+		var cp *internalpb.MsgPosition
+		var segmentID int64
+		var err error
+		cp, err = c.getChannelCheckpoint(ctx, channel.VirtualName)
+
+		if err != nil {
+			cp, segmentID, err = c.getCheckpointFromSegments(ctx, p.CollectionID, channel.VirtualName)
+			if err != nil {
+				fmt.Println("failed to get checkpoint from segments", err.Error())
+			}
+		}
+
+		if cp == nil {
+			fmt.Printf("vchannel %s position nil\n", channel.VirtualName)
+		} else {
+			t, _ := utils.ParseTS(cp.GetTimestamp())
+			fmt.Printf("vchannel %s seek to %v, cp channel: %s", channel.VirtualName, t, cp.ChannelName)
+			if segmentID > 0 {
+				fmt.Printf(", for segment ID:%d\n", segmentID)
+			} else {
+				fmt.Printf(", from channel checkpoint\n")
+			}
+		}
+	}
+}
+
+func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*internalpb.MsgPosition, error) {
+	prefix := path.Join(c.basePath, "datacoord-meta", "channel-cp", channelName)
+	results, _, err := common.ListProtoObjects[internalpb.MsgPosition](context.Background(), c.client, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +68,8 @@ func getChannelCheckpoint(cli clientv3.KV, basePath string, channelName string) 
 	return &results[0], nil
 }
 
-func getCheckpointFromSegments(cli clientv3.KV, basePath string, collID int64, vchannel string) (*internalpb.MsgPosition, int64, error) {
-	segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
+func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID int64, vchannel string) (*internalpb.MsgPosition, int64, error) {
+	segments, err := common.ListSegments(c.client, c.basePath, func(info *datapb.SegmentInfo) bool {
 		return info.CollectionID == collID && info.InsertChannel == vchannel
 	})
 	if err != nil {

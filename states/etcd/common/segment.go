@@ -275,3 +275,60 @@ func RemoveSegment(cli clientv3.KV, basePath string, info *datapb.SegmentInfo) e
 
 	return err
 }
+
+func RemoveSegmentByID(ctx context.Context, cli clientv3.KV, basePath string, collectionID, partitionID, segmentID int64) error {
+	segmentPath := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
+	_, err := cli.Delete(ctx, segmentPath)
+	if err != nil {
+		return err
+	}
+
+	// delete binlog entries
+	binlogPrefix := path.Join(basePath, "datacoord-meta/binlog", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
+	_, err = cli.Delete(ctx, binlogPrefix, clientv3.WithPrefix())
+	if err != nil {
+		fmt.Printf("failed to delete binlogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
+	}
+
+	// delete deltalog entries
+	deltalogPrefix := path.Join(basePath, "datacoord-meta/deltalog", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
+	_, err = cli.Delete(ctx, deltalogPrefix, clientv3.WithPrefix())
+	if err != nil {
+		fmt.Printf("failed to delete deltalogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
+	}
+
+	// delete statslog entries
+	statslogPrefix := path.Join(basePath, "datacoord-meta/statslog", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
+	_, err = cli.Delete(ctx, statslogPrefix, clientv3.WithPrefix())
+	if err != nil {
+		fmt.Printf("failed to delete statslogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
+	}
+
+	return err
+}
+
+func UpdateSegments(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
+
+	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", segmentMetaPrefix, collectionID)) + "/"
+	segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
+	if err != nil {
+		return err
+	}
+
+	for idx, info := range segments {
+		info := info
+		seg := &info
+		fn(seg)
+		bs, err := proto.Marshal(seg)
+		if err != nil {
+			return err
+		}
+
+		_, err = cli.Put(ctx, keys[idx], string(bs))
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}

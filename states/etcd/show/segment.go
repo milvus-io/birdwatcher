@@ -6,118 +6,90 @@ import (
 	"sort"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
-
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+type SegmentParam struct {
+	framework.ParamBase `use:"show segment" desc:"display segment information from data coord meta store" alias:"segments"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	PartitionID         int64  `name:"partition" default:"0" desc:"partition id to filter with"`
+	SegmentID           int64  `name:"segment" default:"0" desc:"segment id to display"`
+	Format              string `name:"format" default:"line" desc:"segment display format"`
+	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail binlog info"`
+	State               string `name:"state" default:"" desc:"target segment state"`
+}
+
 // SegmentCommand returns show segments command.
-func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "segment",
-		Short:   "display segment information from data coord meta store",
-		Aliases: []string{"segments"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				return err
-			}
-			segmentID, err := cmd.Flags().GetInt64("segment")
-			if err != nil {
-				return err
-			}
-			format, err := cmd.Flags().GetString("format")
-			if err != nil {
-				return err
-			}
-			detail, err := cmd.Flags().GetBool("detail")
-			if err != nil {
-				return err
-			}
-			state, err := cmd.Flags().GetString("state")
-			if err != nil {
-				return err
-			}
-
-			segments, err := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
-				return (collID == 0 || segment.CollectionID == collID) &&
-					(segmentID == 0 || segment.ID == segmentID) &&
-					(state == "" || segment.State.String() == state)
-			})
-			if err != nil {
-				fmt.Println("failed to list segments", err.Error())
-				return nil
-			}
-
-			totalRC := int64(0)
-			healthy := 0
-			var statslogSize int64
-			var growing, sealed, flushed int
-			fieldSize := make(map[int64]int64)
-			for _, info := range segments {
-
-				if info.State != models.SegmentStateDropped {
-					totalRC += info.NumOfRows
-					healthy++
-				}
-				switch info.State {
-				case models.SegmentStateGrowing:
-					growing++
-				case models.SegmentStateSealed:
-					sealed++
-				case models.SegmentStateFlushing, models.SegmentStateFlushed:
-					flushed++
-				}
-
-				switch format {
-				case "table":
-					PrintSegmentInfo(info, detail)
-				case "line":
-					fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
-				case "statistics":
-					if info.State != models.SegmentStateDropped {
-						for _, binlog := range info.GetBinlogs() {
-							for _, log := range binlog.Binlogs {
-								fieldSize[binlog.FieldID] += log.LogSize
-							}
-						}
-						for _, statslog := range info.GetStatslogs() {
-							for _, binlog := range statslog.Binlogs {
-								statslogSize += binlog.LogSize
-							}
-						}
-					}
-
-				}
-
-			}
-			if format == "statistics" {
-				var totalBinlogSize int64
-				for fieldID, size := range fieldSize {
-					fmt.Printf("\t field binlog size[%d]: %s\n", fieldID, hrSize(size))
-					totalBinlogSize += size
-				}
-				fmt.Printf("--- Total binlog size: %s\n", hrSize(totalBinlogSize))
-				fmt.Printf("--- Total statslog size: %s\n", hrSize(statslogSize))
-			}
-
-			fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d\n", growing, sealed, flushed)
-			fmt.Printf("--- Total Segments: %d, row count: %d\n", healthy, totalRC)
-			return nil
-		},
+func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) error {
+	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
+		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID) &&
+			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
+			(p.State == "" || segment.State.String() == p.State)
+	})
+	if err != nil {
+		fmt.Println("failed to list segments", err.Error())
+		return nil
 	}
-	cmd.Flags().Int64("collection", 0, "collection id to filter with")
-	cmd.Flags().Int64("partition", 0, "partition id to filter with")
-	cmd.Flags().String("format", "line", "segment display format")
-	cmd.Flags().Bool("detail", false, "flags indicating whether pring detail binlog info")
-	cmd.Flags().Int64("segment", 0, "segment id to filter with")
-	cmd.Flags().String("state", "", "target segment state")
-	return cmd
+
+	totalRC := int64(0)
+	healthy := 0
+	var statslogSize int64
+	var growing, sealed, flushed int
+	fieldSize := make(map[int64]int64)
+	for _, info := range segments {
+
+		if info.State != models.SegmentStateDropped {
+			totalRC += info.NumOfRows
+			healthy++
+		}
+		switch info.State {
+		case models.SegmentStateGrowing:
+			growing++
+		case models.SegmentStateSealed:
+			sealed++
+		case models.SegmentStateFlushing, models.SegmentStateFlushed:
+			flushed++
+		}
+
+		switch p.Format {
+		case "table":
+			PrintSegmentInfo(info, p.Detail)
+		case "line":
+			fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
+		case "statistics":
+			if info.State != models.SegmentStateDropped {
+				for _, binlog := range info.GetBinlogs() {
+					for _, log := range binlog.Binlogs {
+						fieldSize[binlog.FieldID] += log.LogSize
+					}
+				}
+				for _, statslog := range info.GetStatslogs() {
+					for _, binlog := range statslog.Binlogs {
+						statslogSize += binlog.LogSize
+					}
+				}
+			}
+
+		}
+
+	}
+	if p.Format == "statistics" {
+		var totalBinlogSize int64
+		for fieldID, size := range fieldSize {
+			fmt.Printf("\t field binlog size[%d]: %s\n", fieldID, hrSize(size))
+			totalBinlogSize += size
+		}
+		fmt.Printf("--- Total binlog size: %s\n", hrSize(totalBinlogSize))
+		fmt.Printf("--- Total statslog size: %s\n", hrSize(statslogSize))
+	}
+
+	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d\n", growing, sealed, flushed)
+	fmt.Printf("--- Total Segments: %d, row count: %d\n", healthy, totalRC)
+	return nil
 }
 
 func hrSize(size int64) string {

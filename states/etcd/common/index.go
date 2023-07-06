@@ -11,11 +11,8 @@ import (
 )
 
 // ListIndex list all index with all filter satified.
-func ListIndex(cli clientv3.KV, basePath string, filters ...func(index *indexpb.IndexMeta) bool) ([]indexpb.IndexMeta, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
+func ListIndex(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(index *indexpb.IndexMeta) bool) ([]indexpb.IndexMeta, error) {
 	prefix := path.Join(basePath, "indexes") + "/"
-
 	result, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
 	return result, err
 }

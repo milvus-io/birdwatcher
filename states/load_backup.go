@@ -11,15 +11,16 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/mitchellh/go-homedir"
 )
 
 type LoadBackupParam struct {
-	ParamBase     `use:"load-backup [file]" desc:"load etcd backup file"`
-	backupFile    string
-	UseWorkspace  bool   `name:"use-workspace" default:"false"`
-	WorkspaceName string `name:"workspace-name" default:""`
+	framework.ParamBase `use:"load-backup [file]" desc:"load etcd backup file"`
+	backupFile          string
+	UseWorkspace        bool   `name:"use-workspace" default:"false"`
+	WorkspaceName       string `name:"workspace-name" default:""`
 }
 
 func (p *LoadBackupParam) ParseArgs(args []string) error {

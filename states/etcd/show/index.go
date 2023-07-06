@@ -4,49 +4,43 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"time"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/utils"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+type IndexParam struct {
+	framework.ParamBase `use:"show index" desc:"" alias:"indexes"`
+}
+
 // IndexCommand returns show index command.
-func IndexCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "index",
-		Aliases: []string{"indexes"},
-		Run: func(cmd *cobra.Command, args []string) {
-
-			fmt.Println("*************2.1.x***************")
-			// v2.0+
-			meta, err := listIndexMeta(cli, basePath)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			for _, m := range meta {
-				printIndex(m)
-			}
-
-			fmt.Println("*************2.2.x***************")
-			// v2.2+
-			fieldIndexes, err := listIndexMetaV2(cli, basePath)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			for _, index := range fieldIndexes {
-				printIndexV2(index)
-			}
-		},
+func (c *ComponentShow) IndexCommand(ctx context.Context, p *IndexParam) {
+	fmt.Println("*************2.1.x***************")
+	// v2.0+
+	meta, err := c.listIndexMeta(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
 	}
-	return cmd
+
+	for _, m := range meta {
+		printIndex(m)
+	}
+
+	fmt.Println("*************2.2.x***************")
+	// v2.2+
+	fieldIndexes, err := c.listIndexMetaV2(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	for _, index := range fieldIndexes {
+		printIndexV2(index)
+	}
 }
 
 type IndexInfoV1 struct {
@@ -54,12 +48,9 @@ type IndexInfoV1 struct {
 	collectionID int64
 }
 
-func listIndexMeta(cli clientv3.KV, basePath string) ([]IndexInfoV1, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
-	prefix := path.Join(basePath, "root-coord/index")
-	indexes, keys, err := common.ListProtoObjects[etcdpb.IndexInfo](ctx, cli, prefix)
+func (c *ComponentShow) listIndexMeta(ctx context.Context) ([]IndexInfoV1, error) {
+	prefix := path.Join(c.basePath, "root-coord/index")
+	indexes, keys, err := common.ListProtoObjects[etcdpb.IndexInfo](ctx, c.client, prefix)
 	result := make([]IndexInfoV1, 0, len(indexes))
 	for idx, info := range indexes {
 		collectionID, err := common.PathPartInt64(keys[idx], -2)
@@ -75,10 +66,8 @@ func listIndexMeta(cli clientv3.KV, basePath string) ([]IndexInfoV1, error) {
 	return result, err
 }
 
-func listIndexMetaV2(cli clientv3.KV, basePath string) ([]indexpbv2.FieldIndex, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, cli, path.Join(basePath, "field-index"))
+func (c *ComponentShow) listIndexMetaV2(ctx context.Context) ([]indexpbv2.FieldIndex, error) {
+	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, c.client, path.Join(c.basePath, "field-index"))
 	return indexes, err
 }
 

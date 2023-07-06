@@ -5,46 +5,33 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+type ChannelWatchedParam struct {
+	framework.ParamBase `use:"show channel-watch" desc:"display channel watching info from data coord meta store" alias:"channel-watched"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+}
+
 // ChannelWatchedCommand return show channel-watched commands.
-func ChannelWatchedCommand(cli clientv3.KV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "channel-watch",
-		Short:   "display channel watching info from data coord meta store",
-		Aliases: []string{"channel-watched"},
-		Run: func(cmd *cobra.Command, args []string) {
-
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				return
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			infos, err := common.ListChannelWatch(ctx, cli, basePath, etcdversion.GetVersion(), func(channel *models.ChannelWatch) bool {
-				return collID == 0 || channel.Vchan.CollectionID == collID
-			})
-			if err != nil {
-				fmt.Println("failed to list channel watch info", err.Error())
-				return
-			}
-
-			for _, info := range infos {
-				printChannelWatchInfo(info)
-			}
-
-			fmt.Printf("--- Total Channels: %d\n", len(infos))
-		},
+func (c *ComponentShow) ChannelWatchedCommand(ctx context.Context, p *ChannelWatchedParam) {
+	infos, err := common.ListChannelWatch(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(channel *models.ChannelWatch) bool {
+		return p.CollectionID == 0 || channel.Vchan.CollectionID == p.CollectionID
+	})
+	if err != nil {
+		fmt.Println("failed to list channel watch info", err.Error())
+		return
 	}
-	cmd.Flags().Int64("collection", 0, "collection id to filter with")
-	return cmd
+
+	for _, info := range infos {
+		printChannelWatchInfo(info)
+	}
+
+	fmt.Printf("--- Total Channels: %d\n", len(infos))
 }
 
 func printChannelWatchInfo(info *models.ChannelWatch) {

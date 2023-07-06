@@ -8,6 +8,8 @@ import (
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/audit"
+	"github.com/milvus-io/birdwatcher/states/etcd/remove"
+	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -15,6 +17,8 @@ import (
 // instanceState provides command for single milvus instance.
 type instanceState struct {
 	cmdState
+	*show.ComponentShow
+	*remove.ComponentRemove
 	instanceName string
 	client       clientv3.KV
 	auditFile    *os.File
@@ -46,8 +50,6 @@ func (s *instanceState) SetupCommands() {
 		CurrentVersionCommand(),
 		// show segment-loaded-grpc
 		GetDistributionCommand(cli, basePath),
-		// show configurations
-		// GetConfigurationCommand(cli, basePath),
 	)
 
 	cmd.AddCommand(
@@ -62,7 +64,7 @@ func (s *instanceState) SetupCommands() {
 		// set [subcommand] options...
 		etcd.SetCommand(cli, instanceName, metaPath),
 		// restore [subcommand] options...
-		etcd.RestoreCommand(cli, basePath),
+		// etcd.RestoreCommand(cli, basePath),
 
 		// backup [component]
 		getBackupEtcdCmd(cli, basePath),
@@ -141,9 +143,11 @@ func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState 
 		cmdState: cmdState{
 			label: fmt.Sprintf("Milvus(%s)", instanceName),
 		},
-		instanceName: instanceName,
-		client:       kv,
-		auditFile:    file,
+		ComponentShow:   show.NewComponent(cli, config, basePath),
+		ComponentRemove: remove.NewComponent(cli, config, basePath),
+		instanceName:    instanceName,
+		client:          kv,
+		auditFile:       file,
 
 		etcdState: etcdState,
 		config:    config,

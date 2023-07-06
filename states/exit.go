@@ -3,6 +3,7 @@ package states
 import (
 	"context"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
 )
 
@@ -44,11 +45,11 @@ func (s *exitState) SetupCommands() {}
 // IsEnding returns true for exit State
 func (s *exitState) IsEnding() bool { return true }
 
-type disconnectParam struct {
-	ParamBase `use:"disconnect" desc:"disconnect from current etcd instance"`
+type DisconnectParam struct {
+	framework.ParamBase `use:"disconnect" desc:"disconnect from current etcd instance"`
 }
 
-func (s *instanceState) DisconnectCommand(ctx context.Context, _ *disconnectParam) {
+func (s *instanceState) DisconnectCommand(ctx context.Context, _ *DisconnectParam) {
 	s.SetNext(Start(s.config))
 	s.Close()
 }

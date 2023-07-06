@@ -15,12 +15,13 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/storage"
 )
 
 type ParseIndexParam struct {
-	ParamBase `use:"parse-indexparam [file]" desc:"parse index params"`
-	filePath  string
+	framework.ParamBase `use:"parse-indexparam [file]" desc:"parse index params"`
+	filePath            string
 }
 
 func (p *ParseIndexParam) ParseArgs(args []string) error {
@@ -72,8 +73,8 @@ func (s *disconnectState) ParseIndexParamCommand(ctx context.Context, p *ParseIn
 }
 
 type ValidateIndexParam struct {
-	ParamBase `use:"validate-indexfiles [directory]" desc:"validate index file size"`
-	directory string
+	framework.ParamBase `use:"validate-indexfiles [directory]" desc:"validate index file size"`
+	directory           string
 }
 
 func (p *ValidateIndexParam) ParseArgs(args []string) error {
@@ -175,8 +176,8 @@ func validateIndexFolder(fp string, params map[string]string) {
 }
 
 type AssembleIndexFilesParam struct {
-	ParamBase `use:"assemble-indexfiles [directory]" desc:""`
-	directory string
+	framework.ParamBase `use:"assemble-indexfiles [directory]" desc:""`
+	directory           string
 }
 
 func (p *AssembleIndexFilesParam) ParseArgs(args []string) error {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/autocomplete"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -131,7 +132,7 @@ func (s *cmdState) Close() {}
 func (s *cmdState) IsEnding() bool { return false }
 
 type exitParam struct {
-	ParamBase `use:"exit" desc:"Close this CLI tool"`
+	framework.ParamBase `use:"exit" desc:"Close this CLI tool"`
 }
 
 // ExitCommand returns exit command
@@ -157,82 +158,11 @@ func parseFunctionCommands(state State) []commandItem {
 			continue
 		}
 
-		t := mt.Type
-		var use string
-		var short string
-		var paramType reflect.Type
-
-		if t.NumIn() == 0 {
-			// shall not be reached
+		cmd, uses, ok := parseMethod(state, mt)
+		if !ok {
 			continue
 		}
-		if t.NumIn() > 1 {
-			// should be context.Context
-			in := t.In(1)
-			if !in.Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
-				continue
-			}
-		}
-		if t.NumIn() > 2 {
-			// should be CmdParam
-			in := t.In(2)
-			if !in.Implements(reflect.TypeOf((*CmdParam)(nil)).Elem()) {
-				continue
-			}
-			cp, ok := reflect.New(in.Elem()).Interface().(CmdParam)
-			if !ok {
-				fmt.Println("conversion failed", in.Name())
-			} else {
-				paramType = in
-				use, short = cp.Desc()
-			}
-		}
 
-		cp := reflect.New(paramType.Elem()).Interface().(CmdParam)
-		fUse, fDesc := getCmdFromFlag(cp)
-		if len(use) == 0 {
-			use = fUse
-		}
-		if len(short) == 0 {
-			short = fDesc
-		}
-		if len(use) == 0 {
-			fnName := mt.Name
-			use = strings.ToLower(fnName[:len(fnName)-8])
-		}
-		uses := parseUseSegments(use)
-		lastKw := uses[len(uses)-1]
-
-		cmd := &cobra.Command{
-			Use: lastKw,
-		}
-		setupFlags(cp, cmd.Flags())
-		cmd.Short = short
-		cmd.Run = func(cmd *cobra.Command, args []string) {
-			cp := reflect.New(paramType.Elem()).Interface().(CmdParam)
-
-			cp.ParseArgs(args)
-			if err := parseFlags(cp, cmd.Flags()); err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			ctx, cancel := state.Ctx() //context.WithCancel(context.Background())
-			defer cancel()
-
-			m := v.MethodByName(mt.Name)
-			results := m.Call([]reflect.Value{
-				reflect.ValueOf(ctx),
-				reflect.ValueOf(cp),
-			})
-			if len(results) > 0 {
-				if results[0].Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
-					if !results[0].IsNil() {
-						err := results[0].Interface().(error)
-						fmt.Println(err.Error())
-					}
-				}
-			}
-		}
 		commands = append(commands, commandItem{
 			kws: uses[:len(uses)-1],
 			cmd: cmd,
@@ -242,7 +172,89 @@ func parseFunctionCommands(state State) []commandItem {
 	return commands
 }
 
-func getCmdFromFlag(p CmdParam) (string, string) {
+func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool) {
+	v := reflect.ValueOf(state)
+	t := mt.Type
+	var use string
+	var short string
+	var paramType reflect.Type
+
+	if t.NumIn() == 0 {
+		// shall not be reached
+		return nil, nil, false
+	}
+	if t.NumIn() > 1 {
+		// should be context.Context
+		in := t.In(1)
+		if !in.Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
+			return nil, nil, false
+		}
+	}
+	if t.NumIn() > 2 {
+		// should be CmdParam
+		in := t.In(2)
+		if !in.Implements(reflect.TypeOf((*framework.CmdParam)(nil)).Elem()) {
+			return nil, nil, false
+		}
+		cp, ok := reflect.New(in.Elem()).Interface().(framework.CmdParam)
+		if !ok {
+			fmt.Println("conversion failed", in.Name())
+		} else {
+			paramType = in
+			use, short = cp.Desc()
+		}
+	}
+
+	//fmt.Println(mt.Name)
+	cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
+	fUse, fDesc := getCmdFromFlag(cp)
+	if len(use) == 0 {
+		use = fUse
+	}
+	if len(short) == 0 {
+		short = fDesc
+	}
+	if len(use) == 0 {
+		fnName := mt.Name
+		use = strings.ToLower(fnName[:len(fnName)-8])
+	}
+	uses := parseUseSegments(use)
+	lastKw := uses[len(uses)-1]
+
+	cmd := &cobra.Command{
+		Use: lastKw,
+	}
+	setupFlags(cp, cmd.Flags())
+	cmd.Short = short
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
+
+		cp.ParseArgs(args)
+		if err := parseFlags(cp, cmd.Flags()); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		ctx, cancel := state.Ctx()
+		defer cancel()
+
+		m := v.MethodByName(mt.Name)
+		results := m.Call([]reflect.Value{
+			reflect.ValueOf(ctx),
+			reflect.ValueOf(cp),
+		})
+		if len(results) > 0 {
+			if results[0].Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+				if !results[0].IsNil() {
+					err := results[0].Interface().(error)
+					fmt.Println(err.Error())
+				}
+			}
+		}
+	}
+	return cmd, uses, true
+}
+
+func getCmdFromFlag(p framework.CmdParam) (string, string) {
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
 		fmt.Println("param is not pointer")
@@ -287,7 +299,7 @@ func parseUseSegments(use string) []string {
 	return result
 }
 
-func setupFlags(p CmdParam, flags *pflag.FlagSet) {
+func setupFlags(p framework.CmdParam, flags *pflag.FlagSet) {
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
 		fmt.Println("param is not pointer")
@@ -330,7 +342,7 @@ func setupFlags(p CmdParam, flags *pflag.FlagSet) {
 	}
 }
 
-func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
+func parseFlags(p framework.CmdParam, flags *pflag.FlagSet) error {
 
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
@@ -373,21 +385,4 @@ func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
 	}
 
 	return nil
-}
-
-// CmdParam is the interface definition for command parameter.
-type CmdParam interface {
-	ParseArgs(args []string) error
-	Desc() (string, string)
-}
-
-// ParamBase implmenet CmdParam when empty args parser.
-type ParamBase struct{}
-
-func (pb ParamBase) ParseArgs(args []string) error {
-	return nil
-}
-
-func (pb ParamBase) Desc() (string, string) {
-	return "", ""
 }
