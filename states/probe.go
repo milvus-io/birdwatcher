@@ -468,6 +468,26 @@ func getMockSearchRequest(ctx context.Context, cli clientv3.KV, basePath string,
 			DmlChannels:     []string{},
 		}
 		return r, nil
+	case "DISKANN":
+		metricType := common.GetKVPair(index.GetIndexInfo().GetIndexParams(), "metric_type")
+		if metricType == "" {
+			metricType = common.GetKVPair(index.GetIndexInfo().GetTypeParams(), "metric_type")
+			if metricType == "" {
+				fmt.Println("no metric_type in IndexParams or TypeParams")
+				return nil, fmt.Errorf("no metric_type in IndexParams or TypeParams, bad meta")
+			}
+			fmt.Println("metric_type is in TypeParams instead of IndexParams")
+		}
+
+		topK := int64(10)
+		spStr := genSearchDISKANNParamBytes(20)
+		req.SerializedExprPlan = getSearchPlan(vectorField.DataType == models.DataTypeBinaryVector, pkField.FieldID, vectorField.FieldID, topK, metricType, string(spStr))
+		r := &querypbv2.SearchRequest{
+			Req:             req,
+			FromShardLeader: false,
+			DmlChannels:     []string{},
+		}
+		return r, nil
 
 	default:
 		return nil, fmt.Errorf("probing index type %s not supported yet", indexType)
@@ -502,6 +522,13 @@ func getSearchPlan(isBinary bool, pkFieldID, vectorFieldID int64, topk int64, me
 func genSearchHNSWParamBytes(ef int64) []byte {
 	m := make(map[string]any)
 	m["ef"] = ef
+	bs, _ := json.Marshal(m)
+	return bs
+}
+
+func genSearchDISKANNParamBytes(searchList int) []byte {
+	m := make(map[string]any)
+	m["search_list"] = searchList
 	bs, _ := json.Marshal(m)
 	return bs
 }
