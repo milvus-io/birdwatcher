@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -19,6 +20,7 @@ type CollectionParam struct {
 	CollectionID        int64  `name:"id" default:"0" desc:"collection id to display"`
 	CollectionName      string `name:"name" default:"" desc:"collection name to display"`
 	DatabaseID          int64  `name:"dbid" default:"-1" desc:"database id to filter"`
+	State               string `name:"state" default:"" desc:"collection state to filter"`
 }
 
 func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) error {
@@ -38,6 +40,9 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 				return false
 			}
 			if p.DatabaseID > -1 && coll.DBID != p.DatabaseID {
+				return false
+			}
+			if p.State != "" && strings.ToLower(p.State) != strings.ToLower(coll.State.String()) {
 				return false
 			}
 			total++
