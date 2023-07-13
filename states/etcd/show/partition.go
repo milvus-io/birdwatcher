@@ -9,7 +9,7 @@ import (
 )
 
 type PartitionParam struct {
-	framework.ParamBase `use:"partition" desc:"list partitions of provided collection"`
+	framework.ParamBase `use:"show partition" desc:"list partitions of provided collection"`
 	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to list"`
 }
 
