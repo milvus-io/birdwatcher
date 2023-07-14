@@ -66,7 +66,7 @@ func (s *embedEtcdMockState) SetupCommands() {
 
 		// remove [subcommand] options...
 		// used for testing
-		etcd.RemoveCommand(s.client, rootPath),
+		etcd.RemoveCommand(s.client, s.instanceName, rootPath),
 		// download-pk
 		getDownloadPKCmd(s.client, rootPath),
 		// inspect-pk

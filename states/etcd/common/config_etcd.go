@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"fmt"
 	"path"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -30,7 +29,12 @@ func listEtcdConfigsByPrefix(ctx context.Context, cli clientv3.KV, prefix string
 
 func SetEtcdConfig(ctx context.Context, cli clientv3.KV, basePath string, key, value string) error {
 	prefix := path.Join(basePath, "config")
-	fmt.Println(path.Join(prefix, key), value)
 	_, err := cli.Put(ctx, path.Join(prefix, key), value)
+	return err
+}
+
+func RemoveEtcdConfig(ctx context.Context, cli clientv3.KV, basePath string, key string) error {
+	prefix := path.Join(basePath, "config")
+	_, err := cli.Delete(ctx, path.Join(prefix, key))
 	return err
 }

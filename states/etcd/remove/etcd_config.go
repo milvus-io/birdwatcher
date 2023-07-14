@@ -1,4 +1,4 @@
-package set
+package remove
 
 import (
 	"context"
@@ -14,19 +14,14 @@ import (
 func EtcdConfigCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config-etcd",
-		Short: "set configuations",
+		Short: "remove configuations",
 		Run: func(cmd *cobra.Command, args []string) {
 			key, err := cmd.Flags().GetString("key")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
-			value, err := cmd.Flags().GetString("value")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if key == "" || value == "" {
+			if key == "" {
 				fmt.Println("key & value cannot be empty")
 				return
 			}
@@ -34,17 +29,16 @@ func EtcdConfigCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err = common.SetEtcdConfig(ctx, cli, basePath, key, value)
+			err = common.RemoveEtcdConfig(ctx, cli, basePath, key)
 			if err != nil {
-				fmt.Println("failed to set etcd config item,", err.Error())
+				fmt.Println("failed to remove etcd config item,", err.Error())
 				return
 			}
 
-			fmt.Println("etcd config set.")
+			fmt.Println("etcd config remove.")
 		},
 	}
 
 	cmd.Flags().String("key", "", "etcd config key")
-	cmd.Flags().String("value", "", "etcd config value")
 	return cmd
 }

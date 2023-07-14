@@ -72,7 +72,7 @@ func SetCommand(cli clientv3.KV, instanceName string, metaPath string) *cobra.Co
 
 // RemoveCommand returns etcd remove commands.
 // WARNING this command shall be used with EXTRA CARE!
-func RemoveCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func RemoveCommand(cli clientv3.KV, instanceName, basePath string) *cobra.Command {
 	removeCmd := &cobra.Command{
 		Use: "remove",
 	}
@@ -88,6 +88,8 @@ func RemoveCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		remove.CollectionDropCommand(cli, basePath),
 		// remove sgements with collection dropped
 		remove.SegmentCollectionDroppedCommand(cli, basePath),
+		// remove etcd-config
+		remove.EtcdConfigCommand(cli, instanceName),
 	)
 
 	return removeCmd
