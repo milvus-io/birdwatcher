@@ -1,0 +1,246 @@
+package states
+
+import (
+	"context"
+	"fmt"
+	"sort"
+	"time"
+
+	"github.com/milvus-io/birdwatcher/models"
+	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
+	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
+)
+
+const (
+	scoreBasedBalancePolicy               = "score"
+	collectionLabel                       = "collection"
+	policyLabel                           = "policy"
+	globalRowCountFactorLabel             = "global_factor"
+	UnbalanceTolerationFactorLabel        = "unbalance_toleration"
+	ReverseUnbalanceTolerationFactorLabel = "reverse_toleration"
+)
+
+func ExplainBalanceCommand(cli clientv3.KV, basePath string) *cobra.Command {
+	policies := make(map[string]segmentDistExplainFunc, 0)
+	policies[scoreBasedBalancePolicy] = scoreBasedBalanceExplain
+	cmd := &cobra.Command{
+		Use:   "explain-balance",
+		Short: "explain segments and channels current balance status",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			//0. set up collection, policy, servers and params
+			collectionID, err := cmd.Flags().GetInt64(collectionLabel)
+			if err != nil {
+				collectionID = 0
+			}
+			policyName, err := cmd.Flags().GetString(policyLabel)
+			if err != nil {
+				policyName = scoreBasedBalancePolicy
+			}
+
+			//1. set up segment distribution view, replicas and segmentInfos
+			sessions, err := ListServers(cli, basePath, queryNode)
+			if err != nil {
+				return err
+			}
+			distResponses := getAllQueryNodeDistributions(sessions)
+			distView := buildUpNodeSegmentsView(distResponses)
+			replicas, err := common.ListReplica(context.Background(), cli, basePath, collectionID)
+			if err != nil {
+				fmt.Println("failed to list replica, cannot do balance explain", err.Error())
+				return err
+			}
+			if len(replicas) == 0 {
+				fmt.Printf("no replicas available for collection %d, cannot explain balance \n", collectionID)
+				return nil
+			}
+			segmentsInfos, err := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion())
+
+			//2. explain balance
+			explainPolicy := policies[policyName]
+			globalFactor, err := cmd.Flags().GetFloat64(globalRowCountFactorLabel)
+			if err != nil {
+				globalFactor = 0.1
+			}
+			unbalanceTolerationFactor, err := cmd.Flags().GetFloat64(UnbalanceTolerationFactorLabel)
+			if err != nil {
+				unbalanceTolerationFactor = 0.05
+			}
+			reverseTolerationFactor, err := cmd.Flags().GetFloat64(ReverseUnbalanceTolerationFactorLabel)
+			if err != nil {
+				reverseTolerationFactor = 1.3
+			}
+			reports := explainPolicy(distView, replicas, segmentsInfos,
+				&ScoreBalanceParam{globalFactor, unbalanceTolerationFactor,
+					reverseTolerationFactor})
+			fmt.Println("explain balance reports:")
+			for _, report := range reports {
+				fmt.Print(report)
+				fmt.Println("------------------------------------")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Int64(collectionLabel, 0, "collection id to filter with")
+	cmd.Flags().String(policyLabel, "score", "policy to explain based on")
+	cmd.Flags().Float64(globalRowCountFactorLabel, 0.1, "global factor")
+	cmd.Flags().Float64(UnbalanceTolerationFactorLabel, 0.05, "unbalance toleration factor")
+	cmd.Flags().Float64(ReverseUnbalanceTolerationFactorLabel, 1.3, "reverse_toleration")
+	return cmd
+}
+
+func getAllQueryNodeDistributions(queryNodes []*models.Session) []*querypbv2.GetDataDistributionResponse {
+	distributions := make([]*querypbv2.GetDataDistributionResponse, 0)
+	for _, queryNode := range queryNodes {
+		opts := []grpc.DialOption{
+			grpc.WithInsecure(),
+			grpc.WithBlock(),
+			grpc.WithTimeout(2 * time.Second),
+		}
+
+		conn, err := grpc.DialContext(context.Background(), queryNode.Address, opts...)
+		if err != nil {
+			fmt.Printf("failed to connect %s(%d), err: %s\n", queryNode.ServerName, queryNode.ServerID, err.Error())
+			continue
+		}
+		clientv2 := querypbv2.NewQueryNodeClient(conn)
+		resp, err := clientv2.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
+			Base: &commonpbv2.MsgBase{
+				SourceID: -1,
+				TargetID: queryNode.ServerID,
+			},
+		})
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+		distributions = append(distributions, resp)
+	}
+	return distributions
+}
+
+func buildUpNodeSegmentsView(distResps []*querypbv2.GetDataDistributionResponse) map[int64][]*querypbv2.SegmentVersionInfo {
+	distView := make(map[int64][]*querypbv2.SegmentVersionInfo, 0)
+	for _, distResp := range distResps {
+		distView[distResp.GetNodeID()] = make([]*querypbv2.SegmentVersionInfo, 0)
+		distView[distResp.GetNodeID()] = append(distView[distResp.GetNodeID()], distResp.GetSegments()...)
+	}
+	return distView
+}
+
+type segmentDistExplainFunc func(dist map[int64][]*querypbv2.SegmentVersionInfo, replicas []*models.Replica,
+	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam) []string
+
+func scoreBasedBalanceExplain(dist map[int64][]*querypbv2.SegmentVersionInfo, replicas []*models.Replica,
+	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam) []string {
+	segmentInfoMap := make(map[int64]*models.Segment, len(segmentInfos))
+	for _, seg := range segmentInfos {
+		segmentInfoMap[seg.ID] = seg
+	}
+	sort.Slice(replicas, func(i, j int) bool {
+		return replicas[i].ID <= replicas[j].ID
+	})
+	//generate explanation reports for scoreBasedBalance
+	reports := make([]string, 0)
+	for _, replica := range replicas {
+		reports = append(reports, explainReplica(replica, dist, segmentInfoMap, scoreBalanceParam))
+	}
+	return reports
+}
+
+type SegmentItem struct {
+	segmentID int64
+	rowNum    int64
+}
+
+type NodeItem struct {
+	nodeID                 int64
+	priority               int64
+	nodeCollectionSegments []*SegmentItem
+	nodeRowSum             int64
+	nodeCollectionRowSum   int64
+}
+
+type ScoreBalanceParam struct {
+	globalRowCountFactor             float64
+	UnbalanceTolerationFactor        float64
+	ReverseUnbalanceTolerationFactor float64
+}
+
+func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.SegmentVersionInfo,
+	segmentInfoMap map[int64]*models.Segment, param *ScoreBalanceParam) string {
+	nodeItems := make([]*NodeItem, 0, len(replica.NodeIDs))
+	for _, nodeID := range replica.NodeIDs {
+		nodeSegments := dist[nodeID]
+		var nodeRowSum int64
+		var nodeCollectionRowSum int64
+		nodeCollectionSegments := make([]*SegmentItem, 0)
+		for _, segment := range nodeSegments {
+			detailedSegmentInfo := segmentInfoMap[segment.GetID()]
+			nodeRowSum += detailedSegmentInfo.NumOfRows
+			if segment.GetCollection() == replica.CollectionID {
+				nodeCollectionRowSum += detailedSegmentInfo.NumOfRows
+				nodeCollectionSegments = append(nodeCollectionSegments,
+					&SegmentItem{segmentID: segment.GetID(), rowNum: detailedSegmentInfo.NumOfRows})
+			}
+		}
+		priority := int64(param.globalRowCountFactor*float64(nodeRowSum)) + nodeCollectionRowSum
+		nodeItems = append(nodeItems, &NodeItem{nodeID, priority,
+			nodeCollectionSegments, nodeRowSum, nodeCollectionRowSum})
+	}
+	sort.Slice(nodeItems, func(i, j int) bool {
+		return nodeItems[i].priority <= nodeItems[j].priority
+	})
+	report := fmt.Sprintf(
+		"report_collectionID: %d, replicaID: %d, globalRowCountFactor: %f, UnbalanceTolerationFactor: %f ReverseUnbalanceTolerationFactor: %f \n",
+		replica.CollectionID, replica.ID, param.globalRowCountFactor, param.UnbalanceTolerationFactor, param.ReverseUnbalanceTolerationFactor)
+	report += fmt.Sprintln("node priorities in asc order:")
+	for _, item := range nodeItems {
+		report += fmt.Sprintf("[node: %d, priority: %d, node_row_sum: %d, node_collection_row_sum: %d]\n",
+			item.nodeID, item.priority, item.nodeRowSum, item.nodeCollectionRowSum)
+	}
+	//calculate unbalance rate
+	toNode, fromNode := nodeItems[0], nodeItems[len(nodeItems)-1]
+	unbalanceDiff := fromNode.priority - toNode.priority
+	continueBalance := false
+	if float64(unbalanceDiff) < float64(toNode.priority)*param.UnbalanceTolerationFactor {
+		report += fmt.Sprintf("unbalance diff is only %d, less than toNode priority: %d * %f, stop balancing this replica\n",
+			unbalanceDiff, toNode.priority, param.UnbalanceTolerationFactor)
+	} else {
+		continueBalance = true
+	}
+	if continueBalance {
+		sort.Slice(fromNode.nodeCollectionSegments, func(i, j int) bool {
+			return fromNode.nodeCollectionSegments[i].rowNum <= fromNode.nodeCollectionSegments[j].rowNum
+		})
+		movedSegment := fromNode.nodeCollectionSegments[0]
+		nextFromPriority := int64(float64(fromNode.nodeRowSum-movedSegment.rowNum)*param.globalRowCountFactor) +
+			(fromNode.nodeCollectionRowSum - movedSegment.rowNum)
+		nextToPriority := int64(float64(toNode.nodeRowSum+movedSegment.rowNum)*param.globalRowCountFactor) +
+			(toNode.nodeCollectionRowSum + movedSegment.rowNum)
+		movedRowNum := segmentInfoMap[movedSegment.segmentID].NumOfRows
+		if nextFromPriority >= nextToPriority {
+			report += fmt.Sprintf("should move segment: %d moved_row_num: %d from_node: %d to to_node: %d, next_from_priority: %d, next_to_priority: %d \n",
+				movedSegment.segmentID, movedRowNum, fromNode.nodeID, toNode.nodeID, nextFromPriority, nextToPriority)
+		} else {
+			nextUnbalance := nextToPriority - nextFromPriority
+			if float64(nextUnbalance)*param.ReverseUnbalanceTolerationFactor > float64(unbalanceDiff) {
+				report += fmt.Sprintf("moved_segment: %d moved_row_num: %d from_node: %d to to_node: %d will generate much bigger unbalance \n",
+					movedSegment.segmentID, movedRowNum, fromNode.nodeID, toNode.nodeID)
+				report += fmt.Sprintf("next_from_priority: %d, next_to_priority: %d, old_unbalance: %d, next_unbalance: %d \n",
+					nextFromPriority, nextToPriority, unbalanceDiff, nextUnbalance)
+			} else {
+				report += fmt.Sprintf("moved_segment: %d moved_row_num: %d from_node: %d to to_node: %d will reverse unbalance but become less \n",
+					movedSegment.segmentID, movedRowNum, fromNode.nodeID, toNode.nodeID)
+				report += fmt.Sprintf("next_from_priority: %d, next_to_priority: %d, old_unbalance: %d, next_unbalance: %d \n",
+					nextFromPriority, nextToPriority, unbalanceDiff, nextUnbalance)
+			}
+		}
+	}
+	return report
+}
