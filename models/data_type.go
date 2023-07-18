@@ -13,6 +13,8 @@ const (
 	DataTypeDouble       DataType = 11
 	DataTypeString       DataType = 20
 	DataTypeVarChar      DataType = 21
+	DataTypeArray        DataType = 22
+	DataTypeJSON         DataType = 23
 	DataTypeBinaryVector DataType = 100
 	DataTypeFloatVector  DataType = 101
 )
@@ -28,6 +30,8 @@ var DataTypename = map[int32]string{
 	11:  "Double",
 	20:  "String",
 	21:  "VarChar",
+	22:  "Array",
+	23:  "JSON",
 	100: "BinaryVector",
 	101: "FloatVector",
 }
@@ -43,6 +47,8 @@ var DataTypevalue = map[string]int32{
 	"Double":       11,
 	"String":       20,
 	"VarChar":      21,
+	"Array":        22,
+	"JSON":         23,
 	"BinaryVector": 100,
 	"FloatVector":  101,
 }

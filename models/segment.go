@@ -72,8 +72,8 @@ func NewSegmentFromV2_1(info *datapb.SegmentInfo, key string) *Segment {
 	s := newSegmentFromBase(info)
 	s.key = key
 	s.State = SegmentState(info.GetState())
-	s.StartPosition = newMsgPosition(info.GetStartPosition())
-	s.DmlPosition = newMsgPosition(info.GetDmlPosition())
+	s.StartPosition = NewMsgPosition(info.GetStartPosition())
+	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
 
 	mFunc := func(fbl *datapb.FieldBinlog, _ int) *FieldBinlog {
 		r := &FieldBinlog{
@@ -97,8 +97,8 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 	s := newSegmentFromBase(info)
 	s.key = key
 	s.State = SegmentState(info.GetState())
-	s.StartPosition = newMsgPosition(info.GetStartPosition())
-	s.DmlPosition = newMsgPosition(info.GetDmlPosition())
+	s.StartPosition = NewMsgPosition(info.GetStartPosition())
+	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
 
 	s.lazyLoad = func(s *Segment) {
 		mFunc := func(fbl datapbv2.FieldBinlog, _ int) *FieldBinlog {
@@ -179,7 +179,7 @@ type msgPosBase interface {
 	GetTimestamp() uint64
 }
 
-func newMsgPosition[T msgPosBase](pos T) *MsgPosition {
+func NewMsgPosition[T msgPosBase](pos T) *MsgPosition {
 	return &MsgPosition{
 		ChannelName: pos.GetChannelName(),
 		MsgID:       pos.GetMsgID(),

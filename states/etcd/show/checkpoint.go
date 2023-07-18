@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
@@ -20,38 +23,74 @@ type CheckpointParam struct {
 }
 
 // CheckpointCommand returns show checkpoint command.
-func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) {
+func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) (*Checkpoints, error) {
 	coll, err := common.GetCollectionByIDVersion(context.Background(), c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
 	if err != nil {
-		fmt.Println("failed to get collection", err.Error())
-		return
+		return nil, errors.Wrap(err, "failed to get collection")
 	}
 
+	checkpoints := make([]*Checkpoint, 0, len(coll.Channels))
 	for _, channel := range coll.Channels {
+		var checkpoint = &Checkpoint{
+			Channel: &models.Channel{
+				PhysicalName: channel.PhysicalName,
+				VirtualName:  channel.VirtualName,
+			},
+		}
 		var cp *internalpb.MsgPosition
 		var segmentID int64
 		var err error
+
 		cp, err = c.getChannelCheckpoint(ctx, channel.VirtualName)
-
-		if err != nil {
-			cp, segmentID, err = c.getCheckpointFromSegments(ctx, p.CollectionID, channel.VirtualName)
-			if err != nil {
-				fmt.Println("failed to get checkpoint from segments", err.Error())
-			}
+		if err == nil {
+			checkpoint.Source = "Channel Checkpoint"
+			checkpoint.Checkpoint = models.NewMsgPosition(cp)
+			checkpoints = append(checkpoints, checkpoint)
+			continue
 		}
 
-		if cp == nil {
-			fmt.Printf("vchannel %s position nil\n", channel.VirtualName)
-		} else {
-			t, _ := utils.ParseTS(cp.GetTimestamp())
-			fmt.Printf("vchannel %s seek to %v, cp channel: %s", channel.VirtualName, t, cp.ChannelName)
-			if segmentID > 0 {
-				fmt.Printf(", for segment ID:%d\n", segmentID)
-			} else {
-				fmt.Printf(", from channel checkpoint\n")
-			}
+		cp, segmentID, err = c.getCheckpointFromSegments(ctx, p.CollectionID, channel.VirtualName)
+		if err == nil {
+			checkpoint.Source = fmt.Sprintf("from segment id %d", segmentID)
+			checkpoint.Checkpoint = models.NewMsgPosition(cp)
+			checkpoints = append(checkpoints, checkpoint)
+			continue
 		}
+
+		checkpoints = append(checkpoints, checkpoint)
 	}
+
+	return framework.NewListResult[Checkpoints](checkpoints), nil
+}
+
+type Checkpoint struct {
+	Channel    *models.Channel
+	Source     string
+	Checkpoint *models.MsgPosition
+}
+
+type Checkpoints struct {
+	framework.ListResultSet[*Checkpoint]
+}
+
+func (rs *Checkpoints) PrintAs(format framework.Format) string {
+	switch format {
+	case framework.FormatDefault, framework.FormatPlain:
+		sb := &strings.Builder{}
+		for _, checkpoint := range rs.Data {
+			if checkpoint.Checkpoint == nil {
+				fmt.Fprintf(sb, "Vchannel %s checkpoint not found, fallback to collection start pos\n", checkpoint.Channel.VirtualName)
+				continue
+			}
+			t, _ := utils.ParseTS(checkpoint.Checkpoint.GetTimestamp())
+			fmt.Fprintf(sb, "vchannel %s seek to %v, cp channel: %s, Source: %s\n",
+				checkpoint.Channel.VirtualName, t, checkpoint.Checkpoint.ChannelName,
+				checkpoint.Source)
+		}
+		return sb.String()
+	default:
+	}
+	return ""
 }
 
 func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*internalpb.MsgPosition, error) {

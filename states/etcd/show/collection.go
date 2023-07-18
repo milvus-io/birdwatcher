@@ -23,7 +23,7 @@ type CollectionParam struct {
 	State               string `name:"state" default:"" desc:"collection state to filter"`
 }
 
-func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) error {
+func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) (*Collections, error) {
 	var collections []*models.Collection
 	var total int64
 	var err error
@@ -51,25 +51,52 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 	channels := 0
 	healthy := 0
 	for _, collection := range collections {
-		printCollection(collection)
 		if collection.State == models.CollectionStateCollectionCreated {
 			channels += len(collection.Channels)
 			healthy++
 		}
 	}
-	fmt.Println("================================================================================")
-	fmt.Printf("--- Total collections:  %d\t Matched collections:  %d\n", total, len(collections))
-	fmt.Printf("--- Total channel: %d\t Healthy collections: %d\n", channels, healthy)
 
-	return nil
+	return &Collections{
+		collections: collections,
+		total:       total,
+		channels:    channels,
+		healthy:     healthy,
+	}, nil
 }
 
-func printCollection(collection *models.Collection) {
+type Collections struct {
+	collections []*models.Collection
+	total       int64
+	channels    int
+	healthy     int
+}
+
+func (rs *Collections) PrintAs(format framework.Format) string {
+	switch format {
+	case framework.FormatDefault, framework.FormatPlain:
+		sb := &strings.Builder{}
+		for _, coll := range rs.collections {
+			printCollection(sb, coll)
+		}
+		fmt.Fprintln(sb, "================================================================================")
+		fmt.Printf("--- Total collections:  %d\t Matched collections:  %d\n", rs.total, len(rs.collections))
+		fmt.Printf("--- Total channel: %d\t Healthy collections: %d\n", rs.channels, rs.healthy)
+		return sb.String()
+	}
+	return ""
+}
+
+func (rs *Collections) Entities() any {
+	return rs.collections
+}
+
+func printCollection(sb *strings.Builder, collection *models.Collection) {
 	fmt.Println("================================================================================")
 	fmt.Printf("DBID: %d\n", collection.DBID)
 	fmt.Printf("Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)

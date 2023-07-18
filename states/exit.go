@@ -49,7 +49,7 @@ type DisconnectParam struct {
 	framework.ParamBase `use:"disconnect" desc:"disconnect from current etcd instance"`
 }
 
-func (s *instanceState) DisconnectCommand(ctx context.Context, _ *DisconnectParam) {
+func (s *InstanceState) DisconnectCommand(ctx context.Context, _ *DisconnectParam) {
 	s.SetNext(Start(s.config))
 	s.Close()
 }

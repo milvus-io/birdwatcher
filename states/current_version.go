@@ -35,7 +35,7 @@ func (p *setCurrentVersionParam) ParseArgs(args []string) error {
 	return nil
 }
 
-func (s *instanceState) SetCurrentVersionCommand(ctx context.Context, param setCurrentVersionParam) {
+func (s *InstanceState) SetCurrentVersionCommand(ctx context.Context, param setCurrentVersionParam) {
 	switch param.newVersion {
 	case models.LTEVersion2_1:
 		fallthrough
