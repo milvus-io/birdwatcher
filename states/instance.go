@@ -14,8 +14,8 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-// instanceState provides command for single milvus instance.
-type instanceState struct {
+// InstanceState provides command for single milvus instance.
+type InstanceState struct {
 	cmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
@@ -28,7 +28,7 @@ type instanceState struct {
 	basePath  string
 }
 
-func (s *instanceState) Close() {
+func (s *InstanceState) Close() {
 	if s.auditFile != nil {
 		s.auditFile.Close()
 	}
@@ -36,7 +36,7 @@ func (s *instanceState) Close() {
 
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
-func (s *instanceState) SetupCommands() {
+func (s *InstanceState) SetupCommands() {
 	cmd := &cobra.Command{}
 
 	cli := s.client
@@ -115,7 +115,7 @@ func (s *instanceState) SetupCommands() {
 }
 
 // getDryModeCmd enter dry-mode
-func getDryModeCmd(cli clientv3.KV, state *instanceState, etcdState State) *cobra.Command {
+func getDryModeCmd(cli clientv3.KV, state *InstanceState, etcdState State) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dry-mode",
 		Short: "enter dry mode to select instance",
@@ -139,7 +139,7 @@ func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState 
 	basePath := path.Join(instanceName, metaPath)
 
 	// use audit kv
-	state := &instanceState{
+	state := &InstanceState{
 		cmdState: cmdState{
 			label: fmt.Sprintf("Milvus(%s)", instanceName),
 		},

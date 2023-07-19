@@ -23,7 +23,7 @@ type GetConfigurationParam struct {
 	Format              string `name:"format" default:"line" desc:"output format"`
 }
 
-func (s *instanceState) GetConfigurationCommand(ctx context.Context, p *GetConfigurationParam) error {
+func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfigurationParam) error {
 	sessions, err := common.ListSessions(s.client, s.basePath)
 	if err != nil {
 		return err

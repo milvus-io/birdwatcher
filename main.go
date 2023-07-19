@@ -17,6 +17,8 @@ import (
 var (
 	oneLineCommand = flag.String("olc", "", "one line command execution mode")
 	simple         = flag.Bool("simple", false, "use simple ui without suggestion and history")
+	restServer     = flag.Bool("rest", false, "rest server address")
+	webPort        = flag.Int("port", 8002, "listening port for web server")
 	printVersion   = flag.Bool("version", false, "print version")
 )
 
@@ -34,6 +36,8 @@ func main() {
 		appFactory = func(*configs.Config) bapps.BApp { return bapps.NewSimpleApp() }
 	case len(*oneLineCommand) > 0:
 		appFactory = func(*configs.Config) bapps.BApp { return bapps.NewOlcApp(*oneLineCommand) }
+	case *restServer:
+		appFactory = func(config *configs.Config) bapps.BApp { return bapps.NewWebServerApp(*webPort, config) }
 	default:
 		defer handleExit()
 		// open file and create if non-existent

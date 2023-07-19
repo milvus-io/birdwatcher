@@ -207,7 +207,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 
 	//fmt.Println(mt.Name)
 	cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
-	fUse, fDesc := getCmdFromFlag(cp)
+	fUse, fDesc := GetCmdFromFlag(cp)
 	if len(use) == 0 {
 		use = fUse
 	}
@@ -218,7 +218,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 		fnName := mt.Name
 		use = strings.ToLower(fnName[:len(fnName)-8])
 	}
-	uses := parseUseSegments(use)
+	uses := ParseUseSegments(use)
 	lastKw := uses[len(uses)-1]
 
 	cmd := &cobra.Command{
@@ -242,19 +242,35 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 			reflect.ValueOf(ctx),
 			reflect.ValueOf(cp),
 		})
-		if len(results) > 0 {
-			if results[0].Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
-				if !results[0].IsNil() {
-					err := results[0].Interface().(error)
-					fmt.Println(err.Error())
+		// reverse order, check error first
+		for i := 0; i < len(results); i++ {
+			result := results[len(results)-i-1]
+			switch {
+			case result.Type().Implements(reflect.TypeOf((*error)(nil)).Elem()):
+				// error nil, skip
+				if result.IsNil() {
+					continue
 				}
+				err := result.Interface().(error)
+				fmt.Println(err.Error())
+				return
+			case result.Type().Implements(reflect.TypeOf((*framework.ResultSet)(nil)).Elem()):
+				if result.IsNil() {
+					continue
+				}
+				rs := result.Interface().(framework.ResultSet)
+				if preset, ok := rs.(*framework.PresetResultSet); ok {
+					fmt.Println(preset.String())
+					return
+				}
+				fmt.Println(rs.PrintAs(framework.FormatDefault))
 			}
 		}
 	}
 	return cmd, uses, true
 }
 
-func getCmdFromFlag(p framework.CmdParam) (string, string) {
+func GetCmdFromFlag(p framework.CmdParam) (string, string) {
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
 		fmt.Println("param is not pointer")
@@ -279,7 +295,7 @@ func getCmdFromFlag(p framework.CmdParam) (string, string) {
 	return tag.Get("use"), tag.Get("desc")
 }
 
-func parseUseSegments(use string) []string {
+func ParseUseSegments(use string) []string {
 	parts := strings.Split(use, " ")
 	last := ""
 	result := make([]string, 0, len(parts))

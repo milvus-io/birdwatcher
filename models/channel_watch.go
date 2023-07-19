@@ -59,6 +59,6 @@ func getVChannelInfo[info interface {
 		UnflushedSegmentIds: vchan.GetUnflushedSegmentIds(),
 		FlushedSegmentIds:   vchan.GetFlushedSegmentIds(),
 		DroppedSegmentIds:   vchan.GetDroppedSegmentIds(),
-		SeekPosition:        newMsgPosition(vchan.GetSeekPosition()),
+		SeekPosition:        NewMsgPosition(vchan.GetSeekPosition()),
 	}
 }
