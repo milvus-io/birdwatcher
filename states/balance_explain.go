@@ -138,17 +138,25 @@ type segmentDistExplainFunc func(dist map[int64][]*querypbv2.SegmentVersionInfo,
 
 func scoreBasedBalanceExplain(dist map[int64][]*querypbv2.SegmentVersionInfo, replicas []*models.Replica,
 	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam) []string {
+	fmt.Printf("replica count:%d \n", len(replicas))
 	segmentInfoMap := make(map[int64]*models.Segment, len(segmentInfos))
 	for _, seg := range segmentInfos {
 		segmentInfoMap[seg.ID] = seg
 	}
 	sort.Slice(replicas, func(i, j int) bool {
-		return replicas[i].ID <= replicas[j].ID
+		return (replicas)[i].ID <= (replicas)[j].ID
 	})
 	//generate explanation reports for scoreBasedBalance
 	reports := make([]string, 0)
 	for _, replica := range replicas {
-		reports = append(reports, explainReplica(replica, dist, segmentInfoMap, scoreBalanceParam))
+		if replica != nil {
+			if len(replica.NodeIDs) > 0 {
+				reports = append(reports, explainReplica(replica, dist, segmentInfoMap, scoreBalanceParam))
+			} else {
+				fmt.Printf("replica %d has no nodes, skip reporting \n", replica.ID)
+			}
+			fmt.Println("---------------------------------------------------------")
+		}
 	}
 	return reports
 }
@@ -181,7 +189,15 @@ func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.Segment
 		var nodeCollectionRowSum int64
 		nodeCollectionSegments := make([]*SegmentItem, 0)
 		for _, segment := range nodeSegments {
-			detailedSegmentInfo := segmentInfoMap[segment.GetID()]
+			if segment == nil {
+				fmt.Printf("error, get nil segment inside distribution\n")
+				return "Wrong segment dist info"
+			}
+			detailedSegmentInfo, ok := segmentInfoMap[segment.GetID()]
+			if !ok {
+				fmt.Printf("error, segment %d existed in distribution but not in segment detailedInfoMap\n", segment.GetID())
+				return "Wrong segment dist info"
+			}
 			nodeRowSum += detailedSegmentInfo.NumOfRows
 			if segment.GetCollection() == replica.CollectionID {
 				nodeCollectionRowSum += detailedSegmentInfo.NumOfRows
@@ -213,6 +229,9 @@ func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.Segment
 			unbalanceDiff, toNode.priority, param.UnbalanceTolerationFactor)
 	} else {
 		continueBalance = true
+	}
+	if len(fromNode.nodeCollectionSegments) == 0 {
+		return fmt.Sprintf("exception! fromNode %d has no segments, just return\n", fromNode.nodeID) + report
 	}
 	if continueBalance {
 		sort.Slice(fromNode.nodeCollectionSegments, func(i, j int) bool {
