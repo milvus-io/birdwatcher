@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"sort"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	stateCommon "github.com/milvus-io/birdwatcher/states/etcd/common"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -209,4 +211,18 @@ func pathPart(p string, idx int) (string, error) {
 		return "", errors.New("out of index")
 	}
 	return parts[idx], nil
+}
+
+func ListServers(cli clientv3.KV, basePath string, serverName string) ([]*models.Session, error) {
+	sessions, err := stateCommon.ListSessions(cli, basePath)
+	if err != nil {
+		return nil, err
+	}
+	targetSessions := make([]*models.Session, 0)
+	for _, session := range sessions {
+		if session.ServerName == serverName {
+			targetSessions = append(targetSessions, session)
+		}
+	}
+	return targetSessions, nil
 }

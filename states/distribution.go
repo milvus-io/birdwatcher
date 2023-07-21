@@ -17,7 +17,7 @@ import (
 func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "segment-loaded-grpc",
-		Short: "list segments loaded infomration",
+		Short: "list segments loaded information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			collectionID, err := cmd.Flags().GetInt64("collection")
 			if err != nil {

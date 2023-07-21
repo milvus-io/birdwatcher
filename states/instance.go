@@ -84,6 +84,9 @@ func (s *InstanceState) SetupCommands() {
 		// segment-loaded
 		GetDistributionCommand(cli, basePath),
 
+		//balance-explain
+		ExplainBalanceCommand(cli, basePath),
+
 		//
 		getVerifySegmentCmd(cli, basePath),
 
