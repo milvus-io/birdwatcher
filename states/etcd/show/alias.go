@@ -52,10 +52,6 @@ func (rs *Aliases) PrintAs(format framework.Format) string {
 	return ""
 }
 
-func (rs *Aliases) Entities() any {
-	return rs.Data
-}
-
 func (rs *Aliases) PrintAlias(sb *strings.Builder, a *models.Alias) {
 	fmt.Printf("Collection ID: %d\tAlias Name: %s\tState: %s\n", a.CollectionID, a.Name, a.State.String())
 }

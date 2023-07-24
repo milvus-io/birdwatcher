@@ -23,8 +23,6 @@ func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 	showCmd.AddCommand(
 		// v2.1 legacy commands
-		// show segment-loaded
-		show.SegmentLoadedCommand(cli, basePath),
 
 		// show querycoord-tasks
 		show.QueryCoordTasks(cli, basePath),
