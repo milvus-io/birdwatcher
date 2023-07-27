@@ -9,6 +9,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/cockroachdb/errors v1.9.1
 	github.com/confluentinc/confluent-kafka-go v1.9.1
+	github.com/fatih/color v1.7.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang/protobuf v1.5.2
 	github.com/gosuri/uilive v0.0.4
