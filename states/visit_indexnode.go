@@ -3,6 +3,7 @@ package states
 import (
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
@@ -11,12 +12,12 @@ import (
 )
 
 type indexNodeState struct {
-	cmdState
+	*framework.CmdState
 	session   *models.Session
 	client    indexpb.IndexNodeClient
 	clientv2  indexpbv2.IndexNodeClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState framework.State
 }
 
 // SetupCommands setups the command.
@@ -33,17 +34,15 @@ func (s *indexNodeState) SetupCommands() {
 		// exit
 		getExitCmd(s),
 	)
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
 	state := &indexNodeState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("IndexNode-%d(%s)", session.ServerID, session.Address),
-		},
+		CmdState:  framework.NewCmdState(fmt.Sprintf("IndexNode-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
 		clientv2:  indexpbv2.NewIndexNodeClient(conn),

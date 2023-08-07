@@ -3,6 +3,7 @@ package states
 import (
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
@@ -11,12 +12,12 @@ import (
 )
 
 type queryCoordState struct {
-	cmdState
+	*framework.CmdState
 	session   *models.Session
 	client    querypb.QueryCoordClient
 	clientv2  querypbv2.QueryCoordClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState framework.State
 }
 
 // SetupCommands setups the command.
@@ -33,10 +34,10 @@ func (s *queryCoordState) SetupCommands() {
 		// exit
 		getExitCmd(s),
 	)
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
 /*
@@ -71,12 +72,10 @@ func (s *queryCoordState) ShowCollectionCmd() *cobra.Command {
 	return cmd
 }*/
 
-func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
 
 	state := &queryCoordState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address),
-		},
+		CmdState:  framework.NewCmdState(fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
 		clientv2:  querypbv2.NewQueryCoordClient(conn),

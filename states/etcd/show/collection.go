@@ -42,7 +42,7 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 			if p.DatabaseID > -1 && coll.DBID != p.DatabaseID {
 				return false
 			}
-			if p.State != "" && strings.ToLower(p.State) != strings.ToLower(coll.State.String()) {
+			if p.State != "" && strings.EqualFold(p.State, coll.State.String()) {
 				return false
 			}
 			total++

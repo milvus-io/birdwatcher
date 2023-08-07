@@ -3,6 +3,7 @@ package states
 import (
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
@@ -11,12 +12,12 @@ import (
 )
 
 type rootCoordState struct {
-	cmdState
+	*framework.CmdState
 	session   *models.Session
 	client    rootcoordpb.RootCoordClient
 	clientv2  rootcoordpbv2.RootCoordClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState framework.State
 }
 
 // SetupCommands setups the command.
@@ -33,19 +34,17 @@ func (s *rootCoordState) SetupCommands() {
 		// exit
 		getExitCmd(s),
 	)
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
 
 	state := &rootCoordState{
-		session: session,
-		cmdState: cmdState{
-			label: fmt.Sprintf("RootCoord-%d(%s)", session.ServerID, session.Address),
-		},
+		session:   session,
+		CmdState:  framework.NewCmdState(fmt.Sprintf("RootCoord-%d(%s)", session.ServerID, session.Address)),
 		client:    client,
 		clientv2:  rootcoordpbv2.NewRootCoordClient(conn),
 		conn:      conn,

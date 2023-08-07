@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/spf13/cobra"
 	pulsarctl "github.com/streamnative/pulsarctl/pkg/pulsar"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/common"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/utils"
@@ -18,7 +18,7 @@ type PulsarctlParam struct {
 	AuthParam           string `name:"authParam" default:"" desc:"pulsar admin auth parameters"`
 }
 
-func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *PulsarctlParam) error {
+func (app *ApplicationState) PulsarctlCommand(ctx context.Context, p *PulsarctlParam) error {
 
 	config := common.Config{
 		WebServiceURL:    p.Address,
@@ -32,66 +32,22 @@ func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *PulsarctlPara
 		return err
 	}
 
-	adminState := getPulsarAdminState(admin, p.Address)
-	s.SetNext(adminState)
+	adminState := getPulsarAdminState(app.core, admin, p.Address)
+	app.SetTagNext(pulsarTag, adminState)
 	return nil
 }
 
-func getPulsarctlCmd(state State) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "pulsarctl",
-		Short: "connect to pulsar admin with pulsarctl",
-		Run: func(cmd *cobra.Command, args []string) {
-			address, err := cmd.Flags().GetString("addr")
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			authPlugin, err := cmd.Flags().GetString("authPlugin")
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			authParams, err := cmd.Flags().GetString("authParams")
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-
-			config := common.Config{
-				WebServiceURL:    address,
-				AuthPlugin:       authPlugin,
-				AuthParams:       authParams,
-				PulsarAPIVersion: common.V2,
-			}
-			admin, err := pulsarctl.New(&config)
-			if err != nil {
-				fmt.Println("failed to build pulsar admin client, error:", err.Error())
-			}
-
-			adminState := getPulsarAdminState(admin, address)
-			state.SetNext(adminState)
-		},
-	}
-
-	cmd.Flags().String("addr", "http://localhost:18080", "pulsar admin address")
-	cmd.Flags().String("authPlugin", "", "pulsar admin auth plugin")
-	cmd.Flags().String("authParams", "", "pulsar admin auth parameters")
-
-	return cmd
-}
-
-func getPulsarAdminState(admin pulsarctl.Client, addr string) State {
+func getPulsarAdminState(parent *framework.CmdState, admin pulsarctl.Client, addr string) framework.State {
 	state := &pulsarAdminState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("PulsarAdmin(%s)", addr),
-		},
-		admin: admin,
-		addr:  addr,
+		CmdState: parent.Spawn(fmt.Sprintf("PulsarAdmin(%s)", addr)),
+		admin:    admin,
+		addr:     addr,
 	}
-	state.SetupCommands()
 	return state
 }
 
 type pulsarAdminState struct {
-	cmdState
+	*framework.CmdState
 	admin pulsarctl.Client
 	addr  string
 
@@ -101,78 +57,57 @@ type pulsarAdminState struct {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *pulsarAdminState) SetupCommands() {
-	cmd := &cobra.Command{}
+	cmd := s.GetCmd()
 
-	cmd.AddCommand(
-
-		getListTopicCmd(s.admin),
-
-		getListSubscriptionCmd(s.admin),
-
-		getExitCmd(s),
-	)
-
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
-func getListTopicCmd(admin pulsarctl.Client) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list-topic",
-		Short: "list topics in instance",
-		Run: func(cmd *cobra.Command, args []string) {
-			nsn, err := utils.GetNameSpaceName("public", "default")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			np, p, err := admin.Topics().List(*nsn)
-			if err != nil {
-				fmt.Println("failed to list topics", err.Error())
-				return
-			}
-			fmt.Println("Non-persist topics:")
-			for _, topic := range np {
-				fmt.Println(topic)
-			}
-			fmt.Println("Persist topics:")
-			for _, topic := range p {
-				fmt.Println(topic)
-			}
-		},
-	}
-
-	return cmd
+type ListTopicParam struct {
+	framework.ParamBase `use:"list topic" desc:"list topics in instance"`
+	Tenant              string `name:"tenant" default:"public" desc:"tenant name to list"`
+	Namespace           string `name:"namespace" default:"default" desc:"namespace name to list"`
 }
 
-func getListSubscriptionCmd(admin pulsarctl.Client) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list-subscription",
-		Short: "list topic subscriptions",
-		Run: func(cmd *cobra.Command, args []string) {
-			topic, err := cmd.Flags().GetString("topic")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+func (s *pulsarAdminState) ListTopicCommand(ctx context.Context, p *ListTopicParam) error {
+	nsn, err := utils.GetNameSpaceName(p.Tenant, p.Namespace)
+	if err != nil {
+		return err
+	}
+	npt, pt, err := s.admin.Topics().List(*nsn)
+	if err != nil {
+		return errors.Wrap(err, "failed to list topics")
+	}
+	fmt.Println("Non-persist topics:")
+	for _, topic := range npt {
+		fmt.Println(topic)
+	}
+	fmt.Println("Persist topics:")
+	for _, topic := range pt {
+		fmt.Println(topic)
+	}
+	return nil
+}
 
-			topicName, err := utils.GetTopicName(topic)
-			if err != nil {
-				fmt.Println("failed to parse topic name", err.Error())
-				return
-			}
+type ListSubscriptionParam struct {
+	framework.ParamBase `use:"list subscription" desc:"list subscriptions for provided topic"`
+	Tenant              string `name:"tenant" default:"public" desc:"tenant name to list"`
+	Namespace           string `name:"namespace" default:"default" desc:"namespace name to list"`
+	Topic               string `name:"topic" default:"" desc:"topic to check subscription"`
+}
 
-			subscriptions, err := admin.Subscriptions().List(*topicName)
-			if err != nil {
-				fmt.Println("failed to list subscriptions", err.Error())
-				return
-			}
-			for _, subName := range subscriptions {
-				fmt.Println(subName)
-			}
-		},
+func (s *pulsarAdminState) ListSubscriptionCommand(ctx context.Context, p *ListSubscriptionParam) error {
+
+	topicName, err := utils.GetTopicName(fmt.Sprintf("%s/%s/%s", p.Tenant, p.Namespace, p.Topic))
+	if err != nil {
+		return errors.Wrap(err, "failed to parse topic name")
 	}
 
-	cmd.Flags().String("topic", "", "target topic to list")
-	return cmd
+	subscriptions, err := s.admin.Subscriptions().List(*topicName)
+	if err != nil {
+		return errors.Wrap(err, "failed to list subscriptions")
+	}
+	for _, subName := range subscriptions {
+		fmt.Println(subName)
+	}
+	return nil
 }

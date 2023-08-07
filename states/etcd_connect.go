@@ -10,7 +10,6 @@ import (
 
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 )
@@ -37,16 +36,7 @@ func pingEtcd(ctx context.Context, cli clientv3.KV, rootPath string, metaPath st
 	return nil
 }
 
-type ConnectParams struct {
-	framework.ParamBase `use:"connect" desc:"Connect to etcd"`
-	EtcdAddr            string `name:"etcd" default:"127.0.0.1:2379" desc:"the etcd endpoint to connect"`
-	RootPath            string `name:"rootPath" default:"by-dev" desc:"meta root paht milvus is using"`
-	MetaPath            string `name:"metaPath" default:"meta" desc:"meta path prefix"`
-	Force               bool   `name:"force" default:"false" desc:"force connect ignoring ping Etcd & rootPath check"`
-	Dry                 bool   `name:"dry" default:"false" desc:"dry connect without specifying milvus instance"`
-}
-
-func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams) error {
+func (app *ApplicationState) ConnectCommand(ctx context.Context, cp *ConnectParams) error {
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{cp.EtcdAddr},
 		DialTimeout: time.Second * 10,
@@ -59,7 +49,7 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 		return err
 	}
 
-	etcdState := getEtcdConnectedState(etcdCli, cp.EtcdAddr, s.config)
+	etcdState := getEtcdConnectedState(app.core, etcdCli, cp.EtcdAddr, app.config)
 	if !cp.Dry {
 		// ping etcd
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
@@ -81,65 +71,26 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 		fmt.Println("Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
 
 		// use rootPath as instanceName
-		s.SetNext(getInstanceState(etcdCli, cp.RootPath, cp.MetaPath, etcdState, s.config))
+		app.SetTagNext(etcdTag, getInstanceState(app.core, etcdCli, cp.RootPath, cp.MetaPath, etcdState, app.config))
 	} else {
 		fmt.Println("using dry mode, ignore rootPath and metaPath")
 		// rootPath empty fall back to etcd connected state
-		s.SetNext(etcdState)
+		app.SetTagNext(etcdTag, etcdState)
 	}
 	return nil
 }
 
-/*
-func getUseCmd(cli clientv3.KV, state State, config *configs.Config) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "use [instance name]",
-		Short: "use specified milvus instance",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				fmt.Println("instance name not provided")
-				cmd.Usage()
-				return
-			}
-			metaPath, err := cmd.Flags().GetString("metaPath")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			force, err := cmd.Flags().GetBool("force")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			rootPath := args[0]
-
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			err = pingEtcd(ctx, cli, rootPath, metaPath)
-			if err != nil {
-				if errors.Is(err, ErrNotMilvsuRootPath) {
-					if !force {
-						fmt.Printf("Connection established, but %s, please check your config or use Dry mode\n", err.Error())
-						return
-					}
-				} else {
-					fmt.Println("failed to ping etcd", err.Error())
-					return
-				}
-			}
-
-			fmt.Printf("Using meta path: %s/%s/\n", rootPath, metaPath)
-
-			state.SetNext(getInstanceState(cli, rootPath, state, config))
-		},
-	}
-	cmd.Flags().Bool("force", false, "force connect ignoring ping Etcd rootPath check")
-	cmd.Flags().String("metaPath", metaPath, "meta path prefix")
-	return cmd
-}*/
+type ConnectParams struct {
+	framework.ParamBase `use:"connect" desc:"Connect to etcd"`
+	EtcdAddr            string `name:"etcd" default:"127.0.0.1:2379" desc:"the etcd endpoint to connect"`
+	RootPath            string `name:"rootPath" default:"by-dev" desc:"meta root paht milvus is using"`
+	MetaPath            string `name:"metaPath" default:"meta" desc:"meta path prefix"`
+	Force               bool   `name:"force" default:"false" desc:"force connect ignoring ping Etcd & rootPath check"`
+	Dry                 bool   `name:"dry" default:"false" desc:"dry connect without specifying milvus instance"`
+}
 
 type etcdConnectedState struct {
-	cmdState
+	*framework.CmdState
 	client     *clientv3.Client
 	addr       string
 	candidates []string
@@ -149,35 +100,22 @@ type etcdConnectedState struct {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *etcdConnectedState) SetupCommands() {
-	cmd := &cobra.Command{}
+	cmd := s.GetCmd()
 
-	s.mergeFunctionCommands(cmd, s)
-
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
 // getEtcdConnectedState returns etcdConnectedState for unknown instance
-func getEtcdConnectedState(cli *clientv3.Client, addr string, config *configs.Config) State {
+func getEtcdConnectedState(parent *framework.CmdState, cli *clientv3.Client, addr string, config *configs.Config) framework.State {
 
 	state := &etcdConnectedState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("Etcd(%s)", addr),
-		},
-		client: cli,
-		addr:   addr,
-		config: config,
+		CmdState: parent.Spawn(fmt.Sprintf("Etcd(%s)", addr)),
+		client:   cli,
+		addr:     addr,
+		config:   config,
 	}
 
-	state.SetupCommands()
-
 	return state
-}
-
-func (s *etcdConnectedState) DisconnectCommand(ctx context.Context, p *DisconnectParam) error {
-	s.SetNext(Start(s.config))
-	s.Close()
-	return nil
 }
 
 type FindMilvusParam struct {
@@ -228,7 +166,7 @@ func (s *etcdConnectedState) UseCommand(ctx context.Context, p *UseParam) error 
 
 	fmt.Printf("Using meta path: %s/%s/\n", p.instanceName, p.MetaPath)
 
-	s.SetNext(getInstanceState(s.client, p.instanceName, p.MetaPath, s, s.config))
+	s.SetNext(getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config))
 	return nil
 }
 

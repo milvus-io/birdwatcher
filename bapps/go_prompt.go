@@ -11,19 +11,20 @@ import (
 
 	"github.com/c-bata/go-prompt"
 	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/history"
-	"github.com/milvus-io/birdwatcher/states"
 	"github.com/samber/lo"
 )
 
 // PromptApp wraps go-prompt as application.
 type PromptApp struct {
 	exited          bool
-	currentState    states.State
+	currentState    framework.State
 	sugguestHistory bool
 	historyHelper   *history.Helper
 	logger          *log.Logger
 	prompt          *prompt.Prompt
+	config          *configs.Config
 }
 
 func NewPromptApp(config *configs.Config, opts ...AppOption) BApp {
@@ -32,9 +33,14 @@ func NewPromptApp(config *configs.Config, opts ...AppOption) BApp {
 		o(opt)
 	}
 
+	config.Logger = opt.logger
+
 	// use workspace path to open&store history log
 	hh := history.NewHistoryHelper(config.WorkspacePath)
-	pa := &PromptApp{historyHelper: hh}
+	pa := &PromptApp{
+		historyHelper: hh,
+		config:        config,
+	}
 	pa.logger = opt.logger
 
 	historyItems := hh.List("")
@@ -69,7 +75,7 @@ func NewPromptApp(config *configs.Config, opts ...AppOption) BApp {
 	return pa
 }
 
-func (a *PromptApp) Run(start states.State) {
+func (a *PromptApp) Run(start framework.State) {
 	a.currentState = start
 	a.prompt.Run()
 }
@@ -132,7 +138,7 @@ func (a *PromptApp) promptExecute(in string) {
 		os.Stdout = stdout
 		close(pagerSig)
 	}
-	a.currentState, _ = a.currentState.Process(in)
+	nextState, err := a.currentState.Process(in)
 	if writer != nil {
 		writer.Close()
 	}
@@ -142,6 +148,14 @@ func (a *PromptApp) promptExecute(in string) {
 	// back to normal mode
 	a.historyHelper.AddLog(in)
 	a.sugguestHistory = false
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	nextState.SetupCommands()
+	a.currentState = nextState
 
 	if a.currentState.IsEnding() {
 		fmt.Println("Bye!")

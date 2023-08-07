@@ -2,7 +2,7 @@ package autocomplete
 
 import (
 	"fmt"
-	"os"
+	"io/fs"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -41,7 +41,7 @@ func (c *cmdCandidate) args() []acCandidate {
 				result = append(result, &fileCandidate{previousCandidates: []acCandidate{}})
 			}
 			if name == "directory" {
-				result = append(result, &fileCandidate{previousCandidates: []acCandidate{}, validator: func(info os.FileInfo) bool { return info.IsDir() }})
+				result = append(result, &fileCandidate{previousCandidates: []acCandidate{}, validator: func(info fs.DirEntry) bool { return info.IsDir() }})
 			}
 		}
 	}

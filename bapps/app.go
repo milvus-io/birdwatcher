@@ -3,12 +3,12 @@ package bapps
 import (
 	"log"
 
-	"github.com/milvus-io/birdwatcher/states"
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 // BApp interface for birdwatcher application
 type BApp interface {
-	Run(states.State)
+	Run(framework.State)
 }
 
 // AppOption application setup option function.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
@@ -13,12 +14,12 @@ import (
 )
 
 type indexCoordState struct {
-	cmdState
+	*framework.CmdState
 	session   *models.Session
 	client    indexpb.IndexCoordClient
 	clientv2  indexpbv2.IndexCoordClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState framework.State
 }
 
 // SetupCommands setups the command.
@@ -38,18 +39,16 @@ func (s *indexCoordState) SetupCommands() {
 		getExitCmd(s),
 	)
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
 
 	state := &indexCoordState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address),
-		},
+		CmdState:  framework.NewCmdState(fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
 		clientv2:  indexpbv2.NewIndexCoordClient(conn),

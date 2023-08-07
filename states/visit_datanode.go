@@ -3,6 +3,7 @@ package states
 import (
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
@@ -11,12 +12,12 @@ import (
 )
 
 type dataNodeState struct {
-	cmdState
+	*framework.CmdState
 	session   *models.Session
 	client    datapb.DataNodeClient
 	clientv2  datapbv2.DataNodeClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState framework.State
 }
 
 // SetupCommands setups the command.
@@ -34,18 +35,16 @@ func (s *dataNodeState) SetupCommands() {
 		getExitCmd(s),
 	)
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
 
 	state := &dataNodeState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("DataNode-%d(%s)", session.ServerID, session.Address),
-		},
+		CmdState:  framework.NewCmdState(fmt.Sprintf("DataNode-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
 		clientv2:  datapbv2.NewDataNodeClient(conn),
