@@ -2,7 +2,7 @@ package autocomplete
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path"
 	"strings"
@@ -12,7 +12,7 @@ import (
 
 type fileCandidate struct {
 	previousCandidates []acCandidate
-	validator          func(file os.FileInfo) bool
+	validator          func(fs.DirEntry) bool //func(file os.FileInfo) bool
 }
 
 func (c *fileCandidate) Match(input cComp) bool {
@@ -56,7 +56,7 @@ func (c *fileCandidate) Suggest(target cComp) map[string]string {
 		return map[string]string{}
 	}
 
-	fs, err := ioutil.ReadDir(d)
+	fs, err := os.ReadDir(d)
 	if err != nil {
 		return map[string]string{}
 	}

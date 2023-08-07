@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/milvus-io/birdwatcher/states"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/samber/lo"
 )
 
@@ -24,7 +24,7 @@ func NewOlcApp(script string) BApp {
 	}
 }
 
-func (a *olcApp) Run(start states.State) {
+func (a *olcApp) Run(start framework.State) {
 	app := start
 	cmds := a.parseScripts(a.script)
 	var err error

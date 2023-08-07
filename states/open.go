@@ -28,9 +28,9 @@ func (p *OpenParam) ParseArgs(args []string) error {
 }
 
 // OpenCommand implements open workspace command
-func (s *disconnectState) OpenCommand(ctx context.Context, p *OpenParam) error {
+func (app *ApplicationState) OpenCommand(ctx context.Context, p *OpenParam) error {
 	workspaceName := p.workspaceName
-	workPath := path.Join(s.config.WorkspacePath, workspaceName)
+	workPath := path.Join(app.config.WorkspacePath, workspaceName)
 	info, err := os.Stat(workPath)
 	if os.IsNotExist(err) {
 		fmt.Printf("workspace %s not exist\n", workspaceName)
@@ -45,12 +45,12 @@ func (s *disconnectState) OpenCommand(ctx context.Context, p *OpenParam) error {
 		return fmt.Errorf("failed to start embed etcd server in workspace %s, err: %s", workspaceName, err.Error())
 	}
 
-	nextState := getEmbedEtcdInstanceV2(server, s.config)
+	nextState := getEmbedEtcdInstanceV2(app.core, server, app.config)
 	err = nextState.setupWorkDir(workPath)
 	if err != nil {
 		return fmt.Errorf("failed to setup workspace for %s, err: %s", workspaceName, err.Error())
 	}
 
-	s.SetNext(nextState)
+	app.SetTagNext(etcdTag, nextState)
 	return nil
 }

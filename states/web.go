@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/spf13/cobra"
@@ -13,7 +14,7 @@ import (
 )
 
 // getCmdCmd returns exit command for input state.
-func getWebCmd(state State, cli clientv3.KV, basePath string) *cobra.Command {
+func getWebCmd(state framework.State, cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "web",
 		Short: "start a web server to see more details on browser",

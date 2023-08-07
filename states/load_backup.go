@@ -35,7 +35,7 @@ func (p *LoadBackupParam) ParseArgs(args []string) error {
 	return nil
 }
 
-func (s *disconnectState) LoadBackupCommand(ctx context.Context, p *LoadBackupParam) error {
+func (app *ApplicationState) LoadBackupCommand(ctx context.Context, p *LoadBackupParam) error {
 	f, err := openBackupFile(p.backupFile)
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func (s *disconnectState) LoadBackupCommand(ctx context.Context, p *LoadBackupPa
 			fileName := path.Base(p.backupFile)
 			p.WorkspaceName = fileName
 		}
-		p.WorkspaceName = createWorkspaceFolder(s.config, p.WorkspaceName)
+		p.WorkspaceName = createWorkspaceFolder(app.config, p.WorkspaceName)
 	}
 
 	server, err := startEmbedEtcdServer(p.WorkspaceName, p.UseWorkspace)
@@ -71,8 +71,8 @@ func (s *disconnectState) LoadBackupCommand(ctx context.Context, p *LoadBackupPa
 		return err
 	}
 	fmt.Println("using data dir:", server.Config().Dir)
-	// TODO
-	nextState := getEmbedEtcdInstanceV2(server, s.config)
+
+	nextState := getEmbedEtcdInstanceV2(app.core, server, app.config)
 	switch header.Version {
 	case 1:
 		fmt.Printf("Found backup version: %d, instance name :%s\n", header.Version, header.Instance)
@@ -101,7 +101,7 @@ func (s *disconnectState) LoadBackupCommand(ctx context.Context, p *LoadBackupPa
 		return err
 	}
 
-	s.SetNext(nextState)
+	app.SetTagNext(etcdTag, nextState)
 	return nil
 }
 

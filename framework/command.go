@@ -1,144 +1,16 @@
-package states
+package framework
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/signal"
 	"reflect"
 	"strconv"
 	"strings"
-	"syscall"
 
-	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/states/autocomplete"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
-
-// State is the interface for application state.
-type State interface {
-	Ctx() (context.Context, context.CancelFunc)
-	Label() string
-	Process(cmd string) (State, error)
-	Close()
-	SetNext(state State)
-	Suggestions(input string) map[string]string
-	SetupCommands()
-	IsEnding() bool
-}
-
-// cmdState is the basic state to process input command.
-type cmdState struct {
-	label     string
-	rootCmd   *cobra.Command
-	nextState State
-	signal    <-chan os.Signal
-
-	setupFn func()
-}
-
-// Ctx returns context which bind to sigint handler.
-func (s *cmdState) Ctx() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		defer cancel()
-		select {
-		case <-s.signal:
-		case <-ctx.Done():
-		}
-	}()
-	return ctx, cancel
-}
-
-// SetupCommands perform command setup & reset.
-func (s *cmdState) SetupCommands() {
-	if s.setupFn != nil {
-		s.setupFn()
-	}
-}
-
-// mergeFunctionCommands parses all member methods for provided state and add it into cmd.
-func (s *cmdState) mergeFunctionCommands(cmd *cobra.Command, state State) {
-	items := parseFunctionCommands(state)
-	for _, item := range items {
-		target := cmd
-		for _, kw := range item.kws {
-			node, _, err := cmd.Find([]string{kw})
-			if err != nil {
-				newNode := &cobra.Command{Use: kw}
-				target.AddCommand(newNode)
-				node = newNode
-			}
-			target = node
-		}
-		target.AddCommand(item.cmd)
-	}
-}
-
-// Label returns the display label for current cli.
-func (s *cmdState) Label() string {
-	return s.label
-}
-
-func (s *cmdState) Suggestions(input string) map[string]string {
-	return autocomplete.SuggestInputCommands(input, s.rootCmd.Commands())
-}
-
-// Process is the main entry for processing command.
-func (s *cmdState) Process(cmd string) (State, error) {
-	args := strings.Split(cmd, " ")
-
-	target, _, err := s.rootCmd.Find(args)
-	if err == nil && target != nil {
-		defer target.SetArgs(nil)
-	}
-
-	signal.Reset(syscall.SIGINT)
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT)
-	s.signal = c
-
-	s.rootCmd.SetArgs(args)
-	err = s.rootCmd.Execute()
-	signal.Reset(syscall.SIGINT)
-	if errors.Is(err, ExitErr) {
-		return s.nextState, ExitErr
-	}
-	if err != nil {
-		return s, err
-	}
-	if s.nextState != nil {
-		nextState := s.nextState
-		s.nextState = nil
-		return nextState, nil
-	}
-
-	// reset command states
-	s.SetupCommands()
-	return s, nil
-}
-
-// SetNext simple method to set next state.
-func (s *cmdState) SetNext(state State) {
-	s.nextState = state
-}
-
-// Close empty method to implement State.
-func (s *cmdState) Close() {}
-
-// Check state is ending state.
-func (s *cmdState) IsEnding() bool { return false }
-
-type exitParam struct {
-	framework.ParamBase `use:"exit" desc:"Close this CLI tool"`
-}
-
-// ExitCommand returns exit command
-func (s *cmdState) ExitCommand(ctx context.Context, _ *exitParam) {
-	s.SetNext(&exitState{})
-}
 
 type commandItem struct {
 	kws []string
@@ -193,10 +65,10 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 	if t.NumIn() > 2 {
 		// should be CmdParam
 		in := t.In(2)
-		if !in.Implements(reflect.TypeOf((*framework.CmdParam)(nil)).Elem()) {
+		if !in.Implements(reflect.TypeOf((*CmdParam)(nil)).Elem()) {
 			return nil, nil, false
 		}
-		cp, ok := reflect.New(in.Elem()).Interface().(framework.CmdParam)
+		cp, ok := reflect.New(in.Elem()).Interface().(CmdParam)
 		if !ok {
 			fmt.Println("conversion failed", in.Name())
 		} else {
@@ -205,8 +77,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 		}
 	}
 
-	//fmt.Println(mt.Name)
-	cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
+	cp := reflect.New(paramType.Elem()).Interface().(CmdParam)
 	fUse, fDesc := GetCmdFromFlag(cp)
 	if len(use) == 0 {
 		use = fUse
@@ -227,7 +98,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 	setupFlags(cp, cmd.Flags())
 	cmd.Short = short
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
+		cp := reflect.New(paramType.Elem()).Interface().(CmdParam)
 
 		cp.ParseArgs(args)
 		if err := parseFlags(cp, cmd.Flags()); err != nil {
@@ -254,23 +125,23 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 				err := result.Interface().(error)
 				fmt.Println(err.Error())
 				return
-			case result.Type().Implements(reflect.TypeOf((*framework.ResultSet)(nil)).Elem()):
+			case result.Type().Implements(reflect.TypeOf((*ResultSet)(nil)).Elem()):
 				if result.IsNil() {
 					continue
 				}
-				rs := result.Interface().(framework.ResultSet)
-				if preset, ok := rs.(*framework.PresetResultSet); ok {
+				rs := result.Interface().(ResultSet)
+				if preset, ok := rs.(*PresetResultSet); ok {
 					fmt.Println(preset.String())
 					return
 				}
-				fmt.Println(rs.PrintAs(framework.FormatDefault))
+				fmt.Println(rs.PrintAs(FormatDefault))
 			}
 		}
 	}
 	return cmd, uses, true
 }
 
-func GetCmdFromFlag(p framework.CmdParam) (string, string) {
+func GetCmdFromFlag(p CmdParam) (string, string) {
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
 		fmt.Println("param is not pointer")
@@ -315,7 +186,8 @@ func ParseUseSegments(use string) []string {
 	return result
 }
 
-func setupFlags(p framework.CmdParam, flags *pflag.FlagSet) {
+// setupFlags performs command flag setup with CmdParam provided information.
+func setupFlags(p CmdParam, flags *pflag.FlagSet) {
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
 		fmt.Println("param is not pointer")
@@ -358,8 +230,8 @@ func setupFlags(p framework.CmdParam, flags *pflag.FlagSet) {
 	}
 }
 
-func parseFlags(p framework.CmdParam, flags *pflag.FlagSet) error {
-
+// parseFlags parse parameters from flagset and setup value via reflection.
+func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
 		return errors.New("param is not pointer")

@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/audit"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
@@ -16,14 +17,14 @@ import (
 
 // InstanceState provides command for single milvus instance.
 type InstanceState struct {
-	cmdState
+	*framework.CmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
 	instanceName string
 	client       clientv3.KV
 	auditFile    *os.File
 
-	etcdState State
+	etcdState framework.State
 	config    *configs.Config
 	basePath  string
 }
@@ -37,7 +38,7 @@ func (s *InstanceState) Close() {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *InstanceState) SetupCommands() {
-	cmd := &cobra.Command{}
+	cmd := s.GetCmd()
 
 	cli := s.client
 	instanceName := s.instanceName
@@ -112,13 +113,12 @@ func (s *InstanceState) SetupCommands() {
 	)
 
 	//cmd.AddCommand(etcd.RawCommands(cli)...)
-	s.mergeFunctionCommands(cmd, s)
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
 // getDryModeCmd enter dry-mode
-func getDryModeCmd(cli clientv3.KV, state *InstanceState, etcdState State) *cobra.Command {
+func getDryModeCmd(cli clientv3.KV, state *InstanceState, etcdState framework.State) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dry-mode",
 		Short: "enter dry mode to select instance",
@@ -129,7 +129,7 @@ func getDryModeCmd(cli clientv3.KV, state *InstanceState, etcdState State) *cobr
 	return cmd
 }
 
-func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState State, config *configs.Config) State {
+func getInstanceState(parent *framework.CmdState, cli clientv3.KV, instanceName, metaPath string, etcdState framework.State, config *configs.Config) framework.State {
 	var kv clientv3.KV
 	file, err := os.OpenFile("audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
@@ -143,9 +143,7 @@ func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState 
 
 	// use audit kv
 	state := &InstanceState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("Milvus(%s)", instanceName),
-		},
+		CmdState:        parent.Spawn(fmt.Sprintf("Milvus(%s)", instanceName)),
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
@@ -156,8 +154,6 @@ func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState 
 		config:    config,
 		basePath:  basePath,
 	}
-
-	state.SetupCommands()
 
 	return state
 }

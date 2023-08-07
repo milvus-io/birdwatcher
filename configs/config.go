@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 
@@ -27,6 +28,8 @@ type Config struct {
 	ConfigPath string `yaml:"-"`
 	// backup workspace path, default $PWD/bw_workspace
 	WorkspacePath string `yaml:"WorkspacePath"`
+
+	Logger *log.Logger
 }
 
 func (c *Config) load() error {

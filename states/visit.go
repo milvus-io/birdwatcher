@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -34,7 +35,7 @@ func getSessionTypes() []string {
 	}
 }
 
-func getVisitCmd(state State, cli clientv3.KV, basePath string) *cobra.Command {
+func getVisitCmd(state framework.State, cli clientv3.KV, basePath string) *cobra.Command {
 	callCmd := &cobra.Command{
 		Use:   "visit",
 		Short: "enter state that could visit some service of component",
@@ -47,8 +48,7 @@ func getVisitCmd(state State, cli clientv3.KV, basePath string) *cobra.Command {
 	return callCmd
 }
 
-func setNextState(sessionType string, conn *grpc.ClientConn, statePtr *State, session *models.Session) {
-	state := *statePtr
+func setNextState(sessionType string, conn *grpc.ClientConn, state framework.State, session *models.Session) {
 	switch sessionType {
 	case "datacoord":
 		client := datapb.NewDataCoordClient(conn)
@@ -100,7 +100,7 @@ func getSessionConnect(cli clientv3.KV, basePath string, id int64, sessionType s
 	return nil, nil, errors.New("invalid id")
 }
 
-func getVisitSessionCmds(state State, cli clientv3.KV, basePath string) []*cobra.Command {
+func getVisitSessionCmds(state framework.State, cli clientv3.KV, basePath string) []*cobra.Command {
 	sessionCmds := make([]*cobra.Command, 0, len(getSessionTypes()))
 	sessionTypes := getSessionTypes()
 
@@ -136,7 +136,7 @@ func getVisitSessionCmds(state State, cli clientv3.KV, basePath string) []*cobra
 					fmt.Println(err.Error())
 					return
 				}
-				setNextState(sessionType, conn, &state, &models.Session{
+				setNextState(sessionType, conn, state, &models.Session{
 					Address: addr,
 				})
 				return
@@ -145,7 +145,7 @@ func getVisitSessionCmds(state State, cli clientv3.KV, basePath string) []*cobra
 			if err != nil {
 				return
 			}
-			setNextState(sessionType, conn, &state, session)
+			setNextState(sessionType, conn, state, session)
 		}
 	}
 

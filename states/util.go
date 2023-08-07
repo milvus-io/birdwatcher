@@ -50,7 +50,7 @@ func (p *ParseTSParam) ParseArgs(args []string) error {
 	return nil
 }
 
-func (s *cmdState) ParseTSCommand(ctx context.Context, p *ParseTSParam) {
+func (app *ApplicationState) ParseTSCommand(ctx context.Context, p *ParseTSParam) {
 	if len(p.args) == 0 {
 		fmt.Println("no ts provided")
 	}
@@ -71,7 +71,7 @@ type PrintVerParam struct {
 	framework.ParamBase `use:"version" desc:"print version"`
 }
 
-func (s *cmdState) PrintVersionCommand(ctx context.Context, _ *PrintVerParam) {
+func (app *ApplicationState) PrintVersionCommand(ctx context.Context, _ *PrintVerParam) {
 	fmt.Println("Birdwatcher Version", common.Version)
 }
 

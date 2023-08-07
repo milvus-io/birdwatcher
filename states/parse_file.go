@@ -33,7 +33,7 @@ func (p *ParseIndexParam) ParseArgs(args []string) error {
 }
 
 // ParseIndexParamCommand parses index params from file.
-func (s *disconnectState) ParseIndexParamCommand(ctx context.Context, p *ParseIndexParam) error {
+func (app *ApplicationState) ParseIndexParamCommand(ctx context.Context, p *ParseIndexParam) error {
 	f, err := openBackupFile(p.filePath)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (p *ValidateIndexParam) ParseArgs(args []string) error {
 	return nil
 }
 
-func (s *disconnectState) ValidateIndexFilesCommand(ctx context.Context, p *ValidateIndexParam) error {
+func (app *ApplicationState) ValidateIndexFilesCommand(ctx context.Context, p *ValidateIndexParam) error {
 	folder := p.directory
 	if err := testFolder(folder); err != nil {
 		return err
@@ -188,7 +188,7 @@ func (p *AssembleIndexFilesParam) ParseArgs(args []string) error {
 	return nil
 }
 
-func (s *disconnectState) AssembleIndexFilesCommand(ctx context.Context, p *AssembleIndexFilesParam) error {
+func (app *ApplicationState) AssembleIndexFilesCommand(ctx context.Context, p *AssembleIndexFilesParam) error {
 	folder := p.directory
 	if err := testFolder(folder); err != nil {
 		return err

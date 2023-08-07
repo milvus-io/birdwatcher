@@ -13,6 +13,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
@@ -28,7 +29,7 @@ const (
 )
 
 type embedEtcdMockState struct {
-	cmdState
+	*framework.CmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
 	client       *clientv3.Client
@@ -41,7 +42,7 @@ type embedEtcdMockState struct {
 	config         *configs.Config
 }
 
-// Close implements State.
+// Close implements framework.State.
 // Clean up embed etcd folder content.
 func (s *embedEtcdMockState) Close() {
 	if s.client != nil {
@@ -84,19 +85,18 @@ func (s *embedEtcdMockState) SetupCommands() {
 	)
 	cmd.AddCommand(etcd.RawCommands(s.client)...)
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
 func (s *embedEtcdMockState) SetInstance(instanceName string) {
-	s.cmdState.label = fmt.Sprintf("Backup(%s)", instanceName)
+	s.SetLabel(fmt.Sprintf("Backup(%s)", instanceName))
 	s.instanceName = instanceName
 	rootPath := path.Join(instanceName, metaPath)
 	s.ComponentShow = show.NewComponent(s.client, s.config, rootPath)
 	s.ComponentRemove = remove.NewComponent(s.client, s.config, rootPath)
-	s.SetupCommands()
 }
 
 func (s *embedEtcdMockState) setupWorkDir(dir string) error {
@@ -173,14 +173,12 @@ func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
 	s.SetInstance(meta.Instance)
 }
 
-func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string, config *configs.Config) State {
+func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string, config *configs.Config) framework.State {
 
 	basePath := path.Join(instanceName, metaPath)
 
 	state := &embedEtcdMockState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("Backup(%s)", instanceName),
-		},
+		CmdState:        framework.NewCmdState(fmt.Sprintf("Backup(%s)", instanceName)),
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
@@ -196,10 +194,10 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 	return state
 }
 
-func getEmbedEtcdInstanceV2(server *embed.Etcd, config *configs.Config) *embedEtcdMockState {
+func getEmbedEtcdInstanceV2(parent *framework.CmdState, server *embed.Etcd, config *configs.Config) *embedEtcdMockState {
 	client := v3client.New(server.Server)
 	state := &embedEtcdMockState{
-		cmdState:       cmdState{},
+		CmdState:       parent.Spawn(""),
 		server:         server,
 		client:         client,
 		metrics:        make(map[string][]byte),
