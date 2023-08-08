@@ -28,6 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func GetProbeCmd(cli clientv3.KV, basePath string) *cobra.Command {
@@ -330,12 +331,18 @@ func getQueryCoordClient(sessions []*models.Session) (querypbv2.QueryCoordClient
 		}
 
 		opts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
-			grpc.WithTimeout(2 * time.Second),
 		}
 
-		conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
+		var conn *grpc.ClientConn
+		var err error
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			conn, err = grpc.DialContext(ctx, session.Address, opts...)
+		}()
 		if err != nil {
 			fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
 			continue
@@ -357,12 +364,18 @@ func getQueryNodeClients(sessions []*models.Session) (map[int64]querypbv2.QueryN
 			continue
 		}
 		opts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
-			grpc.WithTimeout(2 * time.Second),
 		}
 
-		conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
+		var conn *grpc.ClientConn
+		var err error
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			conn, err = grpc.DialContext(ctx, session.Address, opts...)
+		}()
 		if err != nil {
 			fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
 			continue

@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,8 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -29,10 +30,9 @@ import (
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type milvusComponent string
@@ -69,62 +69,62 @@ func (c *milvusComponent) Type() string {
 	return "MilvusComponent"
 }
 
-// getBackupEtcdCmd returns command for backup etcd
-// usage: backup [component] [options...]
-func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
+type BackupParam struct {
+	framework.ParamBase `use:"backup" desc:"backup etcd key-values"`
+	// Component string `name:""`
+	component      milvusComponent
+	IgnoreRevision bool  `name:"ignoreRevision" default:"false" desc:"backup ignore revision change, ONLY shall works with no nodes online"`
+	BatchSize      int64 `name:"batchSize" default:"100" desc:"batch fetch size for etcd backup operation"`
+}
 
-	component := compAll
-	cmd := &cobra.Command{
-		Use:   "backup",
-		Short: "backup etcd key-values",
-		Run: func(cmd *cobra.Command, args []string) {
-			opt := &backupOption{}
-			if err := opt.getArgs(cmd.Flags()); err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			prefix := ""
-			switch component {
-			case compAll:
-				prefix = ""
-			case compQueryCoord:
-				prefix = `queryCoord-`
-			default:
-				fmt.Printf("component %s not supported for separate backup, use ALL instead\n", component)
-				return
-			}
-
-			f, err := getBackupFile(component.String())
-			if err != nil {
-				fmt.Println("failed to open backup file:", err.Error())
-				return
-			}
-			defer f.Close()
-
-			gw := gzip.NewWriter(f)
-			defer gw.Close()
-			w := bufio.NewWriter(gw)
-
-			// write backup header
-			// version 2 used for now
-			err = writeBackupHeader(w, 2)
-
-			err = backupEtcdV2(cli, basePath, prefix, w, opt)
-			if err != nil {
-				fmt.Printf("backup etcd failed, error: %v\n", err)
-			}
-			backupMetrics(cli, basePath, w)
-			backupConfiguration(cli, basePath, w)
-			backupAppMetrics(cli, basePath, w)
-			fmt.Printf("backup for prefix done, stored in file: %s\n", f.Name())
-		},
+func (p *BackupParam) ParseArgs(args []string) error {
+	if len(args) == 0 {
+		p.component.Set("ALL")
+		return nil
 	}
 
-	cmd.Flags().Var(&component, "ALL", "component to backup")
-	cmd.Flags().Bool("ignoreRevision", false, "backup ignore revision change, ONLY shall works with no nodes online")
-	cmd.Flags().Int("batchSize", 100, "batch fetch size for etcd backup operation")
-	return cmd
+	return p.component.Set(args[0])
+}
+
+// getBackupEtcdCmd returns command for backup etcd
+// usage: backup [component] [options...]
+func (s *InstanceState) BackupCommand(ctx context.Context, p *BackupParam) error {
+	prefix := ""
+	switch p.component {
+	case compAll:
+		prefix = ""
+	case compQueryCoord:
+		prefix = `queryCoord-`
+	default:
+		return fmt.Errorf("component %s not supported for separate backup, use ALL instead", p.component.String())
+	}
+
+	f, err := getBackupFile(p.component.String())
+	if err != nil {
+		return errors.Wrap(err, "failed to open backup file")
+	}
+	defer f.Close()
+
+	gw := gzip.NewWriter(f)
+	defer gw.Close()
+	w := bufio.NewWriter(gw)
+
+	// write backup header
+	// version 2 used for now
+	err = writeBackupHeader(w, 2)
+	if err != nil {
+		return errors.Wrap(err, "failed to write backup file header")
+	}
+
+	err = backupEtcdV2(s.client, s.basePath, prefix, w, p)
+	if err != nil {
+		fmt.Printf("backup etcd failed, error: %v\n", err)
+	}
+	backupMetrics(s.client, s.basePath, w)
+	backupConfiguration(s.client, s.basePath, w)
+	backupAppMetrics(s.client, s.basePath, w)
+	fmt.Printf("backup for prefix done, stored in file: %s\n", f.Name())
+	return nil
 }
 
 func getBackupFile(component string) (*os.File, error) {
@@ -151,22 +151,7 @@ func writeBackupHeader(w io.Writer, version int32) error {
 	return nil
 }
 
-type backupOption struct {
-	ignoreRevision bool
-	batchSize      int
-}
-
-func (opt *backupOption) getArgs(fs *pflag.FlagSet) error {
-	var err error
-	opt.ignoreRevision, err = fs.GetBool("ignoreRevision")
-	if err != nil {
-		return err
-	}
-	opt.batchSize, err = fs.GetInt("batchSize")
-	return err
-}
-
-func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, opt *backupOption) error {
+func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, opt *BackupParam) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	resp, err := cli.Get(ctx, path.Join(base, prefix), clientv3.WithCountOnly(), clientv3.WithPrefix())
@@ -174,7 +159,7 @@ func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, opt *ba
 		return err
 	}
 
-	if opt.ignoreRevision {
+	if opt.IgnoreRevision {
 		fmt.Println("WARNING!!! doing backup ignore revision! please make sure no instance of milvus is online!")
 	}
 
@@ -214,8 +199,8 @@ func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, opt *ba
 	progressDisplay.Start()
 	fmt.Fprintf(progressDisplay, progressFmt, 0, 0, cnt)
 
-	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(int64(opt.batchSize))}
-	if !opt.ignoreRevision {
+	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(opt.BatchSize)}
+	if !opt.IgnoreRevision {
 		options = append(options, clientv3.WithRev(rev))
 	}
 
@@ -323,12 +308,18 @@ func backupAppMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 
 	for _, session := range sessions {
 		opts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
-			grpc.WithTimeout(2 * time.Second),
 		}
 
-		conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
+		var conn *grpc.ClientConn
+		var err error
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			conn, err = grpc.DialContext(ctx, session.Address, opts...)
+		}()
 		if err != nil {
 			fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
 			continue
@@ -393,7 +384,7 @@ func backupConfiguration(cli clientv3.KV, basePath string, w *bufio.Writer) erro
 
 	for _, session := range sessions {
 		opts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
 			grpc.WithTimeout(2 * time.Second),
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // GetDistributionCommand returns command to iterate all querynodes to list distribution.
@@ -30,12 +31,18 @@ func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 			for _, session := range sessions {
 				opts := []grpc.DialOption{
-					grpc.WithInsecure(),
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithBlock(),
-					grpc.WithTimeout(2 * time.Second),
 				}
 
-				conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
+				var conn *grpc.ClientConn
+				var err error
+				func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+
+					conn, err = grpc.DialContext(ctx, session.Address, opts...)
+				}()
 				if err != nil {
 					fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
 					continue
