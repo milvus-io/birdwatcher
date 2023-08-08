@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -26,6 +26,7 @@ import (
 
 type ListMetricsPortParam struct {
 	framework.ParamBase `use:"list metrics-port" desc:"list metrics port for online components"`
+	DialTimeout         int64 `name:"dialTimeout" default:"2" desc:"grpc dial timeout in seconds"`
 }
 
 // ListMetricsPortCommand returns command logic listing metrics port for all online components.
@@ -41,7 +42,13 @@ func (s *InstanceState) ListMetricsPortCommand(ctx context.Context, p *ListMetri
 			grpc.WithBlock(),
 		}
 
-		conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
+		var conn *grpc.ClientConn
+		var err error
+		func() {
+			dialCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+			defer cancel()
+			conn, err = grpc.DialContext(dialCtx, session.Address, opts...)
+		}()
 		if err != nil {
 			fmt.Printf("failed to connect to Server(%d) addr: %s, err: %s\n", session.ServerID, session.Address, err.Error())
 			continue
@@ -49,7 +56,6 @@ func (s *InstanceState) ListMetricsPortCommand(ctx context.Context, p *ListMetri
 
 		source := getConfigurationSource(session, conn)
 		if source == nil {
-			// fmt.Println("source nil", session.String())
 			continue
 		}
 		items, _ := getConfiguration(ctx, source, session.ServerID)
@@ -58,7 +64,6 @@ func (s *InstanceState) ListMetricsPortCommand(ctx context.Context, p *ListMetri
 				fmt.Println(session.ServerName, session.IP(), item.GetValue())
 			}
 		}
-
 	}
 
 	return nil
@@ -120,7 +125,7 @@ func getEventLogPort(ctx context.Context, ip string, metricPort string) int {
 	if err != nil {
 		return -1
 	}
-	bs, err := ioutil.ReadAll(resp.Body)
+	bs, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return -1
 	}

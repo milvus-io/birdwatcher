@@ -2,6 +2,7 @@ package states
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/milvus-io/birdwatcher/configs"
@@ -41,25 +42,18 @@ func (app *ApplicationState) Label() string {
 }
 
 func (app *ApplicationState) Process(cmd string) (framework.State, error) {
-	for key, state := range app.states {
-		if !state.CanProcess(cmd) {
-			continue
-		}
-		next, err := state.Process(cmd)
-		if err != nil {
-			return nil, err
-		}
-
-		app.states[key] = next
-		return app, nil
-	}
+	app.config.Logger.Println("[INFO] begin to process command", cmd)
 	app.core.Process(cmd)
+	// perform sub state transfer
+	for key, state := range app.states {
+		next := state.NextState()
+		if next != nil {
+			state.SetNext(nil)
+			app.states[key] = next
+		}
+	}
 
 	return app, nil
-}
-
-func (app *ApplicationState) CanProcess(cmd string) bool {
-	return true
 }
 
 func (app *ApplicationState) Close() {
@@ -69,7 +63,11 @@ func (app *ApplicationState) Close() {
 }
 
 func (app *ApplicationState) SetNext(state framework.State) {
-	app.config.Logger.Println("SetNext called for ApplicationState, which is not expected.")
+	app.config.Logger.Println("[WARNING] SetNext called for ApplicationState, which is not expected.")
+}
+
+func (app *ApplicationState) NextState() framework.State {
+	return app
 }
 
 func (app *ApplicationState) SetTagNext(tag string, state framework.State) {
@@ -93,8 +91,8 @@ func (app *ApplicationState) Suggestions(input string) map[string]string {
 // initialize or reset command after execution.
 func (app *ApplicationState) SetupCommands() {
 	cmd := app.core.GetCmd()
-	app.core.UpdateState(cmd, app, app.SetupCommands)
 
+	app.core.UpdateState(cmd, app, app.SetupCommands)
 	for _, state := range app.states {
 		state.SetupCommands()
 	}
@@ -125,4 +123,24 @@ type exitParam struct {
 
 func (app *ApplicationState) ExitCommand(ctx context.Context, _ *exitParam) {
 	app.SetTagNext("exit", &exitState{})
+}
+
+type debugParam struct {
+	framework.ParamBase `use:"debug commands" desc:"debug current command tree"`
+}
+
+func (app *ApplicationState) DebugCommand(ctx context.Context, p *debugParam) {
+	for _, cmd := range app.core.RootCmd.Commands() {
+		app.printCommands(cmd, 0)
+	}
+}
+
+func (app *ApplicationState) printCommands(cmd *cobra.Command, level int) {
+	for i := 0; i < level; i++ {
+		fmt.Print("\t")
+	}
+	fmt.Println(cmd.Use)
+	for _, subCmd := range cmd.Commands() {
+		app.printCommands(subCmd, level+1)
+	}
 }

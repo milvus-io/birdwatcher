@@ -1,6 +1,7 @@
 package states
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -11,7 +12,6 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd/audit"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
-	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -47,13 +47,11 @@ func (s *InstanceState) SetupCommands() {
 
 	showCmd := etcd.ShowCommand(cli, basePath)
 	showCmd.AddCommand(
-		// show current-version
-		CurrentVersionCommand(),
 		// show segment-loaded-grpc
 		GetDistributionCommand(cli, basePath),
 	)
 
-	cmd.AddCommand(
+	s.MergeCobraCommands(cmd,
 		// download-segment
 		getDownloadSegmentCmd(cli, basePath),
 		// show [subcommand] options...
@@ -67,8 +65,6 @@ func (s *InstanceState) SetupCommands() {
 		// restore [subcommand] options...
 		// etcd.RestoreCommand(cli, basePath),
 
-		// backup [component]
-		getBackupEtcdCmd(cli, basePath),
 		// kill --component [component] --id [id]
 		getEtcdKillCmd(cli, basePath),
 		// force-release
@@ -94,9 +90,6 @@ func (s *InstanceState) SetupCommands() {
 		// probe
 		GetProbeCmd(cli, basePath),
 
-		// set current-version
-		SetCurrentVersionCommand(),
-
 		// remove-segment-by-id
 		//removeSegmentByID(cli, basePath),
 		// garbage-collect
@@ -108,8 +101,6 @@ func (s *InstanceState) SetupCommands() {
 		getWebCmd(s, cli, basePath),
 		// fetch-metrics
 		getFetchMetricsCmd(cli, basePath),
-		// dry-mode
-		getDryModeCmd(cli, s, s.etcdState),
 	)
 
 	//cmd.AddCommand(etcd.RawCommands(cli)...)
@@ -117,16 +108,13 @@ func (s *InstanceState) SetupCommands() {
 	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
-// getDryModeCmd enter dry-mode
-func getDryModeCmd(cli clientv3.KV, state *InstanceState, etcdState framework.State) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "dry-mode",
-		Short: "enter dry mode to select instance",
-		Run: func(*cobra.Command, []string) {
-			state.SetNext(etcdState)
-		},
-	}
-	return cmd
+type DryModeParam struct {
+	framework.ParamBase `use:"dry-mode" desc:"enter dry mode to select instance"`
+}
+
+// DryModeCommand implement `dry-mode` command to enter etcd "dry mode".
+func (s *InstanceState) DryModeCommand(ctx context.Context, p *DryModeParam) {
+	s.SetNext(s.etcdState)
 }
 
 func getInstanceState(parent *framework.CmdState, cli clientv3.KV, instanceName, metaPath string, etcdState framework.State, config *configs.Config) framework.State {

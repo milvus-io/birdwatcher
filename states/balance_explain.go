@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -98,12 +99,19 @@ func getAllQueryNodeDistributions(queryNodes []*models.Session) []*querypbv2.Get
 	distributions := make([]*querypbv2.GetDataDistributionResponse, 0)
 	for _, queryNode := range queryNodes {
 		opts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
-			grpc.WithTimeout(2 * time.Second),
 		}
 
-		conn, err := grpc.DialContext(context.Background(), queryNode.Address, opts...)
+		var conn *grpc.ClientConn
+		var err error
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			conn, err = grpc.DialContext(ctx, queryNode.Address, opts...)
+		}()
+
 		if err != nil {
 			fmt.Printf("failed to connect %s(%d), err: %s\n", queryNode.ServerName, queryNode.ServerID, err.Error())
 			continue

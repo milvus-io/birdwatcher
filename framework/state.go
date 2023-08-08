@@ -18,9 +18,9 @@ type State interface {
 	Ctx() (context.Context, context.CancelFunc)
 	Label() string
 	Process(cmd string) (State, error)
-	CanProcess(cmd string) bool
 	Close()
 	SetNext(state State)
+	NextState() State
 	Suggestions(input string) map[string]string
 	SetupCommands()
 	IsEnding() bool
@@ -97,7 +97,7 @@ func (s *CmdState) SetupCommands() {
 	}
 }
 
-// mergeFunctionCommands parses all member methods for provided state and add it into cmd.
+// MergeFunctionCommands parses all member methods for provided state and add it into cmd.
 func (s *CmdState) MergeFunctionCommands(cmd *cobra.Command, state State) {
 	items := parseFunctionCommands(state)
 	for _, item := range items {
@@ -112,6 +112,17 @@ func (s *CmdState) MergeFunctionCommands(cmd *cobra.Command, state State) {
 			target = node
 		}
 		target.AddCommand(item.cmd)
+	}
+}
+
+func (s *CmdState) MergeCobraCommands(base *cobra.Command, cmds ...*cobra.Command) {
+	for _, cmd := range cmds {
+		target, _, err := base.Find([]string{cmd.Use})
+		if err != nil || (target != nil && target.Use == base.Use) {
+			base.AddCommand(cmd)
+			continue
+		}
+		s.MergeCobraCommands(target, cmd.Commands()...)
 	}
 }
 
@@ -157,15 +168,13 @@ func (s *CmdState) Process(cmd string) (State, error) {
 	return s, nil
 }
 
-func (s *CmdState) CanProcess(cmd string) bool {
-	args := strings.Split(cmd, " ")
-	target, _, err := s.RootCmd.Find(args)
-	return target != nil && err == nil
-}
-
 // SetNext simple method to set next state.
 func (s *CmdState) SetNext(state State) {
 	s.nextState = state
+}
+
+func (s *CmdState) NextState() State {
+	return s.nextState
 }
 
 // Close empty method to implement State.

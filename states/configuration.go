@@ -14,11 +14,13 @@ import (
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type GetConfigurationParam struct {
 	framework.ParamBase `use:"show configurations" desc:"iterate all online components and inspect configuration"`
 	Format              string `name:"format" default:"line" desc:"output format"`
+	DialTimeout         int64  `name:"dialTimeout" default:"2" desc:"grpc dial timeout in seconds"`
 }
 
 func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfigurationParam) error {
@@ -31,16 +33,23 @@ func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfi
 
 	for _, session := range sessions {
 		opts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
-			grpc.WithTimeout(2 * time.Second),
 		}
 
-		conn, err := grpc.DialContext(ctx, session.Address, opts...)
+		var conn *grpc.ClientConn
+		var err error
+		func() {
+			dialCtx, cancel := context.WithTimeout(ctx, time.Duration(p.DialTimeout)*time.Second)
+			defer cancel()
+
+			conn, err = grpc.DialContext(dialCtx, session.Address, opts...)
+		}()
 		if err != nil {
 			fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
 			continue
 		}
+
 		var client configurationSource
 		switch strings.ToLower(session.ServerName) {
 		case "rootcoord":
@@ -63,7 +72,7 @@ func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfi
 			continue
 		}
 
-		configurations, err := getConfiguration(context.Background(), client, session.ServerID)
+		configurations, err := getConfiguration(ctx, client, session.ServerID)
 		if err != nil {
 			continue
 		}
