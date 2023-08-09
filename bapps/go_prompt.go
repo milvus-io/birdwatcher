@@ -33,7 +33,7 @@ func NewPromptApp(config *configs.Config, opts ...AppOption) BApp {
 		o(opt)
 	}
 
-	config.Logger = opt.logger
+	config.SetLogger(opt.logger)
 
 	// use workspace path to open&store history log
 	hh := history.NewHistoryHelper(config.WorkspacePath)

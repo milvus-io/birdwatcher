@@ -42,7 +42,7 @@ func (app *ApplicationState) Label() string {
 }
 
 func (app *ApplicationState) Process(cmd string) (framework.State, error) {
-	app.config.Logger.Println("[INFO] begin to process command", cmd)
+	app.config.Log("[INFO] begin to process command", cmd)
 	app.core.Process(cmd)
 	// perform sub state transfer
 	for key, state := range app.states {
@@ -63,7 +63,7 @@ func (app *ApplicationState) Close() {
 }
 
 func (app *ApplicationState) SetNext(state framework.State) {
-	app.config.Logger.Println("[WARNING] SetNext called for ApplicationState, which is not expected.")
+	app.config.Log("[WARNING] SetNext called for ApplicationState, which is not expected.")
 }
 
 func (app *ApplicationState) NextState() framework.State {
