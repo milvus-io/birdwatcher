@@ -42,6 +42,7 @@ func (a *olcApp) Run(start framework.State) {
 		if cmd.muted {
 			os.Stdout = stdout
 		}
+		app.SetupCommands()
 	}
 }
 

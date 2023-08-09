@@ -3,7 +3,7 @@ package configs
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -29,7 +29,17 @@ type Config struct {
 	// backup workspace path, default $PWD/bw_workspace
 	WorkspacePath string `yaml:"WorkspacePath"`
 
-	Logger *log.Logger
+	logger *log.Logger
+}
+
+func (c *Config) SetLogger(logger *log.Logger) {
+	c.logger = logger
+}
+
+func (c *Config) Log(v ...any) {
+	if c.logger != nil {
+		c.logger.Println(v...)
+	}
 }
 
 func (c *Config) load() error {
@@ -43,7 +53,7 @@ func (c *Config) load() error {
 		return err
 	}
 	defer f.Close()
-	bs, err := ioutil.ReadAll(f)
+	bs, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}
