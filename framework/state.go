@@ -54,8 +54,12 @@ func (s *CmdState) SetLabel(label string) {
 
 // Spawn returns a child command connected to current state as parent.
 func (s *CmdState) Spawn(label string) *CmdState {
+	p := s
+	for p.parent != nil {
+		p = p.parent
+	}
 	return &CmdState{
-		parent: s,
+		parent: p,
 		label:  label,
 	}
 }
