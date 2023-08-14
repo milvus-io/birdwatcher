@@ -7,7 +7,6 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/spf13/cobra"
 )
 
 type MinioState struct {
@@ -19,11 +18,10 @@ type MinioState struct {
 }
 
 func (s *MinioState) SetupCommands() {
-	cmd := &cobra.Command{}
+	cmd := s.GetCmd()
 
 	s.MergeFunctionCommands(cmd, s)
-	s.CmdState.RootCmd = cmd
-	s.SetupFn = s.SetupCommands
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
 type ConnectMinioParam struct {
@@ -37,7 +35,7 @@ type ConnectMinioParam struct {
 	UseSSL              bool   `name:"ssl" default:"" desc:"use SSL"`
 }
 
-func ConnectMinio(ctx context.Context, p *ConnectMinioParam) (*MinioState, error) {
+func ConnectMinio(ctx context.Context, p *ConnectMinioParam, parent *framework.CmdState) (*MinioState, error) {
 	var cred *credentials.Credentials
 	if p.UseIAM {
 		cred = credentials.NewIAM(p.IAMEndpoint)
@@ -66,6 +64,6 @@ func ConnectMinio(ctx context.Context, p *ConnectMinioParam) (*MinioState, error
 	return &MinioState{
 		client:   minioClient,
 		bucket:   p.Bucket,
-		CmdState: framework.NewCmdState("Minio(Addr)"),
+		CmdState: parent.Spawn("Minio(Addr)"),
 	}, nil
 }
