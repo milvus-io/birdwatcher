@@ -108,7 +108,7 @@ func (app *ApplicationState) IsEnding() bool {
 }
 
 func (app *ApplicationState) ConnectMinioCommand(ctx context.Context, p *storage.ConnectMinioParam) error {
-	state, err := storage.ConnectMinio(ctx, p)
+	state, err := storage.ConnectMinio(ctx, p, app.core)
 	if err != nil {
 		return err
 	}
