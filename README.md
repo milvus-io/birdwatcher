@@ -11,17 +11,17 @@ go 1.18 or higher
 
 ### Install birdwatcher
 
-install with go command
-```shell
-go install github.com/milvus-io/birdwatcher
-```
+download source and run with go command
 
-or download source and run with go command
 ```shell
 git clone https://github.com/milvus-io/birdwatcher
 cd birdwatcher
-go build -o birdwatcher main.go
+go install
 ```
+
+tips: [As JimB notice in comments](https://stackoverflow.com/questions/69807151/go-install-github-com-dmacvicar-terraform-provider-libvirtlatest-shows-error):
+
+> If there are replace or exclude directives in the module, the correct installation method is to clone the source and install it.
 
 ## How to use
 
