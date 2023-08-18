@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states/etcd"
@@ -131,7 +132,8 @@ func getDryModeCmd(cli clientv3.KV, state *InstanceState, etcdState State) *cobr
 
 func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState State, config *configs.Config) State {
 	var kv clientv3.KV
-	file, err := os.OpenFile("audit.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
+	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("failed to open audit.log file!")
 		kv = cli
