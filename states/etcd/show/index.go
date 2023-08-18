@@ -14,6 +14,7 @@ import (
 
 type IndexParam struct {
 	framework.ParamBase `use:"show index" desc:"" alias:"indexes"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to list index on"`
 }
 
 // IndexCommand returns show index command.
@@ -39,7 +40,9 @@ func (c *ComponentShow) IndexCommand(ctx context.Context, p *IndexParam) {
 	}
 
 	for _, index := range fieldIndexes {
-		printIndexV2(index)
+		if p.CollectionID == 0 || p.CollectionID == index.IndexInfo.GetCollectionID() {
+			printIndexV2(index)
+		}
 	}
 }
 
@@ -73,7 +76,7 @@ func (c *ComponentShow) listIndexMetaV2(ctx context.Context) ([]indexpbv2.FieldI
 
 func printIndex(index IndexInfoV1) {
 	fmt.Println("==================================================================")
-	fmt.Printf("Index ID: %d\tIndex Name: %s\tCollectionID:%d\n", index.info.GetIndexID(), index.info.GetIndexName(), index.collectionID)
+	fmt.Printf("Index ID: %d\tIndex Name: %s\tCollectionID: %d\n", index.info.GetIndexID(), index.info.GetIndexName(), index.collectionID)
 	indexParams := index.info.GetIndexParams()
 	fmt.Printf("Index Type: %s\tMetric Type: %s\n",
 		common.GetKVPair(indexParams, "index_type"),
@@ -85,7 +88,7 @@ func printIndex(index IndexInfoV1) {
 
 func printIndexV2(index indexpbv2.FieldIndex) {
 	fmt.Println("==================================================================")
-	fmt.Printf("Index ID: %d\tIndex Name: %s\tCollectionID:%d\n", index.GetIndexInfo().GetIndexID(), index.GetIndexInfo().GetIndexName(), index.GetIndexInfo().GetCollectionID())
+	fmt.Printf("Index ID: %d\tIndex Name: %s\tCollectionID: %d\tFieldID: %d\n", index.GetIndexInfo().GetIndexID(), index.GetIndexInfo().GetIndexName(), index.GetIndexInfo().GetCollectionID(), index.GetIndexInfo().GetFieldID())
 	createTime, _ := utils.ParseTS(index.GetCreateTime())
 	fmt.Printf("Create Time: %s\tDeleted: %t\n", createTime.Format(tsPrintFormat), index.GetDeleted())
 	indexParams := index.GetIndexInfo().GetIndexParams()
