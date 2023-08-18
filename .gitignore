@@ -10,6 +10,7 @@ birdwatcher-build
 
 # logs
 audit.log
+audit_*.log
 bw_debug.log
 
 # vim
@@ -17,3 +18,6 @@ bw_debug.log
 
 # backup file
 *.bak.gz
+*.tar.gz
+backups/
+

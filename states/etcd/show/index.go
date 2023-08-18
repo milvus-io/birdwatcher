@@ -14,6 +14,7 @@ import (
 
 type IndexParam struct {
 	framework.ParamBase `use:"show index" desc:"" alias:"indexes"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to list index on"`
 }
 
 // IndexCommand returns show index command.
@@ -39,7 +40,9 @@ func (c *ComponentShow) IndexCommand(ctx context.Context, p *IndexParam) {
 	}
 
 	for _, index := range fieldIndexes {
-		printIndexV2(index)
+		if p.CollectionID == 0 || p.CollectionID == index.IndexInfo.GetCollectionID() {
+			printIndexV2(index)
+		}
 	}
 }
 

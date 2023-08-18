@@ -48,6 +48,7 @@ func (app *ApplicationState) Process(cmd string) (framework.State, error) {
 	for key, state := range app.states {
 		next := state.NextState()
 		if next != nil {
+			app.config.Log("[debug] set next", key, next.Label())
 			state.SetNext(nil)
 			app.states[key] = next
 		}
