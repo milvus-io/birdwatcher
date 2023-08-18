@@ -10,6 +10,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/samber/lo"
 )
 
 const (
@@ -18,7 +19,7 @@ const (
 
 type CollectionLoadedParam struct {
 	framework.ParamBase `use:"show collection-loaded" desc:"display information of loaded collection from querycoord" alias:"collection-load"`
-	//CollectionID int64 `name:""`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to check"`
 }
 
 // CollectionLoadedCommand return show collection-loaded command.
@@ -30,6 +31,11 @@ func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *Collecti
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list collection load info")
+	}
+	if p.CollectionID > 0 {
+		infos = lo.Filter(infos, func(info *models.CollectionLoaded, _ int) bool {
+			return info.CollectionID == p.CollectionID
+		})
 	}
 
 	return framework.NewListResult[CollectionsLoaded](infos), nil

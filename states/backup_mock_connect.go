@@ -57,11 +57,11 @@ func (s *embedEtcdMockState) Close() {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *embedEtcdMockState) SetupCommands() {
-	cmd := &cobra.Command{}
+	cmd := s.GetCmd()
 
 	rootPath := path.Join(s.instanceName, metaPath)
 
-	cmd.AddCommand(
+	s.MergeCobraCommands(cmd,
 		// show [subcommand] options...
 		etcd.ShowCommand(s.client, rootPath),
 
@@ -83,12 +83,9 @@ func (s *embedEtcdMockState) SetupCommands() {
 
 		getListMetricsNodeCmd(s),
 	)
-	cmd.AddCommand(etcd.RawCommands(s.client)...)
+	s.MergeCobraCommands(cmd, etcd.RawCommands(s.client)...)
 
-	s.MergeFunctionCommands(cmd, s)
-
-	s.CmdState.RootCmd = cmd
-	s.SetupFn = s.SetupCommands
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
 func (s *embedEtcdMockState) SetInstance(instanceName string) {
