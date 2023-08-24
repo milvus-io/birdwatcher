@@ -2,12 +2,15 @@ package states
 
 import (
 	"context"
-	"errors"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -37,13 +40,49 @@ func pingEtcd(ctx context.Context, cli clientv3.KV, rootPath string, metaPath st
 }
 
 func (app *ApplicationState) ConnectCommand(ctx context.Context, cp *ConnectParams) error {
-	etcdCli, err := clientv3.New(clientv3.Config{
+	cfg := clientv3.Config{
 		Endpoints:   []string{cp.EtcdAddr},
 		DialTimeout: time.Second * 10,
 
 		// disable grpc logging
 		Logger: zap.NewNop(),
-	})
+	}
+	if cp.UseSSL {
+		cert, err := tls.LoadX509KeyPair(cp.TlsCert, cp.TlsKey)
+		if err != nil {
+			return errors.Wrap(err, "load etcd cert key pair error")
+		}
+		caCert, err := os.ReadFile(cp.TlsCACert)
+		if err != nil {
+			return errors.Wrapf(err, "load etcd CACert file error, filename = %s", cp.TlsCACert)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		cfg.TLS = &tls.Config{
+			MinVersion: tls.VersionTLS13,
+			Certificates: []tls.Certificate{
+				cert,
+			},
+			RootCAs: caCertPool,
+		}
+		switch cp.TlsMinVersion {
+		case "1.0":
+			cfg.TLS.MinVersion = tls.VersionTLS10
+		case "1.1":
+			cfg.TLS.MinVersion = tls.VersionTLS11
+		case "1.2":
+			cfg.TLS.MinVersion = tls.VersionTLS12
+		case "1.3":
+			cfg.TLS.MinVersion = tls.VersionTLS13
+		default:
+			cfg.TLS.MinVersion = 0
+		}
+		if cfg.TLS.MinVersion == 0 {
+			return errors.Errorf("unknown TLS version,%s", cfg.TLS.MinVersion)
+		}
+	}
+
+	etcdCli, err := clientv3.New(cfg)
 	if err != nil {
 		fmt.Println(err.Error())
 		return err
@@ -87,6 +126,11 @@ type ConnectParams struct {
 	MetaPath            string `name:"metaPath" default:"meta" desc:"meta path prefix"`
 	Force               bool   `name:"force" default:"false" desc:"force connect ignoring ping Etcd & rootPath check"`
 	Dry                 bool   `name:"dry" default:"false" desc:"dry connect without specifying milvus instance"`
+	UseSSL              bool   `name:"use_ssl" default:"false" desc:"enable to use SSL"`
+	TlsCert             string `name:"cert" default:"" desc:"path to your cert file"`
+	TlsKey              string `name:"key" default:"" desc:"path to your key file"`
+	TlsCACert           string `name:"cacert" default:"" desc:"path to your CACert file"`
+	TlsMinVersion       string `name:"min_version" default:"1.1" desc:"TLS min version"`
 }
 
 type etcdConnectedState struct {
