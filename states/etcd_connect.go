@@ -2,12 +2,15 @@ package states
 
 import (
 	"context"
-	"errors"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
@@ -44,13 +47,59 @@ type ConnectParams struct {
 	MetaPath            string `name:"metaPath" default:"meta" desc:"meta path prefix"`
 	Force               bool   `name:"force" default:"false" desc:"force connect ignoring ping Etcd & rootPath check"`
 	Dry                 bool   `name:"dry" default:"false" desc:"dry connect without specifying milvus instance"`
+	EnableTLS           bool   `name:"enableTLS" default:"false" desc:"use TLS"`
+	RootCA              string `name:"rootCAPem" default:"" desc:"root CA pem file path"`
+	ETCDPem             string `name:"etcdCert" default:"" desc:"etcd tls cert file path"`
+	ETCDKey             string `name:"etcdKey" default:"" desc:"etcd tls key file path"`
+}
+
+func (s *disconnectState) getTLSConfig(cp *ConnectParams) (*tls.Config, error) {
+	if !cp.EnableTLS {
+		return nil, nil
+	}
+
+	rootCertPool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+
+	if cp.RootCA != "" {
+		bs, err := os.ReadFile(cp.RootCA)
+		if err != nil {
+			return nil, err
+		}
+
+		ok := rootCertPool.AppendCertsFromPEM(bs)
+		if !ok {
+			return nil, errors.New("Root CA PEM cannot be parsed")
+		}
+	}
+
+	cert, err := tls.LoadX509KeyPair(cp.ETCDPem, cp.ETCDKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load etcd cert/key pair")
+	}
+
+	return &tls.Config{
+		RootCAs: rootCertPool,
+		Certificates: []tls.Certificate{
+			cert,
+		},
+		// gosec
+		MinVersion: tls.VersionTLS12,
+	}, nil
 }
 
 func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams) error {
+	tls, err := s.getTLSConfig(cp)
+	if err != nil {
+		return errors.Wrap(err, "failed to load tls certificates")
+	}
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{cp.EtcdAddr},
 		DialTimeout: time.Second * 10,
 
+		TLS: tls,
 		// disable grpc logging
 		Logger: zap.NewNop(),
 	})
