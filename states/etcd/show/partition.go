@@ -45,7 +45,7 @@ func (rs *Partitions) PrintAs(format framework.Format) string {
 		for _, partition := range rs.Data {
 			fmt.Fprintf(sb, "Parition ID: %d\tName: %s\tState: %s\n", partition.ID, partition.Name, partition.State.String())
 		}
-		fmt.Fprintf(sb, "--- Total Database(s): %d\n", len(rs.Data))
+		fmt.Fprintf(sb, "--- Total Partition(s): %d\n", len(rs.Data))
 		return sb.String()
 	default:
 	}
