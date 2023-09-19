@@ -27,6 +27,7 @@ type SegmentParam struct {
 func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) error {
 	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID) &&
+			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
 			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
 			(p.State == "" || segment.State.String() == p.State)
 	})
