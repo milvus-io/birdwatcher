@@ -6,7 +6,10 @@ import (
 	"path"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
@@ -43,6 +46,12 @@ func BinlogCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 			}
 
 			fieldID, err := cmd.Flags().GetInt64("fieldID")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			logID, err := cmd.Flags().GetInt64("logID")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -88,25 +97,69 @@ func BinlogCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
-			if !run {
-				return
-			}
-			fmt.Printf("key:%s will be deleted\n", key)
-			err = removeBinlog(cli, key)
+
+			removeAll, err := cmd.Flags().GetBool("removeAll")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
+
+			// remove all
+			if removeAll {
+				_, err = getFieldBinlog(cli, key)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				if !run {
+					return
+				}
+				fmt.Printf("key:%s will be deleted\n", key)
+				err = removeBinlog(cli, key)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				return
+			}
+
+			// remove one
+			{
+				fieldBinlog, err := getFieldBinlog(cli, key)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				fieldBinlog, err = removeLogFromFieldBinlog(key, logID, fieldBinlog)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+
+				if !run {
+					return
+				}
+
+				err = saveFieldBinlog(cli, key, fieldBinlog)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				fmt.Printf("Remove one binlog %s/%d from etcd succeeds.\n", key, logID)
+			}
+
 		},
 	}
 
 	cmd.Flags().String("logType", "unknown", "log type: binlog/deltalog/statslog")
 	cmd.Flags().Bool("run", false, "flags indicating whether to execute removed command")
 	cmd.Flags().Bool("restore", false, "flags indicating whether to restore removed command")
+	cmd.Flags().Bool("removeAll", false, "remove all binlogs belongs to the field")
 	cmd.Flags().Int64("collectionID", 0, "collection id to remove")
 	cmd.Flags().Int64("partitionID", 0, "partition id to remove")
 	cmd.Flags().Int64("segmentID", 0, "segment id to remove")
 	cmd.Flags().Int64("fieldID", 0, "field id to remove")
+	cmd.Flags().Int64("logID", 0, "log id to remove")
 	return cmd
 }
 
@@ -160,5 +213,57 @@ func removeBinlog(cli kv.MetaKV, key string) error {
 		return err
 	}
 	fmt.Printf("remove key:%s finished\n", key)
+	return nil
+}
+
+func getFieldBinlog(cli kv.MetaKV, key string) (*datapbv2.FieldBinlog, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	val, err := cli.Load(ctx, key)
+	if err != nil {
+		fmt.Printf("get key:%s failed\n", key)
+		return nil, err
+	}
+	fieldBinlog := &datapbv2.FieldBinlog{}
+	err = proto.Unmarshal([]byte(val), fieldBinlog)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("FieldBinlog(before):")
+	fmt.Println("**************************************")
+	fmt.Println(fieldBinlog)
+	fmt.Println("**************************************")
+	return fieldBinlog, nil
+}
+
+func removeLogFromFieldBinlog(key string, logID int64, fieldBinlog *datapbv2.FieldBinlog) (*datapbv2.FieldBinlog, error) {
+	binlogs := lo.Filter(fieldBinlog.GetBinlogs(), func(binlog *datapbv2.Binlog, _ int) bool {
+		if logID == binlog.GetLogID() {
+			fmt.Printf("logID matched, binlog: %s/%d\n", key, logID)
+		}
+		return logID != binlog.GetLogID()
+	})
+	fieldBinlog.Binlogs = binlogs
+
+	fmt.Println("FieldBinlog(after):")
+	fmt.Println("**************************************")
+	fmt.Println(fieldBinlog)
+	fmt.Println("**************************************")
+	return fieldBinlog, nil
+}
+
+func saveFieldBinlog(cli kv.MetaKV, key string, fieldBinlog *datapbv2.FieldBinlog) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	mb, err := proto.Marshal(fieldBinlog)
+	if err != nil {
+		return err
+	}
+	err = cli.Save(ctx, key, string(mb))
+	if err != nil {
+		fmt.Println("failed save field binlog kv into etcd, ", err.Error())
+		return err
+	}
+	fmt.Printf("save field binlog kv done. key: %s\n", key)
 	return nil
 }
