@@ -15,6 +15,55 @@ import (
 	"google.golang.org/protobuf/runtime/protoiface"
 )
 
+func ListCollectionHistoryWithDB(ctx context.Context, cli clientv3.KV, basePath string, version string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
+	var prefix string
+
+	if dbID > 0 {
+		prefix = path.Join(basePath, "snapshots/root-coord/database/collection-info", strconv.FormatInt(dbID, 10), strconv.FormatInt(collectionID, 10))
+	} else {
+		prefix = path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
+	}
+
+	var dropped, paths []string
+	var err error
+	var result []*models.CollectionHistory
+	switch version {
+	case models.LTEVersion2_1:
+		var colls []etcdpb.CollectionInfo
+		colls, paths, dropped, err = ListHistoryCollection[etcdpb.CollectionInfo](ctx, cli, prefix)
+		if err != nil {
+			return nil, err
+		}
+		result = lo.Map(colls, func(coll etcdpb.CollectionInfo, idx int) *models.CollectionHistory {
+			ch := &models.CollectionHistory{}
+			ch.Collection = *models.NewCollectionFromV2_1(&coll, paths[idx])
+			ch.Ts = parseHistoryTs(paths[idx])
+			return ch
+		})
+	case models.GTEVersion2_2:
+		var colls []etcdpbv2.CollectionInfo
+		colls, paths, dropped, err = ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
+		if err != nil {
+			return nil, err
+		}
+		result = lo.Map(colls, func(coll etcdpbv2.CollectionInfo, idx int) *models.CollectionHistory {
+			ch := &models.CollectionHistory{}
+			//TODO add history field schema
+			ch.Collection = *models.NewCollectionFromV2_2(&coll, paths[idx], nil)
+			ch.Ts = parseHistoryTs(paths[idx])
+			return ch
+		})
+	}
+
+	for _, entry := range dropped {
+		collHistory := &models.CollectionHistory{Dropped: true}
+		collHistory.Ts = parseHistoryTs(entry)
+		result = append(result, collHistory)
+	}
+
+	return result, nil
+}
+
 // ListCollectionHistory list collection history from snapshots.
 func ListCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string, version string, collectionID int64) ([]*models.CollectionHistory, error) {
 	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
