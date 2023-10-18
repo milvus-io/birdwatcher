@@ -145,8 +145,11 @@ func (s *InstanceState) prepareListenerClients(ctx context.Context) ([]*eventlog
 
 	var m sync.Map
 	var wg sync.WaitGroup
-	wg.Add(len(sessions))
 
+	sessions = lo.UniqBy[*models.Session, int64](sessions, func(session *models.Session) int64 {
+		return session.ServerID
+	})
+	wg.Add(len(sessions))
 	for _, session := range sessions {
 		go func(session *models.Session) {
 			defer wg.Done()
@@ -199,6 +202,16 @@ func (s *InstanceState) prepareListenerClients(ctx context.Context) ([]*eventlog
 	}
 
 	wg.Wait()
+
+	mSize := 0
+	m.Range(func(_, _ any) bool {
+		mSize++
+		return true
+	})
+
+	if mSize != len(sessions) {
+		return nil, fmt.Errorf("failed to create listener, expected %d, got %d", len(sessions), mSize)
+	}
 
 	var listeners []*eventlog.Listener
 	m.Range(func(key, value any) bool {
