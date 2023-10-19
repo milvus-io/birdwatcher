@@ -5,18 +5,18 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/set"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 // ShowCommand returns sub command for instanceState.
 // show [subCommand] [options...]
 // sub command [collection|session|segment]
-func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func ShowCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	showCmd := &cobra.Command{
 		Use: "show",
 	}
@@ -35,7 +35,7 @@ func ShowCommand(cli clientv3.KV, basePath string) *cobra.Command {
 }
 
 // RepairCommand returns etcd repair commands.
-func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func RepairCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	repairCmd := &cobra.Command{
 		Use: "repair",
 	}
@@ -57,7 +57,7 @@ func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
 }
 
 // SetCommand, returns etcd set commands.
-func SetCommand(cli clientv3.KV, instanceName string, metaPath string) *cobra.Command {
+func SetCommand(cli kv.MetaKV, instanceName string, metaPath string) *cobra.Command {
 	setCmd := &cobra.Command{
 		Use: "set",
 	}
@@ -72,7 +72,7 @@ func SetCommand(cli clientv3.KV, instanceName string, metaPath string) *cobra.Co
 
 // RemoveCommand returns etcd remove commands.
 // WARNING this command shall be used with EXTRA CARE!
-func RemoveCommand(cli clientv3.KV, instanceName, basePath string) *cobra.Command {
+func RemoveCommand(cli kv.MetaKV, instanceName, basePath string) *cobra.Command {
 	removeCmd := &cobra.Command{
 		Use: "remove",
 	}
@@ -96,21 +96,25 @@ func RemoveCommand(cli clientv3.KV, instanceName, basePath string) *cobra.Comman
 }
 
 // RawCommands provides raw "get" command to list kv in etcd
-func RawCommands(cli clientv3.KV) []*cobra.Command {
+func RawCommands(cli kv.MetaKV) []*cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "equivalent to etcd get(withPrefix) command to fetch raw kv values from backup file",
 		Run: func(cmd *cobra.Command, args []string) {
 			for _, arg := range args {
 				fmt.Println("list with", arg)
-				resp, err := cli.Get(context.Background(), arg, clientv3.WithPrefix())
+				keys, vals, err := cli.LoadWithPrefix(context.Background(), arg)
 				if err != nil {
 					fmt.Println(err.Error())
 					continue
 				}
-				for _, kv := range resp.Kvs {
-					fmt.Printf("key: %s\n", string(kv.Key))
-					fmt.Printf("Value: %s\n", string(kv.Value))
+				if len(keys) != len(vals) {
+					fmt.Printf("unmatched kv sizes for %s: len(keys): %d, len(vals): %d.", arg, len(keys), len(vals))
+					continue
+				}
+				for i, key := range keys {
+					fmt.Printf("key: %s\n", key)
+					fmt.Printf("Value: %s\n", vals[i])
 				}
 			}
 		},

@@ -8,12 +8,12 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ChannelCommand returns remove channel command.
-func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func ChannelCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "channel",
 		Short: "Remove channel from datacoord meta with specified condition if orphan",
@@ -74,7 +74,7 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			fmt.Printf("Start to delete orphan watch channel info...\n")
 			for _, path := range targets {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-				_, err := cli.Delete(ctx, path)
+				err := cli.Remove(ctx, path)
 				cancel()
 				if err != nil {
 					fmt.Printf("failed to remove watch key %s, error: %s\n", path, err.Error())

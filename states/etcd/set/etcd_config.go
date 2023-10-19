@@ -5,13 +5,12 @@ import (
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // EtcdConfigCommand returns set etcd-config command.
-func EtcdConfigCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func EtcdConfigCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config-etcd",
 		Short: "set configuations",

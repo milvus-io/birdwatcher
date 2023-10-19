@@ -16,12 +16,12 @@ import (
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ListChannelWatchV1 list v2.1 channel watch info meta.
-func ListChannelWatchV1(cli clientv3.KV, basePath string, filters ...func(channel *datapb.ChannelWatchInfo) bool) ([]datapb.ChannelWatchInfo, []string, error) {
+func ListChannelWatchV1(cli kv.MetaKV, basePath string, filters ...func(channel *datapb.ChannelWatchInfo) bool) ([]datapb.ChannelWatchInfo, []string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
@@ -30,7 +30,7 @@ func ListChannelWatchV1(cli clientv3.KV, basePath string, filters ...func(channe
 }
 
 // ListChannelWatchV2 lists v2.2 channel watch info meta.
-func ListChannelWatchV2(cli clientv3.KV, basePath string, filters ...func(channel *datapbv2.ChannelWatchInfo) bool) ([]datapbv2.ChannelWatchInfo, []string, error) {
+func ListChannelWatchV2(cli kv.MetaKV, basePath string, filters ...func(channel *datapbv2.ChannelWatchInfo) bool) ([]datapbv2.ChannelWatchInfo, []string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
@@ -39,7 +39,7 @@ func ListChannelWatchV2(cli clientv3.KV, basePath string, filters ...func(channe
 }
 
 // ListChannelWatch lists channel watch info meta.
-func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.ChannelWatch) bool) ([]*models.ChannelWatch, error) {
+func ListChannelWatch(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.ChannelWatch) bool) ([]*models.ChannelWatch, error) {
 	prefix := path.Join(basePath, "channelwatch") + "/"
 	var result []*models.ChannelWatch
 	switch version {
@@ -74,9 +74,9 @@ func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, ver
 	return result, nil
 }
 
-func SetChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, channelName string, collection *models.Collection) error {
+func SetChannelWatch(ctx context.Context, cli kv.MetaKV, basePath string, channelName string, collection *models.Collection) error {
 	removelKey := path.Join(basePath, "datacoord-meta/channel-removal", channelName)
-	_, err := cli.Put(ctx, removelKey, "non-removed")
+	err := cli.Save(ctx, removelKey, "non-removed")
 	if err != nil {
 		return err
 	}
@@ -114,6 +114,6 @@ func SetChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, chan
 		return err
 	}
 
-	_, err = cli.Put(ctx, watchKey, string(bs))
+	err = cli.Save(ctx, watchKey, string(bs))
 	return err
 }

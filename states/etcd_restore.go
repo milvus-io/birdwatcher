@@ -15,10 +15,10 @@ import (
 	"github.com/gosuri/uilive"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
-func restoreFromV1File(cli clientv3.KV, rd io.Reader, header *models.BackupHeader) error {
+func restoreFromV1File(cli kv.MetaKV, rd io.Reader, header *models.BackupHeader) error {
 	var nextBytes uint64
 	var bs []byte
 
@@ -71,7 +71,7 @@ func restoreFromV1File(cli clientv3.KV, rd io.Reader, header *models.BackupHeade
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
-		_, err = cli.Put(ctx, entry.Key, string(entry.Data))
+		err = cli.Save(ctx, entry.Key, string(entry.Data))
 		if err != nil {
 			fmt.Println("failed save kv into etcd, ", err.Error())
 			return err
@@ -115,7 +115,7 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 	}
 }
 
-func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) (string, error) {
+func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph models.PartHeader) (string, error) {
 	meta := make(map[string]string)
 	err := json.Unmarshal(ph.Extra, &meta)
 	if err != nil {
@@ -182,7 +182,7 @@ func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) 
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
-		_, err = cli.Put(ctx, entry.Key, string(entry.Data))
+		err = cli.Save(ctx, entry.Key, string(entry.Data))
 		if err != nil {
 			fmt.Println("failed save kv into etcd, ", err.Error())
 			continue

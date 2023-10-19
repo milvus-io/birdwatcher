@@ -8,12 +8,12 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // SegmentCollectionDroppedCommand returns `remove collection-drop` command.
-func SegmentCollectionDroppedCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func SegmentCollectionDroppedCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "segments-collection-dropped",
 		Short: "Remove segments & binlogs meta for collection that has been dropped",

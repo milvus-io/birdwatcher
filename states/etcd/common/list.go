@@ -6,21 +6,23 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"google.golang.org/protobuf/runtime/protoiface"
 )
 
-func ListJSONObjects[T any, P interface{ *T }](ctx context.Context, cli clientv3.KV, prefix string, filters ...func(t P) bool) ([]P, []string, error) {
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+func ListJSONObjects[T any, P interface{ *T }](ctx context.Context, kv kv.MetaKV, prefix string, filters ...func(t P) bool) ([]P, []string, error) {
+	keys, vals, err := kv.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, nil, err
 	}
-	result := make([]P, 0, len(resp.Kvs))
-	keys := make([]string, 0, len(resp.Kvs))
+	if len(keys) != len(vals) {
+		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListJSONObjects:%d vs %d", len(keys), len(vals))
+	}
+	result := make([]P, 0, len(vals))
 LOOP:
-	for _, kv := range resp.Kvs {
+	for _, val := range vals {
 		var elem T
-		err = json.Unmarshal(kv.Value, &elem)
+		err = json.Unmarshal([]byte(val), &elem)
 		if err != nil {
 			fmt.Println(err.Error())
 			continue
@@ -32,7 +34,6 @@ LOOP:
 			}
 		}
 		result = append(result, &elem)
-		keys = append(keys, string(kv.Key))
 	}
 	return result, keys, nil
 }
@@ -41,18 +42,20 @@ LOOP:
 func ListProtoObjects[T any, P interface {
 	*T
 	protoiface.MessageV1
-}](ctx context.Context, cli clientv3.KV, prefix string, filters ...func(t *T) bool) ([]T, []string, error) {
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+}](ctx context.Context, kv kv.MetaKV, prefix string, filters ...func(t *T) bool) ([]T, []string, error) {
+	keys, vals, err := kv.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, nil, err
 	}
-	result := make([]T, 0, len(resp.Kvs))
-	keys := make([]string, 0, len(resp.Kvs))
+	if len(keys) != len(vals) {
+		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListProtoObjects:%d vs %d", len(keys), len(vals))
+	}
+	result := make([]T, 0, len(keys))
 LOOP:
-	for _, kv := range resp.Kvs {
+	for _, val := range vals {
 		var elem T
 		info := P(&elem)
-		err = proto.Unmarshal(kv.Value, info)
+		err = proto.Unmarshal([]byte(val), info)
 		if err != nil {
 			fmt.Println(err.Error())
 			continue
@@ -64,7 +67,6 @@ LOOP:
 			}
 		}
 		result = append(result, elem)
-		keys = append(keys, string(kv.Key))
 	}
 	return result, keys, nil
 }
@@ -74,21 +76,23 @@ LOOP:
 func ListProtoObjectsAdv[T any, P interface {
 	*T
 	protoiface.MessageV1
-}](ctx context.Context, cli clientv3.KV, prefix string, preFilter func(string, []byte) bool, filters ...func(t *T) bool) ([]T, []string, error) {
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+}](ctx context.Context, kv kv.MetaKV, prefix string, preFilter func(string, []byte) bool, filters ...func(t *T) bool) ([]T, []string, error) {
+	keys, vals, err := kv.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, nil, err
 	}
-	result := make([]T, 0, len(resp.Kvs))
-	keys := make([]string, 0, len(resp.Kvs))
+	if len(keys) != len(vals) {
+		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListProtoObjectsAdv:%d vs %d", len(keys), len(vals))
+	}
+	result := make([]T, 0, len(vals))
 LOOP:
-	for _, kv := range resp.Kvs {
-		if !preFilter(string(kv.Key), kv.Value) {
+	for i, val := range vals {
+		if !preFilter(keys[i], []byte(val)) {
 			continue
 		}
 		var elem T
 		info := P(&elem)
-		err = proto.Unmarshal(kv.Value, info)
+		err = proto.Unmarshal([]byte(val), info)
 		if err != nil {
 			fmt.Println(err.Error())
 			continue
@@ -100,7 +104,6 @@ LOOP:
 			}
 		}
 		result = append(result, elem)
-		keys = append(keys, string(kv.Key))
 	}
 	return result, keys, nil
 }

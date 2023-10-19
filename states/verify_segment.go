@@ -8,12 +8,12 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/minio/minio-go/v7"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getVerifySegmentCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify-segment",
 		Short: "Verify segment file matches storage",

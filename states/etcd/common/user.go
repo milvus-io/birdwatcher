@@ -6,15 +6,15 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
 	userPrefix = `root-coord/credential/users`
 )
 
-func ListUsers(ctx context.Context, cli clientv3.KV, basePath string) ([]*models.UserInfo, error) {
+func ListUsers(ctx context.Context, cli kv.MetaKV, basePath string) ([]*models.UserInfo, error) {
 	prefix := path.Join(basePath, userPrefix)
 
 	infos, keys, err := ListJSONObjects[internalpbv2.CredentialInfo](ctx, cli, prefix)

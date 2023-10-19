@@ -8,12 +8,12 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ListCollectionLoadedInfo returns collection loaded info with provided version.
-func ListCollectionLoadedInfo(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(any) bool) ([]*models.CollectionLoaded, error) {
+func ListCollectionLoadedInfo(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(any) bool) ([]*models.CollectionLoaded, error) {
 	switch version {
 	case models.LTEVersion2_1:
 		prefix := path.Join(basePath, CollectionLoadPrefix)

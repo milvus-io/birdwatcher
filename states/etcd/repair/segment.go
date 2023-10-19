@@ -13,12 +13,12 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // SegmentCommand return repair segment command.
-func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func SegmentCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "segment",
 		Aliases: []string{"segments"},
@@ -289,14 +289,14 @@ func integrityCheck(segment *datapb.SegmentInfo) bool {
 	return true
 }
 
-func writeRepairedSegment(cli clientv3.KV, basePath string, segment *datapb.SegmentInfo) error {
+func writeRepairedSegment(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo) error {
 	p := path.Join(basePath, fmt.Sprintf("datacoord-meta/s/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 
 	bs, err := proto.Marshal(segment)
 	if err != nil {
 		fmt.Println("failed to marshal segment info", err.Error())
 	}
-	_, err = cli.Put(context.Background(), p, string(bs))
+	err = cli.Save(context.Background(), p, string(bs))
 	return err
 
 }

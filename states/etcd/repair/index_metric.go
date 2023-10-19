@@ -8,11 +8,11 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/birdwatcher/utils"
 )
 
@@ -21,7 +21,7 @@ const (
 )
 
 // IndexMetricCommand return repair segment command.
-func IndexMetricCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func IndexMetricCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "index_metric_type",
 		Aliases: []string{"indexes_metric_type"},
@@ -110,21 +110,21 @@ func IndexMetricCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func listIndexMetaV2(cli clientv3.KV, basePath string) ([]indexpbv2.FieldIndex, error) {
+func listIndexMetaV2(cli kv.MetaKV, basePath string) ([]indexpbv2.FieldIndex, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, cli, path.Join(basePath, "field-index"))
 	return indexes, err
 }
 
-func writeRepairedIndex(cli clientv3.KV, basePath string, index *indexpbv2.FieldIndex) error {
+func writeRepairedIndex(cli kv.MetaKV, basePath string, index *indexpbv2.FieldIndex) error {
 	p := path.Join(basePath, fmt.Sprintf("field-index/%d/%d", index.IndexInfo.CollectionID, index.IndexInfo.IndexID))
 
 	bs, err := proto.Marshal(index)
 	if err != nil {
 		fmt.Println("failed to marshal segment info", err.Error())
 	}
-	_, err = cli.Put(context.Background(), p, string(bs))
+	err = cli.Save(context.Background(), p, string(bs))
 	return err
 }
 

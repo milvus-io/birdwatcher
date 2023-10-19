@@ -8,11 +8,11 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getFetchMetricsCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getFetchMetricsCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fetch-metrics",
 		Short: "fetch metrics from milvus instances",

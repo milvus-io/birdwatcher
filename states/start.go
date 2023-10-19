@@ -9,6 +9,7 @@ import (
 
 const (
 	etcdTag   = "etcd"
+	tikvTag   = "tikv"
 	pulsarTag = "pulsar"
 	minioTag  = "minio"
 )

@@ -10,8 +10,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 )
@@ -47,20 +47,20 @@ func printNodeUnsubChannelInfos(infos []*querypb.UnsubscribeChannelInfo) {
 	}
 }
 
-func listQueryCoordUnsubChannelInfos(cli clientv3.KV, basePath string) ([]*querypb.UnsubscribeChannelInfo, error) {
+func listQueryCoordUnsubChannelInfos(cli kv.MetaKV, basePath string) ([]*querypb.UnsubscribeChannelInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, unsubscribeChannelInfoPrefix)
 
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+	_, vals, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]*querypb.UnsubscribeChannelInfo, 0, len(resp.Kvs))
+	ret := make([]*querypb.UnsubscribeChannelInfo, 0, len(vals))
 
-	for _, kv := range resp.Kvs {
+	for _, val := range vals {
 		channelInfo := &querypb.UnsubscribeChannelInfo{}
-		err = proto.Unmarshal(kv.Value, channelInfo)
+		err = proto.Unmarshal([]byte(val), channelInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +86,7 @@ func printDeltaChannelInfos(infos []*datapb.VchannelInfo) {
 }
 
 // QueryCoordChannelCommand returns show querycoord-channel command.
-func QueryCoordChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func QueryCoordChannelCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "querycoord-channel",
 		Short:   "display querynode information from querycoord cluster",

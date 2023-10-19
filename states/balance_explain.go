@@ -11,9 +11,9 @@ import (
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -27,7 +27,7 @@ const (
 	ReverseUnbalanceTolerationFactorLabel = "reverse_toleration"
 )
 
-func ExplainBalanceCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func ExplainBalanceCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	policies := make(map[string]segmentDistExplainFunc, 0)
 	policies[scoreBasedBalancePolicy] = scoreBasedBalanceExplain
 	cmd := &cobra.Command{

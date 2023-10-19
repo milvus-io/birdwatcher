@@ -6,8 +6,8 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 // ListDatabase returns all database info from etcd meta converted to models.
-func ListDatabase(ctx context.Context, cli clientv3.KV, basePath string) ([]*models.Database, error) {
+func ListDatabase(ctx context.Context, cli kv.MetaKV, basePath string) ([]*models.Database, error) {
 	prefix := path.Join(basePath, DataBaseMetaPrefix)
 	dbs, keys, err := ListProtoObjects(ctx, cli, prefix, func(*etcdpb.DatabaseInfo) bool {
 		return true
