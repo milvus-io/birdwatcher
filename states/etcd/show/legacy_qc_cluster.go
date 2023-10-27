@@ -6,21 +6,21 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
 	queryNodeInfoPrefix = "queryCoord-queryNodeInfo"
 )
 
-func listQueryCoordClusterNodeInfo(cli clientv3.KV, basePath string) ([]*models.Session, error) {
+func listQueryCoordClusterNodeInfo(cli kv.MetaKV, basePath string) ([]*models.Session, error) {
 	prefix := path.Join(basePath, queryNodeInfoPrefix)
 	return common.ListSessionsByPrefix(cli, prefix)
 }
 
 // QueryCoordClusterCommand returns show querycoord-cluster command.
-func QueryCoordClusterCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func QueryCoordClusterCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "querycoord-cluster",
 		Short:   "display querynode information from querycoord cluster",

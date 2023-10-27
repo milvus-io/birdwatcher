@@ -8,7 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 const (
@@ -16,20 +16,19 @@ const (
 	QCDeltaChannelMetaPrefix = "queryCoord-deltaChannel"
 )
 
-func ListQueryCoordDMLChannelInfos(cli clientv3.KV, basePath string) ([]*querypb.DmChannelWatchInfo, error) {
+func ListQueryCoordDMLChannelInfos(cli kv.MetaKV, basePath string) ([]*querypb.DmChannelWatchInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, QCDmChannelMetaPrefix)
-
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+	_, vals, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
 
 	ret := make([]*querypb.DmChannelWatchInfo, 0)
-	for _, kv := range resp.Kvs {
+	for _, val := range vals {
 		channelInfo := &querypb.DmChannelWatchInfo{}
-		err = proto.Unmarshal(kv.Value, channelInfo)
+		err = proto.Unmarshal([]byte(val), channelInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -38,20 +37,18 @@ func ListQueryCoordDMLChannelInfos(cli clientv3.KV, basePath string) ([]*querypb
 	return ret, nil
 }
 
-func ListQueryCoordDeltaChannelInfos(cli clientv3.KV, basePath string) ([]*datapb.VchannelInfo, error) {
+func ListQueryCoordDeltaChannelInfos(cli kv.MetaKV, basePath string) ([]*datapb.VchannelInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, QCDeltaChannelMetaPrefix)
-
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+	_, vals, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
-
-	ret := make([]*datapb.VchannelInfo, 0, len(resp.Kvs))
-	for _, kv := range resp.Kvs {
+	ret := make([]*datapb.VchannelInfo, 0, len(vals))
+	for _, val := range vals {
 		channelInfo := &datapb.VchannelInfo{}
-		err = proto.Unmarshal(kv.Value, channelInfo)
+		err = proto.Unmarshal([]byte(val), channelInfo)
 		if err != nil {
 			return nil, err
 		}

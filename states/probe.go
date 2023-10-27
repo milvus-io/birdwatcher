@@ -25,13 +25,13 @@ import (
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func GetProbeCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func GetProbeCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	probeCmd := &cobra.Command{
 		Use:   "probe",
 		Short: "probe service state with internal apis",
@@ -47,7 +47,7 @@ func GetProbeCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	return probeCmd
 }
 
-func getProbeQueryCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query",
 		Short: "probe query service",
@@ -137,7 +137,7 @@ func getProbeQueryCmd(cli clientv3.KV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func getProbePKCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pk",
 		Short: "probe pk in segment",
@@ -388,7 +388,7 @@ func getQueryNodeClients(sessions []*models.Session) (map[int64]querypbv2.QueryN
 	return result, nil
 }
 
-func getMockSearchRequest(ctx context.Context, cli clientv3.KV, basePath string, collection *models.CollectionLoaded) (*querypbv2.SearchRequest, error) {
+func getMockSearchRequest(ctx context.Context, cli kv.MetaKV, basePath string, collection *models.CollectionLoaded) (*querypbv2.SearchRequest, error) {
 	coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, models.GTEVersion2_2, collection.CollectionID)
 	if err != nil {
 		return nil, err

@@ -11,11 +11,11 @@ import (
 
 	"time"
 
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func listQueryCoordTriggerTasks(cli clientv3.KV, basePath string) (map[UniqueID]queryCoordTask, error) {
+func listQueryCoordTriggerTasks(cli kv.MetaKV, basePath string) (map[UniqueID]queryCoordTask, error) {
 	prefix := path.Join(basePath, triggerTaskPrefix)
 	triggerTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
 	if err != nil {
@@ -27,7 +27,7 @@ func listQueryCoordTriggerTasks(cli clientv3.KV, basePath string) (map[UniqueID]
 	return triggerTasks, nil
 }
 
-func listQueryCoordActivateTasks(cli clientv3.KV, basePath string) (map[UniqueID]queryCoordTask, error) {
+func listQueryCoordActivateTasks(cli kv.MetaKV, basePath string) (map[UniqueID]queryCoordTask, error) {
 	prefix := path.Join(basePath, activeTaskPrefix)
 	activateTasks, err := listQueryCoordTasksByPrefix(cli, prefix)
 	if err != nil {
@@ -39,23 +39,23 @@ func listQueryCoordActivateTasks(cli clientv3.KV, basePath string) (map[UniqueID
 	return activateTasks, nil
 }
 
-func listQueryCoordTasksByPrefix(cli clientv3.KV, prefix string) (map[UniqueID]queryCoordTask, error) {
+func listQueryCoordTasksByPrefix(cli kv.MetaKV, prefix string) (map[UniqueID]queryCoordTask, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	tasks := make(map[int64]queryCoordTask)
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+	keys, vals, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
-
-	for _, kv := range resp.Kvs {
-		key := string(kv.Key)
+	if len(keys) != len(vals) {
+		return nil, fmt.Errorf("unmatched kv sizes for %s: len(keys): %d, len(vals): %d", prefix, len(keys), len(vals))
+	}
+	for i, key := range keys {
 		taskID, err := strconv.ParseInt(filepath.Base(key), 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		valueStr := string(kv.Value)
-		t, err := unmarshalQueryTask(taskID, valueStr)
+		t, err := unmarshalQueryTask(taskID, vals[i])
 		if err != nil {
 			return nil, err
 		}
@@ -64,23 +64,24 @@ func listQueryCoordTasksByPrefix(cli clientv3.KV, prefix string) (map[UniqueID]q
 	return tasks, nil
 }
 
-func listQueryCoordTaskStates(cli clientv3.KV, basePath string) (map[UniqueID]taskState, error) {
+func listQueryCoordTaskStates(cli kv.MetaKV, basePath string) (map[UniqueID]taskState, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, taskInfoPrefix)
 	taskInfos := make(map[int64]taskState)
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+	keys, vals, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
-	for _, kv := range resp.Kvs {
-		key := string(kv.Key)
+	if len(keys) != len(vals) {
+		return nil, fmt.Errorf("unmatched kv sizes for %s: len(keys): %d, len(vals): %d", prefix, len(keys), len(vals))
+	}
+	for i, key := range keys {
 		taskID, err := strconv.ParseInt(filepath.Base(key), 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		valueStr := string(kv.Value)
-		value, err := strconv.ParseInt(valueStr, 10, 64)
+		value, err := strconv.ParseInt(vals[i], 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +102,7 @@ func checkAndSetTaskState(tasks map[UniqueID]queryCoordTask, states map[UniqueID
 	return nil
 }
 
-func listQueryCoordTasks(cli clientv3.KV, basePath string, filter func(task queryCoordTask) bool) (map[UniqueID]queryCoordTask, map[UniqueID]queryCoordTask, error) {
+func listQueryCoordTasks(cli kv.MetaKV, basePath string, filter func(task queryCoordTask) bool) (map[UniqueID]queryCoordTask, map[UniqueID]queryCoordTask, error) {
 	triggerTasks, err := listQueryCoordTriggerTasks(cli, basePath)
 	if err != nil {
 		return nil, nil, err
@@ -140,7 +141,7 @@ func listQueryCoordTasks(cli clientv3.KV, basePath string, filter func(task quer
 
 // QueryCoordTasks returns show querycoord-tasks commands.
 // DEPRECATED from milvus 2.2.0.
-func QueryCoordTasks(cli clientv3.KV, basePath string) *cobra.Command {
+func QueryCoordTasks(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "querycoord-task",
 		Short:   "display task information from querycoord",

@@ -16,9 +16,8 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	"go.etcd.io/etcd/api/v3/mvccpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -43,7 +42,7 @@ var (
 
 // ListCollections returns collection information.
 // the field info might not include.
-func ListCollections(cli clientv3.KV, basePath string, filter func(*etcdpb.CollectionInfo) bool) ([]etcdpb.CollectionInfo, error) {
+func ListCollections(cli kv.MetaKV, basePath string, filter func(*etcdpb.CollectionInfo) bool) ([]etcdpb.CollectionInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
@@ -54,7 +53,7 @@ func ListCollections(cli clientv3.KV, basePath string, filter func(*etcdpb.Colle
 }
 
 // ListCollectionsVersion returns collection information as provided version.
-func ListCollectionsVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
+func ListCollectionsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
 
 	prefixes := []string{
 		path.Join(basePath, CollectionMetaPrefix),
@@ -113,52 +112,59 @@ func ListCollectionsVersion(ctx context.Context, cli clientv3.KV, basePath strin
 }
 
 // GetCollectionByIDVersion retruns collection info from etcd with provided version & id.
-func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, collID int64) (*models.Collection, error) {
-
-	var result []*mvccpb.KeyValue
+func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, collID int64) (*models.Collection, error) {
+	var ck string
+	var cv []byte
+	found := false
 
 	// meta before database
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collID, 10))
-	resp, err := cli.Get(ctx, prefix)
+	val, err := cli.Load(ctx, prefix)
 	if err != nil {
 		fmt.Println("get error", err.Error())
 		return nil, err
 	}
-	result = append(result, resp.Kvs...)
+	if len(val) > 0 {
+		found = true
+		ck = prefix
+		cv = []byte(val)
+	}
 
 	// with database, dbID unknown here
 	prefix = path.Join(basePath, DBCollectionMetaPrefix)
-	resp, _ = cli.Get(ctx, prefix, clientv3.WithPrefix())
+	keys, _, _ := cli.LoadWithPrefix(ctx, prefix)
 	suffix := strconv.FormatInt(collID, 10)
-	for _, kv := range resp.Kvs {
-		if strings.HasSuffix(string(kv.Key), suffix) {
-			result = append(result, kv)
+	for _, key := range keys {
+		if strings.HasSuffix(key, suffix) {
+			if found {
+				return nil, fmt.Errorf("multiple key found for collection %d: %s, %s", collID, ck, key)
+			}
+			found = true
+			ck = prefix
+			cv = []byte(val)
 		}
 	}
-
-	if len(result) != 1 {
+	if !found {
 		return nil, fmt.Errorf("collection %d not found in etcd %w", collID, ErrCollectionNotFound)
 	}
 
-	kv := result[0]
-
-	if bytes.Equal(kv.Value, CollectionTombstone) {
+	if bytes.Equal(cv, CollectionTombstone) {
 		return nil, fmt.Errorf("%w, collection id: %d", ErrCollectionDropped, collID)
 	}
 
 	switch version {
 	case models.LTEVersion2_1:
 		info := &etcdpb.CollectionInfo{}
-		err := proto.Unmarshal(kv.Value, info)
+		err := proto.Unmarshal(cv, info)
 		if err != nil {
 			return nil, err
 		}
-		c := models.NewCollectionFromV2_1(info, string(kv.Key))
+		c := models.NewCollectionFromV2_1(info, string(ck))
 		return c, nil
 
 	case models.GTEVersion2_2:
 		info := &etcdpbv2.CollectionInfo{}
-		err := proto.Unmarshal(kv.Value, info)
+		err := proto.Unmarshal(cv, info)
 		if err != nil {
 			return nil, err
 		}
@@ -166,14 +172,14 @@ func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath str
 		if err != nil {
 			return nil, err
 		}
-		c := models.NewCollectionFromV2_2(info, string(kv.Key), fields)
+		c := models.NewCollectionFromV2_2(info, string(ck), fields)
 		return c, nil
 	default:
 		return nil, errors.New("not supported version")
 	}
 }
 
-func getCollectionFields(ctx context.Context, cli clientv3.KV, basePath string, collID int64) ([]*schemapbv2.FieldSchema, error) {
+func getCollectionFields(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) ([]*schemapbv2.FieldSchema, error) {
 	fields, _, err := ListProtoObjects[schemapbv2.FieldSchema](ctx, cli, path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collID)))
 	if err != nil {
 		fmt.Println(err.Error())
@@ -182,17 +188,20 @@ func getCollectionFields(ctx context.Context, cli clientv3.KV, basePath string, 
 
 }
 
-func FillFieldSchemaIfEmpty(cli clientv3.KV, basePath string, collection *etcdpb.CollectionInfo) error {
+func FillFieldSchemaIfEmpty(cli kv.MetaKV, basePath string, collection *etcdpb.CollectionInfo) error {
 	if len(collection.GetSchema().GetFields()) == 0 { // fields separated from schema after 2.1.1
-		resp, err := cli.Get(context.TODO(), path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collection.ID)), clientv3.WithPrefix())
+		keys, vals, err := cli.LoadWithPrefix(context.TODO(), path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collection.ID)))
 		if err != nil {
 			return err
 		}
-		for _, kv := range resp.Kvs {
+		if len(keys) != len(vals) {
+			return fmt.Errorf("Error: keys and vals of different size:%d vs %d", len(keys), len(vals))
+		}
+		for i, key := range keys {
 			field := &schemapb.FieldSchema{}
-			err := proto.Unmarshal(kv.Value, field)
+			err := proto.Unmarshal([]byte(vals[i]), field)
 			if err != nil {
-				fmt.Println("found error field:", string(kv.Key), err.Error())
+				fmt.Println("found error field:", key, err.Error())
 				continue
 			}
 			collection.Schema.Fields = append(collection.Schema.Fields, field)
@@ -202,17 +211,20 @@ func FillFieldSchemaIfEmpty(cli clientv3.KV, basePath string, collection *etcdpb
 	return nil
 }
 
-func FillFieldSchemaIfEmptyV2(cli clientv3.KV, basePath string, collection *etcdpbv2.CollectionInfo) error {
+func FillFieldSchemaIfEmptyV2(cli kv.MetaKV, basePath string, collection *etcdpbv2.CollectionInfo) error {
 	if len(collection.GetSchema().GetFields()) == 0 { // fields separated from schema after 2.1.1
-		resp, err := cli.Get(context.TODO(), path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collection.ID)), clientv3.WithPrefix())
+		keys, vals, err := cli.LoadWithPrefix(context.TODO(), fmt.Sprintf("root-coord/fields/%d", collection.ID))
 		if err != nil {
 			return err
 		}
-		for _, kv := range resp.Kvs {
+		if len(keys) != len(vals) {
+			return fmt.Errorf("Error: keys and vals of different size:%d vs %d", len(keys), len(vals))
+		}
+		for i, key := range keys {
 			field := &schemapbv2.FieldSchema{}
-			err := proto.Unmarshal(kv.Value, field)
+			err := proto.Unmarshal([]byte(vals[i]), field)
 			if err != nil {
-				fmt.Println("found error field:", string(kv.Key), err.Error())
+				fmt.Println("found error field:", key, err.Error())
 				continue
 			}
 			collection.Schema.Fields = append(collection.Schema.Fields, field)
@@ -222,14 +234,14 @@ func FillFieldSchemaIfEmptyV2(cli clientv3.KV, basePath string, collection *etcd
 	return nil
 }
 
-func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo)) error {
+func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo)) error {
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collectionID, 10))
-	resp, err := cli.Get(ctx, prefix)
+	val, err := cli.Load(ctx, prefix)
 	if err != nil {
 		return err
 	}
 	info := &etcdpbv2.CollectionInfo{}
-	err = proto.Unmarshal(resp.Kvs[0].Value, info)
+	err = proto.Unmarshal([]byte(val), info)
 	if err != nil {
 		return err
 	}
@@ -240,7 +252,5 @@ func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, col
 	if err != nil {
 		return err
 	}
-
-	_, err = cli.Put(ctx, prefix, string(bs))
-	return err
+	return cli.Save(ctx, prefix, string(bs))
 }

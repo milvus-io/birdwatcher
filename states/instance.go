@@ -10,10 +10,9 @@ import (
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd"
-	"github.com/milvus-io/birdwatcher/states/etcd/audit"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	metakv "github.com/milvus-io/birdwatcher/states/kv"
 )
 
 // InstanceState provides command for single milvus instance.
@@ -22,7 +21,7 @@ type InstanceState struct {
 	*show.ComponentShow
 	*remove.ComponentRemove
 	instanceName string
-	client       clientv3.KV
+	client       metakv.MetaKV
 	auditFile    *os.File
 
 	etcdState framework.State
@@ -118,15 +117,15 @@ func (s *InstanceState) DryModeCommand(ctx context.Context, p *DryModeParam) {
 	s.SetNext(s.etcdState)
 }
 
-func getInstanceState(parent *framework.CmdState, cli clientv3.KV, instanceName, metaPath string, etcdState framework.State, config *configs.Config) framework.State {
-	var kv clientv3.KV
+func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config) framework.State {
+	var kv metakv.MetaKV
 	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
 	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("failed to open audit.log file!")
 		kv = cli
 	} else {
-		kv = audit.NewFileAuditKV(cli, file)
+		kv = metakv.NewFileAuditKV(cli, file)
 	}
 
 	basePath := path.Join(instanceName, metaPath)

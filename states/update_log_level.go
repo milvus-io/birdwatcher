@@ -10,16 +10,16 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 // TODO read port from config
 const httpAPIListenPort = 9091
 
-func getShowLogLevelCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getShowLogLevelCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show-log-level",
 		Short: "show log level of milvus roles",
@@ -62,7 +62,7 @@ func GetLogLevel(httpClient *http.Client, session *models.Session) error {
 	return nil
 }
 
-func getUpdateLogLevelCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getUpdateLogLevelCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-log-level log_level [component] [serverId]",
 		Short: "update log level of milvus role ",

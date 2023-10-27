@@ -6,12 +6,12 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // EmptySegmentCommand returns repair empty-segment command.
-func EmptySegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func EmptySegmentCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "empty-segment",
 		Short: "Remove empty segment from meta",

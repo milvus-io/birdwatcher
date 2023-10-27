@@ -8,7 +8,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/mq"
@@ -17,13 +16,14 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/birdwatcher/utils"
 )
 
 // CheckpointCommand usage:
 // repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type kafka --address localhost:9092 --set_to latest-msgid
 // repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type pulsar --address pulsar://localhost:6650 --set_to latest-msgid
-func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func CheckpointCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "checkpoint",
 		Short:   "reset checkpoint of vchannels to latest checkpoint(or latest msgID) of physical channel",
@@ -90,7 +90,7 @@ func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func setCheckPointWithLatestMsgID(cli clientv3.KV, basePath string, coll *models.Collection, mqType, address, vchannel string) {
+func setCheckPointWithLatestMsgID(cli kv.MetaKV, basePath string, coll *models.Collection, mqType, address, vchannel string) {
 	for _, ch := range coll.Channels {
 		if ch.VirtualName == vchannel {
 			pChannel := ch.PhysicalName
@@ -113,7 +113,7 @@ func setCheckPointWithLatestMsgID(cli clientv3.KV, basePath string, coll *models
 	fmt.Printf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.ID)
 }
 
-func setCheckPointWithLatestCheckPoint(cli clientv3.KV, basePath string, coll *models.Collection, vchannel string) {
+func setCheckPointWithLatestCheckPoint(cli kv.MetaKV, basePath string, coll *models.Collection, vchannel string) {
 	pChannelName2LatestCP, err := getLatestCheckpointFromPChannel(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to get latest cp of all pchannel", err.Error())
@@ -149,17 +149,17 @@ func setCheckPointWithLatestCheckPoint(cli clientv3.KV, basePath string, coll *m
 	fmt.Printf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.ID)
 }
 
-func saveChannelCheckpoint(cli clientv3.KV, basePath string, channelName string, pos *internalpb.MsgPosition) error {
+func saveChannelCheckpoint(cli kv.MetaKV, basePath string, channelName string, pos *internalpb.MsgPosition) error {
 	key := path.Join(basePath, "datacoord-meta", "channel-cp", channelName)
 	bs, err := proto.Marshal(pos)
 	if err != nil {
 		fmt.Println("failed to marshal segment info", err.Error())
 	}
-	_, err = cli.Put(context.Background(), key, string(bs))
+	err = cli.Save(context.Background(), key, string(bs))
 	return err
 }
 
-func getLatestCheckpointFromPChannel(cli clientv3.KV, basePath string) (map[string]*internalpb.MsgPosition, error) {
+func getLatestCheckpointFromPChannel(cli kv.MetaKV, basePath string) (map[string]*internalpb.MsgPosition, error) {
 	segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
 		return true
 	})

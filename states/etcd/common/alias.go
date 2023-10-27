@@ -7,8 +7,8 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -22,7 +22,7 @@ const (
 	AliasPrefixDB = `root-coord/database/alias`
 )
 
-func ListAliasVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.Alias) bool) ([]*models.Alias, error) {
+func ListAliasVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Alias) bool) ([]*models.Alias, error) {
 	prefixes := []string{
 		path.Join(basePath, AliasPrefixWithoutDB),
 		path.Join(basePath, AliasPrefixDB),

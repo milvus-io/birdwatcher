@@ -8,12 +8,12 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // CollectionDropCommand returns `remove collection-drop` command.
-func CollectionDropCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func CollectionDropCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "collection-drop",
 		Short: "Remove collection & channel meta for collection in dropping/dropped state",
@@ -59,25 +59,23 @@ func CollectionDropCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func cleanCollectionDropMeta(cli clientv3.KV, basePath string, collection *models.Collection, run bool) {
-
+func cleanCollectionDropMeta(cli kv.MetaKV, basePath string, collection *models.Collection, run bool) {
 	fmt.Println("Clean collection(drop) meta:")
-	var ops []clientv3.Op
 	if collection.Key() == "" {
 		fmt.Printf("Collection %s[%d] key is empty string, cannot perform cleanup", collection.Schema.Name, collection.ID)
 		return
 	}
 	// remove collection meta
-	ops = append(ops, clientv3.OpDelete(collection.Key()))
+	cli.Remove(context.TODO(), collection.Key())
 	fmt.Printf("Collection Meta: %s\n", collection.Key())
 	// remove collection field meta
 	fieldsPrefix := path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collection.ID)) + "/"
 	fmt.Printf("Collection Field Meta(Prefix): %s\n", collection.Key())
-	ops = append(ops, clientv3.OpDelete(fieldsPrefix, clientv3.WithPrefix()))
+	cli.RemoveWithPrefix(context.TODO(), fieldsPrefix)
 	// remove collection partition meta
 	partitionsPrefix := path.Join(basePath, fmt.Sprintf("root-coord/partitions/%d", collection.ID)) + "/"
 	fmt.Printf("Collection Partition Meta(Prefix): %s\n", partitionsPrefix)
-	ops = append(ops, clientv3.OpDelete(partitionsPrefix, clientv3.WithPrefix()))
+	cli.RemoveWithPrefix(context.TODO(), partitionsPrefix)
 
 	channelWatchInfos, err := common.ListChannelWatch(context.Background(), cli, basePath, etcdversion.GetVersion(), func(cw *models.ChannelWatch) bool {
 		return cw.Vchan.CollectionID == collection.ID
@@ -93,17 +91,17 @@ func cleanCollectionDropMeta(cli clientv3.KV, basePath string, collection *model
 			return
 		}
 		fmt.Println("channel watch info:", info.Key())
-		ops = append(ops, clientv3.OpDelete(info.Key()))
+		cli.Remove(context.TODO(), info.Key())
 	}
 
 	// channel checkpoint and removal
 	for _, channel := range collection.Channels {
 		cpKey := path.Join(basePath, "datacoord-meta/channel-cp", channel.VirtualName)
 		fmt.Println("channel checkpoint:", cpKey)
-		ops = append(ops, clientv3.OpDelete(cpKey))
+		cli.Remove(context.TODO(), cpKey)
 		removalKey := path.Join(basePath, "datacoord-meta/channel-removal", channel.VirtualName)
 		fmt.Println("channel removal", removalKey)
-		ops = append(ops, clientv3.OpDelete(removalKey))
+		cli.Remove(context.TODO(), removalKey)
 	}
 
 	// dry run
@@ -112,11 +110,14 @@ func cleanCollectionDropMeta(cli clientv3.KV, basePath string, collection *model
 		return
 	}
 
+	// TODO: yi
 	// remove all keys with transaction
-	resp, err := cli.Txn(context.TODO()).If().Then(ops...).Commit()
-	if err != nil {
-		fmt.Printf("failed to remove meta for collection %s[%d], err: %s\n", collection.Schema.Name, collection.ID, err.Error())
-		return
-	}
-	fmt.Printf("Batch remove collection %s[%d] meta, transaction succeed: %v\n", collection.Schema.Name, collection.ID, resp.Succeeded)
+	/*
+		resp, err := cli.Txn(context.TODO()).If().Then(ops...).Commit()
+		if err != nil {
+			fmt.Printf("failed to remove meta for collection %s[%d], err: %s\n", collection.Schema.Name, collection.ID, err.Error())
+			return
+		}
+		fmt.Printf("Batch remove collection %s[%d] meta, transaction succeed: %v\n", collection.Schema.Name, collection.ID, resp.Succeeded)
+	*/
 }

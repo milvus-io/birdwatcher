@@ -12,8 +12,8 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 )
 
 // ListSegmentsVersion list segment info as specified version.
-func ListSegmentsVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
+func ListSegmentsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
 	prefix := path.Join(basePath, segmentMetaPrefix) + "/"
 	switch version {
 	case models.LTEVersion2_1:
@@ -59,7 +59,7 @@ func ListSegmentsVersion(ctx context.Context, cli clientv3.KV, basePath string, 
 	}
 }
 
-func getSegmentLazyFunc(cli clientv3.KV, basePath string, segment datapbv2.SegmentInfo) func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error) {
+func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.SegmentInfo) func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error) {
 	return func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error) {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 
@@ -104,17 +104,17 @@ func getSegmentLazyFunc(cli clientv3.KV, basePath string, segment datapbv2.Segme
 }
 
 // ListSegments list segment info from etcd
-func ListSegments(cli clientv3.KV, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
+func ListSegments(cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	resp, err := cli.Get(ctx, path.Join(basePath, segmentMetaPrefix)+"/", clientv3.WithPrefix())
+	_, vals, err := cli.LoadWithPrefix(ctx, path.Join(basePath, segmentMetaPrefix)+"/")
 	if err != nil {
 		return nil, err
 	}
-	segments := make([]*datapb.SegmentInfo, 0, len(resp.Kvs))
-	for _, kv := range resp.Kvs {
+	segments := make([]*datapb.SegmentInfo, 0, len(vals))
+	for _, val := range vals {
 		info := &datapb.SegmentInfo{}
-		err = proto.Unmarshal(kv.Value, info)
+		err = proto.Unmarshal([]byte(val), info)
 		if err != nil {
 			continue
 		}
@@ -130,7 +130,7 @@ func ListSegments(cli clientv3.KV, basePath string, filter func(*datapb.SegmentI
 }
 
 // FillFieldsIfV2 fill binlog paths fields for v2 segment info.
-func FillFieldsIfV2(cli clientv3.KV, basePath string, segment *datapb.SegmentInfo) error {
+func FillFieldsIfV2(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo) error {
 	if len(segment.Binlogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 		fields, _, err := ListProtoObjects[datapbv2.FieldBinlog](context.Background(), cli, prefix)
@@ -228,7 +228,7 @@ func FillFieldsIfV2(cli clientv3.KV, basePath string, segment *datapb.SegmentInf
 }
 
 // ListLoadedSegments list v2.1 loaded segment info.
-func ListLoadedSegments(cli clientv3.KV, basePath string, filter func(*querypb.SegmentInfo) bool) ([]querypb.SegmentInfo, error) {
+func ListLoadedSegments(cli kv.MetaKV, basePath string, filter func(*querypb.SegmentInfo) bool) ([]querypb.SegmentInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, "queryCoord-segmentMeta")
@@ -242,33 +242,32 @@ func ListLoadedSegments(cli clientv3.KV, basePath string, filter func(*querypb.S
 }
 
 // RemoveSegment delete segment entry from etcd.
-func RemoveSegment(cli clientv3.KV, basePath string, info *datapb.SegmentInfo) error {
+func RemoveSegment(cli kv.MetaKV, basePath string, info *datapb.SegmentInfo) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-
 	segmentPath := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
-	_, err := cli.Delete(ctx, segmentPath)
+	err := cli.Remove(ctx, segmentPath)
 	if err != nil {
 		return err
 	}
 
 	// delete binlog entries
 	binlogPrefix := path.Join(basePath, "datacoord-meta/binlog", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
-	_, err = cli.Delete(ctx, binlogPrefix, clientv3.WithPrefix())
+	err = cli.Remove(ctx, binlogPrefix)
 	if err != nil {
 		fmt.Printf("failed to delete binlogs from etcd for segment %d, err: %s\n", info.GetID(), err.Error())
 	}
 
 	// delete deltalog entries
 	deltalogPrefix := path.Join(basePath, "datacoord-meta/deltalog", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
-	_, err = cli.Delete(ctx, deltalogPrefix, clientv3.WithPrefix())
+	err = cli.Remove(ctx, deltalogPrefix)
 	if err != nil {
 		fmt.Printf("failed to delete deltalogs from etcd for segment %d, err: %s\n", info.GetID(), err.Error())
 	}
 
 	// delete statslog entries
 	statslogPrefix := path.Join(basePath, "datacoord-meta/statslog", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
-	_, err = cli.Delete(ctx, statslogPrefix, clientv3.WithPrefix())
+	err = cli.Remove(ctx, statslogPrefix)
 	if err != nil {
 		fmt.Printf("failed to delete statslogs from etcd for segment %d, err: %s\n", info.GetID(), err.Error())
 	}
@@ -276,30 +275,30 @@ func RemoveSegment(cli clientv3.KV, basePath string, info *datapb.SegmentInfo) e
 	return err
 }
 
-func RemoveSegmentByID(ctx context.Context, cli clientv3.KV, basePath string, collectionID, partitionID, segmentID int64) error {
+func RemoveSegmentByID(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, partitionID, segmentID int64) error {
 	segmentPath := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
-	_, err := cli.Delete(ctx, segmentPath)
+	err := cli.Remove(ctx, segmentPath)
 	if err != nil {
 		return err
 	}
 
 	// delete binlog entries
 	binlogPrefix := path.Join(basePath, "datacoord-meta/binlog", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
-	_, err = cli.Delete(ctx, binlogPrefix, clientv3.WithPrefix())
+	err = cli.Remove(ctx, binlogPrefix)
 	if err != nil {
 		fmt.Printf("failed to delete binlogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
 	}
 
 	// delete deltalog entries
 	deltalogPrefix := path.Join(basePath, "datacoord-meta/deltalog", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
-	_, err = cli.Delete(ctx, deltalogPrefix, clientv3.WithPrefix())
+	err = cli.Remove(ctx, deltalogPrefix)
 	if err != nil {
 		fmt.Printf("failed to delete deltalogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
 	}
 
 	// delete statslog entries
 	statslogPrefix := path.Join(basePath, "datacoord-meta/statslog", fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID))
-	_, err = cli.Delete(ctx, statslogPrefix, clientv3.WithPrefix())
+	err = cli.Remove(ctx, statslogPrefix)
 	if err != nil {
 		fmt.Printf("failed to delete statslogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
 	}
@@ -307,7 +306,7 @@ func RemoveSegmentByID(ctx context.Context, cli clientv3.KV, basePath string, co
 	return err
 }
 
-func UpdateSegments(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
+func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
 
 	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", segmentMetaPrefix, collectionID)) + "/"
 	segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
@@ -324,7 +323,7 @@ func UpdateSegments(ctx context.Context, cli clientv3.KV, basePath string, colle
 			return err
 		}
 
-		_, err = cli.Put(ctx, keys[idx], string(bs))
+		err = cli.Save(ctx, keys[idx], string(bs))
 		if err != nil {
 			return err
 		}

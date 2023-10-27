@@ -2,7 +2,6 @@ package states
 
 import (
 	"bufio"
-	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/binary"
@@ -10,16 +9,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
-	"github.com/gosuri/uilive"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
@@ -30,7 +26,7 @@ import (
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -151,102 +147,11 @@ func writeBackupHeader(w io.Writer, version int32) error {
 	return nil
 }
 
-func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, opt *BackupParam) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	resp, err := cli.Get(ctx, path.Join(base, prefix), clientv3.WithCountOnly(), clientv3.WithPrefix())
-	if err != nil {
-		return err
-	}
-
-	if opt.IgnoreRevision {
-		fmt.Println("WARNING!!! doing backup ignore revision! please make sure no instance of milvus is online!")
-	}
-
-	// meta stored in extra
-	meta := make(map[string]string)
-
-	cnt := resp.Count
-	rev := resp.Header.Revision
-	meta["cnt"] = fmt.Sprintf("%d", cnt)
-	meta["rev"] = fmt.Sprintf("%d", cnt)
-	var instance, metaPath string
-	parts := strings.Split(base, "/")
-	if len(parts) > 1 {
-		metaPath = parts[len(parts)-1]
-		instance = path.Join(parts[:len(parts)-1]...)
-	} else {
-		instance = base
-	}
-	meta["instance"] = instance
-	meta["metaPath"] = metaPath
-
-	bs, _ := json.Marshal(meta)
-	ph := models.PartHeader{
-		PartType: int32(models.EtcdBackup),
-		PartLen:  -1, // not sure for length
-		Extra:    bs,
-	}
-	bs, err = proto.Marshal(&ph)
-	if err != nil {
-		fmt.Println("failed to marshal part header for etcd backup", err.Error())
-		return err
-	}
-	writeBackupBytes(w, bs)
-
-	progressDisplay := uilive.New()
-	progressFmt := "Backing up ... %d%%(%d/%d)\n"
-	progressDisplay.Start()
-	fmt.Fprintf(progressDisplay, progressFmt, 0, 0, cnt)
-
-	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(opt.BatchSize)}
-	if !opt.IgnoreRevision {
-		options = append(options, clientv3.WithRev(rev))
-	}
-
-	currentKey := path.Join(base, prefix)
-	var i int
-	prefixBS := []byte(base)
-	for int64(i) < cnt {
-		resp, err = cli.Get(context.Background(), currentKey, options...)
-		if err != nil {
-			return err
-		}
-
-		valid := 0
-		for _, kvs := range resp.Kvs {
-			if !bytes.HasPrefix(kvs.Key, prefixBS) {
-				continue
-			}
-			valid++
-			entry := &commonpb.KeyDataPair{Key: string(kvs.Key), Data: kvs.Value}
-			bs, err = proto.Marshal(entry)
-			if err != nil {
-				fmt.Println("failed to marshal kv pair", err.Error())
-				return err
-			}
-			writeBackupBytes(w, bs)
-
-			currentKey = string(append(kvs.Key, 0))
-		}
-		i += valid
-
-		progress := (i + 1) * 100 / int(cnt)
-		fmt.Fprintf(progressDisplay, progressFmt, progress, i+1, cnt)
-	}
-	w.Flush()
-	progressDisplay.Stop()
-
-	// write stopper
-	writeBackupBytes(w, nil)
-
-	w.Flush()
-
-	fmt.Printf("backup etcd for prefix %s done\n", prefix)
-	return nil
+func backupEtcdV2(cli kv.MetaKV, base, prefix string, w *bufio.Writer, opt *BackupParam) error {
+	return cli.BackupKV(base, prefix, w, opt.IgnoreRevision, opt.BatchSize)
 }
 
-func backupMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
+func backupMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err
@@ -287,7 +192,7 @@ func backupMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 	return nil
 }
 
-func backupAppMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
+func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err
@@ -363,7 +268,7 @@ func backupAppMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 
 }
 
-func backupConfiguration(cli clientv3.KV, basePath string, w *bufio.Writer) error {
+func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		return err

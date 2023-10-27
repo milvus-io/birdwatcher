@@ -32,7 +32,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	stateCommon "github.com/milvus-io/birdwatcher/states/etcd/common"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 const (
@@ -83,18 +83,18 @@ func ParseTS(ts uint64) (time.Time, uint64) {
 }
 
 // listSessions returns all session
-func listSessionsByPrefix(cli clientv3.KV, prefix string) ([]*models.Session, error) {
+func listSessionsByPrefix(cli kv.MetaKV, prefix string) ([]*models.Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
+	_, vals, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	sessions := make([]*models.Session, 0, len(resp.Kvs))
-	for _, kv := range resp.Kvs {
+	sessions := make([]*models.Session, 0, len(vals))
+	for _, val := range vals {
 		session := &models.Session{}
-		err := json.Unmarshal(kv.Value, session)
+		err := json.Unmarshal([]byte(val), session)
 		if err != nil {
 			continue
 		}
@@ -213,7 +213,7 @@ func pathPart(p string, idx int) (string, error) {
 	return parts[idx], nil
 }
 
-func ListServers(cli clientv3.KV, basePath string, serverName string) ([]*models.Session, error) {
+func ListServers(cli kv.MetaKV, basePath string, serverName string) ([]*models.Session, error) {
 	sessions, err := stateCommon.ListSessions(cli, basePath)
 	if err != nil {
 		return nil, err

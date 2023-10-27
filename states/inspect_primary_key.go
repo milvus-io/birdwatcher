@@ -11,12 +11,12 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/birdwatcher/storage"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func getInspectPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getInspectPKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect-pk [segment id]",

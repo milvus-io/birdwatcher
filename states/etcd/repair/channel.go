@@ -9,13 +9,13 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 )
 
 // ChannelCommand returns repair channel command.
-func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func ChannelCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "channel",
 		Aliases: []string{"channels"},
@@ -82,7 +82,7 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func doDatacoordWatch(cli clientv3.KV, basePath string, collectionID int64, vchannels []string) {
+func doDatacoordWatch(cli kv.MetaKV, basePath string, collectionID int64, vchannels []string) {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session")

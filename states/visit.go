@@ -17,8 +17,8 @@ import (
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -35,7 +35,7 @@ func getSessionTypes() []string {
 	}
 }
 
-func getVisitCmd(state framework.State, cli clientv3.KV, basePath string) *cobra.Command {
+func getVisitCmd(state framework.State, cli kv.MetaKV, basePath string) *cobra.Command {
 	callCmd := &cobra.Command{
 		Use:   "visit",
 		Short: "enter state that could visit some service of component",
@@ -74,7 +74,7 @@ func setNextState(sessionType string, conn *grpc.ClientConn, state framework.Sta
 	}
 }
 
-func getSessionConnect(cli clientv3.KV, basePath string, id int64, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
+func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
 	sessions, err := common.ListSessions(cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session, err:", err.Error())
@@ -100,7 +100,7 @@ func getSessionConnect(cli clientv3.KV, basePath string, id int64, sessionType s
 	return nil, nil, errors.New("invalid id")
 }
 
-func getVisitSessionCmds(state framework.State, cli clientv3.KV, basePath string) []*cobra.Command {
+func getVisitSessionCmds(state framework.State, cli kv.MetaKV, basePath string) []*cobra.Command {
 	sessionCmds := make([]*cobra.Command, 0, len(getSessionTypes()))
 	sessionTypes := getSessionTypes()
 

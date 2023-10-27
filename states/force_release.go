@@ -10,13 +10,13 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // getForceReleaseCmd returns command for force-release
 // usage: force-release [flags]
-func getForceReleaseCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getForceReleaseCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "force-release",
 		Short: "Force release the collections from QueryCoord",
@@ -33,12 +33,12 @@ func getForceReleaseCmd(cli clientv3.KV, basePath string) *cobra.Command {
 			// remove all keys start with [basePath]/queryCoord- qcv1 meta
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
-			_, err := cli.Delete(ctx, path.Join(basePath, "queryCoord-"), clientv3.WithPrefix())
+			err := cli.RemoveWithPrefix(ctx, path.Join(basePath, "queryCoord-"))
 			if err != nil {
 				fmt.Printf("failed to remove queryCoord v1 etcd kv, err: %v\n", err)
 			}
 			// remove all keys start with [basePath]/querycoord- qcv2 meta
-			_, err = cli.Delete(ctx, path.Join(basePath, "querycoord-"), clientv3.WithPrefix())
+			err = cli.RemoveWithPrefix(ctx, path.Join(basePath, "querycoord-"))
 			if err != nil {
 				fmt.Printf("failed to remove queryCoord v2 etcd kv, err: %v\n", err)
 			}
@@ -52,7 +52,7 @@ func getForceReleaseCmd(cli clientv3.KV, basePath string) *cobra.Command {
 }
 
 // getReleaseDroppedCollectionCmd returns command for release-dropped-collection
-func getReleaseDroppedCollectionCmd(cli clientv3.KV, basePath string) *cobra.Command {
+func getReleaseDroppedCollectionCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "release-dropped-collection",
 		Short: "Clean loaded collections meta if it's dropped from QueryCoord",
@@ -100,11 +100,11 @@ func getReleaseDroppedCollectionCmd(cli clientv3.KV, basePath string) *cobra.Com
 	return cmd
 }
 
-func releaseQueryCoordLoadMeta(cli clientv3.KV, basePath string, collectionID int64) error {
+func releaseQueryCoordLoadMeta(cli kv.MetaKV, basePath string, collectionID int64) error {
 	p := path.Join(basePath, common.CollectionLoadPrefix, fmt.Sprintf("%d", collectionID))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	_, err := cli.Delete(ctx, p)
+	err := cli.Remove(ctx, p)
 
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func releaseQueryCoordLoadMeta(cli clientv3.KV, basePath string, collectionID in
 
 	for _, segment := range segments {
 		p := path.Join(basePath, "queryCoord-segmentMeta", fmt.Sprintf("%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.SegmentID))
-		cli.Delete(ctx, p)
+		cli.Remove(ctx, p)
 	}
 
 	dmChannels, err := common.ListQueryCoordDMLChannelInfos(cli, basePath)
@@ -133,7 +133,7 @@ func releaseQueryCoordLoadMeta(cli clientv3.KV, basePath string, collectionID in
 			continue
 		}
 		p := path.Join(basePath, common.QCDmChannelMetaPrefix, fmt.Sprintf("%d/%s", dmChannel.CollectionID, dmChannel.DmChannel))
-		cli.Delete(ctx, p)
+		cli.Remove(ctx, p)
 	}
 
 	deltaChannels, err := common.ListQueryCoordDeltaChannelInfos(cli, basePath)
@@ -142,7 +142,7 @@ func releaseQueryCoordLoadMeta(cli clientv3.KV, basePath string, collectionID in
 			continue
 		}
 		p := path.Join(basePath, common.QCDeltaChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
-		cli.Delete(ctx, p)
+		cli.Remove(ctx, p)
 	}
 
 	return err

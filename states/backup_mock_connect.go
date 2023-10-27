@@ -18,8 +18,8 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
 )
@@ -32,7 +32,7 @@ type embedEtcdMockState struct {
 	*framework.CmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
-	client       *clientv3.Client
+	client       kv.MetaKV
 	server       *embed.Etcd
 	instanceName string
 	workDir      string
@@ -45,9 +45,7 @@ type embedEtcdMockState struct {
 // Close implements framework.State.
 // Clean up embed etcd folder content.
 func (s *embedEtcdMockState) Close() {
-	if s.client != nil {
-		s.client.Close()
-	}
+	s.client.Close()
 	if s.server != nil {
 		s.server.Close()
 		os.RemoveAll(s.server.Config().Dir)
@@ -170,7 +168,7 @@ func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
 	s.SetInstance(meta.Instance)
 }
 
-func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string, config *configs.Config) framework.State {
+func getEmbedEtcdInstance(server *embed.Etcd, cli kv.MetaKV, instanceName string, config *configs.Config) framework.State {
 
 	basePath := path.Join(instanceName, metaPath)
 
@@ -192,7 +190,7 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 }
 
 func getEmbedEtcdInstanceV2(parent *framework.CmdState, server *embed.Etcd, config *configs.Config) *embedEtcdMockState {
-	client := v3client.New(server.Server)
+	client := kv.NewEtcdKV(v3client.New(server.Server))
 	state := &embedEtcdMockState{
 		CmdState:       parent.Spawn(""),
 		server:         server,

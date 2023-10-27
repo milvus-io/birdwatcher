@@ -8,11 +8,11 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 // ListReplica list current replica info
-func ListReplica(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64) ([]*models.Replica, error) {
+func ListReplica(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64) ([]*models.Replica, error) {
 	v1Results, err := listReplicas(ctx, cli, basePath, func(replica *milvuspb.ReplicaInfo) bool {
 		return collectionID == 0 || replica.GetCollectionID() == collectionID
 	})
@@ -60,7 +60,7 @@ func ListReplica(ctx context.Context, cli clientv3.KV, basePath string, collecti
 	return results, nil
 
 }
-func listReplicas(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
+func listReplicas(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
 	prefix := path.Join(basePath, "queryCoord-ReplicaMeta")
 
 	replicas, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
@@ -72,7 +72,7 @@ func listReplicas(ctx context.Context, cli clientv3.KV, basePath string, filters
 	return replicas, nil
 }
 
-func listQCReplicas(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(*querypb.Replica) bool) ([]querypb.Replica, error) {
+func listQCReplicas(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*querypb.Replica) bool) ([]querypb.Replica, error) {
 	prefix := path.Join(basePath, "querycoord-replica")
 
 	replicas, _, err := ListProtoObjects(ctx, cli, prefix, filters...)

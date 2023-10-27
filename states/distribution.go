@@ -8,14 +8,14 @@ import (
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // GetDistributionCommand returns command to iterate all querynodes to list distribution.
-func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func GetDistributionCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "segment-loaded-grpc",
 		Short: "list segments loaded information",

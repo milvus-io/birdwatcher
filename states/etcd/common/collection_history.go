@@ -10,12 +10,12 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/runtime/protoiface"
 )
 
-func ListCollectionHistoryWithDB(ctx context.Context, cli clientv3.KV, basePath string, version string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
+func ListCollectionHistoryWithDB(ctx context.Context, cli kv.MetaKV, basePath string, version string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
 	var prefix string
 
 	if dbID > 0 {
@@ -65,7 +65,7 @@ func ListCollectionHistoryWithDB(ctx context.Context, cli clientv3.KV, basePath 
 }
 
 // ListCollectionHistory list collection history from snapshots.
-func ListCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string, version string, collectionID int64) ([]*models.CollectionHistory, error) {
+func ListCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, version string, collectionID int64) ([]*models.CollectionHistory, error) {
 	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
 
 	var dropped, paths []string
@@ -121,7 +121,7 @@ func parseHistoryTs(entry string) uint64 {
 func ListHistoryCollection[T any, P interface {
 	*T
 	protoiface.MessageV1
-}](ctx context.Context, cli clientv3.KV, prefix string) ([]T, []string, []string, error) {
+}](ctx context.Context, cli kv.MetaKV, prefix string) ([]T, []string, []string, error) {
 	var dropped []string
 	colls, paths, err := ListProtoObjectsAdv[T, P](ctx, cli, prefix,
 		func(key string, value []byte) bool {
@@ -138,7 +138,7 @@ func ListHistoryCollection[T any, P interface {
 	return colls, paths, dropped, nil
 }
 
-func RemoveCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string, version string, collectionID int64) error {
+func RemoveCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, version string, collectionID int64) error {
 
 	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
 	colls, paths, _, err := ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
@@ -150,7 +150,7 @@ func RemoveCollectionHistory(ctx context.Context, cli clientv3.KV, basePath stri
 			continue
 		}
 		if coll.State == etcdpbv2.CollectionState_CollectionDropped || coll.State == etcdpbv2.CollectionState_CollectionDropping {
-			cli.Delete(ctx, paths[idx])
+			cli.Remove(ctx, paths[idx])
 		}
 	}
 	return nil
