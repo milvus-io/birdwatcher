@@ -51,6 +51,7 @@ func RepairCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 		repair.EmptySegmentCommand(cli, basePath),
 		// repair miss index metric_type
 		repair.IndexMetricCommand(cli, basePath),
+		repair.DiskAnnIndexParamsCommand(cli, basePath),
 	)
 
 	return repairCmd
