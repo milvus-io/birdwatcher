@@ -10,6 +10,7 @@ birdwatcher-build
 
 # logs
 audit.log
+audit_*.log
 bw_debug.log
 
 # vim

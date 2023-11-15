@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // GetDistributionCommand returns command to iterate all querynodes to list distribution.
@@ -20,6 +21,7 @@ func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		Short: "list segments loaded information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			collectionID, err := cmd.Flags().GetInt64("collection")
+			var sealedCnt int64
 			if err != nil {
 				return err
 			}
@@ -30,16 +32,18 @@ func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 			for _, session := range sessions {
 				opts := []grpc.DialOption{
-					grpc.WithInsecure(),
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
 					grpc.WithBlock(),
-					grpc.WithTimeout(2 * time.Second),
 				}
 
-				conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
+				dialCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				conn, err := grpc.DialContext(dialCtx, session.Address, opts...)
+				cancel()
 				if err != nil {
 					fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
 					continue
 				}
+
 				if session.ServerName == "querynode" {
 					fmt.Println("===========")
 					fmt.Printf("ServerID %d\n", session.ServerID)
@@ -81,8 +85,10 @@ func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 						sealedNum++
 					}
 					fmt.Println("Sealed segments number:", sealedNum)
+					sealedCnt += int64(sealedNum)
 				}
 			}
+			fmt.Printf("==== total loaded sealed segment number: %d\n", sealedCnt)
 
 			return nil
 		},
