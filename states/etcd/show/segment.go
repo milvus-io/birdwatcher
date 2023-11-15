@@ -38,9 +38,13 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 
 	totalRC := int64(0)
 	healthy := 0
+
 	var statsLogSize int64
 	var deltaLogSize int64
 	var growing, sealed, flushed, dropped int
+	var small, other int
+	var smallCnt, otherCnt int64
+
 	fieldSize := make(map[int64]int64)
 	totalBinlogCount := 0
 	totalStatsLogCount := 0
@@ -58,6 +62,13 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			sealed++
 		case models.SegmentStateFlushing, models.SegmentStateFlushed:
 			flushed++
+			if float64(info.NumOfRows)/float64(info.MaxRowNum) < 0.2 {
+				small++
+				smallCnt += info.NumOfRows
+			} else {
+				other++
+				otherCnt += info.NumOfRows
+			}
 		case models.SegmentStateDropped:
 			dropped++
 		}
@@ -107,6 +118,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 	}
 
 	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
+	fmt.Printf("--- Small Segments: %d, row count: %d\t Other Segments: %d, row count: %d\n", small, smallCnt, other, otherCnt)
 	fmt.Printf("--- Total Segments: %d, row count: %d\n", healthy, totalRC)
 	return nil
 }
