@@ -37,9 +37,13 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 
 	totalRC := int64(0)
 	healthy := 0
-	var statslogSize int64
+	var statsLogSize int64
+	var deltaLogSize int64
 	var growing, sealed, flushed, dropped int
 	fieldSize := make(map[int64]int64)
+	totalBinlogCount := 0
+	totalStatsLogCount := 0
+	totalDeltaLogCount := 0
 	for _, info := range segments {
 
 		if info.State != models.SegmentStateDropped {
@@ -67,11 +71,19 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 				for _, binlog := range info.GetBinlogs() {
 					for _, log := range binlog.Binlogs {
 						fieldSize[binlog.FieldID] += log.LogSize
+						totalBinlogCount++
 					}
 				}
-				for _, statslog := range info.GetStatslogs() {
-					for _, binlog := range statslog.Binlogs {
-						statslogSize += binlog.LogSize
+				for _, fieldStatsLog := range info.GetStatslogs() {
+					for _, statsLog := range fieldStatsLog.Binlogs {
+						statsLogSize += statsLog.LogSize
+						totalStatsLogCount++
+					}
+				}
+				for _, fieldDeltaLog := range info.GetDeltalogs() {
+					for _, deltaLog := range fieldDeltaLog.Binlogs {
+						deltaLogSize += deltaLog.LogSize
+						totalDeltaLogCount++
 					}
 				}
 			}
@@ -85,8 +97,12 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			fmt.Printf("\t field binlog size[%d]: %s\n", fieldID, hrSize(size))
 			totalBinlogSize += size
 		}
+		fmt.Printf("--- Total binlog count: %d\n", totalBinlogCount)
 		fmt.Printf("--- Total binlog size: %s\n", hrSize(totalBinlogSize))
-		fmt.Printf("--- Total statslog size: %s\n", hrSize(statslogSize))
+		fmt.Printf("--- Total statslog count: %d\n", totalStatsLogCount)
+		fmt.Printf("--- Total statslog size: %s\n", hrSize(statsLogSize))
+		fmt.Printf("--- Total deltalog count: %d\n", totalDeltaLogCount)
+		fmt.Printf("--- Total deltalog size: %s\n", hrSize(deltaLogSize))
 	}
 
 	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
