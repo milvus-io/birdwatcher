@@ -103,6 +103,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 					fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(idx.GetIndexInfo().GetIndexParams(), "index_type"), idx.GetIndexInfo().GetFieldID())
 				}
 				fmt.Printf("\tSerialized Size: %d\n", segIdx.GetSerializeSize())
+				fmt.Printf("\tCurrent Index Version: %d\n", segIdx.GetCurrentIndexVersion())
 			}
 			fmt.Println()
 		}
