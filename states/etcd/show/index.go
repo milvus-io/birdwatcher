@@ -97,5 +97,4 @@ func printIndexV2(index indexpbv2.FieldIndex) {
 		common.GetKVPair(indexParams, "metric_type"),
 	)
 	fmt.Printf("Index Params: %s\n", common.GetKVPair(index.GetIndexInfo().GetUserIndexParams(), "params"))
-	fmt.Println("==================================================================")
 }

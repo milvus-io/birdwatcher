@@ -5,7 +5,6 @@ package milvus.protov2.index;
 option go_package = "github.com/milvus-io/milvus/internal/proto/indexpb";
 
 import "common.proto";
-import "schema.proto";
 import "internal.proto";
 import "milvus.proto";
 
@@ -19,6 +18,7 @@ service IndexCoord {
   rpc GetIndexInfos(GetIndexInfoRequest) returns (GetIndexInfoResponse){}
   rpc DropIndex(DropIndexRequest) returns (common.Status) {}
   rpc DescribeIndex(DescribeIndexRequest) returns (DescribeIndexResponse) {}
+  rpc GetIndexStatistics(GetIndexStatisticsRequest) returns (GetIndexStatisticsResponse) {}
   // Deprecated: use DescribeIndex instead
   rpc GetIndexBuildProgress(GetIndexBuildProgressRequest) returns (GetIndexBuildProgressResponse) {}
 
@@ -58,6 +58,7 @@ message IndexInfo {
   string index_state_fail_reason = 10;
   bool is_auto_index = 11;
   repeated common.KeyValuePair user_index_params = 12;
+  int64 pending_index_rows = 13;
 }
 
 message FieldIndex {
@@ -67,21 +68,22 @@ message FieldIndex {
 }
 
 message SegmentIndex {
-    int64 collectionID = 1;
-    int64 partitionID = 2;
-    int64 segmentID = 3;
-    int64 num_rows = 4;
-    int64 indexID = 5;
-    int64 buildID = 6;
-    int64 nodeID = 7;
-    int64 index_version = 8;
-    common.IndexState state = 9;
-    string fail_reason = 10;
-    repeated string index_file_keys = 11;
-    bool deleted = 12;
-    uint64 create_time = 13;
-    uint64 serialize_size = 14;
-    bool write_handoff = 15;
+  int64 collectionID = 1;
+  int64 partitionID = 2;
+  int64 segmentID = 3;
+  int64 num_rows = 4;
+  int64 indexID = 5;
+  int64 buildID = 6;
+  int64 nodeID = 7;
+  int64 index_version = 8;
+  common.IndexState state = 9;
+  string fail_reason = 10;
+  repeated string index_file_keys = 11;
+  bool deleted = 12;
+  uint64 create_time = 13;
+  uint64 serialize_size = 14;
+  bool write_handoff = 15;
+  int32 current_index_version = 16;
 }
 
 message RegisterNodeRequest {
@@ -152,6 +154,7 @@ message IndexFilePathInfo {
   uint64 serialized_size = 8;
   int64 index_version = 9;
   int64 num_rows = 10;
+  int32 current_index_version = 11;
 }
 
 message SegmentInfo {
@@ -176,6 +179,7 @@ message DropIndexRequest {
 message DescribeIndexRequest {
   int64 collectionID = 1;
   string index_name = 2;
+  uint64 timestamp = 3;
 }
 
 message DescribeIndexResponse {
@@ -192,6 +196,7 @@ message GetIndexBuildProgressResponse {
   common.Status status = 1;
   int64 indexed_rows = 2;
   int64 total_rows = 3;
+  int64 pending_index_rows = 4;
 }
 
 message StorageConfig {
@@ -204,6 +209,10 @@ message StorageConfig {
   bool useIAM = 7;
   string IAMEndpoint = 8;
   string storage_type = 9;
+  bool use_virtual_host = 10;
+  string region = 11;
+  string cloud_provider = 12;
+  int64 request_timeout_ms = 13;
 }
 
 message CreateJobRequest {
@@ -218,6 +227,7 @@ message CreateJobRequest {
   repeated common.KeyValuePair index_params = 9;
   repeated common.KeyValuePair type_params = 10;
   int64 num_rows = 11;
+  int32 current_index_version = 12;
 }
 
 message QueryJobsRequest {
@@ -231,6 +241,7 @@ message IndexTaskInfo {
   repeated string index_file_keys = 3;
   uint64 serialized_size = 4;
   string fail_reason = 5;
+  int32 current_index_version = 6;
 }
 
 message QueryJobsResponse {
@@ -264,4 +275,14 @@ message GetJobStatsResponse {
   int64 task_slots = 5;
   repeated JobInfo job_infos = 6;
   bool enable_disk = 7;
+}
+
+message GetIndexStatisticsRequest {
+  int64 collectionID = 1;
+  string index_name = 2;
+}
+
+message GetIndexStatisticsResponse {
+  common.Status status = 1;
+  repeated IndexInfo index_infos = 2;
 }
