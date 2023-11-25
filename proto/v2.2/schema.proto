@@ -1,16 +1,17 @@
 syntax = "proto3";
 package milvus.protov2.schema;
 
-option go_package = "github.com/milvus-io/milvus-proto/go-api/schemapb";
+option go_package = "github.com/milvus-io/milvus-proto/go-api/v2/schemapb";
 
 option java_multiple_files = true;
 option java_package = "io.milvus.grpc";
 option java_outer_classname = "SchemaProto";
 option java_generate_equals_and_hash = true;
 
-option csharp_namespace = "IO.Milvus.Grpc";
+option csharp_namespace = "Milvus.Client.Grpc";
 
 import "common.proto";
+import "google/protobuf/descriptor.proto";
 
 /**
  * @brief Field data type
@@ -33,6 +34,8 @@ enum DataType {
 
   BinaryVector = 100;
   FloatVector = 101;
+  Float16Vector = 102;
+  BFloat16Vector = 103;
 }
 
 enum FieldState {
@@ -68,7 +71,7 @@ message FieldSchema {
 message CollectionSchema {
   string name = 1;
   string description = 2;
-  bool autoID = 3; // deprecated later, keep compatible with c++ part now
+  bool autoID = 3 [deprecated=true]; // deprecated later, keep compatible with c++ part now
   repeated FieldSchema fields = 4;
   bool enable_dynamic_field = 5; // mark whether this table has the dynamic field function enabled.
 }
@@ -126,6 +129,8 @@ message VectorField {
   oneof data {
     FloatArray float_vector = 2;
     bytes binary_vector = 3;
+    bytes float16_vector = 4;
+    bytes bfloat16_vector = 5;
   }
 }
 
@@ -137,7 +142,7 @@ message FieldData {
     VectorField vectors = 4;
   }
   int64 field_id = 5;
-  bool is_dynamic = 6; 
+  bool is_dynamic = 6;
 }
 
 message IDs {

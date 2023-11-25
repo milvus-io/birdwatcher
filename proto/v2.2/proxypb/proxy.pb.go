@@ -545,7 +545,7 @@ func NewProxyClient(cc *grpc.ClientConn) ProxyClient {
 
 func (c *proxyClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +554,7 @@ func (c *proxyClient) GetComponentStates(ctx context.Context, in *milvuspb.GetCo
 
 func (c *proxyClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +563,7 @@ func (c *proxyClient) GetStatisticsChannel(ctx context.Context, in *internalpb.G
 
 func (c *proxyClient) InvalidateCollectionMetaCache(ctx context.Context, in *InvalidateCollMetaCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/InvalidateCollectionMetaCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/InvalidateCollectionMetaCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -572,7 +572,7 @@ func (c *proxyClient) InvalidateCollectionMetaCache(ctx context.Context, in *Inv
 
 func (c *proxyClient) GetDdChannel(ctx context.Context, in *internalpb.GetDdChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetDdChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetDdChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -581,7 +581,7 @@ func (c *proxyClient) GetDdChannel(ctx context.Context, in *internalpb.GetDdChan
 
 func (c *proxyClient) InvalidateCredentialCache(ctx context.Context, in *InvalidateCredCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/InvalidateCredentialCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/InvalidateCredentialCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -590,7 +590,7 @@ func (c *proxyClient) InvalidateCredentialCache(ctx context.Context, in *Invalid
 
 func (c *proxyClient) UpdateCredentialCache(ctx context.Context, in *UpdateCredCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/UpdateCredentialCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/UpdateCredentialCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +599,7 @@ func (c *proxyClient) UpdateCredentialCache(ctx context.Context, in *UpdateCredC
 
 func (c *proxyClient) RefreshPolicyInfoCache(ctx context.Context, in *RefreshPolicyInfoCacheRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/RefreshPolicyInfoCache", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/RefreshPolicyInfoCache", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -608,7 +608,7 @@ func (c *proxyClient) RefreshPolicyInfoCache(ctx context.Context, in *RefreshPol
 
 func (c *proxyClient) GetProxyMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/GetProxyMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/GetProxyMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -617,7 +617,7 @@ func (c *proxyClient) GetProxyMetrics(ctx context.Context, in *milvuspb.GetMetri
 
 func (c *proxyClient) SetRates(ctx context.Context, in *SetRatesRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/SetRates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/SetRates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +626,7 @@ func (c *proxyClient) SetRates(ctx context.Context, in *SetRatesRequest, opts ..
 
 func (c *proxyClient) ListClientInfos(ctx context.Context, in *ListClientInfosRequest, opts ...grpc.CallOption) (*ListClientInfosResponse, error) {
 	out := new(ListClientInfosResponse)
-	err := c.cc.Invoke(ctx, "/milvus.proto.proxy.Proxy/ListClientInfos", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.protov2.proxy.Proxy/ListClientInfos", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -696,7 +696,7 @@ func _Proxy_GetComponentStates_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/GetComponentStates",
+		FullMethod: "/milvus.protov2.proxy.Proxy/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -714,7 +714,7 @@ func _Proxy_GetStatisticsChannel_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/GetStatisticsChannel",
+		FullMethod: "/milvus.protov2.proxy.Proxy/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -732,7 +732,7 @@ func _Proxy_InvalidateCollectionMetaCache_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/InvalidateCollectionMetaCache",
+		FullMethod: "/milvus.protov2.proxy.Proxy/InvalidateCollectionMetaCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).InvalidateCollectionMetaCache(ctx, req.(*InvalidateCollMetaCacheRequest))
@@ -750,7 +750,7 @@ func _Proxy_GetDdChannel_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/GetDdChannel",
+		FullMethod: "/milvus.protov2.proxy.Proxy/GetDdChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetDdChannel(ctx, req.(*internalpb.GetDdChannelRequest))
@@ -768,7 +768,7 @@ func _Proxy_InvalidateCredentialCache_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/InvalidateCredentialCache",
+		FullMethod: "/milvus.protov2.proxy.Proxy/InvalidateCredentialCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).InvalidateCredentialCache(ctx, req.(*InvalidateCredCacheRequest))
@@ -786,7 +786,7 @@ func _Proxy_UpdateCredentialCache_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/UpdateCredentialCache",
+		FullMethod: "/milvus.protov2.proxy.Proxy/UpdateCredentialCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).UpdateCredentialCache(ctx, req.(*UpdateCredCacheRequest))
@@ -804,7 +804,7 @@ func _Proxy_RefreshPolicyInfoCache_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/RefreshPolicyInfoCache",
+		FullMethod: "/milvus.protov2.proxy.Proxy/RefreshPolicyInfoCache",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).RefreshPolicyInfoCache(ctx, req.(*RefreshPolicyInfoCacheRequest))
@@ -822,7 +822,7 @@ func _Proxy_GetProxyMetrics_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/GetProxyMetrics",
+		FullMethod: "/milvus.protov2.proxy.Proxy/GetProxyMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).GetProxyMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
@@ -840,7 +840,7 @@ func _Proxy_SetRates_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/SetRates",
+		FullMethod: "/milvus.protov2.proxy.Proxy/SetRates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).SetRates(ctx, req.(*SetRatesRequest))
@@ -858,7 +858,7 @@ func _Proxy_ListClientInfos_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.proto.proxy.Proxy/ListClientInfos",
+		FullMethod: "/milvus.protov2.proxy.Proxy/ListClientInfos",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServer).ListClientInfos(ctx, req.(*ListClientInfosRequest))

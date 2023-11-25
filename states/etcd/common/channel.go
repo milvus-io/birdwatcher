@@ -14,7 +14,7 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
+	msgpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/msgpb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -58,7 +58,7 @@ func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, ver
 			return nil, err
 		}
 		result = lo.Map(infos, func(info datapbv2.ChannelWatchInfo, idx int) *models.ChannelWatch {
-			return models.GetChannelWatchInfo[*datapbv2.ChannelWatchInfo, datapbv2.ChannelWatchState, *datapbv2.VchannelInfo, *internalpbv2.MsgPosition](&info, paths[idx])
+			return models.GetChannelWatchInfo[*datapbv2.ChannelWatchInfo, datapbv2.ChannelWatchState, *datapbv2.VchannelInfo, *msgpbv2.MsgPosition](&info, paths[idx])
 		})
 	default:
 		return nil, errors.New("version not supported")

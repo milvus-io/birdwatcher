@@ -276,7 +276,6 @@ func getProbePKCmd(cli clientv3.KV, basePath string) *cobra.Command {
 							PartitionIDs:       []int64{segInfo.Partition},
 							SerializedExprPlan: bs,
 							OutputFieldsId:     outputFields,
-							TravelTimestamp:    uint64((time.Now().UnixNano() / int64(time.Millisecond)) << 18),
 							Limit:              -1, // unlimited
 						},
 					})
@@ -421,7 +420,6 @@ func getMockSearchRequest(ctx context.Context, cli clientv3.KV, basePath string,
 		PlaceholderGroup:   vector2PlaceholderGroupBytes(vector),
 		DslType:            commonpbv2.DslType_BoolExprV1,
 		GuaranteeTimestamp: 1, //Eventually first
-		TravelTimestamp:    math.MaxUint64,
 		Nq:                 1,
 	}
 
