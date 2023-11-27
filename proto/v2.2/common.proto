@@ -1,18 +1,20 @@
 syntax = "proto3";
 package milvus.protov2.common;
 
-option go_package="github.com/milvus-io/milvus-proto/go-api/commonpb";
+option go_package="github.com/milvus-io/milvus-proto/go-api/v2/commonpb";
 
 option java_multiple_files = true;
 option java_package = "io.milvus.grpc";
 option java_outer_classname = "CommonProto";
 option java_generate_equals_and_hash = true;
 
-option csharp_namespace = "IO.Milvus.Grpc";
+option csharp_namespace = "Milvus.Client.Grpc";
 
 import "google/protobuf/descriptor.proto";
 
+// Deprecated
 enum ErrorCode {
+    option deprecated = true;
     Success = 0;
     UnexpectedError = 1;
     ConnectFailed = 2;
@@ -69,10 +71,8 @@ enum ErrorCode {
     DiskQuotaExhausted = 54;
     TimeTickLongDelay = 55;
     NotReadyServe = 56;
-    // Coord is switching from standby mode to active mode 
+    // Coord is switching from standby mode to active mode
     NotReadyCoordActivating = 57;
-
-    NotFoundTSafer = 58;
 
     // Service availability.
     // NA: Not Available.
@@ -103,8 +103,11 @@ enum SegmentState {
 }
 
 message Status {
-    ErrorCode error_code = 1;
+    ErrorCode error_code = 1 [deprecated=true];
     string reason = 2;
+    int32 code = 3;
+    bool retriable = 4;
+    string detail = 5;
 }
 
 message KeyValuePair {
@@ -125,6 +128,10 @@ enum PlaceholderType {
     None = 0;
     BinaryVector = 100;
     FloatVector = 101;
+    Float16Vector = 102;
+    BFloat16Vector = 103;
+    Int64 = 5;
+    VarChar = 21;
 }
 
 message PlaceholderValue {
@@ -160,6 +167,8 @@ enum MsgType {
     AlterAlias = 110;
     AlterCollection = 111;
     RenameCollection = 112;
+    DescribeAlias = 113;
+    ListAliases = 114;
 
     /* DEFINITION REQUESTS: PARTITION */
     CreatePartition = 200;
@@ -178,17 +187,21 @@ enum MsgType {
     HandoffSegments = 254;
     LoadBalanceSegments = 255;
     DescribeSegments = 256;
+    FederListIndexedSegment = 257;
+    FederDescribeSegmentIndexData = 258;
 
     /* DEFINITION REQUESTS: INDEX */
     CreateIndex = 300;
     DescribeIndex = 301;
     DropIndex = 302;
+    GetIndexStatistics = 303;
 
     /* MANIPULATION REQUESTS */
     Insert = 400;
     Delete = 401;
     Flush = 402;
     ResendSegmentStats = 403;
+    Upsert = 404;
 
     /* QUERY */
     Search = 500;
@@ -230,6 +243,7 @@ enum MsgType {
     DataNodeTt = 1208;
     Connect = 1209;
     ListClientInfos = 1210;
+    AllocTimestamp = 1211;
 
     /* Credential */
     CreateCredential = 1500;
@@ -270,6 +284,13 @@ message MsgBase {
     uint64 timestamp = 3;
     int64 sourceID = 4;
     int64 targetID = 5;
+    map<string, string> properties = 6;
+    ReplicateInfo replicateInfo = 7;
+}
+
+message ReplicateInfo {
+    bool isReplicate = 1;
+    uint64 msgTimestamp = 2;
 }
 
 enum DslType {
@@ -306,7 +327,8 @@ enum ImportState {
     ImportPending = 0;              // the task in in pending list of rootCoord, waiting to be executed
     ImportFailed = 1;               // the task failed for some reason, get detail reason from GetImportStateResponse.infos
     ImportStarted = 2;              // the task has been sent to datanode to execute
-    ImportPersisted = 5;            // all data files have been parsed and data already persisted
+    ImportPersisted = 5;            // all data files have been parsed and all meta data already persisted, ready to be flushed.
+    ImportFlushed = 8;              // all segments are successfully flushed.
     ImportCompleted = 6;            // all indexes are successfully built and segments are able to be compacted as normal.
     ImportFailedAndCleaned = 7;     // the task failed and all segments it generated are cleaned up.
 }
@@ -344,7 +366,7 @@ enum ObjectPrivilege {
     PrivilegeSelectOwnership = 22;
     PrivilegeManageOwnership = 23;
     PrivilegeSelectUser = 24;
-
+    PrivilegeUpsert = 25;
     PrivilegeCreateResourceGroup = 26;
     PrivilegeDropResourceGroup = 27;
     PrivilegeDescribeResourceGroup = 28;
@@ -358,6 +380,7 @@ enum ObjectPrivilege {
     PrivilegeCreateDatabase = 35;
     PrivilegeDropDatabase = 36;
     PrivilegeListDatabases = 37;
+    PrivilegeFlushAll = 38;
 }
 
 message PrivilegeExt {
@@ -384,6 +407,11 @@ enum LoadState {
     LoadStateNotLoad = 1;
     LoadStateLoading = 2;
     LoadStateLoaded = 3;
+}
+
+message SegmentStats {
+    int64 SegmentID = 1;
+    int64 NumRows = 2;
 }
 
 message ClientInfo {

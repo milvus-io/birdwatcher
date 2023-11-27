@@ -1,17 +1,19 @@
 syntax = "proto3";
 package milvus.protov2.milvus;
 
-option go_package = "github.com/milvus-io/milvus-proto/go-api/milvuspb";
+option go_package = "github.com/milvus-io/milvus-proto/go-api/v2/milvuspb";
 
 option java_multiple_files = true;
 option java_package = "io.milvus.grpc";
 option java_outer_classname = "MilvusProto";
 option java_generate_equals_and_hash = true;
 
-option csharp_namespace = "IO.Milvus.Grpc";
+option csharp_namespace = "Milvus.Client.Grpc";
 
 import "common.proto";
 import "schema.proto";
+import "feder.proto";
+import "msg.proto";
 import "google/protobuf/descriptor.proto";
 
 service MilvusService {
@@ -39,17 +41,25 @@ service MilvusService {
   rpc CreateAlias(CreateAliasRequest) returns (common.Status) {}
   rpc DropAlias(DropAliasRequest) returns (common.Status) {}
   rpc AlterAlias(AlterAliasRequest) returns (common.Status) {}
+  rpc DescribeAlias(DescribeAliasRequest) returns (DescribeAliasResponse) {}
+  rpc ListAliases(ListAliasesRequest) returns (ListAliasesResponse) {}
 
   rpc CreateIndex(CreateIndexRequest) returns (common.Status) {}
   rpc DescribeIndex(DescribeIndexRequest) returns (DescribeIndexResponse) {}
+  rpc GetIndexStatistics(GetIndexStatisticsRequest) returns (GetIndexStatisticsResponse) {}
   // Deprecated: use DescribeIndex instead
-  rpc GetIndexState(GetIndexStateRequest) returns (GetIndexStateResponse) {}
+  rpc GetIndexState(GetIndexStateRequest) returns (GetIndexStateResponse) {
+      option deprecated = true;
+  }
   // Deprecated: use DescribeIndex instead
-  rpc GetIndexBuildProgress(GetIndexBuildProgressRequest) returns (GetIndexBuildProgressResponse) {}
+  rpc GetIndexBuildProgress(GetIndexBuildProgressRequest) returns (GetIndexBuildProgressResponse) {
+      option deprecated = true;
+  }
   rpc DropIndex(DropIndexRequest) returns (common.Status) {}
 
   rpc Insert(InsertRequest) returns (MutationResult) {}
   rpc Delete(DeleteRequest) returns (MutationResult) {}
+  rpc Upsert(UpsertRequest) returns (MutationResult) {}
   rpc Search(SearchRequest) returns (SearchResults) {}
   rpc Flush(FlushRequest) returns (FlushResponse) {}
   rpc Query(QueryRequest) returns (QueryResults) {}
@@ -108,11 +118,18 @@ service MilvusService {
 
   rpc RenameCollection(RenameCollectionRequest) returns (common.Status) {}
 
+  rpc ListIndexedSegment(feder.ListIndexedSegmentRequest) returns(feder.ListIndexedSegmentResponse) {}
+  rpc DescribeSegmentIndexData(feder.DescribeSegmentIndexDataRequest) returns(feder.DescribeSegmentIndexDataResponse) {}
+
+  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
+
+  rpc AllocTimestamp(AllocTimestampRequest) returns (AllocTimestampResponse) {}
+
   rpc CreateDatabase(CreateDatabaseRequest) returns (common.Status) {}
   rpc DropDatabase(DropDatabaseRequest) returns (common.Status) {}
   rpc ListDatabases(ListDatabasesRequest) returns (ListDatabasesResponse) {}
 
-  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
+  rpc ReplicateMessage(ReplicateMessageRequest) returns (ReplicateMessageResponse) {}
 }
 
 message CreateAliasRequest {
@@ -133,6 +150,40 @@ message AlterAliasRequest{
   string db_name = 2;
   string collection_name = 3;
   string alias = 4;
+}
+
+message DescribeAliasRequest{
+  common.MsgBase base = 1;
+  string db_name = 2;
+  string alias = 3;
+}
+
+/*
+* Describe alias response
+*/
+message DescribeAliasResponse {
+  // Response status
+  common.Status status = 1;
+  string db_name = 2;
+  string alias = 3;
+  string collection = 4;
+}
+
+message ListAliasesRequest{
+  common.MsgBase base = 1;
+  string db_name = 2;
+  string collection_name = 3;
+}
+
+/*
+* List aliases response
+*/
+message ListAliasesResponse {
+  // Response status
+  common.Status status = 1;
+  string db_name = 2;
+  string collection_name = 3;
+  repeated string aliases = 4;
 }
 
 /**
@@ -287,7 +338,7 @@ message LoadCollectionRequest {
   string collection_name = 3;
   // The replica number to load, default by 1
   int32 replica_number = 4;
-  // create replica used resource group 
+  // create replica used resource group
   repeated string resource_groups = 5;
   // Whether to enable refresh mode.
   bool refresh = 6;
@@ -372,6 +423,7 @@ message GetCollectionStatisticsResponse {
 */
 // Deprecated: use GetLoadingProgress rpc instead
 enum ShowType {
+  option deprecated = true;
   // Will return all collections
   All = 0;
   // Will return loaded collections with their inMemory_percentages
@@ -396,7 +448,7 @@ message ShowCollectionsRequest {
   ShowType type = 4;
   // When type is InMemory, will return these collection's inMemory_percentages.(Optional)
   // Deprecated: use GetLoadingProgress rpc instead
-  repeated string collection_names = 5;
+  repeated string collection_names = 5 [deprecated=true];
 }
 
 /*
@@ -415,7 +467,7 @@ message ShowCollectionsResponse {
   repeated uint64 created_utc_timestamps = 5;
   // Load percentage on querynode when type is InMemory
   // Deprecated: use GetLoadingProgress rpc instead
-  repeated int64 inMemory_percentages = 6;
+  repeated int64 inMemory_percentages = 6 [deprecated=true];
   // Indicate whether query service is available
   repeated bool query_service_available = 7;
 }
@@ -473,7 +525,7 @@ message LoadPartitionsRequest {
   repeated string partition_names = 4;
   // The replicas number you would load, 1 by default
   int32 replica_number = 5;
-  // create replica used resource group 
+  // create replica used resource group
   repeated string resource_groups = 6;
   // Whether to enable refresh mode.
   bool refresh = 7;
@@ -526,7 +578,7 @@ message ShowPartitionsRequest {
   repeated string partition_names = 5;
   // Decide return Loaded partitions or All partitions(Optional)
   // Deprecated: use GetLoadingProgress rpc instead
-  ShowType type = 6;
+  ShowType type = 6 [deprecated=true];
 }
 
 /*
@@ -546,7 +598,7 @@ message ShowPartitionsResponse {
   repeated uint64 created_utc_timestamps = 5;
   // Load percentage on querynode
   // Deprecated: use GetLoadingProgress rpc instead
-  repeated int64 inMemory_percentages = 6;
+  repeated int64 inMemory_percentages = 6 [deprecated=true];
 }
 
 message DescribeSegmentRequest {
@@ -615,6 +667,7 @@ message DescribeIndexRequest {
   string field_name = 4;
   // No need to set up for now @2021.06.30
   string index_name = 5;
+  uint64 timestamp = 6;
 }
 
 /*
@@ -635,6 +688,7 @@ message IndexDescription {
   // index state
   common.IndexState state = 7;
   string index_state_fail_reason = 8;
+  int64 pending_index_rows = 9;
 }
 
 /*
@@ -701,8 +755,9 @@ message DropIndexRequest {
   common.MsgBase base = 1; // must
   string db_name = 2;
   string collection_name = 3; // must
+  // Deprecated: not be used in the milvus
   string field_name = 4;
-  string index_name = 5; // No need to set up for now @2021.06.30
+  string index_name = 5;
 }
 
 message InsertRequest {
@@ -720,9 +775,24 @@ message InsertRequest {
   uint32 num_rows = 7;
 }
 
+message UpsertRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeUpsert
+    object_name_index: 3
+  };
+  common.MsgBase base = 1;
+  string db_name = 2;
+  string collection_name = 3;
+  string partition_name = 4;
+  repeated schema.FieldData fields_data = 5;
+  repeated uint32 hash_keys = 6;
+  uint32 num_rows = 7;
+}
+
 message MutationResult {
   common.Status status = 1;
-  schema.IDs IDs = 2; // required for insert, delete
+  schema.IDs IDs = 2; // required for insert, delete, upsert
   repeated uint32 succ_index = 3; // error indexes indicate
   repeated uint32 err_index = 4; // error indexes indicate
   bool acknowledged = 5;
@@ -767,6 +837,9 @@ message SearchRequest {
   uint64 guarantee_timestamp = 11; // guarantee_timestamp
   int64  nq = 12;
   bool not_return_all_meta = 13;
+  common.ConsistencyLevel consistency_level = 14;
+  bool use_default_consistency = 15;
+  bool search_by_primary_keys = 16;
 }
 
 message Hits {
@@ -797,7 +870,8 @@ message FlushResponse{
   string db_name = 2;
   map<string, schema.LongArray> coll_segIDs = 3;
   map<string, schema.LongArray> flush_coll_segIDs = 4;
-  map<string, int64> coll_seal_times = 5;
+  map<string, int64> coll_seal_times = 5; // physical time for backup tool
+  map<string, uint64> coll_flush_ts = 6; // hybrid ts for geting flush tate
 }
 
 message QueryRequest {
@@ -816,6 +890,8 @@ message QueryRequest {
   uint64 guarantee_timestamp = 8; // guarantee_timestamp
   repeated common.KeyValuePair query_params = 9; // optional
   bool not_return_all_meta = 10;
+  common.ConsistencyLevel consistency_level = 11;
+  bool use_default_consistency = 12;
 }
 
 message QueryResults {
@@ -856,6 +932,13 @@ message CalcDistanceResults {
 }
 
 message FlushAllRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeFlushAll
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  string db_name = 2;
 }
 
 message FlushAllResponse {
@@ -891,7 +974,7 @@ message QuerySegmentInfo {
   string index_name = 6;
   int64 indexID = 7;
   // deprecated, check node_ids(NodeIds) field
-  int64 nodeID = 8;
+  int64 nodeID = 8 [deprecated=true];
   common.SegmentState state = 9;
   repeated int64 nodeIds = 10;
 }
@@ -980,6 +1063,7 @@ message ManualCompactionRequest {
 message ManualCompactionResponse {
   common.Status status = 1;
   int64 compactionID = 2;
+  int32 compactionPlanCount = 3;
 }
 
 message GetCompactionStateRequest {
@@ -1012,6 +1096,9 @@ message CompactionMergeInfo {
 
 message GetFlushStateRequest {
   repeated int64 segmentIDs = 1;
+  uint64 flush_ts = 2;
+  string db_name = 3;
+  string collection_name = 4;
 }
 
 message GetFlushStateResponse {
@@ -1022,6 +1109,7 @@ message GetFlushStateResponse {
 message GetFlushAllStateRequest {
   common.MsgBase base = 1;
   uint64 flush_all_ts = 2;
+  string db_name = 3;
 }
 
 message GetFlushAllStateResponse {
@@ -1359,7 +1447,7 @@ message OperatePrivilegeRequest {
 message GetLoadingProgressRequest {
   option (common.privilege_ext_obj) = {
     object_type: Collection
-    object_privilege: PrivilegeGetLoadingProgress
+    object_privilege: PrivilegeLoad
     object_name_index: 2
   };
   // Not useful for now
@@ -1372,12 +1460,13 @@ message GetLoadingProgressRequest {
 message GetLoadingProgressResponse {
   common.Status status = 1;
   int64 progress = 2;
+  int64 refresh_progress = 3;
 }
 
 message GetLoadStateRequest {
   option (common.privilege_ext_obj) = {
     object_type: Collection
-    object_privilege: PrivilegeGetLoadState
+    object_privilege: PrivilegeLoad
     object_name_index: 2
   };
   // Not useful for now
@@ -1446,7 +1535,7 @@ message DropResourceGroupRequest {
   string resource_group = 2;
 }
 
-// transfer `nodeNum` nodes from `source_resource_group` to `target_resource_group` 
+// transfer `nodeNum` nodes from `source_resource_group` to `target_resource_group`
 message TransferNodeRequest {
   option (common.privilege_ext_obj) = {
     object_type: Global
@@ -1509,7 +1598,7 @@ message ResourceGroup {
   int32 num_available_node = 3;
   // collection name -> loaded replica num
   map<string, int32> num_loaded_replica = 4;
-  // collection name -> accessed other rg's node num 
+  // collection name -> accessed other rg's node num
   map<string, int32> num_outgoing_node = 5;
    // collection name -> be accessed node num by other rg
   map<string, int32> num_incoming_node = 6;
@@ -1525,6 +1614,51 @@ message RenameCollectionRequest {
   string db_name = 2;
   string oldName = 3;
   string newName = 4;
+  string newDBName =5;
+}
+
+message GetIndexStatisticsRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeIndexDetail
+    object_name_index: 3
+  };
+  // Not useful for now
+  common.MsgBase base = 1;
+  // Not useful for now
+  string db_name = 2;
+  // The particular collection name in Milvus
+  string collection_name = 3;
+  // The index name in this particular collection
+  string index_name = 4;
+  uint64 timestamp = 5;
+}
+
+message GetIndexStatisticsResponse {
+  // Response status
+  common.Status status = 1;
+  // All index information.
+  repeated IndexDescription index_descriptions = 2;
+}
+
+message ConnectRequest {
+  common.MsgBase base = 1;
+  common.ClientInfo client_info = 2;
+}
+
+message ConnectResponse {
+  common.Status status = 1;
+  common.ServerInfo server_info = 2;
+  int64 identifier = 3;
+}
+
+message AllocTimestampRequest {
+  common.MsgBase base = 1;
+}
+
+message AllocTimestampResponse {
+  common.Status status = 1;
+  uint64 timestamp = 2;
 }
 
 message CreateDatabaseRequest {
@@ -1564,15 +1698,20 @@ message ListDatabasesResponse {
   };
   common.Status status = 1;
   repeated string db_names = 2;
+  repeated uint64 created_timestamp = 3;
 }
 
-message ConnectRequest {
+message ReplicateMessageRequest {
   common.MsgBase base = 1;
-  common.ClientInfo client_info = 2;
+  string channel_name = 2;
+  uint64 BeginTs = 3;
+  uint64 EndTs = 4;
+  repeated bytes Msgs = 5;
+  repeated msg.MsgPosition  StartPositions = 6;
+  repeated msg.MsgPosition  EndPositions = 7;
 }
 
-message ConnectResponse {
+message ReplicateMessageResponse {
   common.Status status = 1;
-  common.ServerInfo server_info = 2;
-  int64 identifier = 3;
+  string position = 2;
 }

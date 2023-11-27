@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package milvus.proto.indexcgo;
+package milvus.protov2.indexcgo;
 option go_package="github.com/milvus-io/milvus/internal/proto/indexcgopb";
 
 import "common.proto";

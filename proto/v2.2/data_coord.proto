@@ -8,6 +8,8 @@ import "common.proto";
 import "internal.proto";
 import "milvus.proto";
 import "schema.proto";
+import "msg.proto";
+import "index_coord.proto";
 
 // TODO: import google/protobuf/empty.proto
 message Empty {}
@@ -17,6 +19,12 @@ enum SegmentType {
   Normal = 1;
   Flushed = 2;
   Compacted = 3;
+}
+
+enum SegmentLevel {
+  Legacy = 0; // zero value for legacy logic
+  L0 = 1; // L0 segment, contains delta data for current channel
+  L1 = 2; // L1 segment, normal segment, with no extra compaction attribute
 }
 
 service DataCoord {
@@ -31,7 +39,6 @@ service DataCoord {
   rpc GetSegmentInfo(GetSegmentInfoRequest) returns (GetSegmentInfoResponse) {}
   rpc GetSegmentStates(GetSegmentStatesRequest) returns (GetSegmentStatesResponse) {}
   rpc GetInsertBinlogPaths(GetInsertBinlogPathsRequest) returns (GetInsertBinlogPathsResponse) {}
-  rpc ListSegmentsInfo(ListSegmentsInfoRequest) returns (ListSegmentsInfoResponse) {}
 
   rpc GetCollectionStatistics(GetCollectionStatisticsRequest) returns (GetCollectionStatisticsResponse) {}
   rpc GetPartitionStatistics(GetPartitionStatisticsRequest) returns (GetPartitionStatisticsResponse) {}
@@ -53,7 +60,7 @@ service DataCoord {
   rpc GetCompactionStateWithPlans(milvus.GetCompactionPlansRequest) returns (milvus.GetCompactionPlansResponse) {}
 
   rpc WatchChannels(WatchChannelsRequest) returns (WatchChannelsResponse) {}
-  rpc GetFlushState(milvus.GetFlushStateRequest) returns (milvus.GetFlushStateResponse) {}
+  rpc GetFlushState(GetFlushStateRequest) returns (milvus.GetFlushStateResponse) {}
   rpc DropVirtualChannel(DropVirtualChannelRequest) returns (DropVirtualChannelResponse) {}
 
   rpc SetSegmentState(SetSegmentStateRequest) returns (SetSegmentStateResponse) {}
@@ -61,9 +68,6 @@ service DataCoord {
   rpc Import(ImportTaskRequest) returns (ImportTaskResponse) {}
   rpc UpdateSegmentStatistics(UpdateSegmentStatisticsRequest) returns (common.Status) {}
   rpc UpdateChannelCheckpoint(UpdateChannelCheckpointRequest) returns (common.Status) {}
-
-  rpc AcquireSegmentLock(AcquireSegmentLockRequest) returns (common.Status) {}
-  rpc ReleaseSegmentLock(ReleaseSegmentLockRequest) returns (common.Status) {}
 
   rpc SaveImportSegment(SaveImportSegmentRequest) returns(common.Status) {}
   rpc UnsetIsImportingState(UnsetIsImportingStateRequest) returns(common.Status) {}
@@ -73,7 +77,20 @@ service DataCoord {
 
   rpc CheckHealth(milvus.CheckHealthRequest) returns (milvus.CheckHealthResponse) {}
 
+  rpc CreateIndex(index.CreateIndexRequest) returns (common.Status){}
+  // Deprecated: use DescribeIndex instead
+  rpc GetIndexState(index.GetIndexStateRequest) returns (index.GetIndexStateResponse) {}
+  rpc GetSegmentIndexState(index.GetSegmentIndexStateRequest) returns (index.GetSegmentIndexStateResponse) {}
+  rpc GetIndexInfos(index.GetIndexInfoRequest) returns (index.GetIndexInfoResponse){}
+  rpc DropIndex(index.DropIndexRequest) returns (common.Status) {}
+  rpc DescribeIndex(index.DescribeIndexRequest) returns (index.DescribeIndexResponse) {}
+  rpc GetIndexStatistics(index.GetIndexStatisticsRequest) returns (index.GetIndexStatisticsResponse) {}
+  // Deprecated: use DescribeIndex instead
+  rpc GetIndexBuildProgress(index.GetIndexBuildProgressRequest) returns (index.GetIndexBuildProgressResponse) {}
+
   rpc GcConfirm(GcConfirmRequest) returns (GcConfirmResponse) {}
+
+  rpc ReportDataNodeTtMsgs(ReportDataNodeTtMsgsRequest) returns (common.Status) {}
 }
 
 service DataNode {
@@ -94,9 +111,14 @@ service DataNode {
   // https://wiki.lfaidata.foundation/display/MIL/MEP+24+--+Support+bulk+load
   rpc Import(ImportTaskRequest) returns(common.Status) {}
 
+  // Deprecated
   rpc ResendSegmentStats(ResendSegmentStatsRequest) returns(ResendSegmentStatsResponse) {}
 
   rpc AddImportSegment(AddImportSegmentRequest) returns(AddImportSegmentResponse) {}
+
+  rpc FlushChannels(FlushChannelsRequest) returns(common.Status) {}
+  rpc NotifyChannelOperation(ChannelOperationsRequest) returns(common.Status) {}
+  rpc CheckChannelOperationProgress(ChannelWatchInfo) returns(ChannelOperationProgressResponse) {}
 }
 
 message FlushRequest {
@@ -104,7 +126,7 @@ message FlushRequest {
   int64 dbID = 2;
   repeated int64 segmentIDs = 3;
   int64 collectionID = 4;
-  bool isImport = 5;
+  bool  isImport = 5;
 }
 
 message FlushResponse {
@@ -114,6 +136,13 @@ message FlushResponse {
   repeated int64 segmentIDs = 4; // newly sealed segments
   repeated int64 flushSegmentIDs = 5; // old flushed segment
   int64 timeOfSeal = 6;
+  uint64 flush_ts = 7;
+}
+
+message FlushChannelsRequest {
+  common.MsgBase base = 1;
+  uint64 flush_ts = 2;
+  repeated string channels = 3;
 }
 
 message SegmentIDRequest {
@@ -123,6 +152,7 @@ message SegmentIDRequest {
   int64 partitionID = 4;
   bool isImport = 5;        // Indicate whether this request comes from a bulk insert task.
   int64 importTaskID = 6;   // Needed for segment lock.
+  SegmentLevel level = 7;
 }
 
 message AssignSegmentIDRequest {
@@ -154,8 +184,8 @@ message GetSegmentStatesRequest {
 message SegmentStateInfo {
   int64 segmentID = 1;
   common.SegmentState state = 2;
-  internal.MsgPosition start_position = 3;
-  internal.MsgPosition end_position = 4;
+  msg.MsgPosition start_position = 3;
+  msg.MsgPosition end_position = 4;
   common.Status status = 5;
 }
 
@@ -167,24 +197,13 @@ message GetSegmentStatesResponse {
 message GetSegmentInfoRequest {
   common.MsgBase base = 1;
   repeated int64 segmentIDs = 2;
-  bool includeUnHealthy = 3;
+  bool includeUnHealthy =3;
 }
 
 message GetSegmentInfoResponse {
   common.Status status = 1;
   repeated SegmentInfo infos = 2;
-  map<string, internal.MsgPosition> channel_checkpoint = 3;
-}
-
-message ListSegmentsInfoRequest {
-  common.MsgBase base = 1;
-  repeated int64 segmentIDs = 2;
-  bool includeUnHealthy = 3;
-}
-
-message ListSegmentsInfoResponse {
-  common.Status status = 1;
-  repeated SegmentInfo infos = 2;
+  map<string, msg.MsgPosition> channel_checkpoint = 3;
 }
 
 message GetInsertBinlogPathsRequest {
@@ -224,30 +243,18 @@ message GetPartitionStatisticsResponse {
 message GetSegmentInfoChannelRequest {
 }
 
-message AcquireSegmentLockRequest {
-  common.MsgBase base = 1;
-  int64 nodeID = 2;
-  repeated int64 segmentIDs = 3;
-  int64 taskID = 4;
-}
-
-message ReleaseSegmentLockRequest {
-  common.MsgBase base = 1;
-  int64 nodeID = 2;
-  repeated int64 segmentIDs = 3;
-  int64 taskID = 4;
-}
-
 message VchannelInfo {
   int64 collectionID = 1;
   string channelName = 2;
-  internal.MsgPosition seek_position = 3;
+  msg.MsgPosition seek_position = 3;
   repeated SegmentInfo unflushedSegments = 4; // deprecated, keep it for compatibility
   repeated SegmentInfo flushedSegments = 5; // deprecated, keep it for compatibility
   repeated SegmentInfo dropped_segments = 6; // deprecated, keep it for compatibility
   repeated int64 unflushedSegmentIds = 7;
   repeated int64 flushedSegmentIds = 8;
   repeated int64 dropped_segmentIds = 9;
+  repeated int64 indexed_segmentIds = 10;
+  repeated SegmentInfo indexed_segments = 11;
 }
 
 message WatchDmChannelsRequest {
@@ -260,6 +267,7 @@ message FlushSegmentsRequest {
   int64 dbID = 2;
   int64 collectionID = 3;
   repeated int64 segmentIDs = 4; // segments to flush
+  string channelName = 5; // vchannel name to flush
 }
 
 message SegmentMsg{
@@ -276,8 +284,8 @@ message SegmentInfo {
   common.SegmentState state = 6;
   int64 max_row_num = 7;
   uint64 last_expire_time = 8;
-  internal.MsgPosition start_position = 9;
-  internal.MsgPosition dml_position = 10;
+  msg.MsgPosition start_position = 9;
+  msg.MsgPosition dml_position = 10;
   // binlogs consist of insert binlogs
   repeated FieldBinlog binlogs = 11;
   repeated FieldBinlog statslogs = 12;
@@ -291,10 +299,22 @@ message SegmentInfo {
   // (2) the bulk insert task that creates this segment has not yet reached `ImportCompleted` state.
   bool is_importing = 17;
   bool is_fake = 18;
+
+  // denote if this segment is compacted to other segment.
+  // For compatibility reasons, this flag of an old compacted segment may still be False.
+  // As for new fields added in the message, they will be populated with their respective field types' default values.
+  bool compacted = 19;
+
+  // Segment level, indicating compaction segment level
+  // Available value: Legacy, L0, L1
+  // For legacy level, it represent old segment before segment level introduced
+  // so segments with Legacy level shall be treated as L1 segment
+  SegmentLevel level = 20;
+  int64 storage_version = 21;
 }
 
 message SegmentStartPosition {
-  internal.MsgPosition start_position = 1;
+  msg.MsgPosition start_position = 1;
   int64 segmentID = 2;
 }
 
@@ -310,11 +330,15 @@ message SaveBinlogPathsRequest {
   repeated FieldBinlog deltalogs = 9;
   bool dropped = 10;
   bool importing = 11;
+  string channel = 12; // report channel name for verification
+  SegmentLevel seg_level =13;
+  int64 partitionID =14; // report partitionID for create L0 segment
+  int64 storageVersion = 15;
 }
 
 message CheckPoint {
   int64 segmentID = 1;
-  internal.MsgPosition position = 2;
+  msg.MsgPosition position = 2;
   int64 num_of_rows = 3;
 }
 
@@ -324,18 +348,6 @@ message DeltaLogInfo {
   uint64 timestamp_to = 3;
   string delta_log_path = 4;
   int64 delta_log_size = 5;
-}
-
-message DataNodeTtMsg {
-    common.MsgBase base =1;
-    string channel_name = 2;
-    uint64 timestamp = 3;
-    repeated SegmentStats segments_stats = 4;
-}
-
-message SegmentStats {
-  int64 SegmentID = 1;
-  int64 NumRows = 2;
 }
 
 enum ChannelWatchState {
@@ -426,7 +438,6 @@ message GetFlushedSegmentsRequest {
   int64 collectionID = 2;
   int64 partitionID = 3;
   bool includeUnhealthy = 4;
-  uint64 timeBefore = 5;
 }
 
 message GetFlushedSegmentsResponse {
@@ -448,8 +459,9 @@ message ChannelWatchInfo {
     int64 timeoutTs = 4;
     // the schema of the collection to watch, to avoid get schema rpc issues.
     schema.CollectionSchema schema = 5;
-    // watch progress
+    // watch progress, deprecated
     int32 progress = 6;
+    int64 opID = 7;
 }
 
 enum CompactionType {
@@ -457,6 +469,11 @@ enum CompactionType {
   reserved 1;
   MergeCompaction = 2;
   MixCompaction = 3;
+  // compactionV2
+  SingleCompaction = 4;
+  MinorCompaction = 5;
+  MajorCompaction = 6;
+  Level0DeleteCompaction = 7;
 }
 
 message CompactionStateRequest {
@@ -469,6 +486,9 @@ message SyncSegmentsRequest {
   int64 num_of_rows = 3;
   repeated int64 compacted_from = 4;
   repeated FieldBinlog stats_logs = 5;
+  string channel_name = 6;
+  int64 partition_id = 7;
+  int64 collection_id = 8;
 }
 
 message CompactionSegmentBinlogs {
@@ -477,6 +497,7 @@ message CompactionSegmentBinlogs {
   repeated FieldBinlog field2StatslogPaths = 3;
   repeated FieldBinlog deltalogs = 4;
   string insert_channel = 5;
+  SegmentLevel level = 6;
 }
 
 message CompactionPlan {
@@ -491,8 +512,8 @@ message CompactionPlan {
   int64 total_rows = 9;
 }
 
-message CompactionResult {
-  int64 planID = 1;
+message CompactionSegment {
+  int64 planID = 1; // deprecated after 2.3.4
   int64 segmentID = 2;
   int64 num_of_rows = 3;
   repeated FieldBinlog insert_logs = 4;
@@ -501,15 +522,16 @@ message CompactionResult {
   string channel = 7;
 }
 
-message CompactionStateResult {
+message CompactionPlanResult {
   int64 planID = 1;
   common.CompactionState state = 2;
-  CompactionResult result = 3;
+  repeated CompactionSegment segments = 3;
+  string channel = 4;
 }
 
 message CompactionStateResponse {
   common.Status status = 1;
-  repeated CompactionStateResult results = 2;
+  repeated CompactionPlanResult results = 2;
 }
 
 // Deprecated
@@ -522,7 +544,8 @@ message WatchChannelsRequest {
   int64 collectionID = 1;
   repeated string channelNames = 2;
   repeated common.KeyDataPair start_positions = 3;
-  schema.CollectionSchema schema = 4; 
+  schema.CollectionSchema schema = 4;
+  uint64 create_timestamp = 5;
 }
 
 message WatchChannelsResponse {
@@ -551,8 +574,8 @@ message DropVirtualChannelSegment {
   repeated FieldBinlog field2BinlogPaths = 3;
   repeated FieldBinlog field2StatslogPaths = 4;
   repeated FieldBinlog deltalogs = 5;
-  internal.MsgPosition startPosition = 6;
-  internal.MsgPosition checkPoint = 7;
+  msg.MsgPosition startPosition = 6;
+  msg.MsgPosition checkPoint = 7;
   int64 numOfRows = 8;
 }
 
@@ -569,6 +592,7 @@ message ImportTask {
   int64 task_id = 6;                         // id of the task
   repeated string files = 7;                 // file paths to be imported
   repeated common.KeyValuePair infos = 8;    // extra information about the task, bucket, etc.
+  string database_name = 16;                 // Database name
 }
 
 message ImportTaskState {
@@ -595,6 +619,7 @@ message ImportTaskInfo {
   string partition_name = 13;                   // Partition name for the import task.
   repeated common.KeyValuePair infos = 14;      // extra information about the task, bucket, etc.
   int64 start_ts = 15;                          // Timestamp when the import task is sent to datanode to execute.
+  string database_name = 16;                    // Database name
 }
 
 message ImportTaskResponse {
@@ -610,13 +635,13 @@ message ImportTaskRequest {
 
 message UpdateSegmentStatisticsRequest {
   common.MsgBase base = 1;
-  repeated SegmentStats stats = 2;
+  repeated common.SegmentStats stats = 2;
 }
 
 message UpdateChannelCheckpointRequest {
   common.MsgBase base = 1;
   string vChannel = 2;
-  internal.MsgPosition position = 3;
+  msg.MsgPosition position = 3;
 }
 
 message ResendSegmentStatsRequest {
@@ -687,4 +712,28 @@ message GcConfirmRequest {
 message GcConfirmResponse {
   common.Status status = 1;
   bool gc_finished = 2;
+}
+
+message ReportDataNodeTtMsgsRequest {
+  common.MsgBase base = 1;
+  repeated msg.DataNodeTtMsg msgs = 2; // -1 means whole collection.
+}
+
+message GetFlushStateRequest {
+  repeated int64 segmentIDs = 1;
+  uint64 flush_ts = 2;
+  string db_name = 3;
+  string collection_name = 4;
+  int64 collectionID = 5;
+}
+
+message ChannelOperationsRequest {
+  repeated ChannelWatchInfo infos = 1;
+}
+
+message ChannelOperationProgressResponse {
+  common.Status status = 1;
+  int64 opID = 2;
+  ChannelWatchState state = 3;
+  int32 progress = 4;
 }
