@@ -38,3 +38,27 @@ var SegmentStatevalue = map[string]int32{
 func (x SegmentState) String() string {
 	return EnumName(SegmentStatename, int32(x))
 }
+
+type SegmentLevel int32
+
+const (
+	SegmentLevelLegacy SegmentLevel = 0
+	SegmentLevelL0     SegmentLevel = 1
+	SegmentLevelL1     SegmentLevel = 2
+)
+
+var SegmentLevelName = map[int32]string{
+	0: "Legacy",
+	1: "L0",
+	2: "L1",
+}
+
+var SegmentLevelValue = map[string]int32{
+	"Legacy": 0,
+	"L0":     1,
+	"L1":     2,
+}
+
+func (x SegmentLevel) String() string {
+	return EnumName(SegmentLevelName, int32(x))
+}

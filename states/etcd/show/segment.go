@@ -77,7 +77,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 		case "table":
 			PrintSegmentInfo(info, p.Detail)
 		case "line":
-			fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
+			fmt.Printf("SegmentID: %d State: %s, Level: %s, Row Count:%d\n", info.ID, info.State.String(), info.Level.String(), info.NumOfRows)
 		case "statistics":
 			if info.State != models.SegmentStateDropped {
 				for _, binlog := range info.GetBinlogs() {
@@ -142,11 +142,12 @@ const (
 func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Segment ID: %d\n", info.ID)
-	fmt.Printf("Segment State:%v", info.State)
+	fmt.Printf("Segment State: %v", info.State)
 	if info.State == models.SegmentStateDropped {
 		dropTime := time.Unix(0, int64(info.DroppedAt))
 		fmt.Printf("\tDropped Time: %s", dropTime.Format(tsPrintFormat))
 	}
+	fmt.Printf("\tSegment Level: %s", info.Level.String())
 	fmt.Println()
 	fmt.Printf("Collection ID: %d\t\tPartitionID: %d\n", info.CollectionID, info.PartitionID)
 	fmt.Printf("Insert Channel:%s\n", info.InsertChannel)
