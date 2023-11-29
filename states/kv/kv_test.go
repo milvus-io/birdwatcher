@@ -231,6 +231,7 @@ func TestRemoveWithPrev(t *testing.T) {
 		// it's fine if the key doesn't exist.
 		kvp, err := kv.removeWithPrevKV(ctx, "not_exist_key")
 		assert.NoError(t, err)
+		assert.Equal(t, kvp, (*mvccpb.KeyValue)(nil))
 		kvp, err = kv.removeWithPrevKV(ctx, "testr1")
 		assert.NoError(t, err)
 		assert.Equal(t, string(kvp.Key), "testr1")
