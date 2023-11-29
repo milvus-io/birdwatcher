@@ -102,6 +102,9 @@ func (c *FileAuditKV) writeHeader(op models.AuditOpType, entriesNum int32) {
 }
 
 func (c *FileAuditKV) writeLogKV(kv *mvccpb.KeyValue) {
+	if kv == (*mvccpb.KeyValue)(nil) {
+		return
+	}
 	bs, _ := proto.Marshal(kv)
 	c.writeData(bs)
 }
