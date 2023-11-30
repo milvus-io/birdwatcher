@@ -10,6 +10,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/birdwatcher/utils"
 	"github.com/samber/lo"
 )
 
@@ -53,5 +54,6 @@ func (rs *Aliases) PrintAs(format framework.Format) string {
 }
 
 func (rs *Aliases) PrintAlias(sb *strings.Builder, a *models.Alias) {
-	fmt.Printf("Collection ID: %d\tAlias Name: %s\tState: %s\n", a.CollectionID, a.Name, a.State.String())
+	t, _ := utils.ParseTS(a.CreateTS)
+	fmt.Printf("Collection ID: %d\tAlias Name: %s\tState: %s\tCreateTimestamp: %v\n", a.CollectionID, a.Name, a.State.String(), t)
 }
