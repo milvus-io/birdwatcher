@@ -21,10 +21,13 @@ import (
 )
 
 const (
+	SnapshotPrefix = "snapshots"
 	// CollectionMetaPrefix is prefix for rootcoord collection meta.
 	CollectionMetaPrefix = `root-coord/collection`
 	// DBCollectionMetaPrefix is prefix for rootcoord database collection meta
 	DBCollectionMetaPrefix = `root-coord/database/collection-info`
+	// FieldMetaPrefix is prefix for rootcoord collection fields meta
+	FieldMetaPrefix = `root-coord/fields`
 	// CollectionLoadPrefix is prefix for querycoord collection loaded in milvus v2.1.x
 	CollectionLoadPrefix = "queryCoord-collectionMeta"
 	// CollectionLoadPrefixV2 is prefix for querycoord collection loaded in milvus v2.2.x
