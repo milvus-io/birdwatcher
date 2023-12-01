@@ -133,7 +133,8 @@ func (kv *etcdKV) removeWithPrevKV(ctx context.Context, key string) (*mvccpb.Key
 	if len(resp.PrevKvs) > 0 {
 		return resp.PrevKvs[0], nil
 	}
-	return nil, fmt.Errorf("Error getting prev kv in removeWithPrevKV for key: %s", key)
+	// Note: we allow response to be empty, which suggests that the key doesn't exist e.g. it's already deleted.
+	return nil, nil
 }
 
 func (kv *etcdKV) removeWithPrefixAndPrevKV(ctx context.Context, prefix string) ([]*mvccpb.KeyValue, error) {
@@ -463,7 +464,8 @@ func (kv *txnTiKV) RemoveWithPrefix(ctx context.Context, prefix string) error {
 func (kv *txnTiKV) removeWithPrevKV(ctx context.Context, key string) (*mvccpb.KeyValue, error) {
 	preV, err := kv.Load(ctx, key)
 	if err != nil {
-		return nil, err
+		// Note: we allow response to be empty, which suggests that the key doesn't exist e.g. it's already deleted.
+		return nil, nil
 	}
 	err = kv.Remove(ctx, key)
 	if err != nil {

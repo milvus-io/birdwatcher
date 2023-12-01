@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 )
 
 func TestTiKVLoad(te *testing.T) {
@@ -139,6 +140,9 @@ func TestTiKVLoad(te *testing.T) {
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, []string{"testr2", "testr2/c"}, keys)
 			assert.ElementsMatch(t, []string{"value2", "value3"}, vals)
+			// allow remove with non-exist prefix
+			err = kv.RemoveWithPrefix(ctx, "testnoexist")
+			assert.NoError(t, err)
 		}
 	})
 }
@@ -224,7 +228,11 @@ func TestRemoveWithPrev(t *testing.T) {
 			err := kv.Save(ctx, test.key, test.value)
 			assert.NoError(t, err)
 		}
-		kvp, err := kv.removeWithPrevKV(ctx, "testr1")
+		// it's fine if the key doesn't exist.
+		kvp, err := kv.removeWithPrevKV(ctx, "not_exist_key")
+		assert.NoError(t, err)
+		assert.Equal(t, kvp, (*mvccpb.KeyValue)(nil))
+		kvp, err = kv.removeWithPrevKV(ctx, "testr1")
 		assert.NoError(t, err)
 		assert.Equal(t, string(kvp.Key), "testr1")
 		assert.Equal(t, string(kvp.Value), "value1")
@@ -232,6 +240,10 @@ func TestRemoveWithPrev(t *testing.T) {
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, []string{"testr2", "testr1/a", "testr1/b", "testr2/c"}, keys)
 		assert.ElementsMatch(t, []string{"value2", "value_a", "value_b", "value3"}, vals)
+		// it's fine if the key doesn't exist.
+		kvp, err = kv.removeWithPrevKV(ctx, "testr1")
+		assert.NoError(t, err)
+		assert.Equal(t, kvp, (*mvccpb.KeyValue)(nil))
 	}
 }
 
