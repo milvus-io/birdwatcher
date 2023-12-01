@@ -307,6 +307,39 @@ func RemoveSegmentByID(ctx context.Context, cli kv.MetaKV, basePath string, coll
 	return err
 }
 
+func RemoveSegmentInsertLogPath(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, partitionID, segmentID, fieldID, logID int64) error {
+	// delete binlog entries
+	BinLogPath := path.Join(basePath, "datacoord-meta", "insert_log", fmt.Sprintf("%d/%d/%d/%d/%d", collectionID, partitionID, segmentID, fieldID, logID))
+	fmt.Println("remove", BinLogPath)
+	err := cli.Remove(ctx, BinLogPath)
+	if err != nil {
+		fmt.Printf("failed to delete insert binlogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
+	}
+	return err
+}
+
+func RemoveSegmentDeltaLogPath(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, partitionID, segmentID, logID int64) error {
+	// delete binlog entries
+	DeltaLogPath := path.Join(basePath, "datacoord-meta", "delta_log", fmt.Sprintf("%d/%d/%d/%d", collectionID, partitionID, segmentID, logID))
+	fmt.Println("remove", DeltaLogPath)
+	err := cli.Remove(ctx, DeltaLogPath)
+	if err != nil {
+		fmt.Printf("failed to delete delta binlogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
+	}
+	return err
+}
+
+func RemoveSegmentStatLogPath(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, partitionID, segmentID, fieldID, logID int64) error {
+	// delete binlog entries
+	StatLogPath := path.Join(basePath, "datacoord-meta", "stats_log", fmt.Sprintf("%d/%d/%d/%d/%d", collectionID, partitionID, segmentID, fieldID, logID))
+	fmt.Println("remove", StatLogPath)
+	err := cli.Remove(ctx, StatLogPath)
+	if err != nil {
+		fmt.Printf("failed to delete stat logs from etcd for segment %d, err: %s\n", segmentID, err.Error())
+	}
+	return err
+}
+
 func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
 
 	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", SegmentMetaPrefix, collectionID)) + "/"

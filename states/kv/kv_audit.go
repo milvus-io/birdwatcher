@@ -49,25 +49,33 @@ func (c *FileAuditKV) Save(ctx context.Context, key, value string) error {
 
 func (c *FileAuditKV) Remove(ctx context.Context, key string) error {
 	fmt.Println("audit delete", key)
-	kv, err := c.cli.removeWithPrevKV(ctx, key)
+	val, err := c.cli.Load(ctx, key)
+	if err != nil {
+		return err
+	}
+
+	err = c.cli.Remove(ctx, key)
 	if err != nil {
 		return err
 	}
 	c.writeHeader(models.OpDel, 1)
-	c.writeLogKV(kv)
+	c.writeKeyValue(key, val)
 	return nil
 }
 
 func (c *FileAuditKV) RemoveWithPrefix(ctx context.Context, key string) error {
 	fmt.Println("audit delete with prefix", key)
-	kvs, err := c.cli.removeWithPrefixAndPrevKV(ctx, key)
+	val, err := c.cli.Load(ctx, key)
 	if err != nil {
 		return err
 	}
-	c.writeHeader(models.OpDel, int32(len(kvs)))
-	for _, kv := range kvs {
-		c.writeLogKV(kv)
+
+	err = c.cli.RemoveWithPrefix(ctx, key)
+	if err != nil {
+		return err
 	}
+	c.writeHeader(models.OpDel, 1)
+	c.writeKeyValue(key, val)
 	return nil
 }
 
