@@ -129,3 +129,7 @@ func (c *FileAuditKV) writeData(data []byte) {
 		}
 	}
 }
+
+func (c *FileAuditKV) WalkWithPrefix(ctx context.Context, prefix string, paginationSize int, fn func([]byte, []byte) error) error {
+	return c.cli.WalkWithPrefix(ctx, prefix, paginationSize, fn)
+}

@@ -17,12 +17,13 @@ import (
 )
 
 const (
-	segmentMetaPrefix = "datacoord-meta/s"
+	SegmentMetaPrefix      = "datacoord-meta/s"
+	SegmentStatsMetaPrefix = "datacoord-meta/statslog"
 )
 
 // ListSegmentsVersion list segment info as specified version.
 func ListSegmentsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
-	prefix := path.Join(basePath, segmentMetaPrefix) + "/"
+	prefix := path.Join(basePath, SegmentMetaPrefix) + "/"
 	switch version {
 	case models.LTEVersion2_1:
 		segments, keys, err := ListProtoObjects[datapb.SegmentInfo](ctx, cli, prefix)
@@ -107,7 +108,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 func ListSegments(cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, vals, err := cli.LoadWithPrefix(ctx, path.Join(basePath, segmentMetaPrefix)+"/")
+	_, vals, err := cli.LoadWithPrefix(ctx, path.Join(basePath, SegmentMetaPrefix)+"/")
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +309,7 @@ func RemoveSegmentByID(ctx context.Context, cli kv.MetaKV, basePath string, coll
 
 func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
 
-	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", segmentMetaPrefix, collectionID)) + "/"
+	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", SegmentMetaPrefix, collectionID)) + "/"
 	segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
 	if err != nil {
 		return err

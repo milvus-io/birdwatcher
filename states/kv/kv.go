@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"path"
 	"strings"
 	"time"
 
@@ -50,6 +51,7 @@ type MetaKV interface {
 	removeWithPrefixAndPrevKV(ctx context.Context, prefix string) ([]*mvccpb.KeyValue, error)
 	GetAllRootPath(ctx context.Context) ([]string, error)
 	BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision bool, batchSize int64) error
+	WalkWithPrefix(ctx context.Context, prefix string, paginationSize int, fn func([]byte, []byte) error) error
 	Close()
 }
 
@@ -206,6 +208,8 @@ func (kv *etcdKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision 
 	meta["instance"] = instance
 	meta["metaPath"] = metaPath
 
+	fmt.Println("meta path ", metaPath)
+
 	bs, _ := json.Marshal(meta)
 	ph := models.PartHeader{
 		PartType: int32(models.EtcdBackup),
@@ -268,6 +272,39 @@ func (kv *etcdKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision 
 	w.Flush()
 
 	fmt.Printf("backup etcd for prefix %s done\n", prefix)
+	return nil
+}
+
+func (kv *etcdKV) WalkWithPrefix(ctx context.Context, prefix string, paginationSize int, fn func([]byte, []byte) error) error {
+	prefix = path.Join(kv.rootPath, prefix)
+
+	batch := int64(paginationSize)
+	opts := []clientv3.OpOption{
+		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
+		clientv3.WithLimit(batch),
+		clientv3.WithRange(clientv3.GetPrefixRangeEnd(prefix)),
+	}
+
+	key := prefix
+	for {
+		resp, err := kv.client.Get(ctx, key, opts...)
+		if err != nil {
+			return err
+		}
+
+		for _, kv := range resp.Kvs {
+			if err = fn(kv.Key, kv.Value); err != nil {
+				return err
+			}
+		}
+
+		if !resp.More {
+			break
+		}
+		// move to next key
+		key = string(append(resp.Kvs[len(resp.Kvs)-1].Key, 0))
+	}
+
 	return nil
 }
 
@@ -586,6 +623,45 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 
 	fmt.Printf("backup tikv for prefix %s done\n", prefix)
 	return txn.Commit(ctx)
+}
+
+func (kv *txnTiKV) WalkWithPrefix(ctx context.Context, prefix string, paginationSize int, fn func([]byte, []byte) error) error {
+	prefix = path.Join(kv.rootPath, prefix)
+
+	// Since only reading, use Snapshot for less overhead
+	ss := kv.client.GetSnapshot(MaxSnapshotTS)
+	ss.SetScanBatchSize(paginationSize)
+
+	// Retrieve key-value pairs with the specified prefix
+	startKey := []byte(prefix)
+	endKey := tikv.PrefixNextKey([]byte(prefix))
+	iter, err := ss.Iter(startKey, endKey)
+	if err != nil {
+		err = errors.Wrap(err, fmt.Sprintf("Failed to create iterater for %s during WalkWithPrefix", prefix))
+		return err
+	}
+	defer iter.Close()
+
+	// Iterate over the key-value pairs
+	for iter.Valid() {
+		// Grab value for empty check
+		byteVal := iter.Value()
+		// Check if empty val and replace with placeholder
+		if isEmptyByte(byteVal) {
+			byteVal = []byte{}
+		}
+		err = fn(iter.Key(), byteVal)
+		if err != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Failed to apply fn to (%s;%s)", string(iter.Key()), string(byteVal)))
+			return err
+		}
+		err = iter.Next()
+		if err != nil {
+			err = errors.Wrap(err, fmt.Sprintf("Failed to move Iterator after key %s for WalkWithPrefix", string(iter.Key())))
+			return err
+		}
+	}
+	return nil
 }
 
 // Close closes the connection to TiKV.
