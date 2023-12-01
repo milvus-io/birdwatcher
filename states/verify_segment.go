@@ -3,6 +3,7 @@ package states
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/milvus-io/birdwatcher/models"
@@ -23,7 +24,7 @@ func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
-			patch, err := cmd.Flags().GetBool("patch")
+			fix, err := cmd.Flags().GetBool("fix")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -61,30 +62,103 @@ func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 							_, err := minioClient.StatObject(context.Background(), bucketName, l.LogPath, minio.StatObjectOptions{})
 							if err != nil {
 								errResp := minio.ToErrorResponse(err)
-								if errResp.Code != "NoSuchKey" {
-									fmt.Println("failed to stat object in minio", err.Error())
-									continue
-								}
-								if !patch {
-									fmt.Println("file not exists in minio", l.LogPath)
-									continue
-								}
-								// try to patch 01 => 1 bug
-								if item.tag == "statslog" && strings.HasSuffix(l.LogPath, "/1") {
-									currentObjectPath := strings.TrimSuffix(l.LogPath, "/1") + "/01"
-									_, err = minioClient.StatObject(context.Background(), bucketName, currentObjectPath, minio.StatObjectOptions{})
-									if err != nil {
-										fmt.Println(currentObjectPath, "also not exists")
-										continue
+								fmt.Println("failed to check ", l.LogPath, err, errResp.Code)
+								if errResp.Code == "NoSuchKey" {
+									if item.tag == "binlog" {
+										fmt.Println("path", l.LogPath, fix)
+										splits := strings.Split(l.LogPath, "/")
+										logID, err := strconv.ParseInt(splits[len(splits)-1], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse logID")
+										}
+
+										fieldID, err := strconv.ParseInt(splits[len(splits)-2], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse fieldID")
+										}
+
+										segmentID, err := strconv.ParseInt(splits[len(splits)-3], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse segmentID")
+										}
+
+										partitionID, err := strconv.ParseInt(splits[len(splits)-4], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse partitionID")
+										}
+
+										collectionID, err := strconv.ParseInt(splits[len(splits)-5], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse collectionID")
+										}
+
+										if fix && err == nil {
+											err := common.RemoveSegmentInsertLogPath(context.Background(), cli, basePath, collectionID, partitionID, segmentID, fieldID, logID)
+											if err != nil {
+												fmt.Println("failed to remove segment insert path")
+											}
+										}
+									} else if item.tag == "statslog" {
+										splits := strings.Split(l.LogPath, "/")
+										logID, err := strconv.ParseInt(splits[len(splits)-1], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse logID")
+										}
+
+										fieldID, err := strconv.ParseInt(splits[len(splits)-2], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse fieldID")
+										}
+
+										segmentID, err := strconv.ParseInt(splits[len(splits)-3], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse segmentID")
+										}
+
+										partitionID, err := strconv.ParseInt(splits[len(splits)-4], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse parititonID")
+										}
+
+										collectionID, err := strconv.ParseInt(splits[len(splits)-5], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse col id")
+										}
+
+										if fix && err == nil {
+											err := common.RemoveSegmentStatLogPath(context.Background(), cli, basePath, collectionID, partitionID, segmentID, fieldID, logID)
+											if err != nil {
+												fmt.Println("failed to remove segment insert path")
+											}
+										}
+									} else if item.tag == "deltalog" {
+										splits := strings.Split(l.LogPath, "/")
+										logID, err := strconv.ParseInt(splits[len(splits)-1], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse logID")
+										}
+										segmentID, err := strconv.ParseInt(splits[len(splits)-2], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse segmentID")
+										}
+
+										partitionID, err := strconv.ParseInt(splits[len(splits)-3], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse partitionID")
+										}
+
+										collectionID, err := strconv.ParseInt(splits[len(splits)-4], 10, 64)
+										if err != nil {
+											fmt.Println("failed to parse col id")
+										}
+
+										if fix && err == nil {
+											err := common.RemoveSegmentDeltaLogPath(context.Background(), cli, basePath, collectionID, partitionID, segmentID, logID)
+											if err != nil {
+												fmt.Println("failed to remove segment insert path")
+											}
+										}
 									}
-									fmt.Printf("current statslog(%s) for (%s) found, try to copy object", currentObjectPath, l.LogPath)
-									minioClient.CopyObject(context.Background(), minio.CopyDestOptions{
-										Bucket: bucketName,
-										Object: l.LogPath,
-									}, minio.CopySrcOptions{
-										Bucket: bucketName,
-										Object: currentObjectPath,
-									})
 								}
 							}
 						}
@@ -98,6 +172,6 @@ func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	}
 
 	cmd.Flags().Int64("collection", 0, "collection id")
-	cmd.Flags().Bool("patch", false, "try to patch with known issue logic")
+	cmd.Flags().Bool("fix", false, "remove the log path to fix no such key")
 	return cmd
 }
