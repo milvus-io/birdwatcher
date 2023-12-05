@@ -2405,7 +2405,7 @@ func NewIndexCoordClient(cc *grpc.ClientConn) IndexCoordClient {
 
 func (c *indexCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2414,7 +2414,7 @@ func (c *indexCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.
 
 func (c *indexCoordClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2423,7 +2423,7 @@ func (c *indexCoordClient) GetStatisticsChannel(ctx context.Context, in *interna
 
 func (c *indexCoordClient) CreateIndex(ctx context.Context, in *CreateIndexRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/CreateIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/CreateIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2432,7 +2432,7 @@ func (c *indexCoordClient) CreateIndex(ctx context.Context, in *CreateIndexReque
 
 func (c *indexCoordClient) GetIndexState(ctx context.Context, in *GetIndexStateRequest, opts ...grpc.CallOption) (*GetIndexStateResponse, error) {
 	out := new(GetIndexStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetIndexState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetIndexState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2441,7 +2441,7 @@ func (c *indexCoordClient) GetIndexState(ctx context.Context, in *GetIndexStateR
 
 func (c *indexCoordClient) GetSegmentIndexState(ctx context.Context, in *GetSegmentIndexStateRequest, opts ...grpc.CallOption) (*GetSegmentIndexStateResponse, error) {
 	out := new(GetSegmentIndexStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetSegmentIndexState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetSegmentIndexState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2450,7 +2450,7 @@ func (c *indexCoordClient) GetSegmentIndexState(ctx context.Context, in *GetSegm
 
 func (c *indexCoordClient) GetIndexInfos(ctx context.Context, in *GetIndexInfoRequest, opts ...grpc.CallOption) (*GetIndexInfoResponse, error) {
 	out := new(GetIndexInfoResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetIndexInfos", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetIndexInfos", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2459,7 +2459,7 @@ func (c *indexCoordClient) GetIndexInfos(ctx context.Context, in *GetIndexInfoRe
 
 func (c *indexCoordClient) DropIndex(ctx context.Context, in *DropIndexRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/DropIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/DropIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2468,7 +2468,7 @@ func (c *indexCoordClient) DropIndex(ctx context.Context, in *DropIndexRequest, 
 
 func (c *indexCoordClient) DescribeIndex(ctx context.Context, in *DescribeIndexRequest, opts ...grpc.CallOption) (*DescribeIndexResponse, error) {
 	out := new(DescribeIndexResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/DescribeIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/DescribeIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2477,7 +2477,7 @@ func (c *indexCoordClient) DescribeIndex(ctx context.Context, in *DescribeIndexR
 
 func (c *indexCoordClient) GetIndexStatistics(ctx context.Context, in *GetIndexStatisticsRequest, opts ...grpc.CallOption) (*GetIndexStatisticsResponse, error) {
 	out := new(GetIndexStatisticsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetIndexStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetIndexStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2486,7 +2486,7 @@ func (c *indexCoordClient) GetIndexStatistics(ctx context.Context, in *GetIndexS
 
 func (c *indexCoordClient) GetIndexBuildProgress(ctx context.Context, in *GetIndexBuildProgressRequest, opts ...grpc.CallOption) (*GetIndexBuildProgressResponse, error) {
 	out := new(GetIndexBuildProgressResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetIndexBuildProgress", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetIndexBuildProgress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2495,7 +2495,7 @@ func (c *indexCoordClient) GetIndexBuildProgress(ctx context.Context, in *GetInd
 
 func (c *indexCoordClient) ShowConfigurations(ctx context.Context, in *internalpb.ShowConfigurationsRequest, opts ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error) {
 	out := new(internalpb.ShowConfigurationsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/ShowConfigurations", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/ShowConfigurations", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2504,7 +2504,7 @@ func (c *indexCoordClient) ShowConfigurations(ctx context.Context, in *internalp
 
 func (c *indexCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/GetMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/GetMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2513,7 +2513,7 @@ func (c *indexCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetri
 
 func (c *indexCoordClient) CheckHealth(ctx context.Context, in *milvuspb.CheckHealthRequest, opts ...grpc.CallOption) (*milvuspb.CheckHealthResponse, error) {
 	out := new(milvuspb.CheckHealthResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexCoord/CheckHealth", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexCoord/CheckHealth", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2598,7 +2598,7 @@ func _IndexCoord_GetComponentStates_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetComponentStates",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -2616,7 +2616,7 @@ func _IndexCoord_GetStatisticsChannel_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetStatisticsChannel",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -2634,7 +2634,7 @@ func _IndexCoord_CreateIndex_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/CreateIndex",
+		FullMethod: "/milvus.proto.index.IndexCoord/CreateIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).CreateIndex(ctx, req.(*CreateIndexRequest))
@@ -2652,7 +2652,7 @@ func _IndexCoord_GetIndexState_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetIndexState",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetIndexState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetIndexState(ctx, req.(*GetIndexStateRequest))
@@ -2670,7 +2670,7 @@ func _IndexCoord_GetSegmentIndexState_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetSegmentIndexState",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetSegmentIndexState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetSegmentIndexState(ctx, req.(*GetSegmentIndexStateRequest))
@@ -2688,7 +2688,7 @@ func _IndexCoord_GetIndexInfos_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetIndexInfos",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetIndexInfos",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetIndexInfos(ctx, req.(*GetIndexInfoRequest))
@@ -2706,7 +2706,7 @@ func _IndexCoord_DropIndex_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/DropIndex",
+		FullMethod: "/milvus.proto.index.IndexCoord/DropIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).DropIndex(ctx, req.(*DropIndexRequest))
@@ -2724,7 +2724,7 @@ func _IndexCoord_DescribeIndex_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/DescribeIndex",
+		FullMethod: "/milvus.proto.index.IndexCoord/DescribeIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).DescribeIndex(ctx, req.(*DescribeIndexRequest))
@@ -2742,7 +2742,7 @@ func _IndexCoord_GetIndexStatistics_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetIndexStatistics",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetIndexStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetIndexStatistics(ctx, req.(*GetIndexStatisticsRequest))
@@ -2760,7 +2760,7 @@ func _IndexCoord_GetIndexBuildProgress_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetIndexBuildProgress",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetIndexBuildProgress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetIndexBuildProgress(ctx, req.(*GetIndexBuildProgressRequest))
@@ -2778,7 +2778,7 @@ func _IndexCoord_ShowConfigurations_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/ShowConfigurations",
+		FullMethod: "/milvus.proto.index.IndexCoord/ShowConfigurations",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).ShowConfigurations(ctx, req.(*internalpb.ShowConfigurationsRequest))
@@ -2796,7 +2796,7 @@ func _IndexCoord_GetMetrics_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/GetMetrics",
+		FullMethod: "/milvus.proto.index.IndexCoord/GetMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).GetMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
@@ -2814,7 +2814,7 @@ func _IndexCoord_CheckHealth_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexCoord/CheckHealth",
+		FullMethod: "/milvus.proto.index.IndexCoord/CheckHealth",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexCoordServer).CheckHealth(ctx, req.(*milvuspb.CheckHealthRequest))
@@ -2908,7 +2908,7 @@ func NewIndexNodeClient(cc *grpc.ClientConn) IndexNodeClient {
 
 func (c *indexNodeClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2917,7 +2917,7 @@ func (c *indexNodeClient) GetComponentStates(ctx context.Context, in *milvuspb.G
 
 func (c *indexNodeClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2926,7 +2926,7 @@ func (c *indexNodeClient) GetStatisticsChannel(ctx context.Context, in *internal
 
 func (c *indexNodeClient) CreateJob(ctx context.Context, in *CreateJobRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/CreateJob", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/CreateJob", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2935,7 +2935,7 @@ func (c *indexNodeClient) CreateJob(ctx context.Context, in *CreateJobRequest, o
 
 func (c *indexNodeClient) QueryJobs(ctx context.Context, in *QueryJobsRequest, opts ...grpc.CallOption) (*QueryJobsResponse, error) {
 	out := new(QueryJobsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/QueryJobs", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/QueryJobs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2944,7 +2944,7 @@ func (c *indexNodeClient) QueryJobs(ctx context.Context, in *QueryJobsRequest, o
 
 func (c *indexNodeClient) DropJobs(ctx context.Context, in *DropJobsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/DropJobs", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/DropJobs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2953,7 +2953,7 @@ func (c *indexNodeClient) DropJobs(ctx context.Context, in *DropJobsRequest, opt
 
 func (c *indexNodeClient) GetJobStats(ctx context.Context, in *GetJobStatsRequest, opts ...grpc.CallOption) (*GetJobStatsResponse, error) {
 	out := new(GetJobStatsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/GetJobStats", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/GetJobStats", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2962,7 +2962,7 @@ func (c *indexNodeClient) GetJobStats(ctx context.Context, in *GetJobStatsReques
 
 func (c *indexNodeClient) ShowConfigurations(ctx context.Context, in *internalpb.ShowConfigurationsRequest, opts ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error) {
 	out := new(internalpb.ShowConfigurationsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/ShowConfigurations", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/ShowConfigurations", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2971,7 +2971,7 @@ func (c *indexNodeClient) ShowConfigurations(ctx context.Context, in *internalpb
 
 func (c *indexNodeClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.index.IndexNode/GetMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.index.IndexNode/GetMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -3034,7 +3034,7 @@ func _IndexNode_GetComponentStates_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/GetComponentStates",
+		FullMethod: "/milvus.proto.index.IndexNode/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -3052,7 +3052,7 @@ func _IndexNode_GetStatisticsChannel_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/GetStatisticsChannel",
+		FullMethod: "/milvus.proto.index.IndexNode/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -3070,7 +3070,7 @@ func _IndexNode_CreateJob_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/CreateJob",
+		FullMethod: "/milvus.proto.index.IndexNode/CreateJob",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).CreateJob(ctx, req.(*CreateJobRequest))
@@ -3088,7 +3088,7 @@ func _IndexNode_QueryJobs_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/QueryJobs",
+		FullMethod: "/milvus.proto.index.IndexNode/QueryJobs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).QueryJobs(ctx, req.(*QueryJobsRequest))
@@ -3106,7 +3106,7 @@ func _IndexNode_DropJobs_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/DropJobs",
+		FullMethod: "/milvus.proto.index.IndexNode/DropJobs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).DropJobs(ctx, req.(*DropJobsRequest))
@@ -3124,7 +3124,7 @@ func _IndexNode_GetJobStats_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/GetJobStats",
+		FullMethod: "/milvus.proto.index.IndexNode/GetJobStats",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).GetJobStats(ctx, req.(*GetJobStatsRequest))
@@ -3142,7 +3142,7 @@ func _IndexNode_ShowConfigurations_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/ShowConfigurations",
+		FullMethod: "/milvus.proto.index.IndexNode/ShowConfigurations",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).ShowConfigurations(ctx, req.(*internalpb.ShowConfigurationsRequest))
@@ -3160,7 +3160,7 @@ func _IndexNode_GetMetrics_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.index.IndexNode/GetMetrics",
+		FullMethod: "/milvus.proto.index.IndexNode/GetMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexNodeServer).GetMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
