@@ -1,11 +1,12 @@
 name: Docker Build and Push
 
-# This workflow is triggered on pushes(only tags) to the repository.
+# This workflow is triggered both on tag push event and workflow_dispatch event to the repository.
 on:
   push:
     tags:
       - 'v*'
-
+  workflow_dispatch:
+  
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
