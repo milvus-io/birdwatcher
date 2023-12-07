@@ -10415,7 +10415,7 @@ func NewMilvusServiceClient(cc *grpc.ClientConn) MilvusServiceClient {
 
 func (c *milvusServiceClient) CreateCollection(ctx context.Context, in *CreateCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreateCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreateCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10424,7 +10424,7 @@ func (c *milvusServiceClient) CreateCollection(ctx context.Context, in *CreateCo
 
 func (c *milvusServiceClient) DropCollection(ctx context.Context, in *DropCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DropCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DropCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10433,7 +10433,7 @@ func (c *milvusServiceClient) DropCollection(ctx context.Context, in *DropCollec
 
 func (c *milvusServiceClient) HasCollection(ctx context.Context, in *HasCollectionRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
 	out := new(BoolResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/HasCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/HasCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10442,7 +10442,7 @@ func (c *milvusServiceClient) HasCollection(ctx context.Context, in *HasCollecti
 
 func (c *milvusServiceClient) LoadCollection(ctx context.Context, in *LoadCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/LoadCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/LoadCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10451,7 +10451,7 @@ func (c *milvusServiceClient) LoadCollection(ctx context.Context, in *LoadCollec
 
 func (c *milvusServiceClient) ReleaseCollection(ctx context.Context, in *ReleaseCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ReleaseCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ReleaseCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10460,7 +10460,7 @@ func (c *milvusServiceClient) ReleaseCollection(ctx context.Context, in *Release
 
 func (c *milvusServiceClient) DescribeCollection(ctx context.Context, in *DescribeCollectionRequest, opts ...grpc.CallOption) (*DescribeCollectionResponse, error) {
 	out := new(DescribeCollectionResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DescribeCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DescribeCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10469,7 +10469,7 @@ func (c *milvusServiceClient) DescribeCollection(ctx context.Context, in *Descri
 
 func (c *milvusServiceClient) GetCollectionStatistics(ctx context.Context, in *GetCollectionStatisticsRequest, opts ...grpc.CallOption) (*GetCollectionStatisticsResponse, error) {
 	out := new(GetCollectionStatisticsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetCollectionStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetCollectionStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10478,7 +10478,7 @@ func (c *milvusServiceClient) GetCollectionStatistics(ctx context.Context, in *G
 
 func (c *milvusServiceClient) ShowCollections(ctx context.Context, in *ShowCollectionsRequest, opts ...grpc.CallOption) (*ShowCollectionsResponse, error) {
 	out := new(ShowCollectionsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ShowCollections", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ShowCollections", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10487,7 +10487,7 @@ func (c *milvusServiceClient) ShowCollections(ctx context.Context, in *ShowColle
 
 func (c *milvusServiceClient) AlterCollection(ctx context.Context, in *AlterCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/AlterCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/AlterCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10496,7 +10496,7 @@ func (c *milvusServiceClient) AlterCollection(ctx context.Context, in *AlterColl
 
 func (c *milvusServiceClient) CreatePartition(ctx context.Context, in *CreatePartitionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreatePartition", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreatePartition", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10505,7 +10505,7 @@ func (c *milvusServiceClient) CreatePartition(ctx context.Context, in *CreatePar
 
 func (c *milvusServiceClient) DropPartition(ctx context.Context, in *DropPartitionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DropPartition", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DropPartition", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10514,7 +10514,7 @@ func (c *milvusServiceClient) DropPartition(ctx context.Context, in *DropPartiti
 
 func (c *milvusServiceClient) HasPartition(ctx context.Context, in *HasPartitionRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
 	out := new(BoolResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/HasPartition", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/HasPartition", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10523,7 +10523,7 @@ func (c *milvusServiceClient) HasPartition(ctx context.Context, in *HasPartition
 
 func (c *milvusServiceClient) LoadPartitions(ctx context.Context, in *LoadPartitionsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/LoadPartitions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/LoadPartitions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10532,7 +10532,7 @@ func (c *milvusServiceClient) LoadPartitions(ctx context.Context, in *LoadPartit
 
 func (c *milvusServiceClient) ReleasePartitions(ctx context.Context, in *ReleasePartitionsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ReleasePartitions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ReleasePartitions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10541,7 +10541,7 @@ func (c *milvusServiceClient) ReleasePartitions(ctx context.Context, in *Release
 
 func (c *milvusServiceClient) GetPartitionStatistics(ctx context.Context, in *GetPartitionStatisticsRequest, opts ...grpc.CallOption) (*GetPartitionStatisticsResponse, error) {
 	out := new(GetPartitionStatisticsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetPartitionStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetPartitionStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10550,7 +10550,7 @@ func (c *milvusServiceClient) GetPartitionStatistics(ctx context.Context, in *Ge
 
 func (c *milvusServiceClient) ShowPartitions(ctx context.Context, in *ShowPartitionsRequest, opts ...grpc.CallOption) (*ShowPartitionsResponse, error) {
 	out := new(ShowPartitionsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ShowPartitions", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ShowPartitions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10559,7 +10559,7 @@ func (c *milvusServiceClient) ShowPartitions(ctx context.Context, in *ShowPartit
 
 func (c *milvusServiceClient) GetLoadingProgress(ctx context.Context, in *GetLoadingProgressRequest, opts ...grpc.CallOption) (*GetLoadingProgressResponse, error) {
 	out := new(GetLoadingProgressResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetLoadingProgress", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetLoadingProgress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10568,7 +10568,7 @@ func (c *milvusServiceClient) GetLoadingProgress(ctx context.Context, in *GetLoa
 
 func (c *milvusServiceClient) GetLoadState(ctx context.Context, in *GetLoadStateRequest, opts ...grpc.CallOption) (*GetLoadStateResponse, error) {
 	out := new(GetLoadStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetLoadState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetLoadState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10577,7 +10577,7 @@ func (c *milvusServiceClient) GetLoadState(ctx context.Context, in *GetLoadState
 
 func (c *milvusServiceClient) CreateAlias(ctx context.Context, in *CreateAliasRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreateAlias", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreateAlias", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10586,7 +10586,7 @@ func (c *milvusServiceClient) CreateAlias(ctx context.Context, in *CreateAliasRe
 
 func (c *milvusServiceClient) DropAlias(ctx context.Context, in *DropAliasRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DropAlias", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DropAlias", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10595,7 +10595,7 @@ func (c *milvusServiceClient) DropAlias(ctx context.Context, in *DropAliasReques
 
 func (c *milvusServiceClient) AlterAlias(ctx context.Context, in *AlterAliasRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/AlterAlias", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/AlterAlias", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10604,7 +10604,7 @@ func (c *milvusServiceClient) AlterAlias(ctx context.Context, in *AlterAliasRequ
 
 func (c *milvusServiceClient) DescribeAlias(ctx context.Context, in *DescribeAliasRequest, opts ...grpc.CallOption) (*DescribeAliasResponse, error) {
 	out := new(DescribeAliasResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DescribeAlias", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DescribeAlias", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10613,7 +10613,7 @@ func (c *milvusServiceClient) DescribeAlias(ctx context.Context, in *DescribeAli
 
 func (c *milvusServiceClient) ListAliases(ctx context.Context, in *ListAliasesRequest, opts ...grpc.CallOption) (*ListAliasesResponse, error) {
 	out := new(ListAliasesResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ListAliases", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ListAliases", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10622,7 +10622,7 @@ func (c *milvusServiceClient) ListAliases(ctx context.Context, in *ListAliasesRe
 
 func (c *milvusServiceClient) CreateIndex(ctx context.Context, in *CreateIndexRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreateIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreateIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10631,7 +10631,7 @@ func (c *milvusServiceClient) CreateIndex(ctx context.Context, in *CreateIndexRe
 
 func (c *milvusServiceClient) DescribeIndex(ctx context.Context, in *DescribeIndexRequest, opts ...grpc.CallOption) (*DescribeIndexResponse, error) {
 	out := new(DescribeIndexResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DescribeIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DescribeIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10640,7 +10640,7 @@ func (c *milvusServiceClient) DescribeIndex(ctx context.Context, in *DescribeInd
 
 func (c *milvusServiceClient) GetIndexStatistics(ctx context.Context, in *GetIndexStatisticsRequest, opts ...grpc.CallOption) (*GetIndexStatisticsResponse, error) {
 	out := new(GetIndexStatisticsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetIndexStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetIndexStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10650,7 +10650,7 @@ func (c *milvusServiceClient) GetIndexStatistics(ctx context.Context, in *GetInd
 // Deprecated: Do not use.
 func (c *milvusServiceClient) GetIndexState(ctx context.Context, in *GetIndexStateRequest, opts ...grpc.CallOption) (*GetIndexStateResponse, error) {
 	out := new(GetIndexStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetIndexState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetIndexState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10660,7 +10660,7 @@ func (c *milvusServiceClient) GetIndexState(ctx context.Context, in *GetIndexSta
 // Deprecated: Do not use.
 func (c *milvusServiceClient) GetIndexBuildProgress(ctx context.Context, in *GetIndexBuildProgressRequest, opts ...grpc.CallOption) (*GetIndexBuildProgressResponse, error) {
 	out := new(GetIndexBuildProgressResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetIndexBuildProgress", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetIndexBuildProgress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10669,7 +10669,7 @@ func (c *milvusServiceClient) GetIndexBuildProgress(ctx context.Context, in *Get
 
 func (c *milvusServiceClient) DropIndex(ctx context.Context, in *DropIndexRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DropIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DropIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10678,7 +10678,7 @@ func (c *milvusServiceClient) DropIndex(ctx context.Context, in *DropIndexReques
 
 func (c *milvusServiceClient) Insert(ctx context.Context, in *InsertRequest, opts ...grpc.CallOption) (*MutationResult, error) {
 	out := new(MutationResult)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Insert", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Insert", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10687,7 +10687,7 @@ func (c *milvusServiceClient) Insert(ctx context.Context, in *InsertRequest, opt
 
 func (c *milvusServiceClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*MutationResult, error) {
 	out := new(MutationResult)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Delete", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Delete", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10696,7 +10696,7 @@ func (c *milvusServiceClient) Delete(ctx context.Context, in *DeleteRequest, opt
 
 func (c *milvusServiceClient) Upsert(ctx context.Context, in *UpsertRequest, opts ...grpc.CallOption) (*MutationResult, error) {
 	out := new(MutationResult)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Upsert", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Upsert", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10705,7 +10705,7 @@ func (c *milvusServiceClient) Upsert(ctx context.Context, in *UpsertRequest, opt
 
 func (c *milvusServiceClient) Search(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*SearchResults, error) {
 	out := new(SearchResults)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Search", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Search", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10714,7 +10714,7 @@ func (c *milvusServiceClient) Search(ctx context.Context, in *SearchRequest, opt
 
 func (c *milvusServiceClient) Flush(ctx context.Context, in *FlushRequest, opts ...grpc.CallOption) (*FlushResponse, error) {
 	out := new(FlushResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Flush", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Flush", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10723,7 +10723,7 @@ func (c *milvusServiceClient) Flush(ctx context.Context, in *FlushRequest, opts 
 
 func (c *milvusServiceClient) Query(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*QueryResults, error) {
 	out := new(QueryResults)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Query", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Query", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10732,7 +10732,7 @@ func (c *milvusServiceClient) Query(ctx context.Context, in *QueryRequest, opts 
 
 func (c *milvusServiceClient) CalcDistance(ctx context.Context, in *CalcDistanceRequest, opts ...grpc.CallOption) (*CalcDistanceResults, error) {
 	out := new(CalcDistanceResults)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CalcDistance", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CalcDistance", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10741,7 +10741,7 @@ func (c *milvusServiceClient) CalcDistance(ctx context.Context, in *CalcDistance
 
 func (c *milvusServiceClient) FlushAll(ctx context.Context, in *FlushAllRequest, opts ...grpc.CallOption) (*FlushAllResponse, error) {
 	out := new(FlushAllResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/FlushAll", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/FlushAll", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10750,7 +10750,7 @@ func (c *milvusServiceClient) FlushAll(ctx context.Context, in *FlushAllRequest,
 
 func (c *milvusServiceClient) GetFlushState(ctx context.Context, in *GetFlushStateRequest, opts ...grpc.CallOption) (*GetFlushStateResponse, error) {
 	out := new(GetFlushStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetFlushState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetFlushState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10759,7 +10759,7 @@ func (c *milvusServiceClient) GetFlushState(ctx context.Context, in *GetFlushSta
 
 func (c *milvusServiceClient) GetFlushAllState(ctx context.Context, in *GetFlushAllStateRequest, opts ...grpc.CallOption) (*GetFlushAllStateResponse, error) {
 	out := new(GetFlushAllStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetFlushAllState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetFlushAllState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10768,7 +10768,7 @@ func (c *milvusServiceClient) GetFlushAllState(ctx context.Context, in *GetFlush
 
 func (c *milvusServiceClient) GetPersistentSegmentInfo(ctx context.Context, in *GetPersistentSegmentInfoRequest, opts ...grpc.CallOption) (*GetPersistentSegmentInfoResponse, error) {
 	out := new(GetPersistentSegmentInfoResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetPersistentSegmentInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetPersistentSegmentInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10777,7 +10777,7 @@ func (c *milvusServiceClient) GetPersistentSegmentInfo(ctx context.Context, in *
 
 func (c *milvusServiceClient) GetQuerySegmentInfo(ctx context.Context, in *GetQuerySegmentInfoRequest, opts ...grpc.CallOption) (*GetQuerySegmentInfoResponse, error) {
 	out := new(GetQuerySegmentInfoResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetQuerySegmentInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetQuerySegmentInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10786,7 +10786,7 @@ func (c *milvusServiceClient) GetQuerySegmentInfo(ctx context.Context, in *GetQu
 
 func (c *milvusServiceClient) GetReplicas(ctx context.Context, in *GetReplicasRequest, opts ...grpc.CallOption) (*GetReplicasResponse, error) {
 	out := new(GetReplicasResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetReplicas", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetReplicas", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10795,7 +10795,7 @@ func (c *milvusServiceClient) GetReplicas(ctx context.Context, in *GetReplicasRe
 
 func (c *milvusServiceClient) Dummy(ctx context.Context, in *DummyRequest, opts ...grpc.CallOption) (*DummyResponse, error) {
 	out := new(DummyResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Dummy", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Dummy", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10804,7 +10804,7 @@ func (c *milvusServiceClient) Dummy(ctx context.Context, in *DummyRequest, opts 
 
 func (c *milvusServiceClient) RegisterLink(ctx context.Context, in *RegisterLinkRequest, opts ...grpc.CallOption) (*RegisterLinkResponse, error) {
 	out := new(RegisterLinkResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/RegisterLink", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/RegisterLink", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10813,7 +10813,7 @@ func (c *milvusServiceClient) RegisterLink(ctx context.Context, in *RegisterLink
 
 func (c *milvusServiceClient) GetMetrics(ctx context.Context, in *GetMetricsRequest, opts ...grpc.CallOption) (*GetMetricsResponse, error) {
 	out := new(GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10822,7 +10822,7 @@ func (c *milvusServiceClient) GetMetrics(ctx context.Context, in *GetMetricsRequ
 
 func (c *milvusServiceClient) GetComponentStates(ctx context.Context, in *GetComponentStatesRequest, opts ...grpc.CallOption) (*ComponentStates, error) {
 	out := new(ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10831,7 +10831,7 @@ func (c *milvusServiceClient) GetComponentStates(ctx context.Context, in *GetCom
 
 func (c *milvusServiceClient) LoadBalance(ctx context.Context, in *LoadBalanceRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/LoadBalance", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/LoadBalance", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10840,7 +10840,7 @@ func (c *milvusServiceClient) LoadBalance(ctx context.Context, in *LoadBalanceRe
 
 func (c *milvusServiceClient) GetCompactionState(ctx context.Context, in *GetCompactionStateRequest, opts ...grpc.CallOption) (*GetCompactionStateResponse, error) {
 	out := new(GetCompactionStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetCompactionState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetCompactionState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10849,7 +10849,7 @@ func (c *milvusServiceClient) GetCompactionState(ctx context.Context, in *GetCom
 
 func (c *milvusServiceClient) ManualCompaction(ctx context.Context, in *ManualCompactionRequest, opts ...grpc.CallOption) (*ManualCompactionResponse, error) {
 	out := new(ManualCompactionResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ManualCompaction", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ManualCompaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10858,7 +10858,7 @@ func (c *milvusServiceClient) ManualCompaction(ctx context.Context, in *ManualCo
 
 func (c *milvusServiceClient) GetCompactionStateWithPlans(ctx context.Context, in *GetCompactionPlansRequest, opts ...grpc.CallOption) (*GetCompactionPlansResponse, error) {
 	out := new(GetCompactionPlansResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetCompactionStateWithPlans", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetCompactionStateWithPlans", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10867,7 +10867,7 @@ func (c *milvusServiceClient) GetCompactionStateWithPlans(ctx context.Context, i
 
 func (c *milvusServiceClient) Import(ctx context.Context, in *ImportRequest, opts ...grpc.CallOption) (*ImportResponse, error) {
 	out := new(ImportResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Import", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Import", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10876,7 +10876,7 @@ func (c *milvusServiceClient) Import(ctx context.Context, in *ImportRequest, opt
 
 func (c *milvusServiceClient) GetImportState(ctx context.Context, in *GetImportStateRequest, opts ...grpc.CallOption) (*GetImportStateResponse, error) {
 	out := new(GetImportStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetImportState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetImportState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10885,7 +10885,7 @@ func (c *milvusServiceClient) GetImportState(ctx context.Context, in *GetImportS
 
 func (c *milvusServiceClient) ListImportTasks(ctx context.Context, in *ListImportTasksRequest, opts ...grpc.CallOption) (*ListImportTasksResponse, error) {
 	out := new(ListImportTasksResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ListImportTasks", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ListImportTasks", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10894,7 +10894,7 @@ func (c *milvusServiceClient) ListImportTasks(ctx context.Context, in *ListImpor
 
 func (c *milvusServiceClient) CreateCredential(ctx context.Context, in *CreateCredentialRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreateCredential", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreateCredential", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10903,7 +10903,7 @@ func (c *milvusServiceClient) CreateCredential(ctx context.Context, in *CreateCr
 
 func (c *milvusServiceClient) UpdateCredential(ctx context.Context, in *UpdateCredentialRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/UpdateCredential", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/UpdateCredential", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10912,7 +10912,7 @@ func (c *milvusServiceClient) UpdateCredential(ctx context.Context, in *UpdateCr
 
 func (c *milvusServiceClient) DeleteCredential(ctx context.Context, in *DeleteCredentialRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DeleteCredential", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DeleteCredential", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10921,7 +10921,7 @@ func (c *milvusServiceClient) DeleteCredential(ctx context.Context, in *DeleteCr
 
 func (c *milvusServiceClient) ListCredUsers(ctx context.Context, in *ListCredUsersRequest, opts ...grpc.CallOption) (*ListCredUsersResponse, error) {
 	out := new(ListCredUsersResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ListCredUsers", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ListCredUsers", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10930,7 +10930,7 @@ func (c *milvusServiceClient) ListCredUsers(ctx context.Context, in *ListCredUse
 
 func (c *milvusServiceClient) CreateRole(ctx context.Context, in *CreateRoleRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreateRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreateRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10939,7 +10939,7 @@ func (c *milvusServiceClient) CreateRole(ctx context.Context, in *CreateRoleRequ
 
 func (c *milvusServiceClient) DropRole(ctx context.Context, in *DropRoleRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DropRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DropRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10948,7 +10948,7 @@ func (c *milvusServiceClient) DropRole(ctx context.Context, in *DropRoleRequest,
 
 func (c *milvusServiceClient) OperateUserRole(ctx context.Context, in *OperateUserRoleRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/OperateUserRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/OperateUserRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10957,7 +10957,7 @@ func (c *milvusServiceClient) OperateUserRole(ctx context.Context, in *OperateUs
 
 func (c *milvusServiceClient) SelectRole(ctx context.Context, in *SelectRoleRequest, opts ...grpc.CallOption) (*SelectRoleResponse, error) {
 	out := new(SelectRoleResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/SelectRole", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/SelectRole", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10966,7 +10966,7 @@ func (c *milvusServiceClient) SelectRole(ctx context.Context, in *SelectRoleRequ
 
 func (c *milvusServiceClient) SelectUser(ctx context.Context, in *SelectUserRequest, opts ...grpc.CallOption) (*SelectUserResponse, error) {
 	out := new(SelectUserResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/SelectUser", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/SelectUser", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10975,7 +10975,7 @@ func (c *milvusServiceClient) SelectUser(ctx context.Context, in *SelectUserRequ
 
 func (c *milvusServiceClient) OperatePrivilege(ctx context.Context, in *OperatePrivilegeRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/OperatePrivilege", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/OperatePrivilege", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10984,7 +10984,7 @@ func (c *milvusServiceClient) OperatePrivilege(ctx context.Context, in *OperateP
 
 func (c *milvusServiceClient) SelectGrant(ctx context.Context, in *SelectGrantRequest, opts ...grpc.CallOption) (*SelectGrantResponse, error) {
 	out := new(SelectGrantResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/SelectGrant", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/SelectGrant", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -10993,7 +10993,7 @@ func (c *milvusServiceClient) SelectGrant(ctx context.Context, in *SelectGrantRe
 
 func (c *milvusServiceClient) GetVersion(ctx context.Context, in *GetVersionRequest, opts ...grpc.CallOption) (*GetVersionResponse, error) {
 	out := new(GetVersionResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/GetVersion", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/GetVersion", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11002,7 +11002,7 @@ func (c *milvusServiceClient) GetVersion(ctx context.Context, in *GetVersionRequ
 
 func (c *milvusServiceClient) CheckHealth(ctx context.Context, in *CheckHealthRequest, opts ...grpc.CallOption) (*CheckHealthResponse, error) {
 	out := new(CheckHealthResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CheckHealth", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CheckHealth", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11011,7 +11011,7 @@ func (c *milvusServiceClient) CheckHealth(ctx context.Context, in *CheckHealthRe
 
 func (c *milvusServiceClient) CreateResourceGroup(ctx context.Context, in *CreateResourceGroupRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreateResourceGroup", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreateResourceGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11020,7 +11020,7 @@ func (c *milvusServiceClient) CreateResourceGroup(ctx context.Context, in *Creat
 
 func (c *milvusServiceClient) DropResourceGroup(ctx context.Context, in *DropResourceGroupRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DropResourceGroup", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DropResourceGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11029,7 +11029,7 @@ func (c *milvusServiceClient) DropResourceGroup(ctx context.Context, in *DropRes
 
 func (c *milvusServiceClient) TransferNode(ctx context.Context, in *TransferNodeRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/TransferNode", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/TransferNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11038,7 +11038,7 @@ func (c *milvusServiceClient) TransferNode(ctx context.Context, in *TransferNode
 
 func (c *milvusServiceClient) TransferReplica(ctx context.Context, in *TransferReplicaRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/TransferReplica", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/TransferReplica", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11047,7 +11047,7 @@ func (c *milvusServiceClient) TransferReplica(ctx context.Context, in *TransferR
 
 func (c *milvusServiceClient) ListResourceGroups(ctx context.Context, in *ListResourceGroupsRequest, opts ...grpc.CallOption) (*ListResourceGroupsResponse, error) {
 	out := new(ListResourceGroupsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ListResourceGroups", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ListResourceGroups", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11056,7 +11056,7 @@ func (c *milvusServiceClient) ListResourceGroups(ctx context.Context, in *ListRe
 
 func (c *milvusServiceClient) DescribeResourceGroup(ctx context.Context, in *DescribeResourceGroupRequest, opts ...grpc.CallOption) (*DescribeResourceGroupResponse, error) {
 	out := new(DescribeResourceGroupResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DescribeResourceGroup", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DescribeResourceGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11065,7 +11065,7 @@ func (c *milvusServiceClient) DescribeResourceGroup(ctx context.Context, in *Des
 
 func (c *milvusServiceClient) RenameCollection(ctx context.Context, in *RenameCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/RenameCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/RenameCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11074,7 +11074,7 @@ func (c *milvusServiceClient) RenameCollection(ctx context.Context, in *RenameCo
 
 func (c *milvusServiceClient) ListIndexedSegment(ctx context.Context, in *federpb.ListIndexedSegmentRequest, opts ...grpc.CallOption) (*federpb.ListIndexedSegmentResponse, error) {
 	out := new(federpb.ListIndexedSegmentResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ListIndexedSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ListIndexedSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11083,7 +11083,7 @@ func (c *milvusServiceClient) ListIndexedSegment(ctx context.Context, in *federp
 
 func (c *milvusServiceClient) DescribeSegmentIndexData(ctx context.Context, in *federpb.DescribeSegmentIndexDataRequest, opts ...grpc.CallOption) (*federpb.DescribeSegmentIndexDataResponse, error) {
 	out := new(federpb.DescribeSegmentIndexDataResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DescribeSegmentIndexData", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DescribeSegmentIndexData", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11092,7 +11092,7 @@ func (c *milvusServiceClient) DescribeSegmentIndexData(ctx context.Context, in *
 
 func (c *milvusServiceClient) Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error) {
 	out := new(ConnectResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/Connect", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/Connect", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11101,7 +11101,7 @@ func (c *milvusServiceClient) Connect(ctx context.Context, in *ConnectRequest, o
 
 func (c *milvusServiceClient) AllocTimestamp(ctx context.Context, in *AllocTimestampRequest, opts ...grpc.CallOption) (*AllocTimestampResponse, error) {
 	out := new(AllocTimestampResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/AllocTimestamp", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/AllocTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11110,7 +11110,7 @@ func (c *milvusServiceClient) AllocTimestamp(ctx context.Context, in *AllocTimes
 
 func (c *milvusServiceClient) CreateDatabase(ctx context.Context, in *CreateDatabaseRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/CreateDatabase", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/CreateDatabase", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11119,7 +11119,7 @@ func (c *milvusServiceClient) CreateDatabase(ctx context.Context, in *CreateData
 
 func (c *milvusServiceClient) DropDatabase(ctx context.Context, in *DropDatabaseRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/DropDatabase", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/DropDatabase", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11128,7 +11128,7 @@ func (c *milvusServiceClient) DropDatabase(ctx context.Context, in *DropDatabase
 
 func (c *milvusServiceClient) ListDatabases(ctx context.Context, in *ListDatabasesRequest, opts ...grpc.CallOption) (*ListDatabasesResponse, error) {
 	out := new(ListDatabasesResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ListDatabases", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ListDatabases", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11137,7 +11137,7 @@ func (c *milvusServiceClient) ListDatabases(ctx context.Context, in *ListDatabas
 
 func (c *milvusServiceClient) ReplicateMessage(ctx context.Context, in *ReplicateMessageRequest, opts ...grpc.CallOption) (*ReplicateMessageResponse, error) {
 	out := new(ReplicateMessageResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.MilvusService/ReplicateMessage", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.MilvusService/ReplicateMessage", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -11498,7 +11498,7 @@ func _MilvusService_CreateCollection_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreateCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreateCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreateCollection(ctx, req.(*CreateCollectionRequest))
@@ -11516,7 +11516,7 @@ func _MilvusService_DropCollection_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DropCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DropCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DropCollection(ctx, req.(*DropCollectionRequest))
@@ -11534,7 +11534,7 @@ func _MilvusService_HasCollection_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/HasCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/HasCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).HasCollection(ctx, req.(*HasCollectionRequest))
@@ -11552,7 +11552,7 @@ func _MilvusService_LoadCollection_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/LoadCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/LoadCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).LoadCollection(ctx, req.(*LoadCollectionRequest))
@@ -11570,7 +11570,7 @@ func _MilvusService_ReleaseCollection_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ReleaseCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ReleaseCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ReleaseCollection(ctx, req.(*ReleaseCollectionRequest))
@@ -11588,7 +11588,7 @@ func _MilvusService_DescribeCollection_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DescribeCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DescribeCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DescribeCollection(ctx, req.(*DescribeCollectionRequest))
@@ -11606,7 +11606,7 @@ func _MilvusService_GetCollectionStatistics_Handler(srv interface{}, ctx context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetCollectionStatistics",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetCollectionStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetCollectionStatistics(ctx, req.(*GetCollectionStatisticsRequest))
@@ -11624,7 +11624,7 @@ func _MilvusService_ShowCollections_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ShowCollections",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ShowCollections",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ShowCollections(ctx, req.(*ShowCollectionsRequest))
@@ -11642,7 +11642,7 @@ func _MilvusService_AlterCollection_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/AlterCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/AlterCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).AlterCollection(ctx, req.(*AlterCollectionRequest))
@@ -11660,7 +11660,7 @@ func _MilvusService_CreatePartition_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreatePartition",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreatePartition",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreatePartition(ctx, req.(*CreatePartitionRequest))
@@ -11678,7 +11678,7 @@ func _MilvusService_DropPartition_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DropPartition",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DropPartition",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DropPartition(ctx, req.(*DropPartitionRequest))
@@ -11696,7 +11696,7 @@ func _MilvusService_HasPartition_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/HasPartition",
+		FullMethod: "/milvus.proto.milvus.MilvusService/HasPartition",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).HasPartition(ctx, req.(*HasPartitionRequest))
@@ -11714,7 +11714,7 @@ func _MilvusService_LoadPartitions_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/LoadPartitions",
+		FullMethod: "/milvus.proto.milvus.MilvusService/LoadPartitions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).LoadPartitions(ctx, req.(*LoadPartitionsRequest))
@@ -11732,7 +11732,7 @@ func _MilvusService_ReleasePartitions_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ReleasePartitions",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ReleasePartitions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ReleasePartitions(ctx, req.(*ReleasePartitionsRequest))
@@ -11750,7 +11750,7 @@ func _MilvusService_GetPartitionStatistics_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetPartitionStatistics",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetPartitionStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetPartitionStatistics(ctx, req.(*GetPartitionStatisticsRequest))
@@ -11768,7 +11768,7 @@ func _MilvusService_ShowPartitions_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ShowPartitions",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ShowPartitions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ShowPartitions(ctx, req.(*ShowPartitionsRequest))
@@ -11786,7 +11786,7 @@ func _MilvusService_GetLoadingProgress_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetLoadingProgress",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetLoadingProgress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetLoadingProgress(ctx, req.(*GetLoadingProgressRequest))
@@ -11804,7 +11804,7 @@ func _MilvusService_GetLoadState_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetLoadState",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetLoadState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetLoadState(ctx, req.(*GetLoadStateRequest))
@@ -11822,7 +11822,7 @@ func _MilvusService_CreateAlias_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreateAlias",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreateAlias",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreateAlias(ctx, req.(*CreateAliasRequest))
@@ -11840,7 +11840,7 @@ func _MilvusService_DropAlias_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DropAlias",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DropAlias",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DropAlias(ctx, req.(*DropAliasRequest))
@@ -11858,7 +11858,7 @@ func _MilvusService_AlterAlias_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/AlterAlias",
+		FullMethod: "/milvus.proto.milvus.MilvusService/AlterAlias",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).AlterAlias(ctx, req.(*AlterAliasRequest))
@@ -11876,7 +11876,7 @@ func _MilvusService_DescribeAlias_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DescribeAlias",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DescribeAlias",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DescribeAlias(ctx, req.(*DescribeAliasRequest))
@@ -11894,7 +11894,7 @@ func _MilvusService_ListAliases_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ListAliases",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ListAliases",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ListAliases(ctx, req.(*ListAliasesRequest))
@@ -11912,7 +11912,7 @@ func _MilvusService_CreateIndex_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreateIndex",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreateIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreateIndex(ctx, req.(*CreateIndexRequest))
@@ -11930,7 +11930,7 @@ func _MilvusService_DescribeIndex_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DescribeIndex",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DescribeIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DescribeIndex(ctx, req.(*DescribeIndexRequest))
@@ -11948,7 +11948,7 @@ func _MilvusService_GetIndexStatistics_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetIndexStatistics",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetIndexStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetIndexStatistics(ctx, req.(*GetIndexStatisticsRequest))
@@ -11966,7 +11966,7 @@ func _MilvusService_GetIndexState_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetIndexState",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetIndexState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetIndexState(ctx, req.(*GetIndexStateRequest))
@@ -11984,7 +11984,7 @@ func _MilvusService_GetIndexBuildProgress_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetIndexBuildProgress",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetIndexBuildProgress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetIndexBuildProgress(ctx, req.(*GetIndexBuildProgressRequest))
@@ -12002,7 +12002,7 @@ func _MilvusService_DropIndex_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DropIndex",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DropIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DropIndex(ctx, req.(*DropIndexRequest))
@@ -12020,7 +12020,7 @@ func _MilvusService_Insert_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Insert",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Insert",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Insert(ctx, req.(*InsertRequest))
@@ -12038,7 +12038,7 @@ func _MilvusService_Delete_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Delete",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Delete",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Delete(ctx, req.(*DeleteRequest))
@@ -12056,7 +12056,7 @@ func _MilvusService_Upsert_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Upsert",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Upsert",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Upsert(ctx, req.(*UpsertRequest))
@@ -12074,7 +12074,7 @@ func _MilvusService_Search_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Search",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Search",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Search(ctx, req.(*SearchRequest))
@@ -12092,7 +12092,7 @@ func _MilvusService_Flush_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Flush",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Flush",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Flush(ctx, req.(*FlushRequest))
@@ -12110,7 +12110,7 @@ func _MilvusService_Query_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Query",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Query",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Query(ctx, req.(*QueryRequest))
@@ -12128,7 +12128,7 @@ func _MilvusService_CalcDistance_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CalcDistance",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CalcDistance",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CalcDistance(ctx, req.(*CalcDistanceRequest))
@@ -12146,7 +12146,7 @@ func _MilvusService_FlushAll_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/FlushAll",
+		FullMethod: "/milvus.proto.milvus.MilvusService/FlushAll",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).FlushAll(ctx, req.(*FlushAllRequest))
@@ -12164,7 +12164,7 @@ func _MilvusService_GetFlushState_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetFlushState",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetFlushState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetFlushState(ctx, req.(*GetFlushStateRequest))
@@ -12182,7 +12182,7 @@ func _MilvusService_GetFlushAllState_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetFlushAllState",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetFlushAllState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetFlushAllState(ctx, req.(*GetFlushAllStateRequest))
@@ -12200,7 +12200,7 @@ func _MilvusService_GetPersistentSegmentInfo_Handler(srv interface{}, ctx contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetPersistentSegmentInfo",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetPersistentSegmentInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetPersistentSegmentInfo(ctx, req.(*GetPersistentSegmentInfoRequest))
@@ -12218,7 +12218,7 @@ func _MilvusService_GetQuerySegmentInfo_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetQuerySegmentInfo",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetQuerySegmentInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetQuerySegmentInfo(ctx, req.(*GetQuerySegmentInfoRequest))
@@ -12236,7 +12236,7 @@ func _MilvusService_GetReplicas_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetReplicas",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetReplicas",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetReplicas(ctx, req.(*GetReplicasRequest))
@@ -12254,7 +12254,7 @@ func _MilvusService_Dummy_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Dummy",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Dummy",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Dummy(ctx, req.(*DummyRequest))
@@ -12272,7 +12272,7 @@ func _MilvusService_RegisterLink_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/RegisterLink",
+		FullMethod: "/milvus.proto.milvus.MilvusService/RegisterLink",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).RegisterLink(ctx, req.(*RegisterLinkRequest))
@@ -12290,7 +12290,7 @@ func _MilvusService_GetMetrics_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetMetrics",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetMetrics(ctx, req.(*GetMetricsRequest))
@@ -12308,7 +12308,7 @@ func _MilvusService_GetComponentStates_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetComponentStates",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetComponentStates(ctx, req.(*GetComponentStatesRequest))
@@ -12326,7 +12326,7 @@ func _MilvusService_LoadBalance_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/LoadBalance",
+		FullMethod: "/milvus.proto.milvus.MilvusService/LoadBalance",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).LoadBalance(ctx, req.(*LoadBalanceRequest))
@@ -12344,7 +12344,7 @@ func _MilvusService_GetCompactionState_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetCompactionState",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetCompactionState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetCompactionState(ctx, req.(*GetCompactionStateRequest))
@@ -12362,7 +12362,7 @@ func _MilvusService_ManualCompaction_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ManualCompaction",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ManualCompaction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ManualCompaction(ctx, req.(*ManualCompactionRequest))
@@ -12380,7 +12380,7 @@ func _MilvusService_GetCompactionStateWithPlans_Handler(srv interface{}, ctx con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetCompactionStateWithPlans",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetCompactionStateWithPlans",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetCompactionStateWithPlans(ctx, req.(*GetCompactionPlansRequest))
@@ -12398,7 +12398,7 @@ func _MilvusService_Import_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Import",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Import",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Import(ctx, req.(*ImportRequest))
@@ -12416,7 +12416,7 @@ func _MilvusService_GetImportState_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetImportState",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetImportState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetImportState(ctx, req.(*GetImportStateRequest))
@@ -12434,7 +12434,7 @@ func _MilvusService_ListImportTasks_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ListImportTasks",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ListImportTasks",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ListImportTasks(ctx, req.(*ListImportTasksRequest))
@@ -12452,7 +12452,7 @@ func _MilvusService_CreateCredential_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreateCredential",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreateCredential",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreateCredential(ctx, req.(*CreateCredentialRequest))
@@ -12470,7 +12470,7 @@ func _MilvusService_UpdateCredential_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/UpdateCredential",
+		FullMethod: "/milvus.proto.milvus.MilvusService/UpdateCredential",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).UpdateCredential(ctx, req.(*UpdateCredentialRequest))
@@ -12488,7 +12488,7 @@ func _MilvusService_DeleteCredential_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DeleteCredential",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DeleteCredential",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DeleteCredential(ctx, req.(*DeleteCredentialRequest))
@@ -12506,7 +12506,7 @@ func _MilvusService_ListCredUsers_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ListCredUsers",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ListCredUsers",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ListCredUsers(ctx, req.(*ListCredUsersRequest))
@@ -12524,7 +12524,7 @@ func _MilvusService_CreateRole_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreateRole",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreateRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreateRole(ctx, req.(*CreateRoleRequest))
@@ -12542,7 +12542,7 @@ func _MilvusService_DropRole_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DropRole",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DropRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DropRole(ctx, req.(*DropRoleRequest))
@@ -12560,7 +12560,7 @@ func _MilvusService_OperateUserRole_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/OperateUserRole",
+		FullMethod: "/milvus.proto.milvus.MilvusService/OperateUserRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).OperateUserRole(ctx, req.(*OperateUserRoleRequest))
@@ -12578,7 +12578,7 @@ func _MilvusService_SelectRole_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/SelectRole",
+		FullMethod: "/milvus.proto.milvus.MilvusService/SelectRole",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).SelectRole(ctx, req.(*SelectRoleRequest))
@@ -12596,7 +12596,7 @@ func _MilvusService_SelectUser_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/SelectUser",
+		FullMethod: "/milvus.proto.milvus.MilvusService/SelectUser",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).SelectUser(ctx, req.(*SelectUserRequest))
@@ -12614,7 +12614,7 @@ func _MilvusService_OperatePrivilege_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/OperatePrivilege",
+		FullMethod: "/milvus.proto.milvus.MilvusService/OperatePrivilege",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).OperatePrivilege(ctx, req.(*OperatePrivilegeRequest))
@@ -12632,7 +12632,7 @@ func _MilvusService_SelectGrant_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/SelectGrant",
+		FullMethod: "/milvus.proto.milvus.MilvusService/SelectGrant",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).SelectGrant(ctx, req.(*SelectGrantRequest))
@@ -12650,7 +12650,7 @@ func _MilvusService_GetVersion_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/GetVersion",
+		FullMethod: "/milvus.proto.milvus.MilvusService/GetVersion",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).GetVersion(ctx, req.(*GetVersionRequest))
@@ -12668,7 +12668,7 @@ func _MilvusService_CheckHealth_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CheckHealth",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CheckHealth",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CheckHealth(ctx, req.(*CheckHealthRequest))
@@ -12686,7 +12686,7 @@ func _MilvusService_CreateResourceGroup_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreateResourceGroup",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreateResourceGroup",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreateResourceGroup(ctx, req.(*CreateResourceGroupRequest))
@@ -12704,7 +12704,7 @@ func _MilvusService_DropResourceGroup_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DropResourceGroup",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DropResourceGroup",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DropResourceGroup(ctx, req.(*DropResourceGroupRequest))
@@ -12722,7 +12722,7 @@ func _MilvusService_TransferNode_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/TransferNode",
+		FullMethod: "/milvus.proto.milvus.MilvusService/TransferNode",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).TransferNode(ctx, req.(*TransferNodeRequest))
@@ -12740,7 +12740,7 @@ func _MilvusService_TransferReplica_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/TransferReplica",
+		FullMethod: "/milvus.proto.milvus.MilvusService/TransferReplica",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).TransferReplica(ctx, req.(*TransferReplicaRequest))
@@ -12758,7 +12758,7 @@ func _MilvusService_ListResourceGroups_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ListResourceGroups",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ListResourceGroups",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ListResourceGroups(ctx, req.(*ListResourceGroupsRequest))
@@ -12776,7 +12776,7 @@ func _MilvusService_DescribeResourceGroup_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DescribeResourceGroup",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DescribeResourceGroup",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DescribeResourceGroup(ctx, req.(*DescribeResourceGroupRequest))
@@ -12794,7 +12794,7 @@ func _MilvusService_RenameCollection_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/RenameCollection",
+		FullMethod: "/milvus.proto.milvus.MilvusService/RenameCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).RenameCollection(ctx, req.(*RenameCollectionRequest))
@@ -12812,7 +12812,7 @@ func _MilvusService_ListIndexedSegment_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ListIndexedSegment",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ListIndexedSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ListIndexedSegment(ctx, req.(*federpb.ListIndexedSegmentRequest))
@@ -12830,7 +12830,7 @@ func _MilvusService_DescribeSegmentIndexData_Handler(srv interface{}, ctx contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DescribeSegmentIndexData",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DescribeSegmentIndexData",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DescribeSegmentIndexData(ctx, req.(*federpb.DescribeSegmentIndexDataRequest))
@@ -12848,7 +12848,7 @@ func _MilvusService_Connect_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/Connect",
+		FullMethod: "/milvus.proto.milvus.MilvusService/Connect",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).Connect(ctx, req.(*ConnectRequest))
@@ -12866,7 +12866,7 @@ func _MilvusService_AllocTimestamp_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/AllocTimestamp",
+		FullMethod: "/milvus.proto.milvus.MilvusService/AllocTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).AllocTimestamp(ctx, req.(*AllocTimestampRequest))
@@ -12884,7 +12884,7 @@ func _MilvusService_CreateDatabase_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/CreateDatabase",
+		FullMethod: "/milvus.proto.milvus.MilvusService/CreateDatabase",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).CreateDatabase(ctx, req.(*CreateDatabaseRequest))
@@ -12902,7 +12902,7 @@ func _MilvusService_DropDatabase_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/DropDatabase",
+		FullMethod: "/milvus.proto.milvus.MilvusService/DropDatabase",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).DropDatabase(ctx, req.(*DropDatabaseRequest))
@@ -12920,7 +12920,7 @@ func _MilvusService_ListDatabases_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ListDatabases",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ListDatabases",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ListDatabases(ctx, req.(*ListDatabasesRequest))
@@ -12938,7 +12938,7 @@ func _MilvusService_ReplicateMessage_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.MilvusService/ReplicateMessage",
+		FullMethod: "/milvus.proto.milvus.MilvusService/ReplicateMessage",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MilvusServiceServer).ReplicateMessage(ctx, req.(*ReplicateMessageRequest))
@@ -13296,7 +13296,7 @@ func NewProxyServiceClient(cc *grpc.ClientConn) ProxyServiceClient {
 
 func (c *proxyServiceClient) RegisterLink(ctx context.Context, in *RegisterLinkRequest, opts ...grpc.CallOption) (*RegisterLinkResponse, error) {
 	out := new(RegisterLinkResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.milvus.ProxyService/RegisterLink", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.milvus.ProxyService/RegisterLink", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -13330,7 +13330,7 @@ func _ProxyService_RegisterLink_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.milvus.ProxyService/RegisterLink",
+		FullMethod: "/milvus.proto.milvus.ProxyService/RegisterLink",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProxyServiceServer).RegisterLink(ctx, req.(*RegisterLinkRequest))
