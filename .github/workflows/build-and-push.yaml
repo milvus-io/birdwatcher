@@ -1,11 +1,12 @@
 name: Docker Build and Push
 
-# This workflow is triggered on pushes(only tags) to the repository.
+# This workflow is triggered both on tag push event and workflow_dispatch event to the repository.
 on:
   push:
     tags:
       - 'v*'
-
+  workflow_dispatch:
+  
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -21,9 +22,15 @@ jobs:
             milvusdb/birdwatcher
           # generate Docker tags based on the following events/attributes
           tags: |
-            type=ref,event=branch
+            # trigger only on a push tag event. It requires a Git tag that follows semantic versioning (semver) conventions.
+            # For example, if the Git tag is v1.2.3, the output will be formatted as '1.2.3'.
             type=semver,pattern={{version}}
+            # This setting outputs the Git commit hash as a Docker tag(e.g., 'sha-ad132f5').
             type=sha
+            # This custom tag is generated only when the workflow is triggered via 'workflow_dispatch' event. 
+            # The format combines branch name, current date, and commit hash. Example format: 'feature-branch-20231207-ad132f5'.
+            type=raw,value={{branch}}-{{date 'YYYYMMDD'}}-{{sha}},enable=${{ github.event == 'workflow_dispatch' }}
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
