@@ -5861,7 +5861,7 @@ func NewDataCoordClient(cc *grpc.ClientConn) DataCoordClient {
 
 func (c *dataCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5870,7 +5870,7 @@ func (c *dataCoordClient) GetComponentStates(ctx context.Context, in *milvuspb.G
 
 func (c *dataCoordClient) GetTimeTickChannel(ctx context.Context, in *internalpb.GetTimeTickChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetTimeTickChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetTimeTickChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5879,7 +5879,7 @@ func (c *dataCoordClient) GetTimeTickChannel(ctx context.Context, in *internalpb
 
 func (c *dataCoordClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5888,7 +5888,7 @@ func (c *dataCoordClient) GetStatisticsChannel(ctx context.Context, in *internal
 
 func (c *dataCoordClient) Flush(ctx context.Context, in *FlushRequest, opts ...grpc.CallOption) (*FlushResponse, error) {
 	out := new(FlushResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/Flush", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/Flush", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5897,7 +5897,7 @@ func (c *dataCoordClient) Flush(ctx context.Context, in *FlushRequest, opts ...g
 
 func (c *dataCoordClient) AssignSegmentID(ctx context.Context, in *AssignSegmentIDRequest, opts ...grpc.CallOption) (*AssignSegmentIDResponse, error) {
 	out := new(AssignSegmentIDResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/AssignSegmentID", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/AssignSegmentID", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5906,7 +5906,7 @@ func (c *dataCoordClient) AssignSegmentID(ctx context.Context, in *AssignSegment
 
 func (c *dataCoordClient) GetSegmentInfo(ctx context.Context, in *GetSegmentInfoRequest, opts ...grpc.CallOption) (*GetSegmentInfoResponse, error) {
 	out := new(GetSegmentInfoResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetSegmentInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetSegmentInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5915,7 +5915,7 @@ func (c *dataCoordClient) GetSegmentInfo(ctx context.Context, in *GetSegmentInfo
 
 func (c *dataCoordClient) GetSegmentStates(ctx context.Context, in *GetSegmentStatesRequest, opts ...grpc.CallOption) (*GetSegmentStatesResponse, error) {
 	out := new(GetSegmentStatesResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetSegmentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetSegmentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5924,7 +5924,7 @@ func (c *dataCoordClient) GetSegmentStates(ctx context.Context, in *GetSegmentSt
 
 func (c *dataCoordClient) GetInsertBinlogPaths(ctx context.Context, in *GetInsertBinlogPathsRequest, opts ...grpc.CallOption) (*GetInsertBinlogPathsResponse, error) {
 	out := new(GetInsertBinlogPathsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetInsertBinlogPaths", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetInsertBinlogPaths", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5933,7 +5933,7 @@ func (c *dataCoordClient) GetInsertBinlogPaths(ctx context.Context, in *GetInser
 
 func (c *dataCoordClient) GetCollectionStatistics(ctx context.Context, in *GetCollectionStatisticsRequest, opts ...grpc.CallOption) (*GetCollectionStatisticsResponse, error) {
 	out := new(GetCollectionStatisticsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetCollectionStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetCollectionStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5942,7 +5942,7 @@ func (c *dataCoordClient) GetCollectionStatistics(ctx context.Context, in *GetCo
 
 func (c *dataCoordClient) GetPartitionStatistics(ctx context.Context, in *GetPartitionStatisticsRequest, opts ...grpc.CallOption) (*GetPartitionStatisticsResponse, error) {
 	out := new(GetPartitionStatisticsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetPartitionStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetPartitionStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5951,7 +5951,7 @@ func (c *dataCoordClient) GetPartitionStatistics(ctx context.Context, in *GetPar
 
 func (c *dataCoordClient) GetSegmentInfoChannel(ctx context.Context, in *GetSegmentInfoChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetSegmentInfoChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetSegmentInfoChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5960,7 +5960,7 @@ func (c *dataCoordClient) GetSegmentInfoChannel(ctx context.Context, in *GetSegm
 
 func (c *dataCoordClient) SaveBinlogPaths(ctx context.Context, in *SaveBinlogPathsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/SaveBinlogPaths", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/SaveBinlogPaths", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5969,7 +5969,7 @@ func (c *dataCoordClient) SaveBinlogPaths(ctx context.Context, in *SaveBinlogPat
 
 func (c *dataCoordClient) GetRecoveryInfo(ctx context.Context, in *GetRecoveryInfoRequest, opts ...grpc.CallOption) (*GetRecoveryInfoResponse, error) {
 	out := new(GetRecoveryInfoResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetRecoveryInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetRecoveryInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5978,7 +5978,7 @@ func (c *dataCoordClient) GetRecoveryInfo(ctx context.Context, in *GetRecoveryIn
 
 func (c *dataCoordClient) GetRecoveryInfoV2(ctx context.Context, in *GetRecoveryInfoRequestV2, opts ...grpc.CallOption) (*GetRecoveryInfoResponseV2, error) {
 	out := new(GetRecoveryInfoResponseV2)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetRecoveryInfoV2", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetRecoveryInfoV2", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5987,7 +5987,7 @@ func (c *dataCoordClient) GetRecoveryInfoV2(ctx context.Context, in *GetRecovery
 
 func (c *dataCoordClient) GetFlushedSegments(ctx context.Context, in *GetFlushedSegmentsRequest, opts ...grpc.CallOption) (*GetFlushedSegmentsResponse, error) {
 	out := new(GetFlushedSegmentsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetFlushedSegments", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetFlushedSegments", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -5996,7 +5996,7 @@ func (c *dataCoordClient) GetFlushedSegments(ctx context.Context, in *GetFlushed
 
 func (c *dataCoordClient) GetSegmentsByStates(ctx context.Context, in *GetSegmentsByStatesRequest, opts ...grpc.CallOption) (*GetSegmentsByStatesResponse, error) {
 	out := new(GetSegmentsByStatesResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetSegmentsByStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetSegmentsByStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6005,7 +6005,7 @@ func (c *dataCoordClient) GetSegmentsByStates(ctx context.Context, in *GetSegmen
 
 func (c *dataCoordClient) GetFlushAllState(ctx context.Context, in *milvuspb.GetFlushAllStateRequest, opts ...grpc.CallOption) (*milvuspb.GetFlushAllStateResponse, error) {
 	out := new(milvuspb.GetFlushAllStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetFlushAllState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetFlushAllState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6014,7 +6014,7 @@ func (c *dataCoordClient) GetFlushAllState(ctx context.Context, in *milvuspb.Get
 
 func (c *dataCoordClient) ShowConfigurations(ctx context.Context, in *internalpb.ShowConfigurationsRequest, opts ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error) {
 	out := new(internalpb.ShowConfigurationsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/ShowConfigurations", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/ShowConfigurations", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6023,7 +6023,7 @@ func (c *dataCoordClient) ShowConfigurations(ctx context.Context, in *internalpb
 
 func (c *dataCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6032,7 +6032,7 @@ func (c *dataCoordClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetric
 
 func (c *dataCoordClient) ManualCompaction(ctx context.Context, in *milvuspb.ManualCompactionRequest, opts ...grpc.CallOption) (*milvuspb.ManualCompactionResponse, error) {
 	out := new(milvuspb.ManualCompactionResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/ManualCompaction", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/ManualCompaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6041,7 +6041,7 @@ func (c *dataCoordClient) ManualCompaction(ctx context.Context, in *milvuspb.Man
 
 func (c *dataCoordClient) GetCompactionState(ctx context.Context, in *milvuspb.GetCompactionStateRequest, opts ...grpc.CallOption) (*milvuspb.GetCompactionStateResponse, error) {
 	out := new(milvuspb.GetCompactionStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetCompactionState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetCompactionState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6050,7 +6050,7 @@ func (c *dataCoordClient) GetCompactionState(ctx context.Context, in *milvuspb.G
 
 func (c *dataCoordClient) GetCompactionStateWithPlans(ctx context.Context, in *milvuspb.GetCompactionPlansRequest, opts ...grpc.CallOption) (*milvuspb.GetCompactionPlansResponse, error) {
 	out := new(milvuspb.GetCompactionPlansResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetCompactionStateWithPlans", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetCompactionStateWithPlans", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6059,7 +6059,7 @@ func (c *dataCoordClient) GetCompactionStateWithPlans(ctx context.Context, in *m
 
 func (c *dataCoordClient) WatchChannels(ctx context.Context, in *WatchChannelsRequest, opts ...grpc.CallOption) (*WatchChannelsResponse, error) {
 	out := new(WatchChannelsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/WatchChannels", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/WatchChannels", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6068,7 +6068,7 @@ func (c *dataCoordClient) WatchChannels(ctx context.Context, in *WatchChannelsRe
 
 func (c *dataCoordClient) GetFlushState(ctx context.Context, in *GetFlushStateRequest, opts ...grpc.CallOption) (*milvuspb.GetFlushStateResponse, error) {
 	out := new(milvuspb.GetFlushStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetFlushState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetFlushState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6077,7 +6077,7 @@ func (c *dataCoordClient) GetFlushState(ctx context.Context, in *GetFlushStateRe
 
 func (c *dataCoordClient) DropVirtualChannel(ctx context.Context, in *DropVirtualChannelRequest, opts ...grpc.CallOption) (*DropVirtualChannelResponse, error) {
 	out := new(DropVirtualChannelResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/DropVirtualChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/DropVirtualChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6086,7 +6086,7 @@ func (c *dataCoordClient) DropVirtualChannel(ctx context.Context, in *DropVirtua
 
 func (c *dataCoordClient) SetSegmentState(ctx context.Context, in *SetSegmentStateRequest, opts ...grpc.CallOption) (*SetSegmentStateResponse, error) {
 	out := new(SetSegmentStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/SetSegmentState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/SetSegmentState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6095,7 +6095,7 @@ func (c *dataCoordClient) SetSegmentState(ctx context.Context, in *SetSegmentSta
 
 func (c *dataCoordClient) Import(ctx context.Context, in *ImportTaskRequest, opts ...grpc.CallOption) (*ImportTaskResponse, error) {
 	out := new(ImportTaskResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/Import", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/Import", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6104,7 +6104,7 @@ func (c *dataCoordClient) Import(ctx context.Context, in *ImportTaskRequest, opt
 
 func (c *dataCoordClient) UpdateSegmentStatistics(ctx context.Context, in *UpdateSegmentStatisticsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/UpdateSegmentStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/UpdateSegmentStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6113,7 +6113,7 @@ func (c *dataCoordClient) UpdateSegmentStatistics(ctx context.Context, in *Updat
 
 func (c *dataCoordClient) UpdateChannelCheckpoint(ctx context.Context, in *UpdateChannelCheckpointRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/UpdateChannelCheckpoint", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/UpdateChannelCheckpoint", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6122,7 +6122,7 @@ func (c *dataCoordClient) UpdateChannelCheckpoint(ctx context.Context, in *Updat
 
 func (c *dataCoordClient) SaveImportSegment(ctx context.Context, in *SaveImportSegmentRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/SaveImportSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/SaveImportSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6131,7 +6131,7 @@ func (c *dataCoordClient) SaveImportSegment(ctx context.Context, in *SaveImportS
 
 func (c *dataCoordClient) UnsetIsImportingState(ctx context.Context, in *UnsetIsImportingStateRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/UnsetIsImportingState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/UnsetIsImportingState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6140,7 +6140,7 @@ func (c *dataCoordClient) UnsetIsImportingState(ctx context.Context, in *UnsetIs
 
 func (c *dataCoordClient) MarkSegmentsDropped(ctx context.Context, in *MarkSegmentsDroppedRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/MarkSegmentsDropped", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/MarkSegmentsDropped", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6149,7 +6149,7 @@ func (c *dataCoordClient) MarkSegmentsDropped(ctx context.Context, in *MarkSegme
 
 func (c *dataCoordClient) BroadcastAlteredCollection(ctx context.Context, in *AlterCollectionRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/BroadcastAlteredCollection", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/BroadcastAlteredCollection", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6158,7 +6158,7 @@ func (c *dataCoordClient) BroadcastAlteredCollection(ctx context.Context, in *Al
 
 func (c *dataCoordClient) CheckHealth(ctx context.Context, in *milvuspb.CheckHealthRequest, opts ...grpc.CallOption) (*milvuspb.CheckHealthResponse, error) {
 	out := new(milvuspb.CheckHealthResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/CheckHealth", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/CheckHealth", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6167,7 +6167,7 @@ func (c *dataCoordClient) CheckHealth(ctx context.Context, in *milvuspb.CheckHea
 
 func (c *dataCoordClient) CreateIndex(ctx context.Context, in *indexpb.CreateIndexRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/CreateIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/CreateIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6176,7 +6176,7 @@ func (c *dataCoordClient) CreateIndex(ctx context.Context, in *indexpb.CreateInd
 
 func (c *dataCoordClient) GetIndexState(ctx context.Context, in *indexpb.GetIndexStateRequest, opts ...grpc.CallOption) (*indexpb.GetIndexStateResponse, error) {
 	out := new(indexpb.GetIndexStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetIndexState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetIndexState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6185,7 +6185,7 @@ func (c *dataCoordClient) GetIndexState(ctx context.Context, in *indexpb.GetInde
 
 func (c *dataCoordClient) GetSegmentIndexState(ctx context.Context, in *indexpb.GetSegmentIndexStateRequest, opts ...grpc.CallOption) (*indexpb.GetSegmentIndexStateResponse, error) {
 	out := new(indexpb.GetSegmentIndexStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetSegmentIndexState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetSegmentIndexState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6194,7 +6194,7 @@ func (c *dataCoordClient) GetSegmentIndexState(ctx context.Context, in *indexpb.
 
 func (c *dataCoordClient) GetIndexInfos(ctx context.Context, in *indexpb.GetIndexInfoRequest, opts ...grpc.CallOption) (*indexpb.GetIndexInfoResponse, error) {
 	out := new(indexpb.GetIndexInfoResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetIndexInfos", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetIndexInfos", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6203,7 +6203,7 @@ func (c *dataCoordClient) GetIndexInfos(ctx context.Context, in *indexpb.GetInde
 
 func (c *dataCoordClient) DropIndex(ctx context.Context, in *indexpb.DropIndexRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/DropIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/DropIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6212,7 +6212,7 @@ func (c *dataCoordClient) DropIndex(ctx context.Context, in *indexpb.DropIndexRe
 
 func (c *dataCoordClient) DescribeIndex(ctx context.Context, in *indexpb.DescribeIndexRequest, opts ...grpc.CallOption) (*indexpb.DescribeIndexResponse, error) {
 	out := new(indexpb.DescribeIndexResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/DescribeIndex", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/DescribeIndex", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6221,7 +6221,7 @@ func (c *dataCoordClient) DescribeIndex(ctx context.Context, in *indexpb.Describ
 
 func (c *dataCoordClient) GetIndexStatistics(ctx context.Context, in *indexpb.GetIndexStatisticsRequest, opts ...grpc.CallOption) (*indexpb.GetIndexStatisticsResponse, error) {
 	out := new(indexpb.GetIndexStatisticsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetIndexStatistics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetIndexStatistics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6230,7 +6230,7 @@ func (c *dataCoordClient) GetIndexStatistics(ctx context.Context, in *indexpb.Ge
 
 func (c *dataCoordClient) GetIndexBuildProgress(ctx context.Context, in *indexpb.GetIndexBuildProgressRequest, opts ...grpc.CallOption) (*indexpb.GetIndexBuildProgressResponse, error) {
 	out := new(indexpb.GetIndexBuildProgressResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GetIndexBuildProgress", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GetIndexBuildProgress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6239,7 +6239,7 @@ func (c *dataCoordClient) GetIndexBuildProgress(ctx context.Context, in *indexpb
 
 func (c *dataCoordClient) GcConfirm(ctx context.Context, in *GcConfirmRequest, opts ...grpc.CallOption) (*GcConfirmResponse, error) {
 	out := new(GcConfirmResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/GcConfirm", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/GcConfirm", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6248,7 +6248,7 @@ func (c *dataCoordClient) GcConfirm(ctx context.Context, in *GcConfirmRequest, o
 
 func (c *dataCoordClient) ReportDataNodeTtMsgs(ctx context.Context, in *ReportDataNodeTtMsgsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataCoord/ReportDataNodeTtMsgs", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataCoord/ReportDataNodeTtMsgs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6458,7 +6458,7 @@ func _DataCoord_GetComponentStates_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetComponentStates",
+		FullMethod: "/milvus.proto.data.DataCoord/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -6476,7 +6476,7 @@ func _DataCoord_GetTimeTickChannel_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetTimeTickChannel",
+		FullMethod: "/milvus.proto.data.DataCoord/GetTimeTickChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetTimeTickChannel(ctx, req.(*internalpb.GetTimeTickChannelRequest))
@@ -6494,7 +6494,7 @@ func _DataCoord_GetStatisticsChannel_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetStatisticsChannel",
+		FullMethod: "/milvus.proto.data.DataCoord/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -6512,7 +6512,7 @@ func _DataCoord_Flush_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/Flush",
+		FullMethod: "/milvus.proto.data.DataCoord/Flush",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).Flush(ctx, req.(*FlushRequest))
@@ -6530,7 +6530,7 @@ func _DataCoord_AssignSegmentID_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/AssignSegmentID",
+		FullMethod: "/milvus.proto.data.DataCoord/AssignSegmentID",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).AssignSegmentID(ctx, req.(*AssignSegmentIDRequest))
@@ -6548,7 +6548,7 @@ func _DataCoord_GetSegmentInfo_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetSegmentInfo",
+		FullMethod: "/milvus.proto.data.DataCoord/GetSegmentInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetSegmentInfo(ctx, req.(*GetSegmentInfoRequest))
@@ -6566,7 +6566,7 @@ func _DataCoord_GetSegmentStates_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetSegmentStates",
+		FullMethod: "/milvus.proto.data.DataCoord/GetSegmentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetSegmentStates(ctx, req.(*GetSegmentStatesRequest))
@@ -6584,7 +6584,7 @@ func _DataCoord_GetInsertBinlogPaths_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetInsertBinlogPaths",
+		FullMethod: "/milvus.proto.data.DataCoord/GetInsertBinlogPaths",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetInsertBinlogPaths(ctx, req.(*GetInsertBinlogPathsRequest))
@@ -6602,7 +6602,7 @@ func _DataCoord_GetCollectionStatistics_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetCollectionStatistics",
+		FullMethod: "/milvus.proto.data.DataCoord/GetCollectionStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetCollectionStatistics(ctx, req.(*GetCollectionStatisticsRequest))
@@ -6620,7 +6620,7 @@ func _DataCoord_GetPartitionStatistics_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetPartitionStatistics",
+		FullMethod: "/milvus.proto.data.DataCoord/GetPartitionStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetPartitionStatistics(ctx, req.(*GetPartitionStatisticsRequest))
@@ -6638,7 +6638,7 @@ func _DataCoord_GetSegmentInfoChannel_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetSegmentInfoChannel",
+		FullMethod: "/milvus.proto.data.DataCoord/GetSegmentInfoChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetSegmentInfoChannel(ctx, req.(*GetSegmentInfoChannelRequest))
@@ -6656,7 +6656,7 @@ func _DataCoord_SaveBinlogPaths_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/SaveBinlogPaths",
+		FullMethod: "/milvus.proto.data.DataCoord/SaveBinlogPaths",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).SaveBinlogPaths(ctx, req.(*SaveBinlogPathsRequest))
@@ -6674,7 +6674,7 @@ func _DataCoord_GetRecoveryInfo_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetRecoveryInfo",
+		FullMethod: "/milvus.proto.data.DataCoord/GetRecoveryInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetRecoveryInfo(ctx, req.(*GetRecoveryInfoRequest))
@@ -6692,7 +6692,7 @@ func _DataCoord_GetRecoveryInfoV2_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetRecoveryInfoV2",
+		FullMethod: "/milvus.proto.data.DataCoord/GetRecoveryInfoV2",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetRecoveryInfoV2(ctx, req.(*GetRecoveryInfoRequestV2))
@@ -6710,7 +6710,7 @@ func _DataCoord_GetFlushedSegments_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetFlushedSegments",
+		FullMethod: "/milvus.proto.data.DataCoord/GetFlushedSegments",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetFlushedSegments(ctx, req.(*GetFlushedSegmentsRequest))
@@ -6728,7 +6728,7 @@ func _DataCoord_GetSegmentsByStates_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetSegmentsByStates",
+		FullMethod: "/milvus.proto.data.DataCoord/GetSegmentsByStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetSegmentsByStates(ctx, req.(*GetSegmentsByStatesRequest))
@@ -6746,7 +6746,7 @@ func _DataCoord_GetFlushAllState_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetFlushAllState",
+		FullMethod: "/milvus.proto.data.DataCoord/GetFlushAllState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetFlushAllState(ctx, req.(*milvuspb.GetFlushAllStateRequest))
@@ -6764,7 +6764,7 @@ func _DataCoord_ShowConfigurations_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/ShowConfigurations",
+		FullMethod: "/milvus.proto.data.DataCoord/ShowConfigurations",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).ShowConfigurations(ctx, req.(*internalpb.ShowConfigurationsRequest))
@@ -6782,7 +6782,7 @@ func _DataCoord_GetMetrics_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetMetrics",
+		FullMethod: "/milvus.proto.data.DataCoord/GetMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
@@ -6800,7 +6800,7 @@ func _DataCoord_ManualCompaction_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/ManualCompaction",
+		FullMethod: "/milvus.proto.data.DataCoord/ManualCompaction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).ManualCompaction(ctx, req.(*milvuspb.ManualCompactionRequest))
@@ -6818,7 +6818,7 @@ func _DataCoord_GetCompactionState_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetCompactionState",
+		FullMethod: "/milvus.proto.data.DataCoord/GetCompactionState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetCompactionState(ctx, req.(*milvuspb.GetCompactionStateRequest))
@@ -6836,7 +6836,7 @@ func _DataCoord_GetCompactionStateWithPlans_Handler(srv interface{}, ctx context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetCompactionStateWithPlans",
+		FullMethod: "/milvus.proto.data.DataCoord/GetCompactionStateWithPlans",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetCompactionStateWithPlans(ctx, req.(*milvuspb.GetCompactionPlansRequest))
@@ -6854,7 +6854,7 @@ func _DataCoord_WatchChannels_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/WatchChannels",
+		FullMethod: "/milvus.proto.data.DataCoord/WatchChannels",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).WatchChannels(ctx, req.(*WatchChannelsRequest))
@@ -6872,7 +6872,7 @@ func _DataCoord_GetFlushState_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetFlushState",
+		FullMethod: "/milvus.proto.data.DataCoord/GetFlushState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetFlushState(ctx, req.(*GetFlushStateRequest))
@@ -6890,7 +6890,7 @@ func _DataCoord_DropVirtualChannel_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/DropVirtualChannel",
+		FullMethod: "/milvus.proto.data.DataCoord/DropVirtualChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).DropVirtualChannel(ctx, req.(*DropVirtualChannelRequest))
@@ -6908,7 +6908,7 @@ func _DataCoord_SetSegmentState_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/SetSegmentState",
+		FullMethod: "/milvus.proto.data.DataCoord/SetSegmentState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).SetSegmentState(ctx, req.(*SetSegmentStateRequest))
@@ -6926,7 +6926,7 @@ func _DataCoord_Import_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/Import",
+		FullMethod: "/milvus.proto.data.DataCoord/Import",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).Import(ctx, req.(*ImportTaskRequest))
@@ -6944,7 +6944,7 @@ func _DataCoord_UpdateSegmentStatistics_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/UpdateSegmentStatistics",
+		FullMethod: "/milvus.proto.data.DataCoord/UpdateSegmentStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).UpdateSegmentStatistics(ctx, req.(*UpdateSegmentStatisticsRequest))
@@ -6962,7 +6962,7 @@ func _DataCoord_UpdateChannelCheckpoint_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/UpdateChannelCheckpoint",
+		FullMethod: "/milvus.proto.data.DataCoord/UpdateChannelCheckpoint",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).UpdateChannelCheckpoint(ctx, req.(*UpdateChannelCheckpointRequest))
@@ -6980,7 +6980,7 @@ func _DataCoord_SaveImportSegment_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/SaveImportSegment",
+		FullMethod: "/milvus.proto.data.DataCoord/SaveImportSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).SaveImportSegment(ctx, req.(*SaveImportSegmentRequest))
@@ -6998,7 +6998,7 @@ func _DataCoord_UnsetIsImportingState_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/UnsetIsImportingState",
+		FullMethod: "/milvus.proto.data.DataCoord/UnsetIsImportingState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).UnsetIsImportingState(ctx, req.(*UnsetIsImportingStateRequest))
@@ -7016,7 +7016,7 @@ func _DataCoord_MarkSegmentsDropped_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/MarkSegmentsDropped",
+		FullMethod: "/milvus.proto.data.DataCoord/MarkSegmentsDropped",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).MarkSegmentsDropped(ctx, req.(*MarkSegmentsDroppedRequest))
@@ -7034,7 +7034,7 @@ func _DataCoord_BroadcastAlteredCollection_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/BroadcastAlteredCollection",
+		FullMethod: "/milvus.proto.data.DataCoord/BroadcastAlteredCollection",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).BroadcastAlteredCollection(ctx, req.(*AlterCollectionRequest))
@@ -7052,7 +7052,7 @@ func _DataCoord_CheckHealth_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/CheckHealth",
+		FullMethod: "/milvus.proto.data.DataCoord/CheckHealth",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).CheckHealth(ctx, req.(*milvuspb.CheckHealthRequest))
@@ -7070,7 +7070,7 @@ func _DataCoord_CreateIndex_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/CreateIndex",
+		FullMethod: "/milvus.proto.data.DataCoord/CreateIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).CreateIndex(ctx, req.(*indexpb.CreateIndexRequest))
@@ -7088,7 +7088,7 @@ func _DataCoord_GetIndexState_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetIndexState",
+		FullMethod: "/milvus.proto.data.DataCoord/GetIndexState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetIndexState(ctx, req.(*indexpb.GetIndexStateRequest))
@@ -7106,7 +7106,7 @@ func _DataCoord_GetSegmentIndexState_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetSegmentIndexState",
+		FullMethod: "/milvus.proto.data.DataCoord/GetSegmentIndexState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetSegmentIndexState(ctx, req.(*indexpb.GetSegmentIndexStateRequest))
@@ -7124,7 +7124,7 @@ func _DataCoord_GetIndexInfos_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetIndexInfos",
+		FullMethod: "/milvus.proto.data.DataCoord/GetIndexInfos",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetIndexInfos(ctx, req.(*indexpb.GetIndexInfoRequest))
@@ -7142,7 +7142,7 @@ func _DataCoord_DropIndex_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/DropIndex",
+		FullMethod: "/milvus.proto.data.DataCoord/DropIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).DropIndex(ctx, req.(*indexpb.DropIndexRequest))
@@ -7160,7 +7160,7 @@ func _DataCoord_DescribeIndex_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/DescribeIndex",
+		FullMethod: "/milvus.proto.data.DataCoord/DescribeIndex",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).DescribeIndex(ctx, req.(*indexpb.DescribeIndexRequest))
@@ -7178,7 +7178,7 @@ func _DataCoord_GetIndexStatistics_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetIndexStatistics",
+		FullMethod: "/milvus.proto.data.DataCoord/GetIndexStatistics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetIndexStatistics(ctx, req.(*indexpb.GetIndexStatisticsRequest))
@@ -7196,7 +7196,7 @@ func _DataCoord_GetIndexBuildProgress_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GetIndexBuildProgress",
+		FullMethod: "/milvus.proto.data.DataCoord/GetIndexBuildProgress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GetIndexBuildProgress(ctx, req.(*indexpb.GetIndexBuildProgressRequest))
@@ -7214,7 +7214,7 @@ func _DataCoord_GcConfirm_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/GcConfirm",
+		FullMethod: "/milvus.proto.data.DataCoord/GcConfirm",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).GcConfirm(ctx, req.(*GcConfirmRequest))
@@ -7232,7 +7232,7 @@ func _DataCoord_ReportDataNodeTtMsgs_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataCoord/ReportDataNodeTtMsgs",
+		FullMethod: "/milvus.proto.data.DataCoord/ReportDataNodeTtMsgs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataCoordServer).ReportDataNodeTtMsgs(ctx, req.(*ReportDataNodeTtMsgsRequest))
@@ -7459,7 +7459,7 @@ func NewDataNodeClient(cc *grpc.ClientConn) DataNodeClient {
 
 func (c *dataNodeClient) GetComponentStates(ctx context.Context, in *milvuspb.GetComponentStatesRequest, opts ...grpc.CallOption) (*milvuspb.ComponentStates, error) {
 	out := new(milvuspb.ComponentStates)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/GetComponentStates", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/GetComponentStates", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7468,7 +7468,7 @@ func (c *dataNodeClient) GetComponentStates(ctx context.Context, in *milvuspb.Ge
 
 func (c *dataNodeClient) GetStatisticsChannel(ctx context.Context, in *internalpb.GetStatisticsChannelRequest, opts ...grpc.CallOption) (*milvuspb.StringResponse, error) {
 	out := new(milvuspb.StringResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/GetStatisticsChannel", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/GetStatisticsChannel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7477,7 +7477,7 @@ func (c *dataNodeClient) GetStatisticsChannel(ctx context.Context, in *internalp
 
 func (c *dataNodeClient) WatchDmChannels(ctx context.Context, in *WatchDmChannelsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/WatchDmChannels", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/WatchDmChannels", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7486,7 +7486,7 @@ func (c *dataNodeClient) WatchDmChannels(ctx context.Context, in *WatchDmChannel
 
 func (c *dataNodeClient) FlushSegments(ctx context.Context, in *FlushSegmentsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/FlushSegments", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/FlushSegments", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7495,7 +7495,7 @@ func (c *dataNodeClient) FlushSegments(ctx context.Context, in *FlushSegmentsReq
 
 func (c *dataNodeClient) ShowConfigurations(ctx context.Context, in *internalpb.ShowConfigurationsRequest, opts ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error) {
 	out := new(internalpb.ShowConfigurationsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/ShowConfigurations", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/ShowConfigurations", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7504,7 +7504,7 @@ func (c *dataNodeClient) ShowConfigurations(ctx context.Context, in *internalpb.
 
 func (c *dataNodeClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetricsRequest, opts ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error) {
 	out := new(milvuspb.GetMetricsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/GetMetrics", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/GetMetrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7513,7 +7513,7 @@ func (c *dataNodeClient) GetMetrics(ctx context.Context, in *milvuspb.GetMetrics
 
 func (c *dataNodeClient) Compaction(ctx context.Context, in *CompactionPlan, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/Compaction", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/Compaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7522,7 +7522,7 @@ func (c *dataNodeClient) Compaction(ctx context.Context, in *CompactionPlan, opt
 
 func (c *dataNodeClient) GetCompactionState(ctx context.Context, in *CompactionStateRequest, opts ...grpc.CallOption) (*CompactionStateResponse, error) {
 	out := new(CompactionStateResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/GetCompactionState", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/GetCompactionState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7531,7 +7531,7 @@ func (c *dataNodeClient) GetCompactionState(ctx context.Context, in *CompactionS
 
 func (c *dataNodeClient) SyncSegments(ctx context.Context, in *SyncSegmentsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/SyncSegments", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/SyncSegments", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7540,7 +7540,7 @@ func (c *dataNodeClient) SyncSegments(ctx context.Context, in *SyncSegmentsReque
 
 func (c *dataNodeClient) Import(ctx context.Context, in *ImportTaskRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/Import", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/Import", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7549,7 +7549,7 @@ func (c *dataNodeClient) Import(ctx context.Context, in *ImportTaskRequest, opts
 
 func (c *dataNodeClient) ResendSegmentStats(ctx context.Context, in *ResendSegmentStatsRequest, opts ...grpc.CallOption) (*ResendSegmentStatsResponse, error) {
 	out := new(ResendSegmentStatsResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/ResendSegmentStats", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/ResendSegmentStats", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7558,7 +7558,7 @@ func (c *dataNodeClient) ResendSegmentStats(ctx context.Context, in *ResendSegme
 
 func (c *dataNodeClient) AddImportSegment(ctx context.Context, in *AddImportSegmentRequest, opts ...grpc.CallOption) (*AddImportSegmentResponse, error) {
 	out := new(AddImportSegmentResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/AddImportSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/AddImportSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7567,7 +7567,7 @@ func (c *dataNodeClient) AddImportSegment(ctx context.Context, in *AddImportSegm
 
 func (c *dataNodeClient) FlushChannels(ctx context.Context, in *FlushChannelsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/FlushChannels", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/FlushChannels", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7576,7 +7576,7 @@ func (c *dataNodeClient) FlushChannels(ctx context.Context, in *FlushChannelsReq
 
 func (c *dataNodeClient) NotifyChannelOperation(ctx context.Context, in *ChannelOperationsRequest, opts ...grpc.CallOption) (*commonpb.Status, error) {
 	out := new(commonpb.Status)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/NotifyChannelOperation", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/NotifyChannelOperation", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7585,7 +7585,7 @@ func (c *dataNodeClient) NotifyChannelOperation(ctx context.Context, in *Channel
 
 func (c *dataNodeClient) CheckChannelOperationProgress(ctx context.Context, in *ChannelWatchInfo, opts ...grpc.CallOption) (*ChannelOperationProgressResponse, error) {
 	out := new(ChannelOperationProgressResponse)
-	err := c.cc.Invoke(ctx, "/milvus.protov2.data.DataNode/CheckChannelOperationProgress", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/milvus.proto.data.DataNode/CheckChannelOperationProgress", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7678,7 +7678,7 @@ func _DataNode_GetComponentStates_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/GetComponentStates",
+		FullMethod: "/milvus.proto.data.DataNode/GetComponentStates",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).GetComponentStates(ctx, req.(*milvuspb.GetComponentStatesRequest))
@@ -7696,7 +7696,7 @@ func _DataNode_GetStatisticsChannel_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/GetStatisticsChannel",
+		FullMethod: "/milvus.proto.data.DataNode/GetStatisticsChannel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).GetStatisticsChannel(ctx, req.(*internalpb.GetStatisticsChannelRequest))
@@ -7714,7 +7714,7 @@ func _DataNode_WatchDmChannels_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/WatchDmChannels",
+		FullMethod: "/milvus.proto.data.DataNode/WatchDmChannels",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).WatchDmChannels(ctx, req.(*WatchDmChannelsRequest))
@@ -7732,7 +7732,7 @@ func _DataNode_FlushSegments_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/FlushSegments",
+		FullMethod: "/milvus.proto.data.DataNode/FlushSegments",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).FlushSegments(ctx, req.(*FlushSegmentsRequest))
@@ -7750,7 +7750,7 @@ func _DataNode_ShowConfigurations_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/ShowConfigurations",
+		FullMethod: "/milvus.proto.data.DataNode/ShowConfigurations",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).ShowConfigurations(ctx, req.(*internalpb.ShowConfigurationsRequest))
@@ -7768,7 +7768,7 @@ func _DataNode_GetMetrics_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/GetMetrics",
+		FullMethod: "/milvus.proto.data.DataNode/GetMetrics",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).GetMetrics(ctx, req.(*milvuspb.GetMetricsRequest))
@@ -7786,7 +7786,7 @@ func _DataNode_Compaction_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/Compaction",
+		FullMethod: "/milvus.proto.data.DataNode/Compaction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).Compaction(ctx, req.(*CompactionPlan))
@@ -7804,7 +7804,7 @@ func _DataNode_GetCompactionState_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/GetCompactionState",
+		FullMethod: "/milvus.proto.data.DataNode/GetCompactionState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).GetCompactionState(ctx, req.(*CompactionStateRequest))
@@ -7822,7 +7822,7 @@ func _DataNode_SyncSegments_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/SyncSegments",
+		FullMethod: "/milvus.proto.data.DataNode/SyncSegments",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).SyncSegments(ctx, req.(*SyncSegmentsRequest))
@@ -7840,7 +7840,7 @@ func _DataNode_Import_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/Import",
+		FullMethod: "/milvus.proto.data.DataNode/Import",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).Import(ctx, req.(*ImportTaskRequest))
@@ -7858,7 +7858,7 @@ func _DataNode_ResendSegmentStats_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/ResendSegmentStats",
+		FullMethod: "/milvus.proto.data.DataNode/ResendSegmentStats",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).ResendSegmentStats(ctx, req.(*ResendSegmentStatsRequest))
@@ -7876,7 +7876,7 @@ func _DataNode_AddImportSegment_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/AddImportSegment",
+		FullMethod: "/milvus.proto.data.DataNode/AddImportSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).AddImportSegment(ctx, req.(*AddImportSegmentRequest))
@@ -7894,7 +7894,7 @@ func _DataNode_FlushChannels_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/FlushChannels",
+		FullMethod: "/milvus.proto.data.DataNode/FlushChannels",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).FlushChannels(ctx, req.(*FlushChannelsRequest))
@@ -7912,7 +7912,7 @@ func _DataNode_NotifyChannelOperation_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/NotifyChannelOperation",
+		FullMethod: "/milvus.proto.data.DataNode/NotifyChannelOperation",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).NotifyChannelOperation(ctx, req.(*ChannelOperationsRequest))
@@ -7930,7 +7930,7 @@ func _DataNode_CheckChannelOperationProgress_Handler(srv interface{}, ctx contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/milvus.protov2.data.DataNode/CheckChannelOperationProgress",
+		FullMethod: "/milvus.proto.data.DataNode/CheckChannelOperationProgress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataNodeServer).CheckChannelOperationProgress(ctx, req.(*ChannelWatchInfo))
