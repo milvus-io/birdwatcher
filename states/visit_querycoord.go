@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"text/tabwriter"
 
@@ -206,12 +207,16 @@ func checkerListCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Comman
 				fmt.Println(resp.Status.Reason)
 				return
 			}
+
+			sort.Slice(resp.CheckerInfos, func(i, j int) bool {
+				return resp.CheckerInfos[i].GetId() < resp.CheckerInfos[j].GetId()
+			})
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
 			fmt.Fprintln(w, "id\tdesc\tfound\tactivated")
 			for _, info := range resp.CheckerInfos {
 				fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", info.GetId(), info.GetDesc(), info.GetFound(), info.GetActivated())
 			}
-      w.Flush()
+			w.Flush()
 		},
 	}
 	return cmd
