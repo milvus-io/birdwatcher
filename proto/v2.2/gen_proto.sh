@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 SCRIPTS_DIR=$(dirname "$0")
 
-PROTO_DIR=$SCRIPTS_DIR
-MILVUS_PROTO_DIR=$SCRIPTS_DIR
+PROTO_DIR=$SCRIPTS_DIR MILVUS_PROTO_DIR=$SCRIPTS_DIR
+
+GOOGLE_PROTO_DIR="/home/sunby/Documents/milvus/cmake_build/thirdparty/protobuf/protobuf-src/src"
 
 PROGRAM=$(basename "$0")
 GOPATH=$(go env GOPATH)
@@ -33,6 +34,7 @@ mkdir -p proxypb
 mkdir -p msgpb
 mkdir -p federpb
 
+protoc=/home/sunby/Documents/milvus/cmake_build/bin/protoc
 # milvus.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb" \
