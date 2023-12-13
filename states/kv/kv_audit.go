@@ -65,7 +65,7 @@ func (c *FileAuditKV) Remove(ctx context.Context, key string) error {
 
 func (c *FileAuditKV) RemoveWithPrefix(ctx context.Context, key string) error {
 	fmt.Println("audit delete with prefix", key)
-	val, err := c.cli.Load(ctx, key)
+	keys, values, err := c.cli.LoadWithPrefix(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,10 @@ func (c *FileAuditKV) RemoveWithPrefix(ctx context.Context, key string) error {
 		return err
 	}
 	c.writeHeader(models.OpDel, 1)
-	c.writeKeyValue(key, val)
+	for i, key := range keys {
+		val := values[i]
+		c.writeKeyValue(key, val)
+	}
 	return nil
 }
 
