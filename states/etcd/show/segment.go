@@ -160,6 +160,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 			return info.GetBinlogs()[i].FieldID < info.GetBinlogs()[j].FieldID
 		})
 		for _, log := range info.GetBinlogs() {
+			var fieldLogSize int64
 			fmt.Printf("Field %d:\n", log.FieldID)
 			for _, binlog := range log.Binlogs {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
@@ -169,8 +170,11 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 					binlog.LogSize, binlog.EntriesNum,
 					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
 				binlogSize += binlog.LogSize
+				fieldLogSize += binlog.LogSize
 			}
+			fmt.Println("--- Field Log Size:", hrSize(fieldLogSize))
 		}
+		fmt.Println("=== Segment Total Binlog Size: ", hrSize(binlogSize))
 
 		fmt.Println("**************************************")
 		fmt.Println("Statslogs:")
