@@ -22,7 +22,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-//*
+// *
 // @brief Field data type
 type DataType int32
 
@@ -122,7 +122,7 @@ func (FieldState) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_1c5fb4d8cc22d66a, []int{1}
 }
 
-//*
+// *
 // @brief Field schema
 type FieldSchema struct {
 	FieldID      int64                    `protobuf:"varint,1,opt,name=fieldID,proto3" json:"fieldID,omitempty"`
@@ -260,7 +260,7 @@ func (m *FieldSchema) GetIsPartitionKey() bool {
 	return false
 }
 
-//*
+// *
 // @brief Collection schema
 type CollectionSchema struct {
 	Name                 string         `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -696,6 +696,7 @@ func (m *JSONArray) GetData() [][]byte {
 
 type ValueField struct {
 	// Types that are valid to be assigned to Data:
+	//
 	//	*ValueField_BoolData
 	//	*ValueField_IntData
 	//	*ValueField_LongData
@@ -851,6 +852,7 @@ func (*ValueField) XXX_OneofWrappers() []interface{} {
 
 type ScalarField struct {
 	// Types that are valid to be assigned to Data:
+	//
 	//	*ScalarField_BoolData
 	//	*ScalarField_IntData
 	//	*ScalarField_LongData
@@ -1037,6 +1039,7 @@ func (*ScalarField) XXX_OneofWrappers() []interface{} {
 type VectorField struct {
 	Dim int64 `protobuf:"varint,1,opt,name=dim,proto3" json:"dim,omitempty"`
 	// Types that are valid to be assigned to Data:
+	//
 	//	*VectorField_FloatVector
 	//	*VectorField_BinaryVector
 	//	*VectorField_Float16Vector
@@ -1156,6 +1159,7 @@ type FieldData struct {
 	Type      DataType `protobuf:"varint,1,opt,name=type,proto3,enum=milvus.protov2.schema.DataType" json:"type,omitempty"`
 	FieldName string   `protobuf:"bytes,2,opt,name=field_name,json=fieldName,proto3" json:"field_name,omitempty"`
 	// Types that are valid to be assigned to Field:
+	//
 	//	*FieldData_Scalars
 	//	*FieldData_Vectors
 	Field                isFieldData_Field `protobuf_oneof:"field"`
@@ -1266,6 +1270,7 @@ func (*FieldData) XXX_OneofWrappers() []interface{} {
 
 type IDs struct {
 	// Types that are valid to be assigned to IdField:
+	//
 	//	*IDs_IntId
 	//	*IDs_StrId
 	IdField              isIDs_IdField `protobuf_oneof:"id_field"`

@@ -52,7 +52,6 @@ func (s *queryNodeState) SetupCommands() {
 }
 
 func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
-
 	state := &queryNodeState{
 		cmdState: cmdState{
 			label: fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address),
