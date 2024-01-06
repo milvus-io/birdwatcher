@@ -219,7 +219,7 @@ func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) 
 	var wg sync.WaitGroup
 	workerNum := 3
 	wg.Add(workerNum)
-	for i := 0; i < 3; i++ {
+	for i := 0; i < workerNum; i++ {
 		go func() {
 			defer wg.Done()
 			for batch := range ch {
