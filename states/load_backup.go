@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/configs"
@@ -71,8 +72,9 @@ func (s *disconnectState) LoadBackupCommand(ctx context.Context, p *LoadBackupPa
 		return err
 	}
 	fmt.Println("using data dir:", server.Config().Dir)
-	// TODO
+
 	nextState := getEmbedEtcdInstanceV2(server, s.config)
+	start := time.Now()
 	switch header.Version {
 	case 1:
 		fmt.Printf("Found backup version: %d, instance name :%s\n", header.Version, header.Instance)
@@ -95,6 +97,7 @@ func (s *disconnectState) LoadBackupCommand(ctx context.Context, p *LoadBackupPa
 		nextState.Close()
 		return err
 	}
+	fmt.Println("load backup cost", time.Since(start))
 	err = nextState.setupWorkDir(server.Config().Dir)
 	if err != nil {
 		fmt.Println("failed to setup workspace for backup file", err.Error())
