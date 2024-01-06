@@ -45,6 +45,7 @@ type MetaKV interface {
 	Load(ctx context.Context, key string) (string, error)
 	LoadWithPrefix(ctx context.Context, key string) ([]string, []string, error)
 	Save(ctx context.Context, key, value string) error
+	MultiSave(ctx context.Context, keys, values []string) error
 	Remove(ctx context.Context, key string) error
 	RemoveWithPrefix(ctx context.Context, key string) error
 	removeWithPrevKV(ctx context.Context, key string) (*mvccpb.KeyValue, error)
@@ -107,6 +108,16 @@ func (kv *etcdKV) LoadWithPrefix(ctx context.Context, key string) ([]string, []s
 func (kv *etcdKV) Save(ctx context.Context, key, value string) error {
 	key = joinPath(kv.rootPath, key)
 	_, err := kv.client.Put(ctx, key, value)
+	return err
+}
+
+func (kv *etcdKV) MultiSave(ctx context.Context, keys, values []string) error {
+	var ops []clientv3.Op
+	for i, key := range keys {
+		ops = append(ops, clientv3.OpPut(key, values[i]))
+	}
+
+	_, err := kv.client.Txn(ctx).If().Then(ops...).Commit()
 	return err
 }
 
@@ -431,6 +442,10 @@ func (kv *txnTiKV) Save(ctx context.Context, key, value string) error {
 		return errors.Wrap(err, fmt.Sprintf("Failed to set value for key %s in putTiKVMeta", key))
 	}
 	return txn.Commit(ctx)
+}
+
+func (kv *txnTiKV) MultiSave(ctx context.Context, keys, values []string) error {
+	return errors.New("not implemented")
 }
 
 // Remove removes the input key.
