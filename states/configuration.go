@@ -5,20 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/samber/lo"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type GetConfigurationParam struct {
 	framework.ParamBase `use:"show configurations" desc:"iterate all online components and inspect configuration"`
 	Format              string `name:"format" default:"line" desc:"output format"`
+	Filter              string `name:"filter" default:"" desc:"configuration key filter sub string"`
 }
 
 func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfigurationParam) error {
@@ -31,9 +34,8 @@ func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfi
 
 	for _, session := range sessions {
 		opts := []grpc.DialOption{
-			grpc.WithInsecure(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
-			grpc.WithTimeout(2 * time.Second),
 		}
 
 		conn, err := grpc.DialContext(ctx, session.Address, opts...)
@@ -67,6 +69,10 @@ func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfi
 		if err != nil {
 			continue
 		}
+
+		configurations = lo.Filter(configurations, func(configuration *commonpb.KeyValuePair, _ int) bool {
+			return p.Filter == "" || strings.Contains(configuration.GetKey(), p.Filter)
+		})
 
 		results[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = common.KVListMap(configurations)
 	}
