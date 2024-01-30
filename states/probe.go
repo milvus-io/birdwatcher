@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -87,10 +88,12 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
+			errCount := 0
 			for _, collection := range loaded {
 				fmt.Println("probing collection", collection.CollectionID)
 				req, err := getMockSearchRequest(ctx, cli, basePath, collection)
 				if err != nil {
+					errCount++
 					fmt.Println("failed to generated mock request", err.Error())
 					continue
 				}
@@ -101,14 +104,20 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				})
 				if err != nil {
 					fmt.Println("querycoord get shard leaders error", err.Error())
+					errCount++
+					continue
+				}
+				if leaders.GetStatus().GetErrorCode() != commonpbv2.ErrorCode_Success {
+					fmt.Printf("collection[%d] failed to get shard leader, error: %s\n", collection.CollectionID, leaders.GetStatus().GetReason())
+					errCount++
 					continue
 				}
 
 				for _, shard := range leaders.GetShards() {
-
 					for _, nodeID := range shard.GetNodeIds() {
 						qn, ok := qns[nodeID]
 						if !ok {
+							errCount++
 							fmt.Printf("Shard leader %d not online\n", nodeID)
 							continue
 						}
@@ -120,17 +129,22 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 						cancel()
 						if err != nil {
 							fmt.Printf("Shard %s Leader[%d] failed to search with eventually consistency level, err: %s\n", shard.GetChannelName(), nodeID, err.Error())
+							errCount++
 							continue
 						}
 						if resp.GetStatus().GetErrorCode() != commonpbv2.ErrorCode_Success {
 							fmt.Printf("Shard %s Leader[%d] failed to search,error code: %s reason:%s\n", shard.GetChannelName(), nodeID, resp.GetStatus().GetErrorCode().String(), resp.GetStatus().GetReason())
+							errCount++
 							continue
 						}
 						fmt.Printf("Shard %s leader[%d] probe with search success.\n", shard.GetChannelName(), nodeID)
 					}
 				}
 			}
-
+			if errCount != 0 {
+				fmt.Printf("probe failed, hit %d errors", errCount)
+				os.Exit(-1)
+			}
 		},
 	}
 
