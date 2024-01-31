@@ -133,4 +133,8 @@ func printCollection(sb *strings.Builder, collection *models.Collection) {
 	for _, channel := range collection.Channels {
 		fmt.Printf("Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
 	}
+	fmt.Printf("Collection properties(%d):", len(collection.Properties))
+	for k, v := range collection.Properties {
+		fmt.Printf("\tKey: %s: %v\n", k, v)
+	}
 }
