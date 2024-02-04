@@ -83,7 +83,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 	count := make(map[string]int)
 
 	for _, segment := range segments {
-		if segment.State != commonpb.SegmentState_Flushed {
+		if segment.State != commonpb.SegmentState_Flushed && segment.GetState() != commonpb.SegmentState_Flushing {
 			continue
 		}
 		fmt.Printf("SegmentID: %d\t State: %s", segment.GetID(), segment.GetState().String())
