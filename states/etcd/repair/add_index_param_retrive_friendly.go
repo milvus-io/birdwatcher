@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/golang/protobuf/proto"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -13,9 +14,9 @@ import (
 // AddIndexParamsCommand return repair segment command.
 func AddIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "add_index_params_retrieve_friendly",
-		Aliases: []string{"add_index_params_retrieve_friendly"},
-		Short:   "check index parma and try to add retrieve_friendly",
+		Use:     "add_index_params",
+		Aliases: []string{"add_index_params"},
+		Short:   "check index param and try to add param",
 		Run: func(cmd *cobra.Command, args []string) {
 			collID, err := cmd.Flags().GetInt64("collection")
 			if err != nil {
@@ -47,24 +48,7 @@ func AddIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				if collID != 0 && index.IndexInfo.CollectionID != collID {
 					continue
 				}
-				newIndex := &indexpbv2.FieldIndex{
-					IndexInfo: &indexpbv2.IndexInfo{
-						CollectionID:         index.GetIndexInfo().GetCollectionID(),
-						FieldID:              index.GetIndexInfo().GetFieldID(),
-						IndexName:            index.GetIndexInfo().GetIndexName(),
-						IndexID:              index.GetIndexInfo().GetIndexID(),
-						TypeParams:           index.GetIndexInfo().GetTypeParams(),
-						IndexParams:          index.GetIndexInfo().GetIndexParams(),
-						IndexedRows:          index.GetIndexInfo().GetIndexedRows(),
-						TotalRows:            index.GetIndexInfo().GetTotalRows(),
-						State:                index.GetIndexInfo().GetState(),
-						IndexStateFailReason: index.GetIndexInfo().GetIndexStateFailReason(),
-						IsAutoIndex:          index.GetIndexInfo().GetIsAutoIndex(),
-						UserIndexParams:      index.GetIndexInfo().GetUserIndexParams(),
-					},
-					Deleted:    index.GetDeleted(),
-					CreateTime: index.GetCreateTime(),
-				}
+				newIndex := proto.Clone(&index).(*indexpbv2.FieldIndex)
 				indexType := ""
 				for _, pair := range index.IndexInfo.IndexParams {
 					if pair.Key == "index_type" {
