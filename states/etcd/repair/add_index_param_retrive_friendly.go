@@ -44,11 +44,11 @@ func AddIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 			newIndexes := make([]*indexpbv2.FieldIndex, 0)
-			for _, index := range indexes {
+			for i, index := range indexes {
 				if collID != 0 && index.IndexInfo.CollectionID != collID {
 					continue
 				}
-				newIndex := proto.Clone(&index).(*indexpbv2.FieldIndex)
+				newIndex := proto.Clone(&indexes[i]).(*indexpbv2.FieldIndex)
 				indexType := ""
 				for _, pair := range index.IndexInfo.IndexParams {
 					if pair.Key == "index_type" {
