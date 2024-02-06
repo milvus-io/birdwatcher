@@ -8,6 +8,7 @@ import (
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -72,7 +73,7 @@ func GetDistributionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 							continue
 						}
 						fmt.Printf("Leader view for channel: %s\n", lv.GetChannel())
-						growings := lv.GetGrowingSegmentIDs()
+						growings := lo.Uniq(lo.Union(lv.GetGrowingSegmentIDs(), lo.Keys(lv.GetGrowingSegments())))
 						fmt.Printf("Growing segments number: %d , ids: %v\n", len(growings), growings)
 					}
 
