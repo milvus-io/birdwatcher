@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/milvus-io/birdwatcher/states/etcd/download"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/set"
@@ -125,4 +126,16 @@ func RawCommands(cli kv.MetaKV) []*cobra.Command {
 	}
 
 	return []*cobra.Command{cmd}
+}
+
+func DownloadCommand(cli kv.MetaKV, basePath string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "download",
+		Short: "download etcd data",
+	}
+	cmd.AddCommand(
+		// download global-distribution
+		download.PullGlobalDistributionDetails(cli, basePath),
+	)
+	return cmd
 }

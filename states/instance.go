@@ -101,6 +101,8 @@ func (s *InstanceState) SetupCommands() {
 		getWebCmd(s, cli, basePath),
 		// fetch-metrics
 		getFetchMetricsCmd(cli, basePath),
+
+		etcd.DownloadCommand(cli, basePath),
 	)
 
 	//cmd.AddCommand(etcd.RawCommands(cli)...)
