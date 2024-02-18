@@ -29,6 +29,20 @@ func PullGlobalDistributionDetails(cli clientv3.KV, basePath string) *cobra.Comm
 				return err
 			}
 
+			fileName, err := cmd.Flags().GetString("file")
+			if err != nil {
+				return err
+			}
+			f, err := os.Create(fileName)
+			if err != nil {
+				return err
+			}
+
+			defer f.Close()
+
+			w := csv.NewWriter(f)
+			defer w.Flush()
+
 			for _, session := range sessions {
 				opts := []grpc.DialOption{
 					grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -76,19 +90,6 @@ func PullGlobalDistributionDetails(cli clientv3.KV, basePath string) *cobra.Comm
 					if err != nil {
 						return err
 					}
-
-					fileName, err := cmd.Flags().GetString("file")
-					if err != nil {
-						return err
-					}
-					f, err := os.Create(fileName)
-					if err != nil {
-						return err
-					}
-
-					defer f.Close()
-					w := csv.NewWriter(f)
-					defer w.Flush()
 
 					for _, segment := range segments {
 						// serverID,collectionID,partitionID,segmentID,channelName,rowNum,state
