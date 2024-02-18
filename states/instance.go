@@ -110,6 +110,7 @@ func (s *InstanceState) SetupCommands() {
 		getFetchMetricsCmd(cli, basePath),
 		// dry-mode
 		getDryModeCmd(cli, s, s.etcdState),
+		etcd.DownloadCommand(cli, basePath),
 	)
 
 	//cmd.AddCommand(etcd.RawCommands(cli)...)
