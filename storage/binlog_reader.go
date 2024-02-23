@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
@@ -23,7 +22,7 @@ type descriptorEvent struct {
 	descriptorEventData
 }
 
-func NewBinlogReader(f *os.File) (*BinlogReader, descriptorEvent, error) {
+func NewBinlogReader(f io.Reader) (*BinlogReader, descriptorEvent, error) {
 	reader := &BinlogReader{}
 	var de descriptorEvent
 	var err error
@@ -39,8 +38,8 @@ func NewBinlogReader(f *os.File) (*BinlogReader, descriptorEvent, error) {
 	return reader, de, nil
 }
 
-// NextEventReader returns next reader for the events.
-func (reader *BinlogReader) NextEventReader(f *os.File) ([]int64, error) {
+// NextInt64EventReader returns next reader for the events.
+func (reader *BinlogReader) NextInt64EventReader(f io.Reader) ([]int64, error) {
 	eventReader := newEventReader()
 	header, err := eventReader.readHeader(f)
 	if err != nil {
@@ -64,7 +63,32 @@ func (reader *BinlogReader) NextEventReader(f *os.File) ([]int64, error) {
 	return pr.GetInt64sFromPayload()
 }
 
-func (reader *BinlogReader) readMagicNumber(f *os.File) (int32, error) {
+func (reader *BinlogReader) NextVarcharEventReader(f io.Reader) ([]string, error) {
+	eventReader := newEventReader()
+	header, err := eventReader.readHeader(f)
+	if err != nil {
+		return nil, err
+	}
+	insertEventData, err := readInsertEventData(f)
+	if err != nil {
+		return nil, err
+	}
+
+	next := int(header.EventLength - header.GetMemoryUsageInBytes() - insertEventData.GetEventDataFixPartSize())
+
+	data := make([]byte, next)
+	io.ReadFull(f, data)
+
+	pr, err := NewParquetPayloadReader(schemapb.DataType_Int64, data)
+	if err != nil {
+		return nil, err
+	}
+
+	return pr.GetStringFromPayload()
+
+}
+
+func (reader *BinlogReader) readMagicNumber(f io.Reader) (int32, error) {
 	var err error
 	var magicNumber int32
 	magicNumber, err = readMagicNumber(f)
@@ -72,7 +96,7 @@ func (reader *BinlogReader) readMagicNumber(f *os.File) (int32, error) {
 	return magicNumber, err
 }
 
-func (reader *BinlogReader) readDescriptorEvent(f *os.File) (descriptorEvent, error) {
+func (reader *BinlogReader) readDescriptorEvent(f io.Reader) (descriptorEvent, error) {
 	event, err := ReadDescriptorEvent(f)
 	if err != nil {
 		return event, err
