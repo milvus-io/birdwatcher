@@ -93,7 +93,7 @@ func getInspectPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
 							fmt.Println("fail to create binlog reader:", err.Error())
 							continue
 						}
-						ids, err := r.NextInt64EventReader(f)
+						ids, err := r.NextInt64EventReader()
 						if err != nil {
 							fmt.Println("faild to read next event:", err.Error())
 							continue

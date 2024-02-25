@@ -34,7 +34,6 @@ func (reader *IndexReader) NextEventReader(f *os.File, dataType schemapb.DataTyp
 	eventReader := newEventReader()
 	header, err := eventReader.readHeader(f)
 	if err != nil {
-		//return nil, err
 		return nil, err
 	}
 	ifed, err := readIndexFileEventData(f)
@@ -53,7 +52,7 @@ func (reader *IndexReader) NextEventReader(f *os.File, dataType schemapb.DataTyp
 	}
 	switch dataType {
 	case schemapb.DataType_String:
-		result, err := pr.GetStringFromPayload()
+		result, err := pr.GetStringFromPayload(0)
 		if err != nil {
 			fmt.Println(err.Error())
 			return nil, err
@@ -62,7 +61,7 @@ func (reader *IndexReader) NextEventReader(f *os.File, dataType schemapb.DataTyp
 			return []byte(data)
 		}), nil
 	case schemapb.DataType_Int8:
-		result, err := pr.GetBytesFromPayload()
+		result, err := pr.GetBytesFromPayload(0)
 		if err != nil {
 			fmt.Println(err.Error())
 			return nil, err
