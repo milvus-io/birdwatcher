@@ -27,6 +27,8 @@ type CheckPartitionKeyParam struct {
 	OutputFormat        string `name:"outputFmt" default:"stdout"`
 }
 
+var errQuickExit = errors.New("quick exit")
+
 func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPartitionKeyParam) error {
 	collections, err := common.ListCollectionsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion())
 	if err != nil {
@@ -117,6 +119,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		}
 
 		var collectionErrs int
+		var found bool
 
 		for _, segment := range segments {
 			if segment.State == models.SegmentStateDropped || segment.State == models.SegmentStateSegmentStateNone {
@@ -126,7 +129,10 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 			err := func() error {
 				var f *os.File
 				var pqWriter *storage.ParquetWriter
+				var quick bool
 				switch p.OutputFormat {
+				case "stdout":
+					quick = true
 				case "json":
 					f, err = os.Create(fmt.Sprintf("%d-%d.json", collection.ID, segment.ID))
 					if err != nil {
@@ -138,16 +144,15 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 						return err
 					}
 					pqWriter = storage.NewParquetWriter(collection)
-
 				}
 				deltalog, err := s.DownloadDeltalogs(ctx, minioClient, bucketName, rootPath, collection, segment)
 				if err != nil {
 					return err
 				}
 
-				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, func(readers map[int64]*storage.BinlogReader) {
+				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, quick, func(readers map[int64]*storage.BinlogReader) {
 					targetIndex := partIdx[segment.PartitionID]
-					iter, err := NewBinlogIterator(collection, readers)
+					iter, err := NewBinlogIterator(collection, readers, quick)
 					if err != nil {
 						fmt.Println("failed to create iterator", err.Error())
 						return
@@ -180,6 +185,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 							return nil
 						}
 						errCnt++
+						found = true
 
 						output := lo.MapKeys(data, func(v any, k int64) string {
 							return idField[k].Name
@@ -187,7 +193,11 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 						output[pkField.Name] = pk.GetValue()
 						switch p.OutputFormat {
 						case "stdout":
-							fmt.Printf("PK %v partition does not follow partition key rule\n", pk)
+							if p.StopIfErr {
+								return errQuickExit
+							} else {
+								fmt.Printf("PK %v partition does not follow partition key rule\n", pk)
+							}
 						case "json":
 							bs, err := json.Marshal(output)
 							if err != nil {
@@ -204,22 +214,31 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 						}
 						return nil
 					})
-					if err != nil {
+					if err != nil && !errors.Is(err, errQuickExit) {
 						fmt.Println(err.Error())
 					}
 				})
 				return nil
 			}()
-			if err != nil {
+			if err != nil && !errors.Is(err, errQuickExit) {
 				return err
+			}
+			if p.StopIfErr && found {
+				break
 			}
 			if errCnt > 0 {
 				fmt.Printf("Segment %d of collection %s find %d partition-key error\n", segment.ID, collection.Schema.Name, errCnt)
 				collectionErrs += errCnt
 			}
 		}
+		if p.StopIfErr {
+			if found {
+				fmt.Printf("Collection %s found partition key error\n", collection.Schema.Name)
+			}
+		} else {
+			fmt.Printf("Collection %s found %d partition key error\n", collection.Schema.Name, collectionErrs)
+		}
 
-		fmt.Printf("Collection %s found %d partition key error\n", collection.Schema.Name, collectionErrs)
 	}
 	return nil
 }
