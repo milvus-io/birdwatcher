@@ -119,6 +119,9 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		var collectionErrs int
 
 		for _, segment := range segments {
+			if segment.State == models.SegmentStateDropped || segment.State == models.SegmentStateSegmentStateNone {
+				continue
+			}
 			var errCnt int
 			err := func() error {
 				var f *os.File
