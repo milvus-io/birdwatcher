@@ -195,9 +195,8 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 						case "stdout":
 							if p.StopIfErr {
 								return errQuickExit
-							} else {
-								fmt.Printf("PK %v partition does not follow partition key rule\n", pk)
 							}
+							fmt.Printf("PK %v partition does not follow partition key rule\n", pk)
 						case "json":
 							bs, err := json.Marshal(output)
 							if err != nil {
