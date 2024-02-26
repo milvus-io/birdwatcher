@@ -129,10 +129,10 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 			err := func() error {
 				var f *os.File
 				var pqWriter *storage.ParquetWriter
-				var quick bool
+				selector := func(_ int64) bool { return true }
 				switch p.OutputFormat {
 				case "stdout":
-					quick = true
+					selector = func(field int64) bool { return field == partKeyField.FieldID }
 				case "json":
 					f, err = os.Create(fmt.Sprintf("%d-%d.json", collection.ID, segment.ID))
 					if err != nil {
@@ -150,9 +150,9 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 					return err
 				}
 
-				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, quick, func(readers map[int64]*storage.BinlogReader) {
+				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, selector, func(readers map[int64]*storage.BinlogReader) {
 					targetIndex := partIdx[segment.PartitionID]
-					iter, err := NewBinlogIterator(collection, readers, quick)
+					iter, err := NewBinlogIterator(collection, readers)
 					if err != nil {
 						fmt.Println("failed to create iterator", err.Error())
 						return
