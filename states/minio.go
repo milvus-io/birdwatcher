@@ -68,6 +68,10 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 	var addr string
 	var port string
 	var ak, sk string
+	var useIAM string
+	var useSSL string
+
+	var secure bool
 
 	for _, config := range configurations {
 		switch config.GetKey() {
@@ -83,10 +87,27 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 			sk = config.GetValue()
 		case "minio.accesskeyid":
 			ak = config.GetValue()
+		case "minio.useiam":
+			useIAM = config.GetValue()
+		case "minio.usessl":
+			useSSL = config.GetValue()
 		}
 	}
 
-	client, _, err = getMinioWithInfo(fmt.Sprintf("%s:%s", addr, port), ak, sk, bucketName)
+	if useSSL == "tre" {
+		secure = true
+	}
+
+	if minioAddr == "" {
+		minioAddr = fmt.Sprintf("%s:%s", addr, port)
+	}
+
+	if useIAM == "true" {
+		client, _, err = getMinioWithIAM(minioAddr, bucketName, secure)
+	} else {
+		client, _, err = getMinioWithInfo(minioAddr, ak, sk, bucketName, secure)
+	}
+
 	if err != nil {
 		return nil, "", "", err
 	}
