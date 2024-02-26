@@ -49,10 +49,10 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 	})
 	var f *os.File
 	var pqWriter *storage.ParquetWriter
-	var quick bool // load rowid, ts, pk only
+	selector := func(_ int64) bool { return true }
 	switch p.OutputFormat {
 	case "stdout":
-		quick = true
+		selector = func(_ int64) bool { return false }
 	case "json":
 		f, err = os.Create(fmt.Sprintf("%d.json", collection.ID))
 		if err != nil {
@@ -73,9 +73,8 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 			return err
 		}
 
-		s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, quick, func(readers map[int64]*storage.BinlogReader) {
-
-			iter, err := NewBinlogIterator(collection, readers, quick)
+		s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, selector, func(readers map[int64]*storage.BinlogReader) {
+			iter, err := NewBinlogIterator(collection, readers)
 			if err != nil {
 				fmt.Println("failed to create iterator", err.Error())
 				return
@@ -126,7 +125,8 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 }
 
 // ScanBinlogs scans provided segment with delete record excluded.
-func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Client, bucketName string, rootPath string, collection *models.Collection, segment *models.Segment, quick bool, fn func(map[int64]*storage.BinlogReader)) {
+func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Client, bucketName string, rootPath string, collection *models.Collection, segment *models.Segment,
+	selectField func(fieldID int64) bool, fn func(map[int64]*storage.BinlogReader)) {
 	pkField, has := lo.Find(collection.Schema.Fields, func(field models.FieldSchema) bool {
 		return field.IsPrimaryKey
 	})
@@ -144,7 +144,7 @@ func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Clie
 	for idx := range pkFieldData.Binlogs {
 		field2Binlog := make(map[int64]*storage.BinlogReader)
 		for _, fieldBinlog := range segment.GetBinlogs() {
-			if quick && fieldBinlog.FieldID != 0 && fieldBinlog.FieldID != 1 && fieldBinlog.FieldID != pkField.FieldID {
+			if fieldBinlog.FieldID != 0 && fieldBinlog.FieldID != 1 && fieldBinlog.FieldID != pkField.FieldID && !selectField(fieldBinlog.FieldID) {
 				continue
 			}
 			binlog := fieldBinlog.Binlogs[idx]
@@ -181,7 +181,7 @@ type BinlogIterator struct {
 	rows int
 }
 
-func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage.BinlogReader, quick bool) (*BinlogIterator, error) {
+func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage.BinlogReader) (*BinlogIterator, error) {
 	rowIDReader := readers[0]
 	rowIDs, err := rowIDReader.NextInt64EventReader()
 	if err != nil {
@@ -220,18 +220,16 @@ func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage
 		return field.FieldID, field
 	})
 	data := make(map[int64][]any)
-	if !quick {
-		for fieldID, reader := range readers {
-			if fieldID < 100 || fieldID == pkField.FieldID {
-				continue
-			}
-			field := idField[fieldID]
-			column, err := readerToSlice(reader, field)
-			if err != nil {
-				return nil, err
-			}
-			data[fieldID] = column
+	for fieldID, reader := range readers {
+		if fieldID < 100 || fieldID == pkField.FieldID {
+			continue
 		}
+		field := idField[fieldID]
+		column, err := readerToSlice(reader, field)
+		if err != nil {
+			return nil, err
+		}
+		data[fieldID] = column
 	}
 
 	return &BinlogIterator{
