@@ -94,7 +94,7 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 		}
 	}
 
-	if useSSL == "tre" {
+	if useSSL == "true" {
 		secure = true
 	}
 

@@ -288,7 +288,7 @@ func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Cli
 
 			var deltaData *storage.DeltaData
 			for err == nil {
-				deltaData, err = reader.NextEventReader(schemapb.DataType_Int64)
+				deltaData, err = reader.NextEventReader(schemapb.DataType(pkField.DataType))
 				if err == nil {
 					err = data.Merge(deltaData)
 					if err != nil {
