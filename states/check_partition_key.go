@@ -245,12 +245,11 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 			if p.StopIfErr && found {
 				break
 			}
-			progress := idx * 100 / len(segments)
+			progress := (idx + 1) * 100 / len(segments)
 			status := fmt.Sprintf("%d [%s]", segment.ID, colorReady.Sprint("done"))
 			if errCnt > 0 {
-				// fmt.Printf("Segment %d of collection %s find %d partition-key error\n", segment.ID, collection.Schema.Name, errCnt)
 				collectionErrs += errCnt
-				status = fmt.Sprintf("%d [%s](%d)", segment.ID, colorPending.Sprint("error"), errCnt)
+				status = fmt.Sprintf("%d [%s](%d)", segment.ID, colorError.Sprint("error"), errCnt)
 			}
 
 			fmt.Fprintf(progressDisplay, progressFmt, progress, idx+1, len(segments), status)
