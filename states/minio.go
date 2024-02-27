@@ -2,11 +2,12 @@ package states
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/cockroachdb/errors"
+	"github.com/manifoldco/promptui"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/minio/minio-go/v7"
@@ -30,7 +31,6 @@ type MinioConnectParam struct {
 }
 
 func (s *InstanceState) TestMinioCfgCommand(ctx context.Context, p *TestMinioCfgParam) error {
-	fmt.Println(p)
 	_, _, _, err := s.GetMinioClientFromCfg(ctx, "")
 	return err
 }
@@ -65,16 +65,17 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 		return nil, "", "", err
 	}
 
+	var cloudProvider string
 	var addr string
 	var port string
 	var ak, sk string
 	var useIAM string
 	var useSSL string
 
-	var secure bool
-
 	for _, config := range configurations {
 		switch config.GetKey() {
+		case "minio.cloudprovider":
+			cloudProvider = config.GetValue()
 		case "minio.address":
 			addr = config.GetValue()
 		case "minio.port":
@@ -94,23 +95,131 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 		}
 	}
 
-	if useSSL == "true" {
-		secure = true
-	}
+	mp := oss.MinioClientParam{
+		CloudProvider: cloudProvider,
+		Addr:          addr,
+		Port:          port,
+		AK:            ak,
+		SK:            sk,
 
-	if minioAddr == "" {
-		minioAddr = fmt.Sprintf("%s:%s", addr, port)
+		BucketName: bucketName,
+		RootPath:   rootPath,
 	}
-
 	if useIAM == "true" {
-		client, _, err = getMinioWithIAM(minioAddr, bucketName, secure)
-	} else {
-		client, _, err = getMinioWithInfo(minioAddr, ak, sk, bucketName, secure)
+		mp.UseIAM = true
+	}
+	if useSSL == "true" {
+		mp.UseSSL = true
 	}
 
+	mClient, err := oss.NewMinioClient(ctx, mp)
 	if err != nil {
 		return nil, "", "", err
 	}
 
-	return client, bucketName, rootPath, nil
+	return mClient.Client, bucketName, rootPath, nil
+}
+
+func (s *InstanceState) GetMinioClientFromPrompt(ctx context.Context) (client *minio.Client, bucketName, rootPath string, err error) {
+
+	p := promptui.Prompt{
+		Label: "BucketName",
+	}
+	bucketName, err = p.Run()
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	p = promptui.Prompt{
+		Label: "Root Path",
+	}
+	rootPath, err = p.Run()
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	p = promptui.Prompt{Label: "Address"}
+	address, err := p.Run()
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	ssl := promptui.Select{
+		Label: "Use SSL",
+		Items: []string{"yes", "no"},
+	}
+	_, sslResult, err := ssl.Run()
+	if err != nil {
+		return nil, "", "", err
+	}
+	useSSL := false
+	switch sslResult {
+	case "yes":
+		useSSL = true
+	case "no":
+		useSSL = false
+	}
+
+	cloudProvider := promptui.Select{
+		Label: "Select Cloud provider",
+		Items: []string{"aws", "gcp"},
+	}
+	_, cloudProviderResult, err := cloudProvider.Run()
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	sl := promptui.Select{
+		Label: "Select authentication method:",
+		Items: []string{"IAM", "AK/SK"},
+	}
+	_, result, err := sl.Run()
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	mp := oss.MinioClientParam{
+		CloudProvider: cloudProviderResult,
+		Addr:          address,
+		UseSSL:        useSSL,
+		BucketName:    bucketName,
+		RootPath:      rootPath,
+	}
+
+	switch result {
+	case "IAM":
+		mp.UseIAM = true
+		input := promptui.Prompt{
+			Label: "IAM Endpoint",
+		}
+		iamEndpoint, err := input.Run()
+		if err != nil {
+			return nil, "", "", err
+		}
+
+		mp.IAMEndpoint = iamEndpoint
+	case "AK/SK":
+		p.HideEntered = true
+		p.Mask = rune('*')
+		p.Label = "AK"
+		ak, err := p.Run()
+		if err != nil {
+			return nil, "", "", err
+		}
+		p.Label = "SK"
+		sk, err := p.Run()
+		if err != nil {
+			return nil, "", "", err
+		}
+
+		mp.AK = ak
+		mp.SK = sk
+	}
+
+	mClient, err := oss.NewMinioClient(ctx, mp)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	return mClient.Client, bucketName, rootPath, nil
 }
