@@ -239,6 +239,8 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		if p.StopIfErr {
 			if found {
 				fmt.Printf("Collection %s found partition key error\n", collection.Schema.Name)
+			} else {
+				fmt.Printf("Collection %s all data OK!\n", collection.Schema.Name)
 			}
 		} else {
 			fmt.Printf("Collection %s found %d partition key error\n", collection.Schema.Name, collectionErrs)
