@@ -22,6 +22,7 @@ import (
 
 type CheckPartitionKeyParam struct {
 	framework.ParamBase `use:"check-partiton-key" desc:"check partition key field file"`
+	Storage             string `name:"storage" `
 	StopIfErr           bool   `name:"stopIfErr" default:"true"`
 	MinioAddress        string `name:"minioAddr" default:"" desc:"the minio address to override, leave empty to use milvus.yaml value"`
 	OutputFormat        string `name:"outputFmt" default:"stdout"`
@@ -110,6 +111,8 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 			return field.FieldID, field
 		})
 
+		fmt.Printf("Start to check collection %s id = %d\n", collection.Schema.Name, collection.ID)
+
 		segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
 			return segment.CollectionID == collection.ID
 		})
@@ -121,7 +124,9 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		var collectionErrs int
 		var found bool
 
-		for _, segment := range segments {
+		fmt.Printf("Partition numer: %d, Segment number %d\n", len(partitions), len(segments))
+
+		for idx, segment := range segments {
 			if segment.State == models.SegmentStateDropped || segment.State == models.SegmentStateSegmentStateNone {
 				continue
 			}
@@ -229,6 +234,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 				fmt.Printf("Segment %d of collection %s find %d partition-key error\n", segment.ID, collection.Schema.Name, errCnt)
 				collectionErrs += errCnt
 			}
+			fmt.Printf("%d of %d processed\n", idx, len(segments))
 		}
 		if p.StopIfErr {
 			if found {
