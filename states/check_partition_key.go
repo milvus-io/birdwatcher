@@ -22,21 +22,28 @@ import (
 
 type CheckPartitionKeyParam struct {
 	framework.ParamBase `use:"check-partiton-key" desc:"check partition key field file"`
-	Storage             string `name:"storage" `
+	Storage             string `name:"storage" default:"auto" desc:"storage service configuration mode"`
 	StopIfErr           bool   `name:"stopIfErr" default:"true"`
 	MinioAddress        string `name:"minioAddr" default:"" desc:"the minio address to override, leave empty to use milvus.yaml value"`
 	OutputFormat        string `name:"outputFmt" default:"stdout"`
+
+	CollectionID int64 `name:"collection" default:"0" desc:"target collection to scan, default scan all partition key collections"`
 }
 
 var errQuickExit = errors.New("quick exit")
 
 func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPartitionKeyParam) error {
-	collections, err := common.ListCollectionsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion())
+	collections, err := common.ListCollectionsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(collection *models.Collection) bool {
+		return p.CollectionID == 0 || collection.ID == p.CollectionID
+	})
 	if err != nil {
 		return err
 	}
 
-	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, p.MinioAddress)
+	var minioClient *minio.Client
+	var bucketName, rootPath string
+
+	minioClient, bucketName, rootPath, err = s.GetMinioClientFromCfg(ctx, p.MinioAddress)
 	if err != nil {
 		return err
 	}
@@ -198,10 +205,10 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 						output[pkField.Name] = pk.GetValue()
 						switch p.OutputFormat {
 						case "stdout":
+							fmt.Printf("PK %v partition does not follow partition key rule (%s=%v)\n", pk.GetValue(), partKeyField.Name, partKeyValue)
 							if p.StopIfErr {
 								return errQuickExit
 							}
-							fmt.Printf("PK %v partition does not follow partition key rule\n", pk)
 						case "json":
 							bs, err := json.Marshal(output)
 							if err != nil {
