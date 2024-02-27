@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gosuri/uilive"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
@@ -24,6 +25,7 @@ type CheckPartitionKeyParam struct {
 	framework.ParamBase `use:"check-partiton-key" desc:"check partition key field file"`
 	Storage             string `name:"storage" default:"auto" desc:"storage service configuration mode"`
 	StopIfErr           bool   `name:"stopIfErr" default:"true"`
+	OutputPrimaryKey    bool   `name:"outputPK" default:"true" desc:"print error record primary key info in stdout mode"`
 	MinioAddress        string `name:"minioAddr" default:"" desc:"the minio address to override, leave empty to use milvus.yaml value"`
 	OutputFormat        string `name:"outputFmt" default:"stdout"`
 
@@ -131,7 +133,11 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		var collectionErrs int
 		var found bool
 
-		fmt.Printf("Partition numer: %d, Segment number %d\n", len(partitions), len(segments))
+		fmt.Printf("Partition number: %d, Segment number %d\n", len(partitions), len(segments))
+		progressDisplay := uilive.New()
+		progressFmt := "Scan segment ... %d%%(%d/%d) %s\n"
+		progressDisplay.Start()
+		fmt.Fprintf(progressDisplay, progressFmt, 0, 0, len(segments), "")
 
 		for idx, segment := range segments {
 			if segment.State == models.SegmentStateDropped || segment.State == models.SegmentStateSegmentStateNone {
@@ -205,7 +211,9 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 						output[pkField.Name] = pk.GetValue()
 						switch p.OutputFormat {
 						case "stdout":
-							fmt.Printf("PK %v partition does not follow partition key rule (%s=%v)\n", pk.GetValue(), partKeyField.Name, partKeyValue)
+							if p.OutputPrimaryKey {
+								fmt.Printf("PK %v partition does not follow partition key rule (%s=%v)\n", pk.GetValue(), partKeyField.Name, partKeyValue)
+							}
 							if p.StopIfErr {
 								return errQuickExit
 							}
@@ -237,12 +245,18 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 			if p.StopIfErr && found {
 				break
 			}
+			progress := idx * 100 / len(segments)
+			status := fmt.Sprintf("%d [%s]", segment.ID, colorReady.Sprint("done"))
 			if errCnt > 0 {
-				fmt.Printf("Segment %d of collection %s find %d partition-key error\n", segment.ID, collection.Schema.Name, errCnt)
+				// fmt.Printf("Segment %d of collection %s find %d partition-key error\n", segment.ID, collection.Schema.Name, errCnt)
 				collectionErrs += errCnt
+				status = fmt.Sprintf("%d [%s](%d)", segment.ID, colorPending.Sprint("error"), errCnt)
 			}
-			fmt.Printf("%d of %d processed\n", idx, len(segments))
+
+			fmt.Fprintf(progressDisplay, progressFmt, progress, idx+1, len(segments), status)
 		}
+		progressDisplay.Stop()
+		fmt.Println()
 		if p.StopIfErr {
 			if found {
 				fmt.Printf("Collection %s found partition key error\n", collection.Schema.Name)
