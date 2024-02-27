@@ -15,7 +15,7 @@ func TestBinlogReader(t *testing.T) {
 	r, de, err := NewBinlogReader(f)
 	require.NoError(t, err)
 	fmt.Printf("%#v\n", de)
-	ids, err := r.NextEventReader(f)
+	ids, err := r.NextInt64EventReader()
 	require.NoError(t, err)
 
 	t.Log(len(ids))

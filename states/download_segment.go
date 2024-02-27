@@ -67,11 +67,34 @@ func getDownloadSegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func getMinioWithInfo(addr string, ak, sk string, bucketName string) (*minio.Client, string, error) {
+func getMinioWithInfo(addr string, ak, sk string, bucketName string, secure bool) (*minio.Client, string, error) {
 	cred := credentials.NewStaticV4(ak, sk, "")
 	minioClient, err := minio.New(addr, &minio.Options{
 		Creds:  cred,
-		Secure: false,
+		Secure: secure,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	exists, err := minioClient.BucketExists(context.Background(), bucketName)
+	if !exists {
+		fmt.Printf("bucket %s not exists\n", bucketName)
+		return nil, "", err
+	}
+
+	if !exists {
+		fmt.Printf("Bucket not exist\n")
+		return nil, "", errors.New("bucket not exists")
+	}
+
+	return minioClient, bucketName, nil
+}
+
+func getMinioWithIAM(addr string, bucketName string, secure bool) (*minio.Client, string, error) {
+	cred := credentials.NewIAM("")
+	minioClient, err := minio.New(addr, &minio.Options{
+		Creds:  cred,
+		Secure: secure,
 	})
 	if err != nil {
 		return nil, "", err
