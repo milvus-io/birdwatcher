@@ -6,7 +6,7 @@ package commonpb
 import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
-	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
+	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	math "math"
 )
 
@@ -1870,7 +1870,7 @@ func (m *ServerInfo) GetReserved() map[string]string {
 }
 
 var E_PrivilegeExtObj = &proto.ExtensionDesc{
-	ExtendedType:  (*descriptorpb.MessageOptions)(nil),
+	ExtendedType:  (*descriptor.MessageOptions)(nil),
 	ExtensionType: (*PrivilegeExt)(nil),
 	Field:         1001,
 	Name:          "milvus.protov2.common.privilege_ext_obj",

@@ -7,6 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	commonpb "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	federpb "github.com/milvus-io/birdwatcher/proto/v2.2/federpb"
 	msgpb "github.com/milvus-io/birdwatcher/proto/v2.2/msgpb"
@@ -14,7 +15,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 	math "math"
 )
 
@@ -9636,7 +9636,7 @@ func (m *ReplicateMessageResponse) GetPosition() string {
 }
 
 var E_MilvusExtObj = &proto.ExtensionDesc{
-	ExtendedType:  (*descriptorpb.FileOptions)(nil),
+	ExtendedType:  (*descriptor.FileOptions)(nil),
 	ExtensionType: (*MilvusExt)(nil),
 	Field:         1001,
 	Name:          "milvus.protov2.milvus.milvus_ext_obj",

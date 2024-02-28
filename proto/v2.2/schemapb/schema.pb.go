@@ -6,8 +6,8 @@ package schemapb
 import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	_ "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	commonpb "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	_ "google.golang.org/protobuf/types/descriptorpb"
 	math "math"
 )
 
