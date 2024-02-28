@@ -151,6 +151,9 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 				switch p.OutputFormat {
 				case "stdout":
 					selector = func(field int64) bool { return field == partKeyField.FieldID }
+				case "json-pk":
+					selector = func(field int64) bool { return field == partKeyField.FieldID }
+					fallthrough
 				case "json":
 					f, err = os.Create(fmt.Sprintf("%d-%d.json", collection.ID, segment.ID))
 					if err != nil {
@@ -217,7 +220,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 							if p.StopIfErr {
 								return errQuickExit
 							}
-						case "json":
+						case "json", "json-pk":
 							bs, err := json.Marshal(output)
 							if err != nil {
 								fmt.Println(err.Error())
