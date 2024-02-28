@@ -1,6 +1,6 @@
 module github.com/milvus-io/birdwatcher
 
-go 1.20
+go 1.18
 
 require (
 	github.com/aliyun/credentials-go v1.3.2
@@ -26,7 +26,7 @@ require (
 	go.etcd.io/etcd/api/v3 v3.5.4
 	go.etcd.io/etcd/client/v3 v3.5.4
 	go.etcd.io/etcd/server/v3 v3.5.4
-	go.uber.org/atomic v1.7.0
+	go.uber.org/atomic v1.11.0
 	go.uber.org/zap v1.17.0
 	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	google.golang.org/grpc v1.46.0

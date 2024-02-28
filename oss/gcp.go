@@ -2,11 +2,11 @@ package oss
 
 import (
 	"net/http"
-	"sync/atomic"
 
 	"github.com/cockroachdb/errors"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"go.uber.org/atomic"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
