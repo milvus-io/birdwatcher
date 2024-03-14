@@ -34,6 +34,7 @@ func CollectionDropCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				collection, err := common.GetCollectionByIDVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), collectionID)
 				if err != nil {
 					fmt.Printf("failed to get collection by id(%d): %s\n", collectionID, err.Error())
+					return
 				}
 				// skip healthy collection
 				if collection.State != models.CollectionStateCollectionDropping && collection.State != models.CollectionStateCollectionDropped {
@@ -45,6 +46,10 @@ func CollectionDropCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				collections, err = common.ListCollectionsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
 					return coll.State == models.CollectionStateCollectionDropping || coll.State == models.CollectionStateCollectionDropped
 				})
+				if err != nil {
+					fmt.Println("failed to list collection", err.Error())
+					return
+				}
 			}
 
 			for _, collection := range collections {
