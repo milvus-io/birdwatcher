@@ -38,6 +38,7 @@ func NewFrameScreen(lines int, display *uilive.Writer) *FrameScreen {
 var (
 	colorPending = color.New(color.FgYellow)
 	colorReady   = color.New(color.FgGreen)
+	colorError   = color.New(color.FgRed)
 
 	levelColor = map[eventlog.Level]*color.Color{
 		eventlog.Level_Debug: color.New(color.FgGreen),
