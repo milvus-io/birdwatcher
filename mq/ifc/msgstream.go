@@ -7,6 +7,7 @@ import (
 type Consumer interface {
 	GetLastMessageID() (MessageID, error)
 	GetLastMessage() (Message, error)
+	Consume() (Message, error)
 	Close() error
 }
 

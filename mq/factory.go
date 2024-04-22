@@ -11,11 +11,11 @@ import (
 	"github.com/milvus-io/birdwatcher/mq/pulsar"
 )
 
-func NewConsumer(mqType, address, channel string) (ifc.Consumer, error) {
+func NewConsumer(mqType, address, channel string, config ifc.MqOption) (ifc.Consumer, error) {
 	groupID := fmt.Sprintf("group-id-%d", time.Now().UnixNano())
 	switch mqType {
 	case "pulsar":
-		return pulsar.NewPulsarConsumer(address, channel, groupID)
+		return pulsar.NewPulsarConsumer(address, channel, groupID, config)
 	default:
 		panic("unknown mq type:" + mqType)
 	}

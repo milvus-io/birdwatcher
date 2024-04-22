@@ -16,23 +16,37 @@ type pulsarConsumer struct {
 	client   pulsar.Client
 }
 
-func NewPulsarConsumer(address string, topic string, groupID string) (*pulsarConsumer, error) {
+func NewPulsarConsumer(address string, topic string, groupID string, config ifc.MqOption) (*pulsarConsumer, error) {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: address})
 	if err != nil {
 		return nil, err
+	}
+
+	var initPos pulsar.SubscriptionInitialPosition
+	switch config.SubscriptionInitPos {
+	case ifc.SubscriptionPositionEarliest:
+		initPos = pulsar.SubscriptionPositionEarliest
+	case ifc.SubscriptionPositionLatest:
+		initPos = pulsar.SubscriptionPositionLatest
 	}
 
 	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 		Topic:                       topic,
 		SubscriptionName:            groupID,
 		Type:                        pulsar.Exclusive,
-		SubscriptionInitialPosition: pulsar.SubscriptionPositionLatest,
+		SubscriptionInitialPosition: initPos,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &pulsarConsumer{topic: topic, consumer: consumer, client: client}, nil
+}
+
+func (p *pulsarConsumer) Consume() (ifc.Message, error) {
+	msg := <-p.consumer.Chan()
+	p.consumer.Ack(msg)
+	return &pulsarMessage{msg: msg}, nil
 }
 
 func (p *pulsarConsumer) GetLastMessageID() (ifc.MessageID, error) {
