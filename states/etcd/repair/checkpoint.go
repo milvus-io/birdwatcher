@@ -12,6 +12,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/mq"
+	"github.com/milvus-io/birdwatcher/mq/ifc"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
@@ -199,7 +200,9 @@ func getLatestCheckpointFromPChannel(cli clientv3.KV, basePath string) (map[stri
 
 func getLatestFromPChannel(mqType, address, vchannel string) (*internalpb.MsgPosition, error) {
 	topic := ToPhysicalChannel(vchannel)
-	consumer, err := mq.NewConsumer(mqType, address, topic)
+	consumer, err := mq.NewConsumer(mqType, address, topic, ifc.MqOption{
+		SubscriptionInitPos: ifc.SubscriptionPositionLatest,
+	})
 	if err != nil {
 		return nil, err
 	}
