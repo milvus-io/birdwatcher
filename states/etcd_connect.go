@@ -17,6 +17,7 @@ import (
 	"github.com/tikv/client-go/v2/txnkv"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -101,6 +102,9 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	cfg := clientv3.Config{
 		Endpoints:   []string{cp.EtcdAddr},
 		DialTimeout: time.Second * 10,
+		DialOptions: []grpc.DialOption{
+			grpc.WithBlock(),
+		},
 
 		TLS: tls,
 		// disable grpc logging
