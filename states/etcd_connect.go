@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -27,7 +28,7 @@ var (
 	ErrNotMilvsuRootPath = errors.New("is not a Milvus RootPath")
 )
 
-func pingEtcd(ctx context.Context, cli clientv3.KV, rootPath string, metaPath string) error {
+func pingInstance(ctx context.Context, cli clientv3.KV, rootPath string, metaPath string) error {
 	key := path.Join(rootPath, metaPath, "session/id")
 	resp, err := cli.Get(ctx, key)
 	if err != nil {
@@ -98,14 +99,16 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{cp.EtcdAddr},
 		DialTimeout: time.Second * 10,
+		DialOptions: []grpc.DialOption{
+			grpc.WithBlock(),
+		},
 
 		TLS: tls,
 		// disable grpc logging
 		Logger: zap.NewNop(),
 	})
 	if err != nil {
-		fmt.Println(err.Error())
-		return err
+		return errors.Wrap(err, "failed to connect to etcd")
 	}
 
 	etcdState := getEtcdConnectedState(etcdCli, cp.EtcdAddr, s.config)
@@ -113,7 +116,7 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 		// ping etcd
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
-		err = pingEtcd(ctx, etcdCli, cp.RootPath, cp.MetaPath)
+		err = pingInstance(ctx, etcdCli, cp.RootPath, cp.MetaPath)
 		if err != nil {
 			if errors.Is(err, ErrNotMilvsuRootPath) {
 				if !cp.Force {
@@ -138,54 +141,6 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 	}
 	return nil
 }
-
-/*
-func getUseCmd(cli clientv3.KV, state State, config *configs.Config) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "use [instance name]",
-		Short: "use specified milvus instance",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				fmt.Println("instance name not provided")
-				cmd.Usage()
-				return
-			}
-			metaPath, err := cmd.Flags().GetString("metaPath")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			force, err := cmd.Flags().GetBool("force")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			rootPath := args[0]
-
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			err = pingEtcd(ctx, cli, rootPath, metaPath)
-			if err != nil {
-				if errors.Is(err, ErrNotMilvsuRootPath) {
-					if !force {
-						fmt.Printf("Connection established, but %s, please check your config or use Dry mode\n", err.Error())
-						return
-					}
-				} else {
-					fmt.Println("failed to ping etcd", err.Error())
-					return
-				}
-			}
-
-			fmt.Printf("Using meta path: %s/%s/\n", rootPath, metaPath)
-
-			state.SetNext(getInstanceState(cli, rootPath, state, config))
-		},
-	}
-	cmd.Flags().Bool("force", false, "force connect ignoring ping Etcd rootPath check")
-	cmd.Flags().String("metaPath", metaPath, "meta path prefix")
-	return cmd
-}*/
 
 type etcdConnectedState struct {
 	cmdState
@@ -262,7 +217,7 @@ func (p *UseParam) ParseArgs(args []string) error {
 }
 
 func (s *etcdConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
-	err := pingEtcd(ctx, s.client, p.instanceName, p.MetaPath)
+	err := pingInstance(ctx, s.client, p.instanceName, p.MetaPath)
 	if err != nil {
 		if errors.Is(err, ErrNotMilvsuRootPath) {
 			if !p.Force {
