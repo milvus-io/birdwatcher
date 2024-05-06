@@ -9,8 +9,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
@@ -37,14 +35,14 @@ func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointPara
 				VirtualName:  channel.VirtualName,
 			},
 		}
-		var cp *internalpb.MsgPosition
+		var cp *models.MsgPosition
 		var segmentID int64
 		var err error
 
 		cp, err = c.getChannelCheckpoint(ctx, channel.VirtualName)
 		if err == nil {
 			checkpoint.Source = "Channel Checkpoint"
-			checkpoint.Checkpoint = models.NewMsgPosition(cp)
+			checkpoint.Checkpoint = cp
 			checkpoints = append(checkpoints, checkpoint)
 			continue
 		}
@@ -52,7 +50,7 @@ func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointPara
 		cp, segmentID, err = c.getCheckpointFromSegments(ctx, p.CollectionID, channel.VirtualName)
 		if err == nil {
 			checkpoint.Source = fmt.Sprintf("from segment id %d", segmentID)
-			checkpoint.Checkpoint = models.NewMsgPosition(cp)
+			checkpoint.Checkpoint = cp
 			checkpoints = append(checkpoints, checkpoint)
 			continue
 		}
@@ -93,9 +91,9 @@ func (rs *Checkpoints) PrintAs(format framework.Format) string {
 	return ""
 }
 
-func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*internalpb.MsgPosition, error) {
+func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*models.MsgPosition, error) {
 	prefix := path.Join(c.basePath, "datacoord-meta", "channel-cp", channelName)
-	results, _, err := common.ListProtoObjects[internalpb.MsgPosition](context.Background(), c.client, prefix)
+	results, _, err := common.ListProtoObjects[internalpb.MsgPosition](ctx, c.client, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +102,12 @@ func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName st
 		return nil, fmt.Errorf("expected 1 position but got %d", len(results))
 	}
 
-	return &results[0], nil
+	pos := models.NewMsgPosition(&results[0])
+	return pos, nil
 }
 
-func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID int64, vchannel string) (*internalpb.MsgPosition, int64, error) {
-	segments, err := common.ListSegments(c.client, c.basePath, func(info *datapb.SegmentInfo) bool {
+func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID int64, vchannel string) (*models.MsgPosition, int64, error) {
+	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(info *models.Segment) bool {
 		return info.CollectionID == collID && info.InsertChannel == vchannel
 	})
 	if err != nil {
@@ -117,18 +116,18 @@ func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID in
 	}
 	fmt.Printf("find segments to list checkpoint for %s, segment found %d\n", vchannel, len(segments))
 	var segmentID int64
-	var pos *internalpb.MsgPosition
+	var pos *models.MsgPosition
 	for _, segment := range segments {
-		if segment.State != commonpb.SegmentState_Flushed &&
-			segment.State != commonpb.SegmentState_Growing &&
-			segment.State != commonpb.SegmentState_Flushing {
+		if segment.State != models.SegmentStateFlushed &&
+			segment.State != models.SegmentStateGrowing &&
+			segment.State != models.SegmentStateFlushing {
 			continue
 		}
 		// skip all empty segment
 		if segment.GetDmlPosition() == nil && segment.GetStartPosition() == nil {
 			continue
 		}
-		var segPos *internalpb.MsgPosition
+		var segPos *models.MsgPosition
 
 		if segment.GetDmlPosition() != nil {
 			segPos = segment.GetDmlPosition()
@@ -138,7 +137,7 @@ func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID in
 
 		if pos == nil || segPos.GetTimestamp() < pos.GetTimestamp() {
 			pos = segPos
-			segmentID = segment.GetID()
+			segmentID = segment.ID
 		}
 	}
 

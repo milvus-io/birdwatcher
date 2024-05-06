@@ -53,9 +53,12 @@ func (c *FileAuditKV) Get(ctx context.Context, key string, opts ...clientv3.OpOp
 
 // Delete deletes a key, or optionally using WithRange(end), [key, end).
 func (c *FileAuditKV) Delete(ctx context.Context, key string, opts ...clientv3.OpOption) (*clientv3.DeleteResponse, error) {
-	fmt.Println("audio delete", key)
+	fmt.Println("audit delete", key)
 	opts = append(opts, clientv3.WithPrevKV())
 	resp, err := c.cli.Delete(ctx, key, opts...)
+	if err != nil {
+		return resp, err
+	}
 	c.writeHeader(models.OpDel, int32(len(resp.PrevKvs)))
 	for _, kv := range resp.PrevKvs {
 		c.writeLogKV(kv)
