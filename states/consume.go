@@ -25,6 +25,7 @@ type ConsumeParam struct {
 	Topic               string `name:"topic" default:"" desc:"topic to consume"`
 	ShardName           string `name:"shard_name" default:"" desc:"shard name(vchannel name) to filter with"`
 	Detail              bool   `name:"detail" default:"false" desc:"print msg detail"`
+	ManualID            int64  `name:"manual_id" default:"0" desc"manual id"`
 }
 
 func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) error {
@@ -49,6 +50,8 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 				messageID = kafka.DeserializeKafkaID(checkpoint.GetMsgID())
 			}
 		}
+	case "manual":
+		messageID = kafka.DeserializeKafkaID(kafka.SerializeKafkaID(p.ManualID))
 	default:
 	}
 
