@@ -13,13 +13,14 @@ import (
 )
 
 // ListCollectionLoadedInfo returns collection loaded info with provided version.
-func ListCollectionLoadedInfo(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(any) bool) ([]*models.CollectionLoaded, error) {
+func ListCollectionLoadedInfo(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(cl *models.CollectionLoaded) bool) ([]*models.CollectionLoaded, error) {
 	switch version {
 	case models.LTEVersion2_1:
 		prefix := path.Join(basePath, CollectionLoadPrefix)
 		infos, paths, err := ListProtoObjects(ctx, cli, prefix, func(info *querypb.CollectionInfo) bool {
+			cl := models.NewCollectionLoadedV2_1(info, "")
 			for _, filter := range filters {
-				if !filter(info) {
+				if !filter(cl) {
 					return false
 				}
 			}
@@ -34,8 +35,9 @@ func ListCollectionLoadedInfo(ctx context.Context, cli kv.MetaKV, basePath strin
 	case models.GTEVersion2_2:
 		prefix := path.Join(basePath, CollectionLoadPrefixV2)
 		infos, paths, err := ListProtoObjects(ctx, cli, prefix, func(info *querypbv2.CollectionLoadInfo) bool {
+			cl := models.NewCollectionLoadedV2_2(info, "")
 			for _, filter := range filters {
-				if !filter(info) {
+				if !filter(cl) {
 					return false
 				}
 			}

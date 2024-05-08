@@ -22,8 +22,8 @@ type CollectionLoaded struct {
 	Status       LoadStatus
 	FieldIndexID map[int64]int64
 
-	// orignial etcd key
-	key     string
+	// orignial etcd Key
+	Key     string
 	Version string
 }
 
@@ -46,7 +46,7 @@ func NewCollectionLoadedV2_1(info *querypb.CollectionInfo, key string) *Collecti
 	c.InMemoryPercentage = info.GetInMemoryPercentage()
 	c.ReplicaIDs = info.GetReplicaIds()
 	c.Version = LTEVersion2_1
-	c.key = key
+	c.Key = key
 
 	return c
 }
@@ -57,7 +57,7 @@ func NewCollectionLoadedV2_2(info *querypbv2.CollectionLoadInfo, key string) *Co
 	c.Status = LoadStatus(info.GetStatus())
 	c.FieldIndexID = info.GetFieldIndexID()
 	c.Version = GTEVersion2_2
-	c.key = key
+	c.Key = key
 	return c
 }
 

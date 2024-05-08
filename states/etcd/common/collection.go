@@ -31,7 +31,9 @@ const (
 	// CollectionLoadPrefix is prefix for querycoord collection loaded in milvus v2.1.x
 	CollectionLoadPrefix = "queryCoord-collectionMeta"
 	// CollectionLoadPrefixV2 is prefix for querycoord collection loaded in milvus v2.2.x
-	CollectionLoadPrefixV2 = "querycoord-collection-loadinfo"
+	CollectionLoadPrefixV2      = "querycoord-collection-loadinfo"
+	PartitionLoadedPrefixLegacy = "queryCoord-partitionMeta"
+	PartitionLoadedPrefix       = "querycoord-partition-loadinfo"
 )
 
 var (

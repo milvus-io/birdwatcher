@@ -6,6 +6,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -14,41 +15,66 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type ForceReleaseParam struct {
+	framework.ParamBase `use:"force-release"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to force release"`
+	All                 bool  `name:"all" default:"false" desc:"force release all collections loaded"`
+}
+
 // getForceReleaseCmd returns command for force-release
-// usage: force-release [flags]
-func getForceReleaseCmd(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "force-release",
-		Short: "Force release the collections from QueryCoord",
-		Run: func(cmd *cobra.Command, args []string) {
-			/*
-				// basePath = 'by-dev/meta/'
-				// queryCoord prefix = 'queryCoord-'
-				now := time.Now()
-				err := backupEtcd(cli, basePath, "queryCoord-", string(compQueryCoord), fmt.Sprintf("bw_etcd_querycoord.%s.bak.gz", now.Format("060102-150405")), false)
-				if err != nil {
-					fmt.Printf("backup etcd failed, error: %v, stop doing force-release\n", err)
-				}*/
-
-			// remove all keys start with [basePath]/queryCoord- qcv1 meta
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-			defer cancel()
-			err := cli.RemoveWithPrefix(ctx, path.Join(basePath, "queryCoord-"))
-			if err != nil {
-				fmt.Printf("failed to remove queryCoord v1 etcd kv, err: %v\n", err)
-			}
-			// remove all keys start with [basePath]/querycoord- qcv2 meta
-			err = cli.RemoveWithPrefix(ctx, path.Join(basePath, "querycoord-"))
-			if err != nil {
-				fmt.Printf("failed to remove queryCoord v2 etcd kv, err: %v\n", err)
-			}
-
-			// release all collections from online querynodes
-			// maybe? kill session of queryCoord?
-		},
+// usage: force-release --collection [collection id]
+// or force-release --all
+func (s *InstanceState) ForceReleaseCommand(ctx context.Context, p *ForceReleaseParam) error {
+	// release all collections / partitions
+	if p.All {
+		err := s.client.RemoveWithPrefix(ctx, "queryCoord-")
+		if err != nil {
+			fmt.Printf("failed to remove queryCoord v1 etcd kv, err: %v\n", err)
+		}
+		// remove all keys start with [basePath]/querycoord- qcv2 meta
+		err = s.client.RemoveWithPrefix(ctx, "querycoord-")
+		if err != nil {
+			fmt.Printf("failed to remove queryCoord v2 etcd kv, err: %v\n", err)
+		}
+		return nil
 	}
 
-	return cmd
+	collections, err := common.ListCollectionLoadedInfo(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(cl *models.CollectionLoaded) bool {
+		return cl.CollectionID == p.CollectionID
+	})
+	if err != nil {
+		return err
+	}
+	partitions, err := common.ListPartitionLoadedInfo(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(pl *models.PartitionLoaded) bool {
+		return p.CollectionID == pl.CollectionID
+	})
+	if err != nil {
+		return err
+	}
+	if len(collections) == 0 && len(partitions) == 0 {
+		fmt.Println("no collections/partitions selected")
+		return nil
+	}
+
+	for _, cl := range collections {
+		fmt.Printf("Force release collection %d, key: %s\n", cl.CollectionID, cl.Key)
+		err := s.client.Remove(ctx, cl.Key)
+		if err != nil {
+			fmt.Printf("failed to force release collection %d, err: %v\n", cl.CollectionID, err)
+			continue
+		}
+		fmt.Printf("Force release collection %d done", cl.CollectionID)
+	}
+	for _, pl := range partitions {
+		fmt.Printf("Force release partition %d, key: %s\n", pl.PartitionID, pl.Key)
+		err := s.client.Remove(ctx, pl.Key)
+		if err != nil {
+			fmt.Printf("failed to force release partition %d, err: %v\n", pl.PartitionID, err)
+			continue
+		}
+		fmt.Printf("Force release partition %d done", pl.PartitionID)
+	}
+	return nil
 }
 
 // getReleaseDroppedCollectionCmd returns command for release-dropped-collection

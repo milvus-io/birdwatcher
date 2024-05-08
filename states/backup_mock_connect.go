@@ -71,9 +71,6 @@ func (s *embedEtcdMockState) SetupCommands() {
 		// inspect-pk
 		getInspectPKCmd(s.client, rootPath),
 
-		// force-release
-		getForceReleaseCmd(s.client, rootPath),
-
 		// for testing
 		etcd.RepairCommand(s.client, rootPath),
 
