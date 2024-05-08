@@ -3,13 +3,17 @@ package states
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/mq"
 	"github.com/milvus-io/birdwatcher/mq/ifc"
+	"github.com/milvus-io/birdwatcher/mq/kafka"
+	"github.com/milvus-io/birdwatcher/mq/pulsar"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/msgpb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
 type ConsumeParam struct {
@@ -22,11 +26,44 @@ type ConsumeParam struct {
 }
 
 func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) error {
-	c, err := mq.NewConsumer(p.MqType, p.MqAddress, p.Topic, ifc.MqOption{
-		SubscriptionInitPos: ifc.SubscriptionPositionEarliest,
-	})
+
+	prefix := path.Join(s.basePath, "datacoord-meta", "channel-cp", p.ShardName)
+	results, _, err := common.ListProtoObjects[msgpb.MsgPosition](context.Background(), s.client, prefix)
 	if err != nil {
 		return err
+	}
+	var messageID ifc.MessageID
+	if len(results) == 1 {
+		checkpoint := results[0]
+		switch p.MqType {
+		case "pulsar":
+			id, err := pulsar.DeserializePulsarMsgID(checkpoint.GetMsgID())
+			if err == nil {
+				messageID = id
+			}
+		case "kafka":
+			messageID = kafka.DeserializeKafkaID(checkpoint.GetMsgID())
+		}
+	}
+
+	subPos := ifc.SubscriptionPositionEarliest
+	if messageID != nil {
+		subPos = ifc.SubscriptionPositionLatest
+	}
+
+	c, err := mq.NewConsumer(p.MqType, p.MqAddress, p.Topic, ifc.MqOption{
+		SubscriptionInitPos: subPos,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if messageID != nil {
+		err := c.Seek(messageID)
+		if err != nil {
+			return err
+		}
 	}
 
 	latestID, err := c.GetLastMessageID()

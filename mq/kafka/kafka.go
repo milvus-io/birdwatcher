@@ -12,12 +12,14 @@ import (
 	"github.com/milvus-io/birdwatcher/mq/ifc"
 )
 
+const DefaultPartitionIdx = 0
+
 type Consumer struct {
 	topic string
 	c     *kafka.Consumer
 }
 
-func NewKafkaConsumer(address, topic, groupID string) (*Consumer, error) {
+func NewKafkaConsumer(address, topic, groupID string, mqConfig ifc.MqOption) (*Consumer, error) {
 	config := &kafka.ConfigMap{
 		"bootstrap.servers":   address,
 		"api.version.request": true,
@@ -29,6 +31,39 @@ func NewKafkaConsumer(address, topic, groupID string) (*Consumer, error) {
 	}
 
 	return &Consumer{topic: topic, c: c}, nil
+}
+
+func (k *Consumer) Consume() (ifc.Message, error) {
+	e, err := k.c.ReadMessage(time.Second * 5)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kafkaMessage{msg: e}, nil
+}
+
+func (k *Consumer) Seek(id ifc.MessageID) error {
+	offset := kafka.Offset(id.(*kafkaID).messageID)
+	return k.internalSeek(offset, true)
+}
+
+func (k *Consumer) internalSeek(offset kafka.Offset, inclusive bool) error {
+	err := k.c.Assign([]kafka.TopicPartition{{Topic: &k.topic, Partition: DefaultPartitionIdx, Offset: offset}})
+	if err != nil {
+		return err
+	}
+
+	timeout := 0
+	// If seek timeout is not 0 the call twice will return error isStarted RD_KAFKA_RESP_ERR__STATE.
+	// if the timeout is 0 it will initiate the seek  but return immediately without any error reporting
+	if err := k.c.Seek(kafka.TopicPartition{
+		Topic:     &k.topic,
+		Partition: DefaultPartitionIdx,
+		Offset:    offset,
+	}, timeout); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (k *Consumer) GetLastMessageID() (ifc.MessageID, error) {

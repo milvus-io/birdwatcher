@@ -16,7 +16,7 @@ func NewConsumer(mqType, address, channel string, config ifc.MqOption) (ifc.Cons
 	groupID := fmt.Sprintf("group-id-%d", time.Now().UnixNano())
 	switch mqType {
 	case "kafka":
-		return kafka.NewKafkaConsumer(address, channel, groupID)
+		return kafka.NewKafkaConsumer(address, channel, groupID, config)
 	case "pulsar":
 		return pulsar.NewPulsarConsumer(address, channel, groupID, config)
 	default:
