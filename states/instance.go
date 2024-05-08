@@ -71,8 +71,6 @@ func (s *InstanceState) SetupCommands() {
 		getBackupEtcdCmd(cli, basePath),
 		// kill --component [component] --id [id]
 		getEtcdKillCmd(cli, basePath),
-		// force-release
-		getForceReleaseCmd(cli, basePath),
 		// download-pk
 		getDownloadPKCmd(cli, basePath),
 		// visit [component] [id]
