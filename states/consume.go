@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/framework"
@@ -18,6 +19,7 @@ import (
 
 type ConsumeParam struct {
 	framework.ParamBase `use:"consume" desc:"consume msgs from provided topic"`
+	StartPosition       string `name:"start_pos" default:"cp" desc:"position to start with"`
 	MqType              string `name:"mq_type" default:"pulsar" desc:"message queue type to consume"`
 	MqAddress           string `name:"mq_addr" default:"pulsar://127.0.0.1:6650" desc:"message queue service address"`
 	Topic               string `name:"topic" default:"" desc:"topic to consume"`
@@ -27,23 +29,27 @@ type ConsumeParam struct {
 
 func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) error {
 
-	prefix := path.Join(s.basePath, "datacoord-meta", "channel-cp", p.ShardName)
-	results, _, err := common.ListProtoObjects[msgpb.MsgPosition](context.Background(), s.client, prefix)
-	if err != nil {
-		return err
-	}
 	var messageID ifc.MessageID
-	if len(results) == 1 {
-		checkpoint := results[0]
-		switch p.MqType {
-		case "pulsar":
-			id, err := pulsar.DeserializePulsarMsgID(checkpoint.GetMsgID())
-			if err == nil {
-				messageID = id
-			}
-		case "kafka":
-			messageID = kafka.DeserializeKafkaID(checkpoint.GetMsgID())
+	switch p.StartPosition {
+	case "cp":
+		prefix := path.Join(s.basePath, "datacoord-meta", "channel-cp", p.ShardName)
+		results, _, err := common.ListProtoObjects[msgpb.MsgPosition](context.Background(), s.client, prefix)
+		if err != nil {
+			return err
 		}
+		if len(results) == 1 {
+			checkpoint := results[0]
+			switch p.MqType {
+			case "pulsar":
+				id, err := pulsar.DeserializePulsarMsgID(checkpoint.GetMsgID())
+				if err == nil {
+					messageID = id
+				}
+			case "kafka":
+				messageID = kafka.DeserializeKafkaID(checkpoint.GetMsgID())
+			}
+		}
+	default:
 	}
 
 	subPos := ifc.SubscriptionPositionEarliest
@@ -60,6 +66,15 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 	}
 
 	if messageID != nil {
+		fmt.Println("Using message ID to seek", messageID)
+		err := c.Seek(messageID)
+		if err != nil {
+			return err
+		}
+	}
+	// manual seek to earliest
+	if strings.EqualFold(p.MqType, "kafka") && messageID == nil {
+		messageID := kafka.DeserializeKafkaID(make([]byte, 8))
 		err := c.Seek(messageID)
 		if err != nil {
 			return err
