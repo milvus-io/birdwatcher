@@ -28,6 +28,11 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
+			force, err := cmd.Flags().GetBool("force")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 
 			collections, err := common.ListCollectionsVersion(context.Background(), cli, basePath, etcdversion.GetVersion())
 			if err != nil {
@@ -48,12 +53,16 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				}
 				return true
 			})
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 
 			targets := make([]string, 0, len(paths))
 			for i, watchChannel := range watchChannels {
 				_, ok := validChannels[watchChannel.GetVchan().GetChannelName()]
-				if !ok {
-					fmt.Printf("%s might be an orphan channel, collection id: %d\n", watchChannel.GetVchan().GetChannelName(), watchChannel.GetVchan().GetCollectionID())
+				if !ok || force {
+					fmt.Printf("%s selected as target channel, collection id: %d\n", watchChannel.GetVchan().GetChannelName(), watchChannel.GetVchan().GetCollectionID())
 					targets = append(targets, paths[i])
 				}
 			}
@@ -77,5 +86,6 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 	cmd.Flags().Bool("run", false, "flags indicating whether to remove channel from meta")
 	cmd.Flags().String("channel", "", "channel name to remove")
+	cmd.Flags().Bool("force", false, "force remove channel ignoring collection check")
 	return cmd
 }
