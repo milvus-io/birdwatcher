@@ -181,6 +181,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 		sort.Slice(info.GetStatslogs(), func(i, j int) bool {
 			return info.GetStatslogs()[i].FieldID < info.GetStatslogs()[j].FieldID
 		})
+		var statsLogSize int64
 		for _, log := range info.GetStatslogs() {
 			fmt.Printf("Field %d:\n", log.FieldID)
 			for _, binlog := range log.Binlogs {
@@ -190,17 +191,22 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				fmt.Printf("Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
 					binlog.LogSize, binlog.EntriesNum,
 					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
+				statsLogSize += binlog.LogSize
 			}
 		}
+		fmt.Println("=== Segment Total Statslog Size: ", hrSize(statsLogSize))
 
 		fmt.Println("**************************************")
 		fmt.Println("Delta Logs:")
+		var deltaLogSize int64
 		for _, log := range info.GetDeltalogs() {
 			for _, l := range log.Binlogs {
 				fmt.Printf("Entries: %d From: %v - To: %v\n", l.EntriesNum, l.TimestampFrom, l.TimestampTo)
-				fmt.Printf("Path: %v\n", l.LogPath)
+				fmt.Printf("Path: %v LogSize: %s\n", l.LogPath, hrSize(l.LogSize))
+				deltaLogSize += l.LogSize
 			}
 		}
+		fmt.Println("=== Segment Total Deltalog Size: ", hrSize(deltaLogSize))
 	}
 
 	fmt.Println("================================================================================")
