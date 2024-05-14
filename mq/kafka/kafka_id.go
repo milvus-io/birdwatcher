@@ -24,11 +24,11 @@ func (kid *kafkaID) AtEarliestPosition() bool {
 }
 
 func (kid *kafkaID) Equal(msgID []byte) (bool, error) {
-	return kid.messageID == DeserializeKafkaID(msgID), nil
+	return kid.messageID == DeserializeKafkaID(msgID).messageID, nil
 }
 
 func (kid *kafkaID) LessOrEqualThan(msgID []byte) (bool, error) {
-	return kid.messageID <= DeserializeKafkaID(msgID), nil
+	return kid.messageID <= DeserializeKafkaID(msgID).messageID, nil
 }
 
 func (kid *kafkaID) String() string {
@@ -41,6 +41,6 @@ func SerializeKafkaID(messageID int64) []byte {
 	return b
 }
 
-func DeserializeKafkaID(messageID []byte) int64 {
-	return int64(ifc.Endian.Uint64(messageID))
+func DeserializeKafkaID(messageID []byte) *kafkaID {
+	return &kafkaID{messageID: int64(ifc.Endian.Uint64(messageID))}
 }

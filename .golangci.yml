@@ -6,6 +6,8 @@ run:
     - docs
     - scripts
     - internal/core
+  build-tags:
+  - "WKAFKA"
 
 linters:
   disable-all: true
