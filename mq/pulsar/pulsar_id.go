@@ -72,8 +72,12 @@ func SerializePulsarMsgID(messageID pulsar.MessageID) []byte {
 }
 
 // DeserializePulsarMsgID returns the deserialized message ID
-func DeserializePulsarMsgID(messageID []byte) (pulsar.MessageID, error) {
-	return pulsar.DeserializeMessageID(messageID)
+func DeserializePulsarMsgID(messageID []byte) (ifc.MessageID, error) {
+	id, err := pulsar.DeserializeMessageID(messageID)
+	if err != nil {
+		return nil, err
+	}
+	return &pulsarID{messageID: id}, nil
 }
 
 // msgIDToString is used to convert a message ID to string

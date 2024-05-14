@@ -49,6 +49,12 @@ func (p *pulsarConsumer) Consume() (ifc.Message, error) {
 	return &pulsarMessage{msg: msg}, nil
 }
 
+func (p *pulsarConsumer) Seek(id ifc.MessageID) error {
+	messageID := id.(*pulsarID).messageID
+	err := p.consumer.Seek(messageID)
+	return err
+}
+
 func (p *pulsarConsumer) GetLastMessageID() (ifc.MessageID, error) {
 	msgID, err := p.consumer.GetLastMessageID(p.topic, 0)
 	return &pulsarID{messageID: msgID}, err

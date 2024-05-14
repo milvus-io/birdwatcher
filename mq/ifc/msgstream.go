@@ -8,6 +8,7 @@ type Consumer interface {
 	GetLastMessageID() (MessageID, error)
 	GetLastMessage() (Message, error)
 	Consume() (Message, error)
+	Seek(MessageID) error
 	Close() error
 }
 
