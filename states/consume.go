@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/mq"
 	"github.com/milvus-io/birdwatcher/mq/ifc"
-	"github.com/milvus-io/birdwatcher/mq/kafka"
-	"github.com/milvus-io/birdwatcher/mq/pulsar"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/msgpb"
+	"github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
@@ -25,7 +24,7 @@ type ConsumeParam struct {
 	Topic               string `name:"topic" default:"" desc:"topic to consume"`
 	ShardName           string `name:"shard_name" default:"" desc:"shard name(vchannel name) to filter with"`
 	Detail              bool   `name:"detail" default:"false" desc:"print msg detail"`
-	ManualID            int64  `name:"manual_id" default:"0" desc"manual id"`
+	ManualID            int64  `name:"manual_id" default:"0" desc:"manual id"`
 }
 
 func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) error {
@@ -34,24 +33,23 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 	switch p.StartPosition {
 	case "cp":
 		prefix := path.Join(s.basePath, "datacoord-meta", "channel-cp", p.ShardName)
-		results, _, err := common.ListProtoObjects[msgpb.MsgPosition](context.Background(), s.client, prefix)
+		results, _, err := common.ListProtoObjects[msgpb.MsgPosition](ctx, s.client, prefix)
 		if err != nil {
 			return err
 		}
 		if len(results) == 1 {
 			checkpoint := results[0]
-			switch p.MqType {
-			case "pulsar":
-				id, err := pulsar.DeserializePulsarMsgID(checkpoint.GetMsgID())
-				if err == nil {
-					messageID = id
-				}
-			case "kafka":
-				messageID = kafka.DeserializeKafkaID(checkpoint.GetMsgID())
+			messageID, err = mq.ParsePositionFromCheckpoint(p.MqType, checkpoint.GetMsgID())
+			if err != nil {
+				return err
 			}
 		}
 	case "manual":
-		messageID = kafka.DeserializeKafkaID(kafka.SerializeKafkaID(p.ManualID))
+		var err error
+		messageID, err = mq.ParseManualMessageID(p.MqType, p.ManualID)
+		if err != nil {
+			return err
+		}
 	default:
 	}
 
@@ -70,14 +68,6 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 
 	if messageID != nil {
 		fmt.Println("Using message ID to seek", messageID)
-		err := c.Seek(messageID)
-		if err != nil {
-			return err
-		}
-	}
-	// manual seek to earliest
-	if strings.EqualFold(p.MqType, "kafka") && messageID == nil {
-		messageID := kafka.DeserializeKafkaID(make([]byte, 8))
 		err := c.Seek(messageID)
 		if err != nil {
 			return err
@@ -114,6 +104,10 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 						fmt.Print(v)
 					} else {
 						fmt.Print(v.GetShardName())
+						err := ValidateMsg(msgType, msg.Payload())
+						if err != nil {
+							fmt.Println(err.Error())
+						}
 					}
 				}
 			default:
@@ -146,4 +140,41 @@ func ParseMsg(msgType commonpb.MsgType, payload []byte) (interface {
 		return nil, err
 	}
 	return msg, nil
+}
+
+func ValidateMsg(msgType commonpb.MsgType, payload []byte) error {
+	switch msgType {
+	case commonpb.MsgType_Insert:
+		msg := &msgpb.InsertRequest{}
+		proto.Unmarshal(payload, msg)
+		for _, fieldData := range msg.GetFieldsData() {
+			msgType := fieldData.GetType()
+			switch msgType {
+			case schemapb.DataType_Int64:
+				l := len(fieldData.GetScalars().GetLongData().GetData())
+				if l != int(msg.GetNumRows()) {
+					return errors.Newf("Field %d(%s) len = %d, datatype %v mismatch num rows: %d", fieldData.GetFieldId(), fieldData.GetFieldName(), l, msgType, msg.GetNumRows())
+				}
+			case schemapb.DataType_VarChar:
+				l := len(fieldData.GetScalars().GetStringData().GetData())
+				if l != int(msg.GetNumRows()) {
+					return errors.Newf("Field %d(%s) len = %d, datatype %v mismatch num rows: %d", fieldData.GetFieldId(), fieldData.GetFieldName(), l, msgType, msg.GetNumRows())
+				}
+			case schemapb.DataType_Bool:
+				l := len(fieldData.GetScalars().GetBoolData().GetData())
+				if l != int(msg.GetNumRows()) {
+					return errors.Newf("Field %d(%s) len = %d, datatype %v mismatch num rows: %d", fieldData.GetFieldId(), fieldData.GetFieldName(), l, msgType, msg.GetNumRows())
+				}
+			case schemapb.DataType_FloatVector:
+				l := len(fieldData.GetVectors().GetFloatVector().GetData())
+				dim := fieldData.GetVectors().GetDim()
+				if l/int(dim) != int(msg.GetNumRows()) {
+					return errors.Newf("Field %d(%s) len = %d, datatype %v mismatch num rows: %d", fieldData.GetFieldId(), fieldData.GetFieldName(), l, msgType, msg.GetNumRows())
+				}
+			default:
+				fmt.Println("skip unhanlded data type", fieldData.GetType())
+			}
+		}
+	}
+	return nil
 }
