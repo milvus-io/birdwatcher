@@ -179,10 +179,12 @@ func (a *PromptApp) historySuggestions(input string) []prompt.Suggest {
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Ts > items[j].Ts
 	})
+
+	lastIdx := strings.LastIndex(input, " ") + 1
 	return lo.Map(items, func(item history.Item, _ int) prompt.Suggest {
 		t := time.Unix(item.Ts, 0)
 		return prompt.Suggest{
-			Text:        item.Cmd,
+			Text:        item.Cmd[lastIdx:],
 			Description: t.Format("2006-01-02 15:03:04"),
 		}
 	})
