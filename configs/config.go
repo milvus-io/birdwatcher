@@ -109,6 +109,14 @@ func (c *Config) createDefault() error {
 	return nil
 }
 
+func (c *Config) setupWorkspaceFolder() {
+	// try best to setup
+	err := os.MkdirAll(c.WorkspacePath, os.ModePerm)
+	if err != nil {
+		fmt.Println("failed to set workspace folder", err.Error())
+	}
+}
+
 func NewConfig(configPath string) (*Config, error) {
 	config := &Config{
 		ConfigPath: configPath,
@@ -116,8 +124,10 @@ func NewConfig(configPath string) (*Config, error) {
 	err := config.load()
 	// config path not exist, may first time to run
 	if errors.Is(err, errConfigPathNotExist) {
-		return config, config.createDefault()
+		err = config.createDefault()
 	}
+
+	config.setupWorkspaceFolder()
 
 	return config, err
 }
