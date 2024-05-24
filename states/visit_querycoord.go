@@ -111,19 +111,29 @@ func checkerActivationCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 func checkerActivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activate",
-		Short: "activate checkerID",
+		Short: "activate checkerID collectionIDs",
 		Run: func(cmd *cobra.Command, args []string) {
 			checkerID, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				fmt.Println("checkerID must be a number")
 				return
 			}
+			collectionIDs := make([]int64, 0)
+			for i := 0; i < len(args); i++ {
+				collectionID, err := strconv.ParseInt(args[i], 10, 64)
+				if err != nil {
+					fmt.Println("collectionID must be a number")
+					return
+				}
+				collectionIDs = append(collectionIDs, collectionID)
+			}
 			req := &querypbv2.ActivateCheckerRequest{
 				Base: &commonpb.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
-				CheckerID: int32(checkerID),
+				CheckerID:   int32(checkerID),
+				Collections: collectionIDs,
 			}
 
 			status, err := clientv2.ActivateChecker(context.Background(), req)
@@ -152,12 +162,23 @@ func checkerDeactivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 				fmt.Println("checkerID must be a number")
 				return
 			}
+			collectionIDs := make([]int64, 0)
+			for i := 0; i < len(args); i++ {
+				collectionID, err := strconv.ParseInt(args[i], 10, 64)
+				if err != nil {
+					fmt.Println("collectionID must be a number")
+					return
+				}
+				collectionIDs = append(collectionIDs, collectionID)
+			}
+
 			req := &querypbv2.DeactivateCheckerRequest{
 				Base: &commonpb.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
-				CheckerID: int32(checkerID),
+				CheckerID:   int32(checkerID),
+				Collections: collectionIDs,
 			}
 
 			status, err := clientv2.DeactivateChecker(context.Background(), req)
@@ -212,9 +233,17 @@ func checkerListCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Comman
 				return resp.CheckerInfos[i].GetId() < resp.CheckerInfos[j].GetId()
 			})
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
-			fmt.Fprintln(w, "id\tdesc\tfound\tactivated")
+			fmt.Fprintln(w, "id\tdesc\tfound\tactivated\tinactive collections")
 			for _, info := range resp.CheckerInfos {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", info.GetId(), info.GetDesc(), info.GetFound(), info.GetActivated())
+				inactiveCollections := ""
+				for i, id := range info.GetInactiveCollections() {
+					inactiveCollections += strconv.FormatInt(id, 10)
+					if i != len(info.GetInactiveCollections())-1 {
+						inactiveCollections += ","
+					}
+				}
+
+				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\n", info.GetId(), info.GetDesc(), info.GetFound(), info.GetActivated(), inactiveCollections)
 			}
 			w.Flush()
 		},
