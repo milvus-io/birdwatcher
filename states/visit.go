@@ -181,7 +181,7 @@ func getMetrics(ctx context.Context, client metricsSource) (string, error) {
 }
 
 func getConfiguration(ctx context.Context, client configurationSource, id int64) ([]*commonpbv2.KeyValuePair, error) {
-	resp, err := client.ShowConfigurations(context.Background(), &internalpbv2.ShowConfigurationsRequest{
+	resp, err := client.ShowConfigurations(ctx, &internalpbv2.ShowConfigurationsRequest{
 		Base: &commonpbv2.MsgBase{
 			SourceID: -1,
 			TargetID: id,

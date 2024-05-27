@@ -73,13 +73,11 @@ func getDownloadPKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return nil
 			}
 			exists, err := minioClient.BucketExists(context.Background(), bucketName)
+			if err != nil {
+				return err
+			}
 			if !exists {
 				fmt.Printf("bucket %s not exists\n", bucketName)
-				return nil
-			}
-
-			if !exists {
-				fmt.Printf("Bucket not exist\n")
 				return nil
 			}
 
