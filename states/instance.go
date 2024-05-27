@@ -107,7 +107,7 @@ func (s *InstanceState) SetupCommands() {
 		// fetch-metrics
 		getFetchMetricsCmd(cli, basePath),
 		// dry-mode
-		getDryModeCmd(cli, s, s.etcdState),
+		getDryModeCmd(s, s.etcdState),
 		etcd.DownloadCommand(cli, basePath),
 	)
 
@@ -118,7 +118,7 @@ func (s *InstanceState) SetupCommands() {
 }
 
 // getDryModeCmd enter dry-mode
-func getDryModeCmd(cli clientv3.KV, state *InstanceState, etcdState State) *cobra.Command {
+func getDryModeCmd(state *InstanceState, etcdState State) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dry-mode",
 		Short: "enter dry mode to select instance",
