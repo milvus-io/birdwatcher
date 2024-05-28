@@ -19,11 +19,13 @@ case ":$PATH:" in
 esac
 
 echo "using protoc-gen-go: $(which protoc-gen-go)"
+protoc=/home/yangxuan/Github/milvus/cmake_build/bin/protoc
 
 mkdir -p commonpb
 mkdir -p milvuspb
 mkdir -p schemapb
 mkdir -p internalpb
+mkdir -p rgpb
 mkdir -p etcdpb
 mkdir -p datapb
 mkdir -p indexpb
@@ -40,7 +42,13 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.2/schemapb" \
     --go_opt="Mmsg.proto=github.com/milvus-io/birdwatcher/proto/v2.2/msgpb" \
     --go_opt="Mfeder.proto=github.com/milvus-io/birdwatcher/proto/v2.2/federpb" \
+    --go_opt="Mrg.proto=github.com/milvus-io/birdwatcher/proto/v2.2/rgpb" \
     --go_out=plugins=grpc,paths=source_relative:milvuspb milvus.proto
+# rg.proto
+${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.2/commonpb" \
+    --go_out=plugins=grpc,paths=source_relative:rgpb rg.proto
 # feder.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb" \
@@ -104,6 +112,7 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mdata_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.2/datapb" \
     --go_opt="Mmsg.proto=github.com/milvus-io/birdwatcher/proto/v2.2/msgpb" \
     --go_opt="Mindex_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.2/indexpb" \
+    --go_opt="Mrg.proto=github.com/milvus-io/birdwatcher/proto/v2.2/rgpb" \
     --go_out=plugins=grpc,paths=source_relative:querypb query_coord.proto
 # index_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\

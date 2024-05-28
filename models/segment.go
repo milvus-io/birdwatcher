@@ -95,7 +95,8 @@ func NewSegmentFromV2_1(info *datapb.SegmentInfo, key string) *Segment {
 }
 
 func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
-	lazy func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error)) *Segment {
+	lazy func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error),
+) *Segment {
 	s := newSegmentFromBase(info)
 	s.key = key
 	s.State = SegmentState(info.GetState())
@@ -108,7 +109,7 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 			r := &FieldBinlog{
 				FieldID: fbl.GetFieldID(),
 				Binlogs: lo.Map(fbl.GetBinlogs(), func(binlog *datapbv2.Binlog, _ int) *Binlog {
-					return newBinlog(binlog)
+					return newBinlogV2(binlog)
 				}),
 			}
 			return r
@@ -216,6 +217,7 @@ type Binlog struct {
 	TimestampTo   uint64
 	LogPath       string
 	LogSize       int64
+	MemSize       int64
 }
 
 func newBinlog[T interface {
@@ -231,5 +233,23 @@ func newBinlog[T interface {
 		TimestampTo:   binlog.GetTimestampTo(),
 		LogPath:       binlog.GetLogPath(),
 		LogSize:       binlog.GetLogSize(),
+	}
+}
+
+func newBinlogV2[T interface {
+	GetEntriesNum() int64
+	GetTimestampFrom() uint64
+	GetTimestampTo() uint64
+	GetLogPath() string
+	GetLogSize() int64
+	GetMemorySize() int64
+}](binlog T) *Binlog {
+	return &Binlog{
+		EntriesNum:    binlog.GetEntriesNum(),
+		TimestampFrom: binlog.GetTimestampFrom(),
+		TimestampTo:   binlog.GetTimestampTo(),
+		LogPath:       binlog.GetLogPath(),
+		LogSize:       binlog.GetLogSize(),
+		MemSize:       binlog.GetMemorySize(),
 	}
 }

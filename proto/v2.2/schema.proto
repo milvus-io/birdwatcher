@@ -36,6 +36,7 @@ enum DataType {
   FloatVector = 101;
   Float16Vector = 102;
   BFloat16Vector = 103;
+  SparseFloatVector = 104;
 }
 
 enum FieldState {
@@ -63,6 +64,7 @@ message FieldSchema {
   ValueField default_value = 11; // default_value only support scalars except array and json for now
   bool is_dynamic = 12; // mark whether this field is the dynamic field
   bool is_partition_key = 13; // enable logic partitions
+  bool is_clustering_key = 14;
 }
 
 /**
@@ -74,6 +76,7 @@ message CollectionSchema {
   bool autoID = 3 [deprecated=true]; // deprecated later, keep compatible with c++ part now
   repeated FieldSchema fields = 4;
   bool enable_dynamic_field = 5; // mark whether this table has the dynamic field function enabled.
+  repeated common.KeyValuePair properties = 6;
 }
 
 message BoolArray { repeated bool data = 1; }
@@ -124,13 +127,22 @@ message ScalarField {
   }
 }
 
+// beta, api may change
+message SparseFloatArray {
+  repeated bytes contents = 1;
+  // dim is the max dimension of the current batch of vectors
+  int64 dim = 2;
+}
+
 message VectorField {
+  // For sparse vector, dim is the max dimension of the current batch of vectors
   int64 dim = 1;
   oneof data {
     FloatArray float_vector = 2;
     bytes binary_vector = 3;
     bytes float16_vector = 4;
     bytes bfloat16_vector = 5;
+    SparseFloatArray sparse_float_vector = 6;
   }
 }
 
@@ -160,4 +172,25 @@ message SearchResultData {
   IDs ids = 5;
   repeated int64 topks = 6;
   repeated string output_fields = 7;
+  FieldData group_by_field_value = 8;
+  int64 all_search_count = 9;
+}
+
+// vector field clustering info
+message VectorClusteringInfo {
+  // for multi vectors
+  string field = 1;
+  schema.VectorField centroid = 2;
+}
+
+// Scalar field clustering info
+// todo more definitions: min/max, etc
+message ScalarClusteringInfo {
+  string field = 1;
+}
+
+// clustering distribution info of a certain data unit, it can be segment, partition, etc.
+message ClusteringInfo {
+  repeated VectorClusteringInfo vector_clustering_infos = 1;
+  repeated ScalarClusteringInfo scalar_clustering_infos = 2;
 }

@@ -11,6 +11,7 @@ option java_generate_equals_and_hash = true;
 option csharp_namespace = "Milvus.Client.Grpc";
 
 import "common.proto";
+import "rg.proto";
 import "schema.proto";
 import "feder.proto";
 import "msg.proto";
@@ -45,6 +46,7 @@ service MilvusService {
   rpc ListAliases(ListAliasesRequest) returns (ListAliasesResponse) {}
 
   rpc CreateIndex(CreateIndexRequest) returns (common.Status) {}
+  rpc AlterIndex(AlterIndexRequest) returns (common.Status) {}
   rpc DescribeIndex(DescribeIndexRequest) returns (DescribeIndexResponse) {}
   rpc GetIndexStatistics(GetIndexStatisticsRequest) returns (GetIndexStatisticsResponse) {}
   // Deprecated: use DescribeIndex instead
@@ -61,6 +63,7 @@ service MilvusService {
   rpc Delete(DeleteRequest) returns (MutationResult) {}
   rpc Upsert(UpsertRequest) returns (MutationResult) {}
   rpc Search(SearchRequest) returns (SearchResults) {}
+  rpc HybridSearch(HybridSearchRequest) returns (SearchResults) {}
   rpc Flush(FlushRequest) returns (FlushResponse) {}
   rpc Query(QueryRequest) returns (QueryResults) {}
   rpc CalcDistance(CalcDistanceRequest) returns (CalcDistanceResults) {}
@@ -111,6 +114,7 @@ service MilvusService {
 
   rpc CreateResourceGroup(CreateResourceGroupRequest) returns (common.Status) {}
   rpc DropResourceGroup(DropResourceGroupRequest) returns (common.Status) {}
+  rpc UpdateResourceGroups(UpdateResourceGroupsRequest) returns (common.Status) {}
   rpc TransferNode(TransferNodeRequest) returns (common.Status) {}
   rpc TransferReplica(TransferReplicaRequest) returns (common.Status) {}
   rpc ListResourceGroups(ListResourceGroupsRequest) returns (ListResourceGroupsResponse) {}
@@ -133,6 +137,12 @@ service MilvusService {
 }
 
 message CreateAliasRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeCreateAlias
+    object_name_index: -1
+  };
+
   common.MsgBase base = 1;
   string db_name = 2;
   string collection_name = 3;
@@ -140,6 +150,12 @@ message CreateAliasRequest {
 }
 
 message DropAliasRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeDropAlias
+    object_name_index: -1
+  };
+
   common.MsgBase base = 1;
   string db_name = 2;
   string alias = 3;
@@ -153,6 +169,12 @@ message AlterAliasRequest{
 }
 
 message DescribeAliasRequest{
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeDescribeAlias
+    object_name_index: -1
+  };
+
   common.MsgBase base = 1;
   string db_name = 2;
   string alias = 3;
@@ -170,6 +192,12 @@ message DescribeAliasResponse {
 }
 
 message ListAliasesRequest{
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeListAliases
+    object_name_index: -1
+  };
+
   common.MsgBase base = 1;
   string db_name = 2;
   string collection_name = 3;
@@ -476,6 +504,11 @@ message ShowCollectionsResponse {
 * Create partition in created collection.
 */
 message CreatePartitionRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeCreatePartition
+    object_name_index: 3
+  };
   // Not useful for now
   common.MsgBase base = 1;
   string db_name = 2;
@@ -489,6 +522,11 @@ message CreatePartitionRequest {
 * Drop partition in created collection.
 */
 message DropPartitionRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeDropPartition
+    object_name_index: 3
+  };
   // Not useful for now
   common.MsgBase base = 1;
   string db_name = 2;
@@ -502,6 +540,11 @@ message DropPartitionRequest {
 * Check if partition exist in collection or not.
 */
 message HasPartitionRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeHasPartition
+    object_name_index: 3
+  };
   // Not useful for now
   common.MsgBase base = 1;
   string db_name = 2;
@@ -516,6 +559,11 @@ message HasPartitionRequest {
 * Then you can get these data as result when you do vector search on this collection.
 */
 message LoadPartitionsRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeLoad
+    object_name_index: 3
+  };
   // Not useful for now
   common.MsgBase base = 1;
   string db_name = 2;
@@ -536,6 +584,11 @@ message LoadPartitionsRequest {
 * Then you can not get these data as result when you do vector search on this collection.
 */
 message ReleasePartitionsRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeRelease
+    object_name_index: 3
+  };
   // Not useful for now
   common.MsgBase base = 1;
   string db_name = 2;
@@ -567,6 +620,11 @@ message GetPartitionStatisticsResponse {
 * List all partitions for particular collection
 */
 message ShowPartitionsRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeShowPartitions
+    object_name_index: 3
+  };
   // Not useful for now
   common.MsgBase base = 1;
   string db_name = 2;
@@ -646,6 +704,23 @@ message CreateIndexRequest {
   repeated common.KeyValuePair extra_params = 5;
   // Version before 2.0.2 doesn't contain index_name, we use default index name.
   string index_name = 6;
+}
+
+/*
+* Alter index
+*/
+message AlterIndexRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeCreateIndex
+    object_name_index: 3
+  };
+
+  common.MsgBase base = 1;
+  string db_name = 2;
+  string collection_name = 3;
+  string index_name = 4;
+  repeated common.KeyValuePair extra_params = 5;
 }
 
 /*
@@ -814,6 +889,7 @@ message DeleteRequest {
   string partition_name = 4;
   string expr = 5;
   repeated uint32 hash_keys = 6;
+  common.ConsistencyLevel consistency_level = 7;
 }
 
 
@@ -852,6 +928,26 @@ message SearchResults {
   common.Status status = 1;
   schema.SearchResultData results = 2;
   string collection_name = 3;
+}
+
+message HybridSearchRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeSearch
+    object_name_index: 3
+  };
+  common.MsgBase base = 1; // must
+  string db_name = 2;
+  string collection_name = 3; // must
+  repeated string partition_names = 4; // must
+  repeated SearchRequest requests = 5;
+  repeated common.KeyValuePair rank_params = 6; // must
+  uint64 travel_timestamp = 7;
+  uint64 guarantee_timestamp = 8; // guarantee_timestamp
+  bool not_return_all_meta = 9;
+  repeated string output_fields = 10;
+  common.ConsistencyLevel consistency_level = 11;
+  bool use_default_consistency = 12;
 }
 
 message FlushRequest {
@@ -1058,6 +1154,7 @@ message ManualCompactionRequest {
   };
   int64 collectionID = 1;
   uint64 timetravel = 2;
+  bool majorCompaction = 3;
 }
 
 message ManualCompactionResponse {
@@ -1095,6 +1192,11 @@ message CompactionMergeInfo {
 }
 
 message GetFlushStateRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Collection
+    object_privilege: PrivilegeGetFlushState
+    object_name_index: 4
+  };
   repeated int64 segmentIDs = 1;
   uint64 flush_ts = 2;
   string db_name = 3;
@@ -1129,7 +1231,8 @@ message ImportRequest {
   bool row_based = 4;                        // the file is row-based or column-based
   repeated string files = 5;                 // file paths to be imported
   repeated common.KeyValuePair options = 6;  // import options, bucket, etc.
-  string db_name = 7;
+  string db_name = 7;                        // target database
+  bytes clustering_info = 8;                 // serialized `schema.ClusteringInfo`
 }
 
 message ImportResponse {
@@ -1523,6 +1626,17 @@ message CreateResourceGroupRequest {
   };
   common.MsgBase base = 1;
   string resource_group = 2;
+  rg.ResourceGroupConfig config = 3;
+}
+
+message UpdateResourceGroupsRequest {
+  option (common.privilege_ext_obj) = {
+    object_type: Global
+    object_privilege: PrivilegeUpdateResourceGroups
+    object_name_index: -1
+  };
+  common.MsgBase base = 1;
+  map<string, rg.ResourceGroupConfig> resource_groups = 2;
 }
 
 message DropResourceGroupRequest {
@@ -1600,8 +1714,12 @@ message ResourceGroup {
   map<string, int32> num_loaded_replica = 4;
   // collection name -> accessed other rg's node num
   map<string, int32> num_outgoing_node = 5;
-   // collection name -> be accessed node num by other rg
+  // collection name -> be accessed node num by other rg
   map<string, int32> num_incoming_node = 6;
+  // resource group configuration.
+  rg.ResourceGroupConfig config = 7;
+  // query node belong to this resource group now.
+  repeated common.NodeInfo nodes = 8;
 }
 
 message RenameCollectionRequest {
