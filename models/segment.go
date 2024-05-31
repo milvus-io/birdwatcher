@@ -108,7 +108,7 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 			r := &FieldBinlog{
 				FieldID: fbl.GetFieldID(),
 				Binlogs: lo.Map(fbl.GetBinlogs(), func(binlog *datapbv2.Binlog, _ int) *Binlog {
-					return newBinlog(binlog)
+					return newBinlog2(binlog)
 				}),
 			}
 			return r
@@ -216,6 +216,7 @@ type Binlog struct {
 	TimestampTo   uint64
 	LogPath       string
 	LogSize       int64
+	LogID         int64
 }
 
 func newBinlog[T interface {
@@ -231,5 +232,23 @@ func newBinlog[T interface {
 		TimestampTo:   binlog.GetTimestampTo(),
 		LogPath:       binlog.GetLogPath(),
 		LogSize:       binlog.GetLogSize(),
+	}
+}
+
+func newBinlog2[T interface {
+	GetEntriesNum() int64
+	GetTimestampFrom() uint64
+	GetTimestampTo() uint64
+	GetLogPath() string
+	GetLogSize() int64
+	GetLogID() int64
+}](binlog T) *Binlog {
+	return &Binlog{
+		EntriesNum:    binlog.GetEntriesNum(),
+		TimestampFrom: binlog.GetTimestampFrom(),
+		TimestampTo:   binlog.GetTimestampTo(),
+		LogPath:       binlog.GetLogPath(),
+		LogSize:       binlog.GetLogSize(),
+		LogID:         binlog.GetLogID(),
 	}
 }
