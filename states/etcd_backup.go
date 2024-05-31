@@ -109,6 +109,10 @@ func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
 			// write backup header
 			// version 2 used for now
 			err = writeBackupHeader(w, 2)
+			if err != nil {
+				fmt.Println("write backup header failed: ", err.Error())
+				return
+			}
 
 			err = backupEtcdV2(cli, basePath, prefix, w, opt)
 			if err != nil {

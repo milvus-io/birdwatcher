@@ -154,6 +154,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 
 	if detailBinlog {
 		var binlogSize int64
+		var insertmemSize int64
 		fmt.Println("**************************************")
 		fmt.Println("Binlogs:")
 		sort.Slice(info.GetBinlogs(), func(i, j int) bool {
@@ -166,15 +167,18 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
 				tf, _ := utils.ParseTS(binlog.TimestampFrom)
 				tt, _ := utils.ParseTS(binlog.TimestampTo)
-				fmt.Printf("LogID: %d, Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
-					binlog.LogID, binlog.LogSize, binlog.EntriesNum,
+				fmt.Printf("LogID: %d \t Mem Size: %d \t Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
+					binlog.LogID, binlog.MemSize,
+					binlog.LogSize, binlog.EntriesNum,
 					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
 				binlogSize += binlog.LogSize
+				insertmemSize += binlog.MemSize
 				fieldLogSize += binlog.LogSize
 			}
 			fmt.Println("--- Field Log Size:", hrSize(fieldLogSize))
 		}
 		fmt.Println("=== Segment Total Binlog Size: ", hrSize(binlogSize))
+		fmt.Println("=== Segment Total Binlog Mem Size: ", hrSize(insertmemSize))
 
 		fmt.Println("**************************************")
 		fmt.Println("Statslogs:")
@@ -188,7 +192,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
 				tf, _ := utils.ParseTS(binlog.TimestampFrom)
 				tt, _ := utils.ParseTS(binlog.TimestampTo)
-				fmt.Printf("LogID: %d, Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
+				fmt.Printf("LogID: %d \t Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
 					binlog.LogID, binlog.LogSize, binlog.EntriesNum,
 					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
 				statsLogSize += binlog.LogSize
@@ -199,14 +203,17 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 		fmt.Println("**************************************")
 		fmt.Println("Delta Logs:")
 		var deltaLogSize int64
+		var memSize int64
 		for _, log := range info.GetDeltalogs() {
 			for _, l := range log.Binlogs {
 				fmt.Printf("Entries: %d From: %v - To: %v\n", l.EntriesNum, l.TimestampFrom, l.TimestampTo)
-				fmt.Printf("LogID: %d, Path: %v LogSize: %s\n", l.LogID, l.LogPath, hrSize(l.LogSize))
+				fmt.Printf("LogID: %d, Path: %v LogSize: %s, MemSize: %s\n", l.LogID, l.LogPath, hrSize(l.LogSize), hrSize(l.MemSize))
 				deltaLogSize += l.LogSize
+				memSize += l.MemSize
 			}
 		}
 		fmt.Println("=== Segment Total Deltalog Size: ", hrSize(deltaLogSize))
+		fmt.Println("=== Segment Total Deltalog Mem Size: ", hrSize(memSize))
 	}
 
 	fmt.Println("================================================================================")
