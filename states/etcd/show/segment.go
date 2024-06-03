@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -21,6 +22,7 @@ type SegmentParam struct {
 	Format              string `name:"format" default:"line" desc:"segment display format"`
 	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail binlog info"`
 	State               string `name:"state" default:"" desc:"target segment state"`
+	Level               string `name:"level" default:"" desc:"target segment level"`
 }
 
 // SegmentCommand returns show segments command.
@@ -29,7 +31,8 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID) &&
 			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
 			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
-			(p.State == "" || segment.State.String() == p.State)
+			(p.State == "" || strings.EqualFold(segment.State.String(), p.State)) &&
+			(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level))
 	})
 	if err != nil {
 		fmt.Println("failed to list segments", err.Error())
