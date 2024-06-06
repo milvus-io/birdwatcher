@@ -119,6 +119,11 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 		}
 		if len(candidates) == 1 {
 			cp.RootPath = candidates[0]
+		} else if len(candidates) > 1 {
+			fmt.Println("multiple possible rootPath find, cannot use auto mode")
+		} else {
+			fmt.Println("failed to find rootPath candidate")
+			return nil
 		}
 	}
 
