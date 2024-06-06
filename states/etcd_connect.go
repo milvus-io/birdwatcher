@@ -52,6 +52,7 @@ type ConnectParams struct {
 	RootCA              string `name:"rootCAPem" default:"" desc:"root CA pem file path"`
 	ETCDPem             string `name:"etcdCert" default:"" desc:"etcd tls cert file path"`
 	ETCDKey             string `name:"etcdKey" default:"" desc:"etcd tls key file path"`
+	Auto                bool   `name:"auto" default:"false" desc:"auto detect rootPath if possible"`
 }
 
 func (s *disconnectState) getTLSConfig(cp *ConnectParams) (*tls.Config, error) {
@@ -109,6 +110,16 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to connect to etcd")
+	}
+
+	if cp.Auto {
+		candidates, err := findMilvusInstance(ctx, etcdCli)
+		if err != nil {
+			return err
+		}
+		if len(candidates) == 1 {
+			cp.RootPath = candidates[0]
+		}
 	}
 
 	etcdState := getEtcdConnectedState(etcdCli, cp.EtcdAddr, s.config)
