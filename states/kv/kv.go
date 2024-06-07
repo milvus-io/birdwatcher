@@ -42,8 +42,8 @@ var EmptyValueByte = []byte(EmptyValueString)
 
 // MetaKV contains base operations of kv. Include save, load and remove etc.
 type MetaKV interface {
-	Load(ctx context.Context, key string) (string, error)
-	LoadWithPrefix(ctx context.Context, key string) ([]string, []string, error)
+	Load(ctx context.Context, key string, opts ...LoadOption) (string, error)
+	LoadWithPrefix(ctx context.Context, key string, opts ...LoadOption) ([]string, []string, error)
 	Save(ctx context.Context, key, value string) error
 	MultiSave(ctx context.Context, keys, values []string) error
 	Remove(ctx context.Context, key string) error
@@ -75,9 +75,13 @@ func NewEtcdKV(client *clientv3.Client) *etcdKV {
 }
 
 // Load returns value of the key.
-func (kv *etcdKV) Load(ctx context.Context, key string) (string, error) {
+func (kv *etcdKV) Load(ctx context.Context, key string, opts ...LoadOption) (string, error) {
+	opt := defaultLoadOption()
+	for _, f := range opts {
+		f(opt)
+	}
 	key = joinPath(kv.rootPath, key)
-	resp, err := kv.client.Get(ctx, key)
+	resp, err := kv.client.Get(ctx, key, opt.EtcdOptions()...)
 	if err != nil {
 		return "", err
 	}
@@ -88,10 +92,18 @@ func (kv *etcdKV) Load(ctx context.Context, key string) (string, error) {
 }
 
 // LoadWithPrefix returns all the keys and values with the given key prefix.
-func (kv *etcdKV) LoadWithPrefix(ctx context.Context, key string) ([]string, []string, error) {
+func (kv *etcdKV) LoadWithPrefix(ctx context.Context, key string, opts ...LoadOption) ([]string, []string, error) {
+	opt := defaultLoadOption()
+	for _, f := range opts {
+		f(opt)
+	}
 	key = joinPath(kv.rootPath, key)
-	resp, err := kv.client.Get(ctx, key, clientv3.WithPrefix(),
-		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	options := []clientv3.OpOption{
+		clientv3.WithPrefix(),
+		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
+	}
+	options = append(options, opt.EtcdOptions()...)
+	resp, err := kv.client.Get(ctx, key, options...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -370,9 +382,10 @@ func NewTiKV(txn *txnkv.Client) *txnTiKV {
 }
 
 // Load returns value of the key.
-func (kv *txnTiKV) Load(ctx context.Context, key string) (string, error) {
+func (kv *txnTiKV) Load(ctx context.Context, key string, opts ...LoadOption) (string, error) {
 	key = joinPath(kv.rootPath, key)
 
+	// TODO handle load option
 	ss := kv.client.GetSnapshot(MaxSnapshotTS)
 	ss.SetScanBatchSize(SnapshotScanSize)
 
@@ -388,9 +401,10 @@ func (kv *txnTiKV) Load(ctx context.Context, key string) (string, error) {
 }
 
 // LoadWithPrefix returns all the keys and values for the given key prefix.
-func (kv *txnTiKV) LoadWithPrefix(ctx context.Context, prefix string) ([]string, []string, error) {
+func (kv *txnTiKV) LoadWithPrefix(ctx context.Context, prefix string, opts ...LoadOption) ([]string, []string, error) {
 	prefix = joinPath(kv.rootPath, prefix)
 
+	// TODO handle load option
 	ss := kv.client.GetSnapshot(MaxSnapshotTS)
 	ss.SetScanBatchSize(SnapshotScanSize)
 

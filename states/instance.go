@@ -11,6 +11,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
+	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
 )
@@ -20,6 +21,7 @@ type InstanceState struct {
 	*framework.CmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
+	*repair.ComponentRepair
 	instanceName string
 	client       metakv.MetaKV
 	auditFile    *os.File
@@ -134,6 +136,7 @@ func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		CmdState:        parent.Spawn(fmt.Sprintf("Milvus(%s)", instanceName)),
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
+		ComponentRepair: repair.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
 		client:          kv,
 		auditFile:       file,

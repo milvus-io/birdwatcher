@@ -108,6 +108,15 @@ func RawCommands(cli kv.MetaKV) []*cobra.Command {
 		Use:   "get",
 		Short: "equivalent to etcd get(withPrefix) command to fetch raw kv values from backup file",
 		Run: func(cmd *cobra.Command, args []string) {
+			withValue, err := cmd.Flags().GetBool("withValue")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			var options []kv.LoadOption
+			if !withValue {
+				options = append(options, kv.WithKeysOnly())
+			}
 			for _, arg := range args {
 				fmt.Println("list with", arg)
 				keys, vals, err := cli.LoadWithPrefix(context.Background(), arg)
@@ -121,12 +130,15 @@ func RawCommands(cli kv.MetaKV) []*cobra.Command {
 				}
 				for i, key := range keys {
 					fmt.Printf("key: %s\n", key)
-					fmt.Printf("Value: %s\n", vals[i])
+					if withValue {
+						fmt.Printf("Value: %s\n", vals[i])
+					}
 				}
 			}
 		},
 	}
 
+	cmd.Flags().Bool("withValue", false, "print values")
 	return []*cobra.Command{cmd}
 }
 
