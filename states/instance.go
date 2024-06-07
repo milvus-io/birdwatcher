@@ -10,6 +10,7 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/audit"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
+	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -20,6 +21,7 @@ type InstanceState struct {
 	cmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
+	*repair.ComponentRepair
 	instanceName string
 	client       clientv3.KV
 	auditFile    *os.File
@@ -149,6 +151,7 @@ func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState 
 		},
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
+		ComponentRepair: repair.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
 		client:          kv,
 		auditFile:       file,

@@ -108,21 +108,35 @@ func RawCommands(cli clientv3.KV) []*cobra.Command {
 		Use:   "get",
 		Short: "equivalent to etcd get(withPrefix) command to fetch raw kv values from backup file",
 		Run: func(cmd *cobra.Command, args []string) {
+			withValue, err := cmd.Flags().GetBool("withValue")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 			for _, arg := range args {
 				fmt.Println("list with", arg)
-				resp, err := cli.Get(context.Background(), arg, clientv3.WithPrefix())
+				var resp *clientv3.GetResponse
+				var err error
+				if withValue {
+					resp, err = cli.Get(context.Background(), arg, clientv3.WithPrefix())
+				} else {
+					resp, err = cli.Get(context.Background(), arg, clientv3.WithPrefix(), clientv3.WithKeysOnly())
+				}
 				if err != nil {
 					fmt.Println(err.Error())
 					continue
 				}
 				for _, kv := range resp.Kvs {
 					fmt.Printf("key: %s\n", string(kv.Key))
-					fmt.Printf("Value: %s\n", string(kv.Value))
+					if withValue {
+						fmt.Printf("Value: %s\n", string(kv.Value))
+					}
 				}
 			}
 		},
 	}
 
+	cmd.Flags().Bool("withValue", false, "print values")
 	return []*cobra.Command{cmd}
 }
 
