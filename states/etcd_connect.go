@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -112,7 +113,23 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	}
 	etcdCli, err := clientv3.New(cfg)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to connect to etcd")
+
+	}
+
+	if cp.Auto {
+		candidates, err := findMilvusInstance(ctx, etcdCli)
+		if err != nil {
+			return err
+		}
+		if len(candidates) == 1 {
+			cp.RootPath = candidates[0]
+		} else if len(candidates) > 1 {
+			fmt.Println("multiple possible rootPath find, cannot use auto mode")
+		} else {
+			fmt.Println("failed to find rootPath candidate")
+			return nil
+		}
 	}
 
 	cli := kv.NewEtcdKV(etcdCli)
@@ -167,6 +184,8 @@ type ConnectParams struct {
 	TiKVTLSKey    string `name:"tikvKey" default:"" desc:"tikv tls key file path"`
 	TiKVUseSSL    bool   `name:"tikv_use_ssl" default:"false" desc:"enable to use SSL for tikv"`
 	TiKVAddr      string `name:"tikv" default:"127.0.0.1:2389" desc:"the tikv endpoint to connect"`
+
+	Auto bool `name:"auto" default:"false" desc:"auto detect rootPath if possible"`
 }
 
 func (app *ApplicationState) getTLSConfig(cp *ConnectParams) (*tls.Config, error) {
@@ -299,6 +318,33 @@ func (s *kvConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
 
 	s.SetNext(getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config))
 	return nil
+}
+
+// findMilvusInstance iterate all possible rootPath
+func findMilvusInstance(ctx context.Context, cli clientv3.KV) ([]string, error) {
+	var apps []string
+	current := ""
+	for {
+		resp, err := cli.Get(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
+		if err != nil {
+			return nil, err
+		}
+		for _, kv := range resp.Kvs {
+			key := string(kv.Key)
+			parts := strings.Split(key, "/")
+			if parts[0] != "" {
+				apps = append(apps, parts[0])
+			}
+			// next key, since '0' is the next ascii char of '/'
+			current = parts[0] + "0"
+		}
+
+		if !resp.More {
+			break
+		}
+	}
+
+	return apps, nil
 }
 
 func (s *kvConnectedState) Close() {

@@ -2,16 +2,16 @@ package repair
 
 import (
 	"github.com/milvus-io/birdwatcher/configs"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 type ComponentRepair struct {
-	client   clientv3.KV
+	client   kv.MetaKV
 	config   *configs.Config
 	basePath string
 }
 
-func NewComponent(cli clientv3.KV, config *configs.Config, basePath string) *ComponentRepair {
+func NewComponent(cli kv.MetaKV, config *configs.Config, basePath string) *ComponentRepair {
 	return &ComponentRepair{
 		client:   cli,
 		config:   config,

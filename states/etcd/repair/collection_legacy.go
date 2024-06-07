@@ -32,7 +32,7 @@ func (c *ComponentRepair) CollectionLegacyDroppedCommand(ctx context.Context, p 
 		if p.Run {
 			key := collection.Key()
 			fmt.Printf("start to remove remnant meta for %s, key:%s\n", collection.Schema.Name, key)
-			_, err := c.client.Delete(ctx, collection.Key())
+			err := c.client.Remove(ctx, collection.Key())
 			if err != nil {
 				fmt.Printf("failed to remove %s, error: %s\n", key, err.Error())
 				continue
