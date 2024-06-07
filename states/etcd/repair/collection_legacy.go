@@ -18,7 +18,6 @@ type CollectionLegacyDroppedParams struct {
 
 func (c *ComponentRepair) CollectionLegacyDroppedCommand(ctx context.Context, p *CollectionLegacyDroppedParams) error {
 	collections, err := common.ListCollectionsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
-		fmt.Println(coll.Key())
 		return coll.DBID == 0 && len(coll.Schema.Fields) == 0 && (p.CollectionID == 0 || p.CollectionID == coll.ID)
 	})
 
