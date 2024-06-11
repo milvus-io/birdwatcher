@@ -19,7 +19,7 @@ import (
 // ListCollectionHistory list collection history from snapshots.
 func ListCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string, version string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
 	var prefix string
-	if collectionID == 0 {
+	if dbID == 0 {
 		prefix = path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
 	} else {
 		prefix = path.Join(basePath, "snapshots/root-coord/database/collection-info", strconv.FormatInt(dbID, 10), strconv.FormatInt(collectionID, 10))

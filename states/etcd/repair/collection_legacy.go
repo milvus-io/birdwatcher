@@ -12,7 +12,7 @@ import (
 
 type CollectionLegacyDroppedParams struct {
 	framework.ParamBase `use:"repair legacy-collection-remnant"`
-	CollectionID        int64 `name:""`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to repair"`
 	Run                 bool  `name:"run" default:"false" desc:"whether to remove legacy collection meta, default set to \"false\" to dry run"`
 }
 
