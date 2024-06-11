@@ -36,11 +36,34 @@ func (c *ComponentRepair) CollectionLegacyDroppedCommand(ctx context.Context, p 
 				fmt.Printf("failed to remove %s, error: %s\n", key, err.Error())
 				continue
 			}
+			historyCollections, err := common.ListCollectionHistory(ctx, c.client, c.basePath, etcdversion.GetVersion(), collection.DBID, collection.ID)
+			if err != nil {
+				fmt.Println("failed to list collection history", err.Error())
+			} else {
+				for _, hc := range historyCollections {
+					c.client.Delete(ctx, hc.Key())
+				}
+			}
 			fmt.Println("Removal done!")
 			removed++
 		}
 	}
 	if len(collections) == 0 {
+		// try to delete legacy history when collection removed
+		if p.CollectionID != 0 {
+			historyCollections, err := common.ListCollectionHistory(ctx, c.client, c.basePath, etcdversion.GetVersion(), 0, p.CollectionID)
+			if err != nil {
+				fmt.Println("failed to list legacy collection history")
+				return err
+			}
+			for _, hc := range historyCollections {
+				if p.Run {
+					c.client.Delete(ctx, hc.Key())
+				} else {
+					fmt.Println("legacy collection history found:", hc.Key())
+				}
+			}
+		}
 		fmt.Println("no suspect found")
 	} else if removed > 0 {
 		fmt.Println("Remnant meta removed, please restart rootcoord/mixtcord to check")
