@@ -3,7 +3,6 @@ package common
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -24,7 +23,6 @@ func ListCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string
 	} else {
 		prefix = path.Join(basePath, "snapshots/root-coord/database/collection-info", strconv.FormatInt(dbID, 10), strconv.FormatInt(collectionID, 10))
 	}
-	fmt.Println(prefix)
 
 	var dropped, paths []string
 	var err error
