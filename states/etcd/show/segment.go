@@ -41,11 +41,20 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 
 	totalRC := int64(0)
 	healthy := 0
-	var statslogSize int64
+
 	var growing, sealed, flushed, dropped int
 	var small, other int
 	var smallCnt, otherCnt int64
-	fieldSize := make(map[int64]int64)
+
+	var (
+		binlogLogSize = make(map[int64]int64)
+		binlogMemSize = make(map[int64]int64)
+		deltaLogSize  int64
+		deltaMemSize  int64
+		statsLogSize  int64
+		statsMemSize  int64
+	)
+
 	for _, info := range segments {
 
 		if info.State != models.SegmentStateDropped {
@@ -79,12 +88,20 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			if info.State != models.SegmentStateDropped {
 				for _, binlog := range info.GetBinlogs() {
 					for _, log := range binlog.Binlogs {
-						fieldSize[binlog.FieldID] += log.LogSize
+						binlogLogSize[binlog.FieldID] += log.LogSize
+						binlogMemSize[binlog.FieldID] += log.MemSize
+					}
+				}
+				for _, delta := range info.GetDeltalogs() {
+					for _, log := range delta.Binlogs {
+						deltaLogSize += log.LogSize
+						deltaMemSize += log.MemSize
 					}
 				}
 				for _, statslog := range info.GetStatslogs() {
 					for _, binlog := range statslog.Binlogs {
-						statslogSize += binlog.LogSize
+						statsLogSize += binlog.LogSize
+						statsMemSize += binlog.MemSize
 					}
 				}
 			}
@@ -93,13 +110,17 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 
 	}
 	if p.Format == "statistics" {
-		var totalBinlogSize int64
-		for fieldID, size := range fieldSize {
-			fmt.Printf("\t field binlog size[%d]: %s\n", fieldID, hrSize(size))
-			totalBinlogSize += size
+		var totalBinlogLogSize int64
+		var totalBinlogMemSize int64
+		for fieldID, logSize := range binlogLogSize {
+			memSize := binlogMemSize[fieldID]
+			fmt.Printf("\t field binlog size[%d]: %s, mem size[%d]: %s\n", fieldID, hrSize(logSize), fieldID, hrSize(memSize))
+			totalBinlogLogSize += logSize
+			totalBinlogMemSize += memSize
 		}
-		fmt.Printf("--- Total binlog size: %s\n", hrSize(totalBinlogSize))
-		fmt.Printf("--- Total statslog size: %s\n", hrSize(statslogSize))
+		fmt.Printf("--- Total binlog size: %s, mem size: %s\n", hrSize(totalBinlogLogSize), hrSize(totalBinlogMemSize))
+		fmt.Printf("--- Total deltalog size: %s, mem size: %s\n", hrSize(deltaLogSize), hrSize(deltaMemSize))
+		fmt.Printf("--- Total statslog size: %s, mem size: %s\n", hrSize(statsLogSize), hrSize(statsMemSize))
 	}
 
 	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
