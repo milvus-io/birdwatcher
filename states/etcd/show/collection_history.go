@@ -16,6 +16,7 @@ import (
 type CollectionHistoryParam struct {
 	framework.ParamBase `use:"show collection-history" desc:"display collection change history"`
 	CollectionID        int64 `name:"id" default:"0" desc:"collection id to display" form:"id"`
+	// DBID                int64 `name:"dbid" default:"0" desc:"database id to display"`
 }
 
 // CollectionHistoryCommand returns sub command for showCmd.
@@ -42,7 +43,7 @@ func (c *ComponentShow) CollectionHistoryCommand(ctx context.Context, p *Collect
 		Collection: collection,
 	}
 	// fetch history
-	items, err := common.ListCollectionHistoryWithDB(ctx, c.client, c.basePath, etcdversion.GetVersion(), collection.DBID, p.CollectionID)
+	items, err := common.ListCollectionHistory(ctx, c.client, c.basePath, etcdversion.GetVersion(), collection.DBID, p.CollectionID)
 	if err != nil {
 		return nil, err
 	}

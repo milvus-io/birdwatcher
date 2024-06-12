@@ -65,8 +65,13 @@ func ListCollectionHistoryWithDB(ctx context.Context, cli kv.MetaKV, basePath st
 }
 
 // ListCollectionHistory list collection history from snapshots.
-func ListCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, version string, collectionID int64) ([]*models.CollectionHistory, error) {
-	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
+func ListCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, version string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
+	var prefix string
+	if dbID == 0 {
+		prefix = path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
+	} else {
+		prefix = path.Join(basePath, "snapshots/root-coord/database/collection-info", strconv.FormatInt(dbID, 10), strconv.FormatInt(collectionID, 10))
+	}
 
 	var dropped, paths []string
 	var err error
