@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/manifoldco/promptui"
+
 	"github.com/milvus-io/birdwatcher/states"
 )
 

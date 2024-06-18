@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -54,8 +55,8 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, info *mode
 	fmt.Fprintln(sb, "=============================")
 	fmt.Fprintf(sb, "key: %s\n", info.Key())
 	fmt.Fprintf(sb, "Channel Name:%s \t WatchState: %s\n", info.Vchan.ChannelName, info.State.String())
-	//t, _ := ParseTS(uint64(info.GetStartTs()))
-	//to, _ := ParseTS(uint64(info.GetTimeoutTs()))
+	// t, _ := ParseTS(uint64(info.GetStartTs()))
+	// to, _ := ParseTS(uint64(info.GetTimeoutTs()))
 	t := time.Unix(info.StartTs, 0)
 	to := time.Unix(0, info.TimeoutTs)
 	fmt.Fprintf(sb, "Channel Watch start from: %s, timeout at: %s\n", t.Format(tsPrintFormat), to.Format(tsPrintFormat))

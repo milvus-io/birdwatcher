@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
+	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
 const (
@@ -72,7 +72,7 @@ func listQueryCoordUnsubChannelInfos(cli clientv3.KV, basePath string) ([]*query
 func printDMChannelWatchInfo(infos []*querypb.DmChannelWatchInfo) {
 	common.SortByCollection(infos)
 	for _, info := range infos {
-		//TODO beautify output
+		// TODO beautify output
 		fmt.Println(info.String())
 	}
 }

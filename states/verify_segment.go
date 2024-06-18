@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/minio/minio-go/v7"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 func getVerifySegmentCmd(cli clientv3.KV, basePath string) *cobra.Command {
@@ -32,7 +33,6 @@ func getVerifySegmentCmd(cli clientv3.KV, basePath string) *cobra.Command {
 			segments, err := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(seg *models.Segment) bool {
 				return seg.CollectionID == collectionID && seg.State == models.SegmentStateFlushed
 			})
-
 			if err != nil {
 				fmt.Println("failed to list segment info", err.Error())
 			}
@@ -92,7 +92,6 @@ func getVerifySegmentCmd(cli clientv3.KV, basePath string) *cobra.Command {
 
 					fmt.Printf("Segment(%d) %s done\n", segment.ID, item.tag)
 				}
-
 			}
 		},
 	}

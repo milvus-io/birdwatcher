@@ -186,7 +186,7 @@ func unmarshalQueryTask(taskID UniqueID, t string) (queryCoordTask, error) {
 		}
 		newTask = releasePartitionTask
 	case commonpb.MsgType_LoadSegments:
-		//TODO::trigger condition may be different
+		// TODO::trigger condition may be different
 		loadReq := querypb.LoadSegmentsRequest{}
 		err = proto.Unmarshal([]byte(t), &loadReq)
 		if err != nil {
@@ -199,7 +199,7 @@ func unmarshalQueryTask(taskID UniqueID, t string) (queryCoordTask, error) {
 		}
 		newTask = loadSegmentTask
 	case commonpb.MsgType_ReleaseSegments:
-		//TODO::trigger condition may be different
+		// TODO::trigger condition may be different
 		loadReq := querypb.ReleaseSegmentsRequest{}
 		err = proto.Unmarshal([]byte(t), &loadReq)
 		if err != nil {
@@ -211,7 +211,7 @@ func unmarshalQueryTask(taskID UniqueID, t string) (queryCoordTask, error) {
 		}
 		newTask = releaseSegmentTask
 	case commonpb.MsgType_WatchDmChannels:
-		//TODO::trigger condition may be different
+		// TODO::trigger condition may be different
 		req := querypb.WatchDmChannelsRequest{}
 		err = proto.Unmarshal([]byte(t), &req)
 		if err != nil {
@@ -226,10 +226,10 @@ func unmarshalQueryTask(taskID UniqueID, t string) (queryCoordTask, error) {
 	case commonpb.MsgType_WatchDeltaChannels:
 		fmt.Println("legacy WatchDeltaChannels type found, ignore")
 	case commonpb.MsgType_WatchQueryChannels:
-		//Deprecated WatchQueryChannel
+		// Deprecated WatchQueryChannel
 		fmt.Println("legacy WatchQueryChannels type found, ignore")
 	case commonpb.MsgType_LoadBalanceSegments:
-		//TODO::trigger condition may be different
+		// TODO::trigger condition may be different
 		loadReq := querypb.LoadBalanceRequest{}
 		err = proto.Unmarshal([]byte(t), &loadReq)
 		if err != nil {
@@ -528,7 +528,7 @@ func (wdt *watchDmChannelTask) msgBase() *commonpb.MsgBase {
 
 func (wdt *watchDmChannelTask) marshal() ([]byte, error) {
 	return nil, nil
-	//return proto.Marshal(thinWatchDmChannelsRequest(wdt.WatchDmChannelsRequest))
+	// return proto.Marshal(thinWatchDmChannelsRequest(wdt.WatchDmChannelsRequest))
 }
 
 func (wdt *watchDmChannelTask) msgType() commonpb.MsgType {
@@ -594,7 +594,7 @@ func (lbt *loadBalanceTask) String() string {
 	ts := lbt.timestamp()
 	time, logic := utils.ParseTS(ts)
 	timeStr := fmt.Sprintf("time:%s, logicTs:%d", time, logic)
-	ret := fmt.Sprintf("%s\t%s\t%s", baseStr, typeStr, timeStr) //fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, lbt.LoadBalanceRequest.String())
+	ret := fmt.Sprintf("%s\t%s\t%s", baseStr, typeStr, timeStr) // fmt.Sprintf("%s\t%s\t%s\ninfo:%s", baseStr, typeStr, timeStr, lbt.LoadBalanceRequest.String())
 	return ret
 }
 

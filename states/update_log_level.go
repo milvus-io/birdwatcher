@@ -98,7 +98,6 @@ func getUpdateLogLevelCmd(cli clientv3.KV, basePath string) *cobra.Command {
 				if targetRole == "" ||
 					(targetServerID == -1 && targetRole == session.ServerName) ||
 					(targetRole == session.ServerName && targetServerID == session.ServerID) {
-
 					foundComponent = true
 					err := changeLogLevel(httpClient, session, targetLevel)
 					if err != nil {

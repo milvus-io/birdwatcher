@@ -18,11 +18,11 @@ package mq
 
 import (
 	"context"
-
 	"fmt"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
+
 	"github.com/milvus-io/birdwatcher/mq/ifc"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"

@@ -148,7 +148,6 @@ func BinlogCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				}
 				fmt.Printf("Remove one binlog %s/%d from etcd succeeds.\n", key, logID)
 			}
-
 		},
 	}
 

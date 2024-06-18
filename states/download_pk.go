@@ -10,13 +10,14 @@ import (
 
 	"github.com/gosuri/uilive"
 	"github.com/manifoldco/promptui"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 func getDownloadPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
@@ -54,7 +55,6 @@ func getDownloadPKCmd(cli clientv3.KV, basePath string) *cobra.Command {
 			segments, err := common.ListSegments(cli, basePath, func(segment *datapb.SegmentInfo) bool {
 				return segment.CollectionID == collectionID
 			})
-
 			if err != nil {
 				return err
 			}
@@ -160,7 +160,6 @@ func getMinioClient() (*minio.Client, error) {
 		Creds:  cred,
 		Secure: useSSL,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +168,7 @@ func getMinioClient() (*minio.Client, error) {
 }
 
 func downloadPks(cli *minio.Client, bucketName string, collID, pkID int64, segments []*datapb.SegmentInfo) {
-	err := os.Mkdir(fmt.Sprintf("%d", collID), 0777)
+	err := os.Mkdir(fmt.Sprintf("%d", collID), 0o777)
 	if err != nil {
 		fmt.Println("Failed to create folder,", err.Error())
 	}
@@ -188,7 +187,7 @@ func downloadPks(cli *minio.Client, bucketName string, collID, pkID int64, segme
 			}
 
 			folder := fmt.Sprintf("%d/%d", collID, segment.ID)
-			err := os.MkdirAll(folder, 0777)
+			err := os.MkdirAll(folder, 0o777)
 			if err != nil {
 				fmt.Println("Failed to create sub-folder", err.Error())
 				return
@@ -216,9 +215,7 @@ func downloadPks(cli *minio.Client, bucketName string, collID, pkID int64, segme
 		}
 		progress := (i + 1) * 100 / len(segments)
 		fmt.Fprintf(pd, pf, progress, i+1, len(segments))
-
 	}
 	fmt.Println()
 	fmt.Printf("pk file download completed for collection :%d, %d file(s) downloaded\n", collID, count)
-
 }

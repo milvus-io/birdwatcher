@@ -6,13 +6,14 @@ import (
 	"path"
 	"time"
 
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type ForceReleaseParam struct {
@@ -108,7 +109,6 @@ func getReleaseDroppedCollectionCmd(cli clientv3.KV, basePath string) *cobra.Com
 			}
 			run, err := cmd.Flags().GetBool("run")
 			if err == nil && run {
-
 				for _, id := range missing {
 					fmt.Printf("Start to remove loaded meta from querycoord, collection id %d...", id)
 					err := releaseQueryCoordLoadMeta(cli, basePath, id)
@@ -131,7 +131,6 @@ func releaseQueryCoordLoadMeta(cli clientv3.KV, basePath string, collectionID in
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	_, err := cli.Delete(ctx, p)
-
 	if err != nil {
 		return err
 	}
@@ -139,7 +138,6 @@ func releaseQueryCoordLoadMeta(cli clientv3.KV, basePath string, collectionID in
 	segments, err := common.ListLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
 		return info.CollectionID == collectionID
 	})
-
 	if err != nil {
 		return err
 	}

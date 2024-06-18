@@ -11,14 +11,15 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/samber/lo"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
-	"github.com/samber/lo"
-	"go.etcd.io/etcd/api/v3/mvccpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -35,6 +36,8 @@ const (
 	CollectionLoadPrefixV2      = "querycoord-collection-loadinfo"
 	PartitionLoadedPrefixLegacy = "queryCoord-partitionMeta"
 	PartitionLoadedPrefix       = "querycoord-partition-loadinfo"
+
+	CompactionTaskPrefix = "datacoord-meta/compaction-task"
 )
 
 var (
@@ -60,7 +63,6 @@ func ListCollections(cli clientv3.KV, basePath string, filter func(*etcdpb.Colle
 
 // ListCollectionsVersion returns collection information as provided version.
 func ListCollectionsVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
-
 	prefixes := []string{
 		path.Join(basePath, CollectionMetaPrefix),
 		path.Join(basePath, DBCollectionMetaPrefix),
@@ -119,7 +121,6 @@ func ListCollectionsVersion(ctx context.Context, cli clientv3.KV, basePath strin
 
 // GetCollectionByIDVersion retruns collection info from etcd with provided version & id.
 func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, collID int64) (*models.Collection, error) {
-
 	var result []*mvccpb.KeyValue
 
 	// meta before database
@@ -184,7 +185,6 @@ func getCollectionFields(ctx context.Context, cli clientv3.KV, basePath string, 
 		fmt.Println(err.Error())
 	}
 	return lo.Map(fields, func(field schemapbv2.FieldSchema, _ int) *schemapbv2.FieldSchema { return &field }), nil
-
 }
 
 func FillFieldSchemaIfEmpty(cli clientv3.KV, basePath string, collection *etcdpb.CollectionInfo) error {

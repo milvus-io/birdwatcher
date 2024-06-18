@@ -3,11 +3,12 @@ package states
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 type indexNodeState struct {
@@ -28,7 +29,7 @@ func (s *indexNodeState) SetupCommands() {
 		getMetricsCmd(s.client),
 		// configuration
 		getConfigurationCmd(s.clientv2, s.session.ServerID),
-		//back
+		// back
 		getBackCmd(s, s.prevState),
 		// exit
 		getExitCmd(s),

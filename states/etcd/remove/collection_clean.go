@@ -90,7 +90,8 @@ func CollectionCleanCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				fieldsPrefix,
 				fieldsSnapShotPrefix,
 				partitionsPrefix,
-				partitionsSnapShotPrefix}
+				partitionsSnapShotPrefix,
+			}
 
 			for _, prefix := range prefixes {
 				fmt.Printf("start cleaning leaked collection meta, prefix: %s\n", prefix)

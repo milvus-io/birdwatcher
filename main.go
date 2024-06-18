@@ -28,7 +28,7 @@ func main() {
 	var appFactory func(config *configs.Config) bapps.BApp
 
 	switch {
-	//Print current birdwatcher version
+	// Print current birdwatcher version
 	case *printVersion:
 		fmt.Println("Birdwatcher Version", common.Version)
 		return
@@ -41,7 +41,7 @@ func main() {
 	default:
 		defer handleExit()
 		// open file and create if non-existent
-		file, err := os.OpenFile("bw_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile("bw_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			log.Fatal(err)
 		}

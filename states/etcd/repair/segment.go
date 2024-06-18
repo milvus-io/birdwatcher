@@ -6,6 +6,9 @@ import (
 	"path"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -13,8 +16,6 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // SegmentCommand return repair segment command.
@@ -24,7 +25,6 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		Aliases: []string{"segments"},
 		Short:   "do segment & index meta check and try to repair",
 		Run: func(cmd *cobra.Command, args []string) {
-
 			collID, err := cmd.Flags().GetInt64("collection")
 			if err != nil {
 				fmt.Println(err.Error())
@@ -100,17 +100,16 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				segIdxs, ok := seg2Idx[segment.GetID()]
 				if !ok {
 					// skip index check for no index found
-					//TODO try v2 index information
+					// TODO try v2 index information
 					continue
 				}
 
 				coll, ok := collections[segment.CollectionID]
 				if !ok {
-					//coll, err = common.GetCollectionByID(cli, basePath, segment.CollectionID)
+					// coll, err = common.GetCollectionByID(cli, basePath, segment.CollectionID)
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
 					coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
-
 					if err != nil {
 						fmt.Printf("failed to query collection(id=%d) info error: %s", segment.CollectionID, err.Error())
 						continue
@@ -217,7 +216,6 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 					fmt.Println("failed to write back repaired segment meta")
 				}
 			}
-
 		},
 	}
 
@@ -270,7 +268,7 @@ func checkBinlogIndex(segment *datapb.SegmentInfo, indexMeta *indexpb.IndexMeta)
 
 func integrityCheck(segment *datapb.SegmentInfo) bool {
 	var rowCount int64
-	//use 0-th field as base
+	// use 0-th field as base
 	for _, binlog := range segment.GetBinlogs()[0].GetBinlogs() {
 		rowCount += binlog.EntriesNum
 	}
@@ -298,5 +296,4 @@ func writeRepairedSegment(cli clientv3.KV, basePath string, segment *datapb.Segm
 	}
 	_, err = cli.Put(context.Background(), p, string(bs))
 	return err
-
 }

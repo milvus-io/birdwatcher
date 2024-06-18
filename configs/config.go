@@ -77,7 +77,6 @@ func (c *Config) createDefault() error {
 	}
 
 	file, err := os.Create(c.getConfigPath())
-
 	if err != nil {
 		return err
 	}

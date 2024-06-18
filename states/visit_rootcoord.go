@@ -3,11 +3,12 @@ package states
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 type rootCoordState struct {
@@ -40,7 +41,6 @@ func (s *rootCoordState) SetupCommands() {
 }
 
 func getRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
-
 	state := &rootCoordState{
 		session: session,
 		cmdState: cmdState{

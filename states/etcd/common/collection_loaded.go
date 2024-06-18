@@ -5,11 +5,12 @@ import (
 	"errors"
 	"path"
 
+	"github.com/samber/lo"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ListCollectionLoadedInfo returns collection loaded info with provided version.

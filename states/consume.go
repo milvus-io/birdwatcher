@@ -7,6 +7,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/mq"
 	"github.com/milvus-io/birdwatcher/mq/ifc"
@@ -28,7 +29,6 @@ type ConsumeParam struct {
 }
 
 func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) error {
-
 	var messageID ifc.MessageID
 	switch p.StartPosition {
 	case "cp":
@@ -61,7 +61,6 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 	c, err := mq.NewConsumer(p.MqType, p.MqAddress, p.Topic, ifc.MqOption{
 		SubscriptionInitPos: subPos,
 	})
-
 	if err != nil {
 		return err
 	}
@@ -124,7 +123,8 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 func ParseMsg(msgType commonpb.MsgType, payload []byte) (interface {
 	fmt.Stringer
 	GetShardName() string
-}, error) {
+}, error,
+) {
 	var msg interface {
 		proto.Message
 		GetShardName() string

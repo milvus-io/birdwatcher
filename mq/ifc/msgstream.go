@@ -12,5 +12,7 @@ type Consumer interface {
 	Close() error
 }
 
-var Endian = binary.LittleEndian
-var DefaultPartitionIdx = int32(0)
+var (
+	Endian              = binary.LittleEndian
+	DefaultPartitionIdx = int32(0)
+)

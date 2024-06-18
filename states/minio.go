@@ -5,15 +5,16 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/manifoldco/promptui"
+	"github.com/minio/minio-go/v7"
+	"github.com/samber/lo"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/minio/minio-go/v7"
-	"github.com/samber/lo"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type TestMinioCfgParam struct {
@@ -124,7 +125,6 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 }
 
 func (s *InstanceState) GetMinioClientFromPrompt(ctx context.Context) (client *minio.Client, bucketName, rootPath string, err error) {
-
 	p := promptui.Prompt{
 		Label: "BucketName",
 	}

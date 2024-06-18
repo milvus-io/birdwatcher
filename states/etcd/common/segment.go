@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/samber/lo"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -309,7 +310,6 @@ func RemoveSegmentByID(ctx context.Context, cli clientv3.KV, basePath string, co
 }
 
 func UpdateSegments(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
-
 	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", SegmentMetaPrefix, collectionID)) + "/"
 	segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
 	if err != nil {
@@ -329,7 +329,6 @@ func UpdateSegments(ctx context.Context, cli clientv3.KV, basePath string, colle
 		if err != nil {
 			return err
 		}
-
 	}
 	return nil
 }

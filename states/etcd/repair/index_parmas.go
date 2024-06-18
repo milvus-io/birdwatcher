@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
 
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // DiskAnnIndexParamsCommand return repair segment command.

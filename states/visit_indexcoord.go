@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 type indexCoordState struct {
@@ -32,7 +33,7 @@ func (s *indexCoordState) SetupCommands() {
 		getConfigurationCmd(s.clientv2, s.session.ServerID),
 		// build index progress
 		getDescribeIndex(s.clientv2, s.session.ServerID),
-		//back
+		// back
 		getBackCmd(s, s.prevState),
 		// exit
 		getExitCmd(s),
@@ -45,7 +46,6 @@ func (s *indexCoordState) SetupCommands() {
 }
 
 func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
-
 	state := &indexCoordState{
 		cmdState: cmdState{
 			label: fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address),

@@ -17,6 +17,11 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -29,10 +34,6 @@ import (
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"google.golang.org/grpc"
 )
 
 type milvusComponent string
@@ -72,7 +73,6 @@ func (c *milvusComponent) Type() string {
 // getBackupEtcdCmd returns command for backup etcd
 // usage: backup [component] [options...]
 func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
-
 	component := compAll
 	cmd := &cobra.Command{
 		Use:   "backup",
@@ -134,7 +134,7 @@ func getBackupEtcdCmd(cli clientv3.KV, basePath string) *cobra.Command {
 func getBackupFile(component string) (*os.File, error) {
 	now := time.Now()
 	filePath := fmt.Sprintf("bw_etcd_%s.%s.bak.gz", component, now.Format("060102-150405"))
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +373,6 @@ func backupAppMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 	}
 
 	return nil
-
 }
 
 func backupConfiguration(cli clientv3.KV, basePath string, w *bufio.Writer) error {
@@ -466,7 +465,7 @@ func writeBackupBytes(w *bufio.Writer, data []byte) {
 func readBackupBytes(rd io.Reader) ([]byte, uint64, error) {
 	lb := make([]byte, 8)
 	var nextBytes uint64
-	bsRead, err := io.ReadFull(rd, lb) //rd.Read(lb)
+	bsRead, err := io.ReadFull(rd, lb) // rd.Read(lb)
 	// all file read
 	if err == io.EOF {
 		return nil, nextBytes, err

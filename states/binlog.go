@@ -8,13 +8,14 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/minio/minio-go/v7"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
-	"github.com/minio/minio-go/v7"
-	"github.com/samber/lo"
 )
 
 type ScanBinlogsParam struct {
@@ -126,7 +127,8 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 
 // ScanBinlogs scans provided segment with delete record excluded.
 func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Client, bucketName string, rootPath string, collection *models.Collection, segment *models.Segment,
-	selectField func(fieldID int64) bool, fn func(map[int64]*storage.BinlogReader)) {
+	selectField func(fieldID int64) bool, fn func(map[int64]*storage.BinlogReader),
+) {
 	pkField, has := lo.Find(collection.Schema.Fields, func(field models.FieldSchema) bool {
 		return field.IsPrimaryKey
 	})

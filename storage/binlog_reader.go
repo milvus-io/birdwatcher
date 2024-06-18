@@ -178,7 +178,6 @@ func readData[T any, Reader interface {
 	file.ColumnChunkReader
 	ReadBatch(int64, []T, []int16, []int16) (int64, int, error)
 }](f io.Reader, colIdx int) ([]T, error) {
-
 	eventReader := newEventReader()
 	header, err := eventReader.readHeader(f)
 	if err != nil {

@@ -11,14 +11,15 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gosuri/uilive"
+	"github.com/minio/minio-go/v7"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
-	"github.com/minio/minio-go/v7"
-	"github.com/samber/lo"
 )
 
 type CheckPartitionKeyParam struct {
@@ -125,7 +126,6 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
 			return segment.CollectionID == collection.ID
 		})
-
 		if err != nil {
 			return err
 		}
@@ -268,7 +268,6 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		} else {
 			fmt.Printf("Collection %s found %d partition key error\n", collection.Schema.Name, collectionErrs)
 		}
-
 	}
 	return nil
 }

@@ -5,9 +5,10 @@ import (
 	"path"
 	"time"
 
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ListIndex list all index with all filter satified.

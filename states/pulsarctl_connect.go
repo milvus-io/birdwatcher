@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
 	pulsarctl "github.com/streamnative/pulsarctl/pkg/pulsar"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/common"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/utils"
+
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 type PulsarctlParam struct {
@@ -19,7 +20,6 @@ type PulsarctlParam struct {
 }
 
 func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *PulsarctlParam) error {
-
 	config := common.Config{
 		WebServiceURL:    p.Address,
 		AuthPlugin:       p.AuthPlugin,

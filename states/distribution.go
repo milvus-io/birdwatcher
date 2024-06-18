@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"time"
 
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
+	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
 // GetDistributionCommand returns command to iterate all querynodes to list distribution.

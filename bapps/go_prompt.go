@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/c-bata/go-prompt"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/history"
 	"github.com/milvus-io/birdwatcher/states"
-	"github.com/samber/lo"
 )
 
 // PromptApp wraps go-prompt as application.
@@ -151,7 +152,6 @@ func (a *PromptApp) promptExecute(in string) {
 
 // completeInput auto-complete logic entry.
 func (a *PromptApp) completeInput(d prompt.Document) []prompt.Suggest {
-
 	input := d.CurrentLineBeforeCursor()
 	if a.sugguestHistory {
 		return a.historySuggestions(input)

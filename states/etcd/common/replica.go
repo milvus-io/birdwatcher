@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"path"
 
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ListReplica list current replica info
@@ -53,18 +54,17 @@ func ListReplica(ctx context.Context, cli clientv3.KV, basePath string, collecti
 			ID:            r.GetID(),
 			CollectionID:  r.GetCollectionID(),
 			NodeIDs:       r.GetNodes(),
-			ResourceGroup: "", //TODO
+			ResourceGroup: "", // TODO
 			Version:       ">=2.2.0",
 		})
 	}
 	return results, nil
-
 }
+
 func listReplicas(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
 	prefix := path.Join(basePath, "queryCoord-ReplicaMeta")
 
 	replicas, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
-
 	if err != nil {
 		return nil, err
 	}

@@ -12,8 +12,9 @@ import (
 	"github.com/apache/arrow/go/v8/parquet/compress"
 	"github.com/apache/arrow/go/v8/parquet/pqarrow"
 	"github.com/cockroachdb/errors"
-	"github.com/milvus-io/birdwatcher/models"
 	"github.com/samber/lo"
+
+	"github.com/milvus-io/birdwatcher/models"
 )
 
 func ToArrowDataType(dataType models.DataType, dim int) arrow.DataType {
@@ -57,7 +58,6 @@ type ParquetWriter struct {
 }
 
 func NewParquetWriter(collection *models.Collection) *ParquetWriter {
-
 	fields := lo.Map(collection.Schema.Fields, func(field models.FieldSchema, _ int) arrow.Field {
 		dim, _ := field.GetDim()
 		return arrow.Field{
@@ -136,7 +136,6 @@ func (w *ParquetWriter) AppendBinaryVector(field string, vec []byte) error {
 }
 
 func (w *ParquetWriter) Flush(writer io.Writer) error {
-
 	columns := make([]arrow.Column, 0, len(w.builders))
 	arrs := make([]arrow.Array, 0, len(w.builders))
 

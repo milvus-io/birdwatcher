@@ -56,7 +56,6 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 	)
 
 	for _, info := range segments {
-
 		if info.State != models.SegmentStateDropped {
 			totalRC += info.NumOfRows
 			healthy++
@@ -105,9 +104,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 					}
 				}
 			}
-
 		}
-
 	}
 	if p.Format == "statistics" {
 		var totalBinlogLogSize int64
