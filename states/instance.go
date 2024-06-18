@@ -56,8 +56,6 @@ func (s *InstanceState) SetupCommands() {
 	)
 
 	cmd.AddCommand(
-		// download-segment
-		getDownloadSegmentCmd(cli, basePath),
 		// show [subcommand] options...
 		showCmd,
 		// repair [subcommand] options...
@@ -93,9 +91,6 @@ func (s *InstanceState) SetupCommands() {
 
 		// probe
 		GetProbeCmd(cli, basePath),
-
-		// set current-version
-		SetCurrentVersionCommand(),
 
 		// remove-segment-by-id
 		//removeSegmentByID(cli, basePath),

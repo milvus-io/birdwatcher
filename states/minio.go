@@ -94,6 +94,9 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 			useSSL = config.GetValue()
 		}
 	}
+	if minioAddr != "" {
+		addr = minioAddr
+	}
 
 	mp := oss.MinioClientParam{
 		CloudProvider: cloudProvider,
