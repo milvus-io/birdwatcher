@@ -54,8 +54,6 @@ func (s *InstanceState) SetupCommands() {
 	)
 
 	s.MergeCobraCommands(cmd,
-		// download-segment
-		getDownloadSegmentCmd(cli, basePath),
 		// show [subcommand] options...
 		showCmd,
 		// repair [subcommand] options...
