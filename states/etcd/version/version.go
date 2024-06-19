@@ -1,8 +1,6 @@
 package version
 
-var (
-	currentVersion string
-)
+var currentVersion string
 
 // SetVersion set current version manually.
 func SetVersion(ver string) {

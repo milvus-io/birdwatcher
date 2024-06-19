@@ -15,12 +15,13 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
-	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	tikv "github.com/tikv/client-go/v2/kv"
 	"github.com/tikv/client-go/v2/txnkv"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 )
 
 const (
@@ -171,7 +172,6 @@ func (kv *etcdKV) GetAllRootPath(ctx context.Context) ([]string, error) {
 	current := ""
 	for {
 		resp, err := kv.client.Get(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
-
 		if err != nil {
 			return nil, err
 		}

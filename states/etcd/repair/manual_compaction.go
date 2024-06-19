@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 func ManualCompactionCommand(cli kv.MetaKV, basePath string) *cobra.Command {

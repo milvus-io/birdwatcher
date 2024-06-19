@@ -6,8 +6,9 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/milvus-io/birdwatcher/states/kv"
 	"google.golang.org/protobuf/runtime/protoiface"
+
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 func ListJSONObjects[T any, P interface{ *T }](ctx context.Context, kv kv.MetaKV, prefix string, filters ...func(t P) bool) ([]P, []string, error) {

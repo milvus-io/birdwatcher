@@ -7,16 +7,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/milvus-io/birdwatcher/models"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func PullGlobalDistributionDetails(cli kv.MetaKV, basePath string) *cobra.Command {

@@ -6,12 +6,12 @@ import (
 	"io"
 	"os"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/samber/lo"
+
+	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
 
-type IndexReader struct {
-}
+type IndexReader struct{}
 
 func NewIndexReader(f *os.File) (*IndexReader, descriptorEvent, error) {
 	reader := &IndexReader{}
@@ -67,7 +67,6 @@ func (reader *IndexReader) NextEventReader(f *os.File, dataType schemapb.DataTyp
 			return nil, err
 		}
 		return [][]byte{result}, nil
-
 	}
 	return nil, errors.New("unexpected data type")
 }

@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 // ChannelCommand returns repair channel command.

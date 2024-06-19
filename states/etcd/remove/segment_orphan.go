@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/samber/lo"
 )
 
 type SegmentOrphan struct {

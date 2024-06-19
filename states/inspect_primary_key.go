@@ -7,17 +7,17 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/birdwatcher/storage"
-	"github.com/spf13/cobra"
 )
 
 func getInspectPKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
-
 	cmd := &cobra.Command{
 		Use:   "inspect-pk [segment id]",
 		Short: "inspect pk num&dup condition",
@@ -55,7 +55,6 @@ func getInspectPKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
 					coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), segment.GetCollectionID())
-
 					if err != nil {
 						fmt.Println("Collection not found for id", segment.CollectionID)
 						return
@@ -120,9 +119,7 @@ func getInspectPKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 						fmt.Printf("found mismatch segment %d, info:%d, binlog count:%d", segment.ID, segment.NumOfRows, total)
 					}
 				}
-
 			}
-
 		},
 	}
 

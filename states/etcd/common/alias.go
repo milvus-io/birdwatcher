@@ -5,10 +5,11 @@ import (
 	"errors"
 	"path"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 const (

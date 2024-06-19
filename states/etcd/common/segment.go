@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 const (
@@ -341,7 +342,6 @@ func RemoveSegmentStatLogPath(ctx context.Context, cli kv.MetaKV, basePath strin
 }
 
 func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
-
 	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", SegmentMetaPrefix, collectionID)) + "/"
 	segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
 	if err != nil {
@@ -361,7 +361,6 @@ func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collect
 		if err != nil {
 			return err
 		}
-
 	}
 	return nil
 }

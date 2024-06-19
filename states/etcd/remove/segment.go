@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
 )
 
 // SegmentCommand returns remove segment command.
@@ -44,12 +45,12 @@ func SegmentCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 
 			// dry run, display segment first
 			if !run {
-				//show.PrintSegmentInfo(segments[0], false)
+				// show.PrintSegmentInfo(segments[0], false)
 				fmt.Printf("segment info %v", segments[0])
 				return
 			}
 
-			//TODO put audit log
+			// TODO put audit log
 			info := segments[0]
 			backupSegmentInfo(info)
 			fmt.Println("[WARNING] about to remove segment from etcd")
@@ -70,7 +71,7 @@ func SegmentCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 func backupSegmentInfo(info *datapb.SegmentInfo) {
 	now := time.Now()
 	filePath := fmt.Sprintf("bw_etcd_segment_%d.%s.bak", info.GetID(), now.Format("060102-150405"))
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		fmt.Println("failed to open backup segment file", err.Error())
 		return

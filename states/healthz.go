@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/samber/lo"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type HealthzCheckParam struct {
@@ -57,7 +58,6 @@ type HealthzCheckReport struct {
 }
 
 func (c *InstanceState) HealthzCheckCommand(ctx context.Context, p *HealthzCheckParam) (*framework.PresetResultSet, error) {
-
 	results, err := c.checkSegmentTarget(ctx)
 	if err != nil {
 		return nil, err

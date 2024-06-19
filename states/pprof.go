@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -24,7 +25,6 @@ type PprofParam struct {
 }
 
 func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) error {
-
 	switch p.Type {
 	case "goroutine", "heap", "profile", "allocs":
 	default:
@@ -38,7 +38,7 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 
 	now := time.Now()
 	filePath := fmt.Sprintf("bw_pprof_%s.%s.tar.gz", p.Type, now.Format("060102-150405"))
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 
 				Name: fmt.Sprintf("%s_%d_%s", session.ServerName, session.ServerID, p.Type),
 				Size: int64(len(result.data)),
-				Mode: 0600,
+				Mode: 0o600,
 			})
 
 			_, err = tw.Write(result.data)

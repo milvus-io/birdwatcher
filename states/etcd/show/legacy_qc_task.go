@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-
 	"time"
 
-	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/spf13/cobra"
+
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 func listQueryCoordTriggerTasks(cli kv.MetaKV, basePath string) (map[UniqueID]queryCoordTask, error) {

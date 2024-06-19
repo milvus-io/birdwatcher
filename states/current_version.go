@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"

@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
 )
 
 func getFetchMetricsCmd(cli kv.MetaKV, basePath string) *cobra.Command {
@@ -26,7 +27,7 @@ func getFetchMetricsCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 			for _, session := range sessions {
 				metrics, defaultMetrics, _ := fetchInstanceMetrics(session)
 				fmt.Println(session)
-				//TODO parse metrics
+				// TODO parse metrics
 				fmt.Println(metrics)
 				fmt.Println(defaultMetrics)
 			}

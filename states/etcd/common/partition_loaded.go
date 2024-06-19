@@ -5,10 +5,11 @@ import (
 	"errors"
 	"path"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 func ListPartitionLoadedInfo(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.PartitionLoaded) bool) ([]*models.PartitionLoaded, error) {

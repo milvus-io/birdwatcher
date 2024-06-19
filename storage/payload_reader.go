@@ -7,8 +7,9 @@ import (
 	"github.com/apache/arrow/go/v8/arrow"
 	"github.com/apache/arrow/go/v8/parquet"
 	"github.com/apache/arrow/go/v8/parquet/file"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/samber/lo"
+
+	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
 
 type ParquetPayloadReader struct {
@@ -113,7 +114,6 @@ func readPayloadAll[T any, Reader interface {
 	file.ColumnChunkReader
 	ReadBatch(int64, []T, []int16, []int16) (int64, int, error)
 }](r *file.Reader, colIdx int) ([]T, error) {
-
 	var rowCount int64
 	for i := 0; i < r.NumRowGroups(); i++ {
 		rowCount += r.RowGroup(i).NumRows()

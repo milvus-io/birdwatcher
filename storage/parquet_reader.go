@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/apache/arrow/go/v8/parquet/file"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
 

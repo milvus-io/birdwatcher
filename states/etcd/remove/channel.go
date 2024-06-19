@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
 )
 
 // ChannelCommand returns remove channel command.

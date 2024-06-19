@@ -6,9 +6,10 @@ import (
 	"sort"
 
 	"github.com/cockroachdb/errors"
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 // getExitCmd returns exit command for input state.

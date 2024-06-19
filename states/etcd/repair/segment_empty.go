@@ -3,11 +3,12 @@ package repair
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
 )
 
 // EmptySegmentCommand returns repair empty-segment command.
@@ -41,7 +42,6 @@ func EmptySegmentCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 							fmt.Printf("remove segment %d failed, err: %s\n", info.GetID(), err.Error())
 						}
 					}
-
 				}
 			}
 

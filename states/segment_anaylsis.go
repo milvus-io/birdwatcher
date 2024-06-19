@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/errors"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -39,7 +40,6 @@ func (app *ApplicationState) StorageAnalysisCommand(ctx context.Context, p *Stor
 	segments, err := common.ListSegmentsVersion(ctx, etcd.client, etcd.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
 		return p.CollectionID == 0 || s.CollectionID == p.CollectionID
 	})
-
 	if err != nil {
 		return err
 	}

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 var backupKeyPrefix = "birdwatcher/backup"
@@ -148,7 +148,6 @@ func BinlogCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				}
 				fmt.Printf("Remove one binlog %s/%d from etcd succeeds.\n", key, logID)
 			}
-
 		},
 	}
 

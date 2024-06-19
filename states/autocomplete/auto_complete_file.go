@@ -12,7 +12,7 @@ import (
 
 type fileCandidate struct {
 	previousCandidates []acCandidate
-	validator          func(fs.DirEntry) bool //func(file os.FileInfo) bool
+	validator          func(fs.DirEntry) bool // func(file os.FileInfo) bool
 }
 
 func (c *fileCandidate) Match(input cComp) bool {
@@ -24,7 +24,6 @@ func (c *fileCandidate) NextCandidates(_ []acCandidate) []acCandidate {
 }
 
 func (c *fileCandidate) Suggest(target cComp) map[string]string {
-
 	ctag := target.cTag
 	var err error
 	if strings.HasPrefix(ctag, "~") {

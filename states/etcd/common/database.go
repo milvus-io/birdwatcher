@@ -4,10 +4,11 @@ import (
 	"context"
 	"path"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 const (
@@ -21,7 +22,6 @@ func ListDatabase(ctx context.Context, cli kv.MetaKV, basePath string) ([]*model
 	dbs, keys, err := ListProtoObjects(ctx, cli, prefix, func(*etcdpb.DatabaseInfo) bool {
 		return true
 	})
-
 	if err != nil {
 		return nil, err
 	}

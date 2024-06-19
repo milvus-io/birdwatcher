@@ -9,14 +9,12 @@ const (
 	FormatTable
 )
 
-var (
-	name2Format = map[string]Format{
-		"default": FormatDefault,
-		"plain":   FormatPlain,
-		"json":    FormatJSON,
-		"table":   FormatTable,
-	}
-)
+var name2Format = map[string]Format{
+	"default": FormatDefault,
+	"plain":   FormatPlain,
+	"json":    FormatJSON,
+	"table":   FormatTable,
+}
 
 // ResultSet is the interface for command result set.
 type ResultSet interface {

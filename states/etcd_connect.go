@@ -11,24 +11,23 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/milvus-io/birdwatcher/configs"
-	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/tikv/client-go/v2/config"
 	"github.com/tikv/client-go/v2/txnkv"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+
+	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 const (
 	metaPath = `meta`
 )
 
-var (
-	// ErrNotMilvsuRootPath sample error for non-valid root path.
-	ErrNotMilvsuRootPath = errors.New("is not a Milvus RootPath")
-)
+// ErrNotMilvsuRootPath sample error for non-valid root path.
+var ErrNotMilvsuRootPath = errors.New("is not a Milvus RootPath")
 
 func pingMetaStore(ctx context.Context, cli kv.MetaKV, rootPath string, metaPath string) error {
 	key := path.Join(rootPath, metaPath, "session/id")
@@ -114,7 +113,6 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	etcdCli, err := clientv3.New(cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to connect to etcd")
-
 	}
 
 	if cp.Auto {
@@ -257,7 +255,6 @@ func (s *kvConnectedState) SetupCommands() {
 
 // getKVConnectedState returns kvConnectedState for unknown instance
 func getKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config) framework.State {
-
 	state := &kvConnectedState{
 		CmdState: parent.Spawn(fmt.Sprintf("MetaStore(%s)", addr)),
 		client:   cli,

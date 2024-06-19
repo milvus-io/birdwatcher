@@ -5,11 +5,12 @@ import (
 	"errors"
 	"path"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 // ListCollectionLoadedInfo returns collection loaded info with provided version.

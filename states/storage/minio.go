@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 type MinioState struct {
@@ -47,7 +48,6 @@ func ConnectMinio(ctx context.Context, p *ConnectMinioParam, parent *framework.C
 		Creds:  cred,
 		Secure: p.UseSSL,
 	})
-
 	if err != nil {
 		return nil, err
 	}

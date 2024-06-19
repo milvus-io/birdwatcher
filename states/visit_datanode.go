@@ -3,12 +3,13 @@ package states
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 type dataNodeState struct {
@@ -29,7 +30,7 @@ func (s *dataNodeState) SetupCommands() {
 		getMetricsCmd(s.client),
 		// configuration
 		getConfigurationCmd(s.clientv2, s.session.ServerID),
-		//back
+		// back
 		getBackCmd(s, s.prevState),
 		// exit
 		getExitCmd(s),
@@ -42,7 +43,6 @@ func (s *dataNodeState) SetupCommands() {
 }
 
 func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
-
 	state := &dataNodeState{
 		CmdState:  framework.NewCmdState(fmt.Sprintf("DataNode-%d(%s)", session.ServerID, session.Address)),
 		session:   session,

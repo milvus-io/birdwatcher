@@ -3,12 +3,13 @@ package states
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 type queryCoordState struct {
@@ -29,7 +30,7 @@ func (s *queryCoordState) SetupCommands() {
 		getMetricsCmd(s.client),
 		// configuration
 		getConfigurationCmd(s.clientv2, s.session.ServerID),
-		//back
+		// back
 		getBackCmd(s, s.prevState),
 		// exit
 		getExitCmd(s),
@@ -73,7 +74,6 @@ func (s *queryCoordState) ShowCollectionCmd() *cobra.Command {
 }*/
 
 func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
-
 	state := &queryCoordState{
 		CmdState:  framework.NewCmdState(fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,

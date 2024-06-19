@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
 )
 
 // getEtcdKillCmd returns command for kill component session
 // usage: kill component
 func getEtcdKillCmd(cli kv.MetaKV, basePath string) *cobra.Command {
-
 	component := compAll
 	cmd := &cobra.Command{
 		Use:   "kill",
@@ -49,7 +49,6 @@ func etcdKillComponent(cli kv.MetaKV, key string, id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	val, err := cli.Load(ctx, key)
-
 	if err != nil {
 		return err
 	}

@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/milvus-io/birdwatcher/asap"
 	"github.com/tikv/client-go/v2/testutils"
 	tilib "github.com/tikv/client-go/v2/tikv"
 	"github.com/tikv/client-go/v2/txnkv"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
+
+	_ "github.com/milvus-io/birdwatcher/asap"
 )
 
 var (

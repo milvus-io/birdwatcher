@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/mitchellh/go-homedir"
+
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/mitchellh/go-homedir"
 )
 
 type LoadBackupParam struct {

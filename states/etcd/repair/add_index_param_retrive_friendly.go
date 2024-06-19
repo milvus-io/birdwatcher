@@ -3,9 +3,9 @@ package repair
 import (
 	"fmt"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 
-	"github.com/golang/protobuf/proto"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/milvus-io/birdwatcher/states/kv"

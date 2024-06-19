@@ -53,18 +53,17 @@ func ListReplica(ctx context.Context, cli kv.MetaKV, basePath string, collection
 			ID:            r.GetID(),
 			CollectionID:  r.GetCollectionID(),
 			NodeIDs:       r.GetNodes(),
-			ResourceGroup: "", //TODO
+			ResourceGroup: "", // TODO
 			Version:       ">=2.2.0",
 		})
 	}
 	return results, nil
-
 }
+
 func listReplicas(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*milvuspb.ReplicaInfo) bool) ([]milvuspb.ReplicaInfo, error) {
 	prefix := path.Join(basePath, "queryCoord-ReplicaMeta")
 
 	replicas, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
-
 	if err != nil {
 		return nil, err
 	}
