@@ -39,7 +39,7 @@ func NewHistoryHelper(filePath string) *Helper {
 		readFile.Close()
 	}
 	// open file and create if non-existent
-	hFile, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	hFile, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		fmt.Println("[WARN] failed to open history file", err.Error())
 	}

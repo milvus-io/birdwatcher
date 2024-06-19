@@ -21,18 +21,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	stateCommon "github.com/milvus-io/birdwatcher/states/etcd/common"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (

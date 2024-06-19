@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
@@ -29,7 +30,7 @@ func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointPara
 
 	checkpoints := make([]*Checkpoint, 0, len(coll.Channels))
 	for _, channel := range coll.Channels {
-		var checkpoint = &Checkpoint{
+		checkpoint := &Checkpoint{
 			Channel: &models.Channel{
 				PhysicalName: channel.PhysicalName,
 				VirtualName:  channel.VirtualName,

@@ -5,8 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/milvus-io/birdwatcher/states"
 	"github.com/samber/lo"
+
+	"github.com/milvus-io/birdwatcher/states"
 )
 
 type olcApp struct {

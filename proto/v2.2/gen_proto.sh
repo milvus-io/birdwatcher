@@ -19,7 +19,13 @@ case ":$PATH:" in
 esac
 
 echo "using protoc-gen-go: $(which protoc-gen-go)"
-protoc=/home/yangxuan/Github/milvus/cmake_build/bin/protoc
+
+if ! [ -x "$(which protoc )" ]; then
+  if [ -z "${protoc}" ]; then
+	echo 'Error: protoc is not found. please set you protoc by export protoc=/path_to_milvus/cmake_build/bin/protoc' >&2
+	exit 1
+  fi
+fi
 
 mkdir -p commonpb
 mkdir -p milvuspb

@@ -18,8 +18,9 @@ package storage
 
 import (
 	"github.com/cockroachdb/errors"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/samber/lo"
+
+	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 )
 
 // PrimaryKeys is the interface holding a slice of PrimaryKey
@@ -50,7 +51,7 @@ func (pks *Int64PrimaryKeys) Append(values ...PrimaryKey) error {
 	for _, pk := range values {
 		iPk, ok := pk.(*Int64PrimaryKey)
 		if !ok {
-			return errors.New("pk type not match") //merr.WrapErrParameterInvalid("Int64PrimaryKey", "non-int64 pk")
+			return errors.New("pk type not match") // merr.WrapErrParameterInvalid("Int64PrimaryKey", "non-int64 pk")
 		}
 		iValues = append(iValues, iPk.Value)
 	}

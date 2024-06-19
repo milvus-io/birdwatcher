@@ -24,7 +24,6 @@ func (c *fileCandidate) NextCandidates(_ []acCandidate) []acCandidate {
 }
 
 func (c *fileCandidate) Suggest(target cComp) map[string]string {
-
 	ctag := target.cTag
 	var err error
 	if strings.HasPrefix(ctag, "~") {

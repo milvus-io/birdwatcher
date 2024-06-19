@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // SegmentCollectionDroppedCommand returns `remove collection-drop` command.
@@ -30,7 +31,7 @@ func SegmentCollectionDroppedCommand(cli clientv3.KV, basePath string) *cobra.Co
 			}
 
 			var collections []*models.Collection
-			collections, err = common.ListCollectionsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
+			collections, _ = common.ListCollectionsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
 				return coll.ID == collectionID
 			})
 			if len(collections) != 0 {
@@ -49,7 +50,7 @@ func SegmentCollectionDroppedCommand(cli clientv3.KV, basePath string) *cobra.Co
 
 			// dry run, display segment first
 			if !run {
-				//show.PrintSegmentInfo(segments[0], false)
+				// show.PrintSegmentInfo(segments[0], false)
 				for _, info := range segments {
 					fmt.Printf("segment %d with collection %d will be removed.\n", info.GetID(), info.GetCollectionID())
 				}

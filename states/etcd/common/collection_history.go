@@ -7,12 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
-	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/runtime/protoiface"
+
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
+	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 )
 
 // ListCollectionHistory list collection history from snapshots.
@@ -48,7 +49,7 @@ func ListCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string
 		}
 		result = lo.Map(colls, func(coll etcdpbv2.CollectionInfo, idx int) *models.CollectionHistory {
 			ch := &models.CollectionHistory{}
-			//TODO add history field schema
+			// TODO add history field schema
 			ch.Collection = *models.NewCollectionFromV2_2(&coll, paths[idx], nil)
 			ch.Ts = parseHistoryTs(paths[idx])
 			return ch
@@ -95,7 +96,6 @@ func ListHistoryCollection[T any, P interface {
 }
 
 func RemoveCollectionHistory(ctx context.Context, cli clientv3.KV, basePath string, version string, collectionID int64) error {
-
 	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
 	colls, paths, _, err := ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
 	if err != nil {

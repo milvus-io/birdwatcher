@@ -1,8 +1,9 @@
 package show
 
 import (
-	"github.com/milvus-io/birdwatcher/configs"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/configs"
 )
 
 type ComponentShow struct {

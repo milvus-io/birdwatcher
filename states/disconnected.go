@@ -1,8 +1,9 @@
 package states
 
 import (
-	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/spf13/cobra"
+
+	"github.com/milvus-io/birdwatcher/configs"
 )
 
 type disconnectState struct {

@@ -48,11 +48,10 @@ func CheckpointCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			//coll, err := common.GetCollectionByID(cli, basePath, collID)
+			// coll, err := common.GetCollectionByID(cli, basePath, collID)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
-
 			if err != nil {
 				fmt.Println("failed to get collection", err.Error())
 				return

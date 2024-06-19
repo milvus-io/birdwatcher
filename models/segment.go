@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	"github.com/samber/lo"
 )
 
 // Segment is the common model for segment information.

@@ -4,10 +4,11 @@ import (
 	"context"
 	"path"
 
-	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 )
 
 const (
@@ -21,7 +22,6 @@ func ListDatabase(ctx context.Context, cli clientv3.KV, basePath string) ([]*mod
 	dbs, keys, err := ListProtoObjects(ctx, cli, prefix, func(*etcdpb.DatabaseInfo) bool {
 		return true
 	})
-
 	if err != nil {
 		return nil, err
 	}

@@ -14,9 +14,10 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func restoreFromV1File(cli clientv3.KV, rd io.Reader, header *models.BackupHeader) error {
@@ -33,8 +34,7 @@ func restoreFromV1File(cli clientv3.KV, rd io.Reader, header *models.BackupHeade
 	defer progressDisplay.Stop()
 
 	for {
-
-		bsRead, err := io.ReadFull(rd, lb) //rd.Read(lb)
+		bsRead, err := io.ReadFull(rd, lb) // rd.Read(lb)
 		// all file read
 		if err == io.EOF {
 			return nil
@@ -65,7 +65,7 @@ func restoreFromV1File(cli clientv3.KV, rd io.Reader, header *models.BackupHeade
 		entry := &commonpb.KeyDataPair{}
 		err = proto.Unmarshal(bs, entry)
 		if err != nil {
-			//Skip for now
+			// Skip for now
 			fmt.Printf("fail to parse line: %s, skip for now\n", err.Error())
 			continue
 		}
@@ -81,7 +81,6 @@ func restoreFromV1File(cli clientv3.KV, rd io.Reader, header *models.BackupHeade
 		progress := i * 100 / int(header.Entries)
 
 		fmt.Fprintf(progressDisplay, progressFmt, progress, i, header.Entries)
-
 	}
 }
 
@@ -91,7 +90,7 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 		var ph models.PartHeader
 		err = readFixLengthHeader(rd, &ph)
 		if err != nil {
-			//TODO check EOF
+			// TODO check EOF
 			return nil
 		}
 
@@ -109,9 +108,9 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 				state.defaultMetrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = defaultMetrics
 			})
 		case int32(models.Configurations):
-			//testRestoreConfigurations(rd, ph)
+			// testRestoreConfigurations(rd, ph)
 		case int32(models.AppMetrics):
-			//testRestoreConfigurations(rd, ph)
+			// testRestoreConfigurations(rd, ph)
 		}
 	}
 }
@@ -154,10 +153,10 @@ func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) 
 		}()
 		var lastPrint time.Time
 		for {
-			bsRead, err := io.ReadFull(rd, lb) //rd.Read(lb)
+			bsRead, err := io.ReadFull(rd, lb) // rd.Read(lb)
 			// all file read
 			if err == io.EOF {
-				//return meta["instance"], nil
+				// return meta["instance"], nil
 				errCh <- nil
 				return
 			}
@@ -196,7 +195,7 @@ func restoreEtcdFromBackV2(cli clientv3.KV, rd io.Reader, ph models.PartHeader) 
 			entry := &commonpb.KeyDataPair{}
 			err = proto.Unmarshal(bs, entry)
 			if err != nil {
-				//Skip for now
+				// Skip for now
 				fmt.Printf("fail to parse line: %s, skip for now\n", err.Error())
 				continue
 			}
@@ -336,7 +335,6 @@ func testRestoreConfigurations(rd io.Reader, ph models.PartHeader) error {
 		}
 
 		fmt.Println("configuration len:", len(bs))
-
 	}
 }
 

@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // CollectionDropCommand returns `remove collection-drop` command.
@@ -65,7 +66,6 @@ func CollectionDropCommand(cli clientv3.KV, basePath string) *cobra.Command {
 }
 
 func cleanCollectionDropMeta(cli clientv3.KV, basePath string, collection *models.Collection, run bool) {
-
 	fmt.Println("Clean collection(drop) meta:")
 	var ops []clientv3.Op
 	if collection.Key() == "" {

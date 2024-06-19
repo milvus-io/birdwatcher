@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/spf13/cobra"
-
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
 // EtcdConfigCommand returns set etcd-config command.

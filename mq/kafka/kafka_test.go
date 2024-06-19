@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/milvus-io/birdwatcher/mq/ifc"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/milvus-io/birdwatcher/mq/ifc"
 )
 
 func TestConsumer(t *testing.T) {

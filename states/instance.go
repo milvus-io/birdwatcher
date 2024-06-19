@@ -6,14 +6,15 @@ import (
 	"path"
 	"time"
 
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/audit"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // InstanceState provides command for single milvus instance.
@@ -83,7 +84,7 @@ func (s *InstanceState) SetupCommands() {
 		// segment-loaded
 		GetDistributionCommand(cli, basePath),
 
-		//balance-explain
+		// balance-explain
 		ExplainBalanceCommand(cli, basePath),
 
 		//
@@ -93,7 +94,7 @@ func (s *InstanceState) SetupCommands() {
 		GetProbeCmd(cli, basePath),
 
 		// remove-segment-by-id
-		//removeSegmentByID(cli, basePath),
+		// removeSegmentByID(cli, basePath),
 		// garbage-collect
 		getGarbageCollectCmd(cli, basePath),
 		// release-dropped-collection
@@ -108,7 +109,7 @@ func (s *InstanceState) SetupCommands() {
 		etcd.DownloadCommand(cli, basePath),
 	)
 
-	//cmd.AddCommand(etcd.RawCommands(cli)...)
+	// cmd.AddCommand(etcd.RawCommands(cli)...)
 	s.mergeFunctionCommands(cmd, s)
 	s.cmdState.rootCmd = cmd
 	s.setupFn = s.SetupCommands
@@ -129,7 +130,7 @@ func getDryModeCmd(state *InstanceState, etcdState State) *cobra.Command {
 func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState State, config *configs.Config) State {
 	var kv clientv3.KV
 	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
-	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		fmt.Println("failed to open audit.log file!")
 		kv = cli

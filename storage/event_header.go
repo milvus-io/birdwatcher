@@ -21,9 +21,7 @@ const (
 	EventTypeEnd
 )
 
-var (
-	commonEndian = binary.LittleEndian
-)
+var commonEndian = binary.LittleEndian
 
 type baseEventHeader struct {
 	Timestamp uint64
@@ -66,7 +64,7 @@ func readDescriptorEventHeader(buffer io.Reader) (*descriptorEventHeader, error)
 
 func newDescriptorEventHeader() *descriptorEventHeader {
 	header := descriptorEventHeader{
-		Timestamp: 0, //tsoutil.ComposeTS(time.Now().UnixNano()/int64(time.Millisecond), 0),
+		Timestamp: 0, // tsoutil.ComposeTS(time.Now().UnixNano()/int64(time.Millisecond), 0),
 		TypeCode:  DescriptorEventType,
 	}
 	return &header
@@ -75,7 +73,7 @@ func newDescriptorEventHeader() *descriptorEventHeader {
 func newEventHeader(eventTypeCode EventTypeCode) *eventHeader {
 	return &eventHeader{
 		baseEventHeader: baseEventHeader{
-			Timestamp:    0, //tsoutil.ComposeTS(time.Now().UnixNano()/int64(time.Millisecond), 0),
+			Timestamp:    0, // tsoutil.ComposeTS(time.Now().UnixNano()/int64(time.Millisecond), 0),
 			TypeCode:     eventTypeCode,
 			EventLength:  -1,
 			NextPosition: -1,

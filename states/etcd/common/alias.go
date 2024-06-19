@@ -5,10 +5,11 @@ import (
 	"errors"
 	"path"
 
-	"github.com/milvus-io/birdwatcher/models"
-	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/models"
+	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 )
 
 const (

@@ -7,16 +7,17 @@ import (
 	"os"
 	"time"
 
-	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/milvus-io/birdwatcher/models"
+	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
+	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 func PullGlobalDistributionDetails(cli clientv3.KV, basePath string) *cobra.Command {

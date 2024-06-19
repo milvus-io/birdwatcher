@@ -11,10 +11,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/states/autocomplete"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/states/autocomplete"
 )
 
 // State is the interface for application state.
@@ -205,7 +206,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 		}
 	}
 
-	//fmt.Println(mt.Name)
+	// fmt.Println(mt.Name)
 	cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
 	fUse, fDesc := GetCmdFromFlag(cp)
 	if len(use) == 0 {
@@ -359,7 +360,6 @@ func setupFlags(p framework.CmdParam, flags *pflag.FlagSet) {
 }
 
 func parseFlags(p framework.CmdParam, flags *pflag.FlagSet) error {
-
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
 		return errors.New("param is not pointer")

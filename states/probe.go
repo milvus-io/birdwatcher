@@ -14,20 +14,19 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/planpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"google.golang.org/grpc"
 )
 
 func GetProbeCmd(cli clientv3.KV, basePath string) *cobra.Command {
@@ -104,7 +103,6 @@ func getProbeQueryCmd(cli clientv3.KV, basePath string) *cobra.Command {
 				}
 
 				for _, shard := range leaders.GetShards() {
-
 					for _, nodeID := range shard.GetNodeIds() {
 						qn, ok := qns[nodeID]
 						if !ok {
@@ -129,7 +127,6 @@ func getProbeQueryCmd(cli clientv3.KV, basePath string) *cobra.Command {
 					}
 				}
 			}
-
 		},
 	}
 
@@ -342,13 +339,11 @@ func getQueryCoordClient(sessions []*models.Session) (querypbv2.QueryCoordClient
 
 		client := querypbv2.NewQueryCoordClient(conn)
 		return client, nil
-
 	}
 	return nil, errors.New("querycoord session not found")
 }
 
 func getQueryNodeClients(sessions []*models.Session) (map[int64]querypbv2.QueryNodeClient, error) {
-
 	result := make(map[int64]querypbv2.QueryNodeClient)
 
 	for _, session := range sessions {
@@ -399,7 +394,6 @@ func getMockSearchRequest(ctx context.Context, cli clientv3.KV, basePath string,
 	indexes, _, err := common.ListProtoObjects(ctx, cli, path.Join(basePath, "field-index"), func(index *indexpbv2.FieldIndex) bool {
 		return index.GetIndexInfo().GetIndexID() == indexID
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -410,16 +404,16 @@ func getMockSearchRequest(ctx context.Context, cli clientv3.KV, basePath string,
 	}
 	vector := genFloatVector(dim)
 
-	req := &internalpb.SearchRequest{
+	req := &internalpbv2.SearchRequest{
 		Base: &commonpbv2.MsgBase{
-			MsgType: commonpb.MsgType_Search,
+			MsgType: commonpbv2.MsgType_Search,
 		},
 		CollectionID:       coll.ID,
 		PartitionIDs:       []int64{},
 		Dsl:                "",
 		PlaceholderGroup:   vector2PlaceholderGroupBytes(vector),
 		DslType:            commonpbv2.DslType_BoolExprV1,
-		GuaranteeTimestamp: 1, //Eventually first
+		GuaranteeTimestamp: 1, // Eventually first
 		Nq:                 1,
 	}
 
@@ -490,7 +484,6 @@ func getMockSearchRequest(ctx context.Context, cli clientv3.KV, basePath string,
 	default:
 		return nil, fmt.Errorf("probing index type %s not supported yet", indexType)
 	}
-
 }
 
 func getSearchPlan(isBinary bool, pkFieldID, vectorFieldID int64, topk int64, metricType string, searchParam string) []byte {

@@ -11,22 +11,21 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/milvus-io/birdwatcher/configs"
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+
+	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 const (
 	metaPath = `meta`
 )
 
-var (
-	// ErrNotMilvsuRootPath sample error for non-valid root path.
-	ErrNotMilvsuRootPath = errors.New("is not a Milvus RootPath")
-)
+// ErrNotMilvsuRootPath sample error for non-valid root path.
+var ErrNotMilvsuRootPath = errors.New("is not a Milvus RootPath")
 
 func pingInstance(ctx context.Context, cli clientv3.KV, rootPath string, metaPath string) error {
 	key := path.Join(rootPath, metaPath, "session/id")
@@ -179,7 +178,6 @@ func (s *etcdConnectedState) SetupCommands() {
 
 // getEtcdConnectedState returns etcdConnectedState for unknown instance
 func getEtcdConnectedState(cli *clientv3.Client, addr string, config *configs.Config) State {
-
 	state := &etcdConnectedState{
 		cmdState: cmdState{
 			label: fmt.Sprintf("Etcd(%s)", addr),
@@ -258,7 +256,6 @@ func findMilvusInstance(ctx context.Context, cli clientv3.KV) ([]string, error) 
 	current := ""
 	for {
 		resp, err := cli.Get(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
-
 		if err != nil {
 			return nil, err
 		}

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/storage"
 )
@@ -228,7 +229,7 @@ func (s *disconnectState) AssembleIndexFilesCommand(ctx context.Context, p *Asse
 	}
 
 	outputPath := fmt.Sprintf("%s_%s", prefix, time.Now().Format("060102150406"))
-	output, err := os.OpenFile(outputPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	output, err := os.OpenFile(outputPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

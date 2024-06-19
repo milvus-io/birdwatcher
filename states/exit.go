@@ -3,8 +3,9 @@ package states
 import (
 	"context"
 
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
+
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 // ExitErr is the error indicates user needs to exit application.

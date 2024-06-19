@@ -377,7 +377,6 @@ func (m *DescribeAliasRequest) GetAlias() string {
 	return ""
 }
 
-//
 // Describe alias response
 type DescribeAliasResponse struct {
 	// Response status
@@ -498,7 +497,6 @@ func (m *ListAliasesRequest) GetCollectionName() string {
 	return ""
 }
 
-//
 // List aliases response
 type ListAliasesResponse struct {
 	// Response status
@@ -564,7 +562,7 @@ func (m *ListAliasesResponse) GetAliases() []string {
 	return nil
 }
 
-//*
+// *
 // Create collection in milvus
 type CreateCollectionRequest struct {
 	// Not useful for now
@@ -667,7 +665,7 @@ func (m *CreateCollectionRequest) GetNumPartitions() int64 {
 	return 0
 }
 
-//*
+// *
 // Drop collection in milvus, also will drop data in collection.
 type DropCollectionRequest struct {
 	// Not useful for now
@@ -726,7 +724,7 @@ func (m *DropCollectionRequest) GetCollectionName() string {
 	return ""
 }
 
-//*
+// *
 // Alter collection in milvus
 type AlterCollectionRequest struct {
 	// Not useful for now
@@ -801,7 +799,7 @@ func (m *AlterCollectionRequest) GetProperties() []*commonpb.KeyValuePair {
 	return nil
 }
 
-//*
+// *
 // Check collection exist in milvus or not.
 type HasCollectionRequest struct {
 	// Not useful for now
@@ -963,7 +961,7 @@ func (m *StringResponse) GetValue() string {
 	return ""
 }
 
-//*
+// *
 // Get collection meta datas like: schema, collectionID, shards number ...
 type DescribeCollectionRequest struct {
 	// Not useful for now
@@ -1040,7 +1038,7 @@ func (m *DescribeCollectionRequest) GetTimeStamp() uint64 {
 	return 0
 }
 
-//*
+// *
 // DescribeCollection Response
 type DescribeCollectionResponse struct {
 	// Contain error_code and reason
@@ -1205,7 +1203,7 @@ func (m *DescribeCollectionResponse) GetNumPartitions() int64 {
 	return 0
 }
 
-//*
+// *
 // Load collection data into query nodes, then you can do vector search on this collection.
 type LoadCollectionRequest struct {
 	// Not useful for now
@@ -1291,7 +1289,7 @@ func (m *LoadCollectionRequest) GetRefresh() bool {
 	return false
 }
 
-//*
+// *
 // Release collection data from query nodes, then you can't do vector search on this collection.
 type ReleaseCollectionRequest struct {
 	// Not useful for now
@@ -1350,7 +1348,7 @@ func (m *ReleaseCollectionRequest) GetCollectionName() string {
 	return ""
 }
 
-//*
+// *
 // Get statistics like row_count.
 // WARNING: This API is experimental and not useful for now.
 type GetStatisticsRequest struct {
@@ -1428,7 +1426,7 @@ func (m *GetStatisticsRequest) GetGuaranteeTimestamp() uint64 {
 	return 0
 }
 
-//*
+// *
 // Will return statistics in stats field like [{key:"row_count",value:"1"}]
 // WARNING: This API is experimental and not useful for now.
 type GetStatisticsResponse struct {
@@ -1480,7 +1478,7 @@ func (m *GetStatisticsResponse) GetStats() []*commonpb.KeyValuePair {
 	return nil
 }
 
-//*
+// *
 // Get collection statistics like row_count.
 type GetCollectionStatisticsRequest struct {
 	// Not useful for now
@@ -1539,7 +1537,7 @@ func (m *GetCollectionStatisticsRequest) GetCollectionName() string {
 	return ""
 }
 
-//*
+// *
 // Will return collection statistics in stats field like [{key:"row_count",value:"1"}]
 type GetCollectionStatisticsResponse struct {
 	// Contain error_code and reason
@@ -1590,7 +1588,6 @@ func (m *GetCollectionStatisticsResponse) GetStats() []*commonpb.KeyValuePair {
 	return nil
 }
 
-//
 // List collections
 type ShowCollectionsRequest struct {
 	// Not useful for now
@@ -1669,7 +1666,6 @@ func (m *ShowCollectionsRequest) GetCollectionNames() []string {
 	return nil
 }
 
-//
 // Return basic collection infos.
 type ShowCollectionsResponse struct {
 	// Contain error_code and reason
@@ -1767,7 +1763,6 @@ func (m *ShowCollectionsResponse) GetQueryServiceAvailable() []bool {
 	return nil
 }
 
-//
 // Create partition in created collection.
 type CreatePartitionRequest struct {
 	// Not useful for now
@@ -1835,7 +1830,6 @@ func (m *CreatePartitionRequest) GetPartitionName() string {
 	return ""
 }
 
-//
 // Drop partition in created collection.
 type DropPartitionRequest struct {
 	// Not useful for now
@@ -1903,7 +1897,6 @@ func (m *DropPartitionRequest) GetPartitionName() string {
 	return ""
 }
 
-//
 // Check if partition exist in collection or not.
 type HasPartitionRequest struct {
 	// Not useful for now
@@ -1971,7 +1964,6 @@ func (m *HasPartitionRequest) GetPartitionName() string {
 	return ""
 }
 
-//
 // Load specific partitions data of one collection into query nodes
 // Then you can get these data as result when you do vector search on this collection.
 type LoadPartitionsRequest struct {
@@ -2067,7 +2059,6 @@ func (m *LoadPartitionsRequest) GetRefresh() bool {
 	return false
 }
 
-//
 // Release specific partitions data of one collection from query nodes.
 // Then you can not get these data as result when you do vector search on this collection.
 type ReleasePartitionsRequest struct {
@@ -2136,7 +2127,6 @@ func (m *ReleasePartitionsRequest) GetPartitionNames() []string {
 	return nil
 }
 
-//
 // Get partition statistics like row_count.
 type GetPartitionStatisticsRequest struct {
 	// Not useful for now
@@ -2251,7 +2241,6 @@ func (m *GetPartitionStatisticsResponse) GetStats() []*commonpb.KeyValuePair {
 	return nil
 }
 
-//
 // List all partitions for particular collection
 type ShowPartitionsRequest struct {
 	// Not useful for now
@@ -2339,7 +2328,6 @@ func (m *ShowPartitionsRequest) GetType() ShowType {
 	return ShowType_All
 }
 
-//
 // List all partitions for particular collection response.
 // The returned datas are all rows, we can format to columns by therir index.
 type ShowPartitionsResponse struct {
@@ -2657,7 +2645,6 @@ func (m *ShowSegmentsResponse) GetSegmentIDs() []int64 {
 	return nil
 }
 
-//
 // Create index for vector datas
 type CreateIndexRequest struct {
 	// Not useful for now
@@ -2743,7 +2730,6 @@ func (m *CreateIndexRequest) GetIndexName() string {
 	return ""
 }
 
-//
 // Alter index
 type AlterIndexRequest struct {
 	Base                 *commonpb.MsgBase        `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
@@ -2816,7 +2802,6 @@ func (m *AlterIndexRequest) GetExtraParams() []*commonpb.KeyValuePair {
 	return nil
 }
 
-//
 // Get created index information.
 // Current release of Milvus only supports showing latest built index.
 type DescribeIndexRequest struct {
@@ -2902,7 +2887,6 @@ func (m *DescribeIndexRequest) GetTimestamp() uint64 {
 	return 0
 }
 
-//
 // Index informations
 type IndexDescription struct {
 	// Index name
@@ -3013,7 +2997,6 @@ func (m *IndexDescription) GetPendingIndexRows() int64 {
 	return 0
 }
 
-//
 // Describe index response
 type DescribeIndexResponse struct {
 	// Response status
@@ -3064,8 +3047,7 @@ func (m *DescribeIndexResponse) GetIndexDescriptions() []*IndexDescription {
 	return nil
 }
 
-//
-//  Get index building progress
+// Get index building progress
 type GetIndexBuildProgressRequest struct {
 	// Not useful for now
 	Base   *commonpb.MsgBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
@@ -4544,6 +4526,7 @@ func (m *VectorIDs) GetPartitionNames() []string {
 
 type VectorsArray struct {
 	// Types that are valid to be assigned to Array:
+	//
 	//	*VectorsArray_IdArray
 	//	*VectorsArray_DataArray
 	Array                isVectorsArray_Array `protobuf_oneof:"array"`
@@ -4690,6 +4673,7 @@ type CalcDistanceResults struct {
 	// num(op_left)*num(op_right) distance values, "HAMMIN" return integer distance
 	//
 	// Types that are valid to be assigned to Array:
+	//
 	//	*CalcDistanceResults_IntDist
 	//	*CalcDistanceResults_FloatDist
 	Array                isCalcDistanceResults_Array `protobuf_oneof:"array"`
@@ -5664,7 +5648,6 @@ func (m *GetComponentStatesRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetComponentStatesRequest proto.InternalMessageInfo
 
-//
 // Do load balancing operation from src_nodeID to dst_nodeID.
 type LoadBalanceRequest struct {
 	Base                 *commonpb.MsgBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`

@@ -6,15 +6,15 @@ import (
 	"sort"
 	"time"
 
+	"github.com/spf13/cobra"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/models"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-
-	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -33,7 +33,7 @@ func ExplainBalanceCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		Use:   "explain-balance",
 		Short: "explain segments and channels current balance status",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			//0. set up collection, policy, servers and params
+			// 0. set up collection, policy, servers and params
 			collectionID, err := cmd.Flags().GetInt64(collectionLabel)
 			if err != nil {
 				collectionID = 0
@@ -43,7 +43,7 @@ func ExplainBalanceCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				policyName = scoreBasedBalancePolicy
 			}
 
-			//1. set up segment distribution view, replicas and segmentInfos
+			// 1. set up segment distribution view, replicas and segmentInfos
 			sessions, err := ListServers(cli, basePath, queryNode)
 			if err != nil {
 				return err
@@ -59,9 +59,9 @@ func ExplainBalanceCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				fmt.Printf("no replicas available for collection %d, cannot explain balance \n", collectionID)
 				return nil
 			}
-			segmentsInfos, err := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion())
+			segmentsInfos, _ := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion())
 
-			//2. explain balance
+			// 2. explain balance
 			explainPolicy := policies[policyName]
 			globalFactor, err := cmd.Flags().GetFloat64(globalRowCountFactorLabel)
 			if err != nil {
@@ -76,8 +76,10 @@ func ExplainBalanceCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				reverseTolerationFactor = 1.3
 			}
 			reports := explainPolicy(distView, replicas, segmentsInfos,
-				&ScoreBalanceParam{globalFactor, unbalanceTolerationFactor,
-					reverseTolerationFactor})
+				&ScoreBalanceParam{
+					globalFactor, unbalanceTolerationFactor,
+					reverseTolerationFactor,
+				})
 			fmt.Println("explain balance reports:")
 			for _, report := range reports {
 				fmt.Print(report)
@@ -137,7 +139,8 @@ type segmentDistExplainFunc func(dist map[int64][]*querypbv2.SegmentVersionInfo,
 	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam) []string
 
 func scoreBasedBalanceExplain(dist map[int64][]*querypbv2.SegmentVersionInfo, replicas []*models.Replica,
-	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam) []string {
+	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam,
+) []string {
 	fmt.Printf("replica count:%d \n", len(replicas))
 	segmentInfoMap := make(map[int64]*models.Segment, len(segmentInfos))
 	for _, seg := range segmentInfos {
@@ -146,7 +149,7 @@ func scoreBasedBalanceExplain(dist map[int64][]*querypbv2.SegmentVersionInfo, re
 	sort.Slice(replicas, func(i, j int) bool {
 		return (replicas)[i].ID <= (replicas)[j].ID
 	})
-	//generate explanation reports for scoreBasedBalance
+	// generate explanation reports for scoreBasedBalance
 	reports := make([]string, 0)
 	for _, replica := range replicas {
 		if replica != nil {
@@ -181,7 +184,8 @@ type ScoreBalanceParam struct {
 }
 
 func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.SegmentVersionInfo,
-	segmentInfoMap map[int64]*models.Segment, param *ScoreBalanceParam) string {
+	segmentInfoMap map[int64]*models.Segment, param *ScoreBalanceParam,
+) string {
 	nodeItems := make([]*NodeItem, 0, len(replica.NodeIDs))
 	for _, nodeID := range replica.NodeIDs {
 		nodeSegments := dist[nodeID]
@@ -206,8 +210,10 @@ func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.Segment
 			}
 		}
 		priority := int64(param.globalRowCountFactor*float64(nodeRowSum)) + nodeCollectionRowSum
-		nodeItems = append(nodeItems, &NodeItem{nodeID, priority,
-			nodeCollectionSegments, nodeRowSum, nodeCollectionRowSum})
+		nodeItems = append(nodeItems, &NodeItem{
+			nodeID, priority,
+			nodeCollectionSegments, nodeRowSum, nodeCollectionRowSum,
+		})
 	}
 	sort.Slice(nodeItems, func(i, j int) bool {
 		return nodeItems[i].priority <= nodeItems[j].priority
@@ -220,7 +226,7 @@ func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.Segment
 		report += fmt.Sprintf("[node: %d, priority: %d, node_row_sum: %d, node_collection_row_sum: %d]\n",
 			item.nodeID, item.priority, item.nodeRowSum, item.nodeCollectionRowSum)
 	}
-	//calculate unbalance rate
+	// calculate unbalance rate
 	toNode, fromNode := nodeItems[0], nodeItems[len(nodeItems)-1]
 	unbalanceDiff := fromNode.priority - toNode.priority
 	continueBalance := false

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+
 	"github.com/milvus-io/birdwatcher/mq/ifc"
 	"github.com/milvus-io/birdwatcher/mq/pulsar"
 )

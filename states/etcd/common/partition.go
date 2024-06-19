@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/milvus-io/birdwatcher/models"
-	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/models"
+	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 )
 
 const (
@@ -20,7 +21,6 @@ func ListCollectionPartitions(ctx context.Context, cli clientv3.KV, basePath str
 	prefix := path.Join(basePath, PartitionPrefix, fmt.Sprintf("%d", collectionID))
 
 	infos, keys, err := ListProtoObjects[etcdpbv2.PartitionInfo](ctx, cli, prefix)
-
 	if err != nil {
 		return nil, err
 	}

@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
-	"github.com/samber/lo"
 )
 
 type AliasParam struct {
@@ -24,7 +25,6 @@ func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*Alias
 	aliases, err := common.ListAliasVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(a *models.Alias) bool {
 		return p.DBID == -1 || p.DBID == a.DBID
 	})
-
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list alias info")
 	}

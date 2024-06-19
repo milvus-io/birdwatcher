@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/milvus-io/birdwatcher/models"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+
+	"github.com/milvus-io/birdwatcher/models"
 )
 
 func (c *FileAuditKV) writeHeader(op models.AuditOpType, entriesNum int32) {

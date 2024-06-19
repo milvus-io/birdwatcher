@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/samber/lo"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
@@ -16,8 +19,6 @@ import (
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	msgpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/msgpb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
-	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 // ListChannelWatchV1 list v2.1 channel watch info meta.
@@ -50,7 +51,6 @@ func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, ver
 		}
 		result = lo.Map(infos, func(info datapb.ChannelWatchInfo, idx int) *models.ChannelWatch {
 			return models.GetChannelWatchInfo[*datapb.ChannelWatchInfo, datapb.ChannelWatchState, *datapb.VchannelInfo, *internalpb.MsgPosition](&info, paths[idx])
-
 		})
 	case models.GTEVersion2_2:
 		infos, paths, err := ListProtoObjects[datapbv2.ChannelWatchInfo](ctx, cli, prefix)

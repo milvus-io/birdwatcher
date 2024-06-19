@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/samber/lo"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/milvus-io/birdwatcher/eventlog"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -19,9 +23,6 @@ import (
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/samber/lo"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type ListMetricsPortParam struct {
@@ -58,7 +59,6 @@ func (s *InstanceState) ListMetricsPortCommand(ctx context.Context, p *ListMetri
 				fmt.Println(session.ServerName, session.IP(), item.GetValue())
 			}
 		}
-
 	}
 
 	return nil
@@ -116,7 +116,6 @@ func getEventLogPort(ctx context.Context, ip string, metricPort string) int {
 	}
 
 	resp, err := http.DefaultClient.Do(req)
-
 	if err != nil {
 		return -1
 	}
@@ -189,7 +188,6 @@ func (s *InstanceState) prepareListenerClients(ctx context.Context) ([]*eventlog
 				return
 			}
 			m.Store(addr, listener)
-
 		}(session)
 	}
 
@@ -223,8 +221,8 @@ func getConfigurationSource(session *models.Session, conn *grpc.ClientConn) conf
 	case "rootcoord":
 		client = rootcoordpbv2.NewRootCoordClient(conn)
 		//	case "proxy":
-		//client:= milvuspb.NewMilvusServiceClient(conn)
-		//state.SetNext(getProxy)
+		// client:= milvuspb.NewMilvusServiceClient(conn)
+		// state.SetNext(getProxy)
 	case "milvus":
 	}
 	return client

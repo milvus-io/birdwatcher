@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"github.com/manifoldco/promptui"
+	"github.com/minio/minio-go/v7"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/minio/minio-go/v7"
 )
 
 type DownloadSegmentParam struct {
@@ -62,7 +63,7 @@ func (s *InstanceState) downloadSegment(ctx context.Context, minioClient *minio.
 
 	for _, fieldBinlog := range segment.GetBinlogs() {
 		folder := fmt.Sprintf("%s/%d", p, fieldBinlog.FieldID)
-		err := os.MkdirAll(folder, 0777)
+		err := os.MkdirAll(folder, 0o777)
 		if err != nil {
 			fmt.Println("Failed to create sub-folder", err.Error())
 			return err
@@ -103,7 +104,6 @@ func getMinioAccess() (*minio.Client, string, error) {
 	if err != nil {
 		fmt.Println("cannot get minio client", err.Error())
 		return nil, "", err
-
 	}
 	exists, err := minioClient.BucketExists(context.Background(), bucketName)
 	if !exists {
