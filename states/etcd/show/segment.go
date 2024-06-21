@@ -82,7 +82,8 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 		case "table":
 			PrintSegmentInfo(info, p.Detail)
 		case "line":
-			fmt.Printf("SegmentID: %d State: %s, Level: %s, Row Count:%d\n", info.ID, info.State.String(), info.Level.String(), info.NumOfRows)
+			fmt.Printf("SegmentID: %d State: %s, Level: %s, Row Count:%d, PartitionStatsVersion:%d \n", info.ID, info.State.String(),
+				info.Level.String(), info.NumOfRows, info.PartitionStatsVersion)
 		case "statistics":
 			if info.State != models.SegmentStateDropped {
 				for _, binlog := range info.GetBinlogs() {

@@ -45,18 +45,21 @@ const (
 	SegmentLevelLegacy SegmentLevel = 0
 	SegmentLevelL0     SegmentLevel = 1
 	SegmentLevelL1     SegmentLevel = 2
+	SegmentLevelL2     SegmentLevel = 3
 )
 
 var SegmentLevelName = map[int32]string{
 	0: "Legacy",
 	1: "L0",
 	2: "L1",
+	3: "L2",
 }
 
 var SegmentLevelValue = map[string]int32{
 	"Legacy": 0,
 	"L0":     1,
 	"L1":     2,
+	"L2":     3,
 }
 
 func (x SegmentLevel) String() string {
