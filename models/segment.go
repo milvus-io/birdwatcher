@@ -34,6 +34,9 @@ type Segment struct {
 	// Semantic version
 	Version string
 
+	// PartitionStats version
+	PartitionStatsVersion int64
+
 	// etcd segment key
 	key string
 
@@ -126,6 +129,7 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 	}
 
 	s.Version = ">=2.2.0"
+	s.PartitionStatsVersion = info.GetPartitionStatsVersion()
 	return s
 }
 
