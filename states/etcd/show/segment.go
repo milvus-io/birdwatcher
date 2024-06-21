@@ -188,8 +188,8 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
 				tf, _ := utils.ParseTS(binlog.TimestampFrom)
 				tt, _ := utils.ParseTS(binlog.TimestampTo)
-				fmt.Printf("Mem Size: %d \t Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
-					binlog.MemSize,
+				fmt.Printf("LogID: %d \t Mem Size: %d \t Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
+					binlog.LogID, binlog.MemSize,
 					binlog.LogSize, binlog.EntriesNum,
 					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
 				binlogSize += binlog.LogSize
@@ -213,8 +213,8 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
 				tf, _ := utils.ParseTS(binlog.TimestampFrom)
 				tt, _ := utils.ParseTS(binlog.TimestampTo)
-				fmt.Printf("Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
-					binlog.LogSize, binlog.EntriesNum,
+				fmt.Printf("LogID: %d \t Log Size: %d \t Entry Num: %d\t TimeRange:%s-%s\n",
+					binlog.LogID, binlog.LogSize, binlog.EntriesNum,
 					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
 				statsLogSize += binlog.LogSize
 			}
@@ -228,7 +228,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 		for _, log := range info.GetDeltalogs() {
 			for _, l := range log.Binlogs {
 				fmt.Printf("Entries: %d From: %v - To: %v\n", l.EntriesNum, l.TimestampFrom, l.TimestampTo)
-				fmt.Printf("Path: %v LogSize: %s, MemSize: %s\n", l.LogPath, hrSize(l.LogSize), hrSize(l.MemSize))
+				fmt.Printf("LogID: %d, Path: %v LogSize: %s, MemSize: %s\n", l.LogID, l.LogPath, hrSize(l.LogSize), hrSize(l.MemSize))
 				deltaLogSize += l.LogSize
 				memSize += l.MemSize
 			}

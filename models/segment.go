@@ -218,6 +218,7 @@ type Binlog struct {
 	TimestampTo   uint64
 	LogPath       string
 	LogSize       int64
+	LogID         int64
 	MemSize       int64
 }
 
@@ -243,6 +244,7 @@ func newBinlogV2[T interface {
 	GetTimestampTo() uint64
 	GetLogPath() string
 	GetLogSize() int64
+	GetLogID() int64
 	GetMemorySize() int64
 }](binlog T) *Binlog {
 	return &Binlog{
@@ -251,6 +253,7 @@ func newBinlogV2[T interface {
 		TimestampTo:   binlog.GetTimestampTo(),
 		LogPath:       binlog.GetLogPath(),
 		LogSize:       binlog.GetLogSize(),
+		LogID:         binlog.GetLogID(),
 		MemSize:       binlog.GetMemorySize(),
 	}
 }
