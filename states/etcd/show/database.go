@@ -19,7 +19,9 @@ type DatabaseParam struct {
 
 // DatabaseCommand returns show database comand.
 func (c *ComponentShow) DatabaseCommand(ctx context.Context, p *DatabaseParam) (*Databases, error) {
-	dbs, err := common.ListDatabase(ctx, c.client, c.basePath)
+	dbs, err := common.ListDatabase(ctx, c.client, c.basePath, func(db *models.Database) bool {
+		return p.DatabaseName == "" || db.Name == p.DatabaseName
+	})
 	if err != nil {
 		fmt.Println("failed to list database info", err.Error())
 		return nil, errors.Wrap(err, "failed to list database info")
