@@ -54,7 +54,7 @@ func ListReplica(ctx context.Context, cli clientv3.KV, basePath string, collecti
 			ID:            r.GetID(),
 			CollectionID:  r.GetCollectionID(),
 			NodeIDs:       r.GetNodes(),
-			ResourceGroup: "", // TODO
+			ResourceGroup: r.GetResourceGroup(),
 			Version:       ">=2.2.0",
 		})
 	}
