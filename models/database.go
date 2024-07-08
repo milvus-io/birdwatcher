@@ -10,8 +10,8 @@ type Database struct {
 	Name        string
 	TenantID    string
 	State       DatabaseState
-	key         string
 	CreatedTime uint64
+	key         string
 }
 
 type DatabaseState int32
@@ -51,5 +51,6 @@ func NewDatabase(info *etcdpbv2.DatabaseInfo, key string) *Database {
 		TenantID:    info.GetTenantId(),
 		State:       DatabaseState(info.GetState()),
 		CreatedTime: info.GetCreatedTime(),
+		key:         key,
 	}
 }

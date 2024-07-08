@@ -53,7 +53,7 @@ func ListReplica(ctx context.Context, cli kv.MetaKV, basePath string, collection
 			ID:            r.GetID(),
 			CollectionID:  r.GetCollectionID(),
 			NodeIDs:       r.GetNodes(),
-			ResourceGroup: "", // TODO
+			ResourceGroup: r.GetResourceGroup(),
 			Version:       ">=2.2.0",
 		})
 	}
