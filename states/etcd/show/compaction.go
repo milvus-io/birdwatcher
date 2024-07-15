@@ -3,8 +3,11 @@ package show
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -20,7 +23,8 @@ type CompactionTaskParam struct {
 	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
 	PartitionID         int64  `name:"partitionID" default:"0" desc:"partitionID id to filter"`
 	TriggerID           int64  `name:"triggerID" default:"0" desc:"TriggerID to filter"`
-	PlanID              int64  ` name:"planID" default:"" desc:"PlanID  to filter"`
+	PlanID              int64  ` name:"planID" default:"0" desc:"PlanID  to filter"`
+	SegmentID           int64  ` name:"segmentID" default:"0" desc:"SegmentID  to filter"`
 	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing input/result segmentIDs"`
 }
 
@@ -45,8 +49,11 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 		if p.TriggerID > 0 && task.GetTriggerID() != p.TriggerID {
 			return false
 		}
+		if p.PlanID > 0 && task.GetPlanID() != p.PlanID {
+			return false
+		}
 
-		if p.PlanID > 0 && task.GetPlanID() != p.TriggerID {
+		if p.SegmentID > 0 && !lo.Contains(task.GetInputSegments(), p.SegmentID) {
 			return false
 		}
 		if p.State != "" && !strings.EqualFold(p.State, task.GetState().String()) {
@@ -58,6 +65,9 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(compactionTasks, func(i, j int) bool {
+		return compactionTasks[i].GetPlanID() < compactionTasks[j].GetPlanID()
+	})
 	return &CompactionTasks{
 		tasks: compactionTasks,
 		total: total,
