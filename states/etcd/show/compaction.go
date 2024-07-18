@@ -104,17 +104,17 @@ func (rs *CompactionTasks) Entities() any {
 }
 
 func printCompactionTaskSimple(sb *strings.Builder, task *models.CompactionTask) {
-	fmt.Printf("JobID: %d\tTaskID: %d\t Type:%s\t State:%s\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String())
+	fmt.Printf("JobID: %d\tTaskID: %d\t Type:%s\t State:%s\t StartTime: %d\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String(), task.GetStartTime())
 }
 
 func printCompactionTask(sb *strings.Builder, task *models.CompactionTask, detailSegmentIDs bool) {
 	fmt.Println("================================================================================")
 	if task.GetPartitionID() != 0 {
-		fmt.Printf("Collection ID: %d\tCollection Name: %s\t PartitionID:%d\t Channel:%s\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetPartitionID(), task.GetChannel())
+		fmt.Printf("Collection ID: %d\tCollection Name: %s\t PartitionID:%d\t Channel:%s\t StartTime: %d\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetPartitionID(), task.GetChannel(), task.GetStartTime())
 	} else {
-		fmt.Printf("Collection ID: %d\tCollection Name: %s\t Channel:%s\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetChannel())
+		fmt.Printf("Collection ID: %d\tCollection Name: %s\t Channel:%s\t StartTime: %d\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetChannel(), task.GetStartTime())
 	}
-	fmt.Printf("JobID: %d\tTaskID: %d\t Type:%s\t State:%s\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String())
+	fmt.Printf("JobID: %d\tTaskID: %d\t Type:%s\t State:%s\t StartTime: %d\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String(), task.GetStartTime())
 
 	t := time.Unix(task.GetStartTime(), 0)
 	fmt.Printf("Start Time: %s\n", t.Format("2006-01-02 15:04:05"))
