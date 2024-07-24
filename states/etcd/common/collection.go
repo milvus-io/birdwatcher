@@ -227,7 +227,7 @@ func FillFieldSchemaIfEmptyV2(cli clientv3.KV, basePath string, collection *etcd
 	return nil
 }
 
-func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo)) error {
+func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo), dryRun bool) error {
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collectionID, 10))
 	resp, err := cli.Get(ctx, prefix)
 	if err != nil {
@@ -246,6 +246,45 @@ func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, col
 		return err
 	}
 
+	if dryRun {
+		fmt.Println("dry run")
+		fmt.Println("before alter")
+		fmt.Printf("schema:%s", info.Schema.String())
+		fmt.Println("after alter")
+		fmt.Printf("schema:%s", info.Schema.String())
+		return nil
+	}
+
 	_, err = cli.Put(ctx, prefix, string(bs))
+	return err
+}
+
+func UpdateField(ctx context.Context, cli clientv3.KV, basePath string, collectionID, fieldID int64, fn func(field *schemapbv2.FieldSchema), dryRun bool) error {
+	prefix := path.Join(basePath, FieldMetaPrefix, strconv.FormatInt(collectionID, 10), strconv.FormatInt(fieldID, 10))
+	resp, err := cli.Get(ctx, prefix)
+	if err != nil {
+		return err
+	}
+	if len(resp.Kvs) <= 0 {
+		return fmt.Errorf("wrong path %s", prefix)
+	}
+	info := &schemapbv2.FieldSchema{}
+	err = proto.Unmarshal(resp.Kvs[0].Value, info)
+	if err != nil {
+		return err
+	}
+	fmt.Println("before alter", info)
+	fn(info)
+	bs, err := proto.Marshal(info)
+	if err != nil {
+		return err
+	}
+
+	if dryRun {
+		fmt.Printf("try alter field schema:%s\n", info.String())
+		return nil
+	}
+	_, err = cli.Put(ctx, prefix, string(bs))
+	fmt.Printf("alter field schema:%s\n", info.String())
 	return err
 }

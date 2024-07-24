@@ -61,7 +61,6 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 		}
 		return true
 	})
-
 	if err != nil {
 		return nil, err
 	}
