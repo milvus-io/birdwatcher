@@ -3,6 +3,7 @@ package etcd
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -62,7 +63,7 @@ func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
 }
 
 // SetCommand, returns etcd set commands.
-func SetCommand(cli clientv3.KV, instanceName string, metaPath string) *cobra.Command {
+func SetCommand(cli clientv3.KV, instanceName string, basePath string) *cobra.Command {
 	setCmd := &cobra.Command{
 		Use: "set",
 	}
@@ -70,6 +71,7 @@ func SetCommand(cli clientv3.KV, instanceName string, metaPath string) *cobra.Co
 	setCmd.AddCommand(
 		// by-dev/config not by-dev/meta/config
 		set.EtcdConfigCommand(cli, instanceName),
+		set.FieldAlterCommand(cli, path.Join(instanceName, basePath)),
 	)
 
 	return setCmd
