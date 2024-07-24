@@ -6,14 +6,14 @@ import (
 	"path"
 
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 // CompactionTaskCleanCommand returns command to remove
-func CompactionTaskCleanCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func CompactionTaskCleanCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "compaction",
 		Short: "Remove compaction task",
@@ -53,7 +53,7 @@ func CompactionTaskCleanCommand(cli clientv3.KV, basePath string) *cobra.Command
 
 			for _, task := range compactionTasks {
 				key := path.Join(basePath, common.CompactionTaskPrefix, task.GetType().String(), fmt.Sprint(task.GetTriggerID()), fmt.Sprint(task.GetPlanID()))
-				_, err = cli.Delete(context.TODO(), key, clientv3.WithPrefix())
+				err = cli.RemoveWithPrefix(context.TODO(), key)
 				if err != nil {
 					fmt.Println(err.Error())
 					return

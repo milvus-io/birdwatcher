@@ -201,7 +201,7 @@ func FillFieldSchemaIfEmpty(cli kv.MetaKV, basePath string, collection *etcdpb.C
 			return err
 		}
 		if len(keys) != len(vals) {
-			return fmt.Errorf("Error: keys and vals of different size:%d vs %d", len(keys), len(vals))
+			return fmt.Errorf("error: keys and vals of different size:%d vs %d", len(keys), len(vals))
 		}
 		for i, key := range keys {
 			field := &schemapb.FieldSchema{}
@@ -224,7 +224,7 @@ func FillFieldSchemaIfEmptyV2(cli kv.MetaKV, basePath string, collection *etcdpb
 			return err
 		}
 		if len(keys) != len(vals) {
-			return fmt.Errorf("Error: keys and vals of different size:%d vs %d", len(keys), len(vals))
+			return fmt.Errorf("error: keys and vals of different size:%d vs %d", len(keys), len(vals))
 		}
 		for i, key := range keys {
 			field := &schemapbv2.FieldSchema{}
@@ -240,7 +240,7 @@ func FillFieldSchemaIfEmptyV2(cli kv.MetaKV, basePath string, collection *etcdpb
 	return nil
 }
 
-func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo)) error {
+func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo), dryRun bool) error {
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collectionID, 10))
 	val, err := cli.Load(ctx, prefix)
 	if err != nil {
@@ -258,5 +258,46 @@ func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, colle
 	if err != nil {
 		return err
 	}
-	return cli.Save(ctx, prefix, string(bs))
+
+	if dryRun {
+		fmt.Println("dry run")
+		fmt.Println("before alter")
+		fmt.Printf("schema:%s", info.Schema.String())
+		fmt.Println("after alter")
+		fmt.Printf("schema:%s", info.Schema.String())
+		return nil
+	}
+
+	err = cli.Save(ctx, prefix, string(bs))
+	return err
+}
+
+func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, fieldID int64, fn func(field *schemapbv2.FieldSchema), dryRun bool) error {
+	prefix := path.Join(basePath, FieldMetaPrefix, strconv.FormatInt(collectionID, 10), strconv.FormatInt(fieldID, 10))
+	resp, err := cli.Load(ctx, prefix)
+	if err != nil {
+		return err
+	}
+	if len(resp) <= 0 {
+		return fmt.Errorf("wrong path %s", prefix)
+	}
+	info := &schemapbv2.FieldSchema{}
+	err = proto.Unmarshal([]byte(resp), info)
+	if err != nil {
+		return err
+	}
+	fmt.Println("before alter", info)
+	fn(info)
+	bs, err := proto.Marshal(info)
+	if err != nil {
+		return err
+	}
+
+	if dryRun {
+		fmt.Printf("try alter field schema:%s\n", info.String())
+		return nil
+	}
+	err = cli.Save(ctx, prefix, string(bs))
+	fmt.Printf("alter field schema:%s\n", info.String())
+	return err
 }
