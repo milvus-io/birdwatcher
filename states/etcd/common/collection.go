@@ -246,6 +246,7 @@ func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, colle
 	if err != nil {
 		return err
 	}
+
 	info := &etcdpbv2.CollectionInfo{}
 	err = proto.Unmarshal([]byte(val), info)
 	if err != nil {
@@ -273,16 +274,48 @@ func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, colle
 }
 
 func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, fieldID int64, fn func(field *schemapbv2.FieldSchema), dryRun bool) error {
-	prefix := path.Join(basePath, FieldMetaPrefix, strconv.FormatInt(collectionID, 10), strconv.FormatInt(fieldID, 10))
-	resp, err := cli.Load(ctx, prefix)
+	prefix := path.Join(basePath, SnapshotPrefix, FieldMetaPrefix, strconv.FormatInt(collectionID, 10))
+	keys, values, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return err
 	}
-	if len(resp) <= 0 {
+
+	if len(keys) <= 0 {
 		return fmt.Errorf("wrong path %s", prefix)
 	}
+
+	matchedKey := ""
+	var matchedValue []byte
+	curTs := int64(0)
+	for idx, key := range keys {
+		baseName := path.Base(key)
+		parts := strings.Split(baseName, "_")
+		i, err2 := strconv.Atoi(parts[0])
+		if err2 != nil {
+			return err2
+		}
+
+		if int64(i) == fieldID {
+			tsString := parts[1][2:]
+			ts, err := strconv.Atoi(tsString)
+			if err != nil {
+				return nil
+			}
+			ts2 := int64(ts)
+			if ts2 > curTs {
+				curTs = ts2
+				matchedKey = key
+				matchedValue = []byte(values[idx])
+			}
+		}
+	}
+
+	if len(matchedValue) == 0 || len(matchedKey) == 0 {
+		return fmt.Errorf("not found field")
+	}
+	fmt.Println("matchedKey:", matchedKey)
 	info := &schemapbv2.FieldSchema{}
-	err = proto.Unmarshal([]byte(resp), info)
+	err = proto.Unmarshal(matchedValue, info)
 	if err != nil {
 		return err
 	}
@@ -297,7 +330,22 @@ func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collection
 		fmt.Printf("try alter field schema:%s\n", info.String())
 		return nil
 	}
-	err = cli.Save(ctx, prefix, string(bs))
+	err = cli.Save(ctx, matchedKey, string(bs))
+	if err != nil {
+		return err
+	}
 	fmt.Printf("alter field schema:%s\n", info.String())
-	return err
+
+	prefixCache := path.Join(basePath, FieldMetaPrefix, strconv.FormatInt(collectionID, 10), strconv.FormatInt(fieldID, 10))
+	_, err = cli.Load(ctx, prefixCache)
+	if err != nil {
+		fmt.Println("no need save to cache")
+		return nil
+	}
+	err = cli.Save(ctx, prefixCache, string(bs))
+	if err != nil {
+		return err
+	}
+	fmt.Printf("alter field schema cache :%s\n", info.String())
+	return nil
 }
