@@ -120,6 +120,7 @@ func NewCollectionFromV2_2(info *etcdpbv2.CollectionInfo, key string, fields []*
 		fs.Properties = GetMapFromKVPairs(fieldSchema.GetTypeParams())
 		fs.IsDynamic = fieldSchema.GetIsDynamic()
 		fs.IsPartitionKey = fieldSchema.GetIsPartitionKey()
+		fs.IsClusteringKey = fieldSchema.GetIsClusteringKey()
 		return fs
 	})
 	c.Schema.EnableDynamicSchema = info.GetSchema().GetEnableDynamicField()
