@@ -124,6 +124,9 @@ func printCollection(sb *strings.Builder, collection *models.Collection) {
 		if field.IsPartitionKey {
 			fmt.Printf("\t - Partition Key\n")
 		}
+		if field.IsClusteringKey {
+			fmt.Printf("\t - Clustering Key\n")
+		}
 		for key, value := range field.Properties {
 			fmt.Printf("\t - Type Param %s: %s\n", key, value)
 		}
