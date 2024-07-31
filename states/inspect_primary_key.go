@@ -10,13 +10,14 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/minio/minio-go/v7"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
-	"github.com/minio/minio-go/v7"
 )
 
 type InspectPKParam struct {
@@ -117,7 +118,6 @@ func (s *InstanceState) inspectRemote(ctx context.Context, p *InspectPKParam) (m
 	}
 
 	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, p.MinioAddress)
-
 	if err != nil {
 		fmt.Println("Failed to create folder,", err.Error())
 	}
