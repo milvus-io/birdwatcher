@@ -23,12 +23,12 @@ func CurrentVersionCommand() *cobra.Command {
 	return cmd
 }
 
-type setCurrentVersionParam struct {
+type SetCurrentVersionParam struct {
 	framework.ParamBase `use:"set current-version" desc:"set current version for etcd meta parsing"`
 	newVersion          string
 }
 
-func (p *setCurrentVersionParam) ParseArgs(args []string) error {
+func (p *SetCurrentVersionParam) ParseArgs(args []string) error {
 	if len(args) != 1 {
 		return errors.New("invalid parameter number")
 	}
@@ -36,7 +36,7 @@ func (p *setCurrentVersionParam) ParseArgs(args []string) error {
 	return nil
 }
 
-func (s *InstanceState) SetCurrentVersionCommand(ctx context.Context, param setCurrentVersionParam) {
+func (s *InstanceState) SetCurrentVersionCommand(ctx context.Context, param *SetCurrentVersionParam) error {
 	switch param.newVersion {
 	case models.LTEVersion2_1:
 		fallthrough
@@ -49,39 +49,5 @@ func (s *InstanceState) SetCurrentVersionCommand(ctx context.Context, param setC
 	default:
 		fmt.Println("Invalid version string:", param.newVersion)
 	}
-}
-
-// SetCurrentVersionCommand returns command for set current-version.
-func SetCurrentVersionCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use: "set",
-	}
-
-	subCmd := &cobra.Command{
-		Use: "current-version",
-		Run: func(_ *cobra.Command, args []string) {
-			if len(args) != 1 {
-				fmt.Println("invalid parameter numbers")
-				return
-			}
-
-			newVersion := args[0]
-			switch newVersion {
-			case models.LTEVersion2_1:
-				fallthrough
-			case "LTEVersion2_1":
-				etcdversion.SetVersion(models.LTEVersion2_1)
-			case models.GTEVersion2_2:
-				fallthrough
-			case "GTEVersion2_2":
-				etcdversion.SetVersion(models.GTEVersion2_2)
-			default:
-				fmt.Println("Invalid version string:", newVersion)
-			}
-		},
-	}
-
-	cmd.AddCommand(subCmd)
-
-	return cmd
+	return nil
 }
