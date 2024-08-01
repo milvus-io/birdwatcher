@@ -13,9 +13,9 @@ import (
 
 type IndexReader struct{}
 
-func NewIndexReader(f *os.File) (*IndexReader, descriptorEvent, error) {
+func NewIndexReader(f *os.File) (*IndexReader, DescriptorEvent, error) {
 	reader := &IndexReader{}
-	var de descriptorEvent
+	var de DescriptorEvent
 	var err error
 
 	_, err = readMagicNumber(f)

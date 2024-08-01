@@ -28,16 +28,16 @@ type BinlogReader struct {
 	reader io.Reader
 }
 
-type descriptorEvent struct {
+type DescriptorEvent struct {
 	descriptorEventHeader
 	descriptorEventData
 }
 
-func NewBinlogReader(f ReadSeeker) (*BinlogReader, descriptorEvent, error) {
+func NewBinlogReader(f ReadSeeker) (*BinlogReader, DescriptorEvent, error) {
 	reader := &BinlogReader{
 		reader: f,
 	}
-	var de descriptorEvent
+	var de DescriptorEvent
 	var err error
 
 	if _, err = reader.readMagicNumber(f); err != nil {
@@ -119,7 +119,7 @@ func (reader *BinlogReader) readMagicNumber(f ReadSeeker) (int32, error) {
 	return magicNumber, err
 }
 
-func (reader *BinlogReader) readDescriptorEvent(f ReadSeeker) (descriptorEvent, error) {
+func (reader *BinlogReader) readDescriptorEvent(f ReadSeeker) (DescriptorEvent, error) {
 	event, err := ReadDescriptorEvent(f)
 	if err != nil {
 		return event, err
@@ -140,8 +140,8 @@ func readMagicNumber(buffer ReadSeeker) (int32, error) {
 }
 
 // ReadDescriptorEvent reads a descriptorEvent from buffer
-func ReadDescriptorEvent(buffer ReadSeeker) (descriptorEvent, error) {
-	de := descriptorEvent{}
+func ReadDescriptorEvent(buffer ReadSeeker) (DescriptorEvent, error) {
+	de := DescriptorEvent{}
 	header, err := readDescriptorEventHeader(buffer)
 	if err != nil {
 		return de, err
@@ -150,7 +150,7 @@ func ReadDescriptorEvent(buffer ReadSeeker) (descriptorEvent, error) {
 	if err != nil {
 		return de, err
 	}
-	return descriptorEvent{
+	return DescriptorEvent{
 		descriptorEventHeader: *header,
 		descriptorEventData:   *data,
 	}, nil
