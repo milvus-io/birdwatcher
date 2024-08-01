@@ -67,8 +67,6 @@ func (s *InstanceState) SetupCommands() {
 
 		// kill --component [component] --id [id]
 		getEtcdKillCmd(cli, basePath),
-		// download-pk
-		getDownloadPKCmd(cli, basePath),
 		// visit [component] [id]
 		getVisitCmd(s, cli, basePath),
 		// show-log-level

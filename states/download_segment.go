@@ -22,7 +22,7 @@ import (
 type DownloadSegmentParam struct {
 	framework.ParamBase `use:"download-segment" desc:"download segment file with provided segment id"`
 	MinioAddress        string `name:"minioAddr" default:"" desc:"the minio address to override, leave empty to use milvus.yaml value"`
-	SegmentID           int64  `name:"segment" default:"0" desc:"segment id to downloads"`
+	SegmentID           int64  `name:"segment" default:"0" desc:"segment id to download"`
 }
 
 func (s *InstanceState) DownloadSegmentCommand(ctx context.Context, p *DownloadSegmentParam) error {

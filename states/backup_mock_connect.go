@@ -67,10 +67,6 @@ func (s *embedEtcdMockState) SetupCommands() {
 		// remove [subcommand] options...
 		// used for testing
 		etcd.RemoveCommand(s.client, s.instanceName, rootPath),
-		// download-pk
-		getDownloadPKCmd(s.client, rootPath),
-		// inspect-pk
-		getInspectPKCmd(s.client, rootPath),
 
 		// for testing
 		etcd.RepairCommand(s.client, rootPath),
@@ -255,7 +251,7 @@ func readFixLengthHeader[T proto.Message](rd *bufio.Reader, header T) error {
 	lb := make([]byte, 8)
 	lenRead, err := rd.Read(lb)
 	if err == io.EOF || lenRead < 8 {
-		return fmt.Errorf("File does not contains valid header")
+		return errors.New("File does not contains valid header")
 	}
 
 	nextBytes := binary.LittleEndian.Uint64(lb)
