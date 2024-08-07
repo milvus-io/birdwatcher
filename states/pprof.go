@@ -26,7 +26,7 @@ type PprofParam struct {
 
 func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) error {
 	switch p.Type {
-	case "goroutine", "heap", "profile", "allocs":
+	case "goroutine", "heap", "profile", "allocs", "block", "mutex":
 	default:
 		return errors.New("invalid pprof metric type provided")
 	}
