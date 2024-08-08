@@ -32,6 +32,9 @@ func (s *dataCoordState) SetupCommands() {
 		// back
 		getBackCmd(s, s.prevState),
 
+		// compact
+		compactCmd(s.clientv2),
+
 		// exit
 		getExitCmd(s),
 	)
