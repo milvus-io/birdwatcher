@@ -37,6 +37,7 @@ func ListSessionsByPrefix(cli clientv3.KV, prefix string) ([]*models.Session, er
 		if err != nil {
 			continue
 		}
+		session.SetKey(string(kv.Key))
 
 		sessions = append(sessions, session)
 	}
