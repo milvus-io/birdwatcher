@@ -7,14 +7,15 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/expr-lang/expr"
+	"github.com/minio/minio-go/v7"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
-	"github.com/minio/minio-go/v7"
-	"github.com/samber/lo"
 )
 
 type ScanBinlogParams struct {
@@ -44,7 +45,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 		fieldsMap[field] = struct{}{}
 	}
 
-	fields := make(map[int64]models.FieldSchema) //make([]models.FieldSchema, 0, len(p.Fields))
+	fields := make(map[int64]models.FieldSchema) // make([]models.FieldSchema, 0, len(p.Fields))
 
 	for _, fieldSchema := range collection.Schema.Fields {
 		if _, ok := fieldsMap[fieldSchema.Name]; ok {
@@ -113,27 +114,30 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 			}
 
 			err = s.scanBinlogs(pkObject, fieldObjects, func(pk storage.PrimaryKey, offset int, values map[int64]any) error {
-				env := lo.MapKeys(values, func(_ any, fid int64) string {
-					return fields[fid].Name
-				})
-				program, err := expr.Compile(p.Expr, expr.Env(env))
-				if err != nil {
-					return err
+				if len(p.Expr) != 0 {
+					env := lo.MapKeys(values, func(_ any, fid int64) string {
+						return fields[fid].Name
+					})
+					program, err := expr.Compile(p.Expr, expr.Env(env))
+					if err != nil {
+						return err
+					}
+
+					output, err := expr.Run(program, env)
+					if err != nil {
+						fmt.Println("failed to run expression, err: ", err.Error())
+					}
+
+					match, ok := output.(bool)
+					if !ok {
+						return errors.Newf("filter expression result not bool but %T", output)
+					}
+
+					if !match {
+						return nil
+					}
 				}
 
-				output, err := expr.Run(program, env)
-				if err != nil {
-					fmt.Println("failed to run expression, err: ", err.Error())
-				}
-
-				match, ok := output.(bool)
-				if !ok {
-					return errors.Newf("filter expression result not bool but %T", output)
-				}
-
-				if !match {
-					return nil
-				}
 				switch strings.ToLower(p.Action) {
 				case "count":
 					count++
