@@ -93,7 +93,19 @@ func (app *ApplicationState) connectTiKV(ctx context.Context, cp *ConnectParams)
 	return nil
 }
 
+func (app *ApplicationState) readEnv(cp *ConnectParams) {
+	if cp.EtcdAddr == "127.0.0.1:2379" && os.Getenv("MILVUS_ETCD_ADDR") != "" {
+		cp.EtcdAddr = os.Getenv("MILVUS_ETCD_ADDR")
+		fmt.Println("using env MILVUS_ETCD_ADDR,", cp.EtcdAddr)
+	}
+	if cp.RootPath == "by-dev" && os.Getenv("MILVUS_ROOT_PATH") != "" {
+		cp.RootPath = os.Getenv("MILVUS_ROOT_PATH")
+		fmt.Println("using env MILVUS_ROOT_PATH,", cp.RootPath)
+	}
+}
+
 func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams) error {
+	app.readEnv(cp)
 	tls, err := app.getTLSConfig(cp)
 	if err != nil {
 		return err
