@@ -91,7 +91,19 @@ func (s *disconnectState) getTLSConfig(cp *ConnectParams) (*tls.Config, error) {
 	}, nil
 }
 
+func (s *disconnectState) readEnv(cp *ConnectParams) {
+	if cp.EtcdAddr == "127.0.0.1:2379" && os.Getenv("MILVUS_ETCD_ADDR") != "" {
+		cp.EtcdAddr = os.Getenv("MILVUS_ETCD_ADDR")
+		fmt.Println("using env MILVUS_ETCD_ADDR,", cp.EtcdAddr)
+	}
+	if cp.RootPath == "by-dev" && os.Getenv("MILVUS_ROOT_PATH") != "" {
+		cp.RootPath = os.Getenv("MILVUS_ROOT_PATH")
+		fmt.Println("using env MILVUS_ROOT_PATH,", cp.RootPath)
+	}
+}
+
 func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams) error {
+	s.readEnv(cp)
 	tls, err := s.getTLSConfig(cp)
 	if err != nil {
 		return errors.Wrap(err, "failed to load tls certificates")
