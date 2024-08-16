@@ -257,6 +257,8 @@ func setupDefaultValue(p framework.CmdParam) {
 			v.Field(i).SetBool(dv)
 		case reflect.Struct:
 			continue
+		case reflect.Slice:
+			continue
 		default:
 			fmt.Printf("field %s with kind %s not supported yet\n", f.Name, f.Type.Kind())
 		}
