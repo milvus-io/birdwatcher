@@ -16,8 +16,9 @@ import (
 
 type SegmentIndexParam struct {
 	framework.ParamBase `use:"show segment-index" desc:"display segment index information" alias:"segments-index,segment-indexes,segments-indexes"`
-	CollectionID        int64 `name:"collection" default:"0"`
-	SegmentID           int64 `name:"segment" default:"0"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	SegmentID           int64 `name:"segment" default:"0" desc:"segment id to filter with"`
+	FieldID             int64 `name:"field" default:"0" desc:"field id to filter with"`
 }
 
 // SegmentIndexCommand returns show segment-index command.
@@ -96,27 +97,37 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 				continue
 			}
 			for _, segIdx := range segIdxv2 {
+				idx, ok := idIdx[segIdx.GetIndexID()]
+				if !ok {
+					continue
+				}
+				// filter with field id
+				if p.FieldID != 0 && idx.GetIndexInfo().GetFieldID() != p.FieldID {
+					continue
+				}
 				fmt.Printf("\n\tIndexV2 build ID: %d, states %s", segIdx.GetBuildID(), segIdx.GetState().String())
 				count[segIdx.GetState().String()]++
-				idx, ok := idIdx[segIdx.GetIndexID()]
-				if ok {
-					fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(idx.GetIndexInfo().GetIndexParams(), "index_type"), idx.GetIndexInfo().GetFieldID())
-				}
+
+				fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(idx.GetIndexInfo().GetIndexParams(), "index_type"), idx.GetIndexInfo().GetFieldID())
 				fmt.Printf("\tSerialized Size: %d\n", segIdx.GetSerializeSize())
 				fmt.Printf("\tCurrent Index Version: %d\n", segIdx.GetCurrentIndexVersion())
 			}
-			fmt.Println()
-		}
-
-		for _, segIdx := range segIdxs {
-			info, ok := buildID2Info[segIdx.BuildID]
-			if !ok {
-				fmt.Printf("\tno build info found for id: %d\n", segIdx.BuildID)
-				fmt.Println(segIdx.String())
+		} else {
+			// use v1 info
+			for _, segIdx := range segIdxs {
+				info, ok := buildID2Info[segIdx.BuildID]
+				if !ok {
+					fmt.Printf("\tno build info found for id: %d\n", segIdx.BuildID)
+					fmt.Println(segIdx.String())
+					continue
+				}
+				if p.FieldID != 0 && p.FieldID != info.GetReq().GetFieldSchema().GetFieldID() {
+					continue
+				}
+				fmt.Printf("\n\tIndex build ID: %d, state: %s", info.IndexBuildID, info.State.String())
+				fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(info.GetReq().GetIndexParams(), "index_type"), segIdx.GetFieldID())
+				fmt.Printf("\t info.SerializeSize: %d\n", info.GetSerializeSize())
 			}
-			fmt.Printf("\n\tIndex build ID: %d, state: %s", info.IndexBuildID, info.State.String())
-			fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(info.GetReq().GetIndexParams(), "index_type"), segIdx.GetFieldID())
-			fmt.Printf("\t info.SerializeSize: %d\n", info.GetSerializeSize())
 		}
 		fmt.Println()
 	}
