@@ -224,6 +224,15 @@ func setupFlags(p CmdParam, flags *pflag.FlagSet) {
 			flags.Bool(name, dv, desc)
 		case reflect.Struct:
 			continue
+		case reflect.Slice:
+			switch f.Type.Elem().Kind() {
+			case reflect.Int64:
+				flags.Int64Slice(name, []int64{}, desc)
+			case reflect.String:
+				flags.StringSlice(name, []string{}, desc)
+			default:
+				fmt.Printf("field %s with slice kind %s not supported yet\n", f.Name, f.Type.Elem().Kind())
+			}
 		default:
 			fmt.Printf("field %s with kind %s not supported yet\n", f.Name, f.Type.Kind())
 		}
@@ -267,6 +276,23 @@ func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
 			v.FieldByName(f.Name).SetBool(p)
 		case reflect.Struct:
 			continue
+		case reflect.Slice:
+			// fmt.Println(f.Type.Elem())
+			var p any
+			var err error
+			switch f.Type.Elem().Kind() {
+			case reflect.Int64:
+				p, err = flags.GetInt64Slice(name)
+			case reflect.String:
+				p, err = flags.GetStringSlice(name)
+			default:
+				fmt.Printf("field %s with slice kind %s not supported yet\n", f.Name, f.Type.Elem().Kind())
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			v.FieldByName(f.Name).Set(reflect.ValueOf(p))
 		default:
 			fmt.Printf("field %s with kind %s not supported yet\n", f.Name, f.Type.Kind())
 		}
