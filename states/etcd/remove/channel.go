@@ -60,7 +60,7 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			orphanCps, paths, err := common.ListChannelCheckpint(cli, basePath, func(pos *internalpb.MsgPosition) bool {
+			orphanCps, cpPaths, err := common.ListChannelCheckpint(cli, basePath, func(pos *internalpb.MsgPosition) bool {
 				if len(channelName) > 0 {
 					return pos.GetChannelName() == channelName
 				}
@@ -71,7 +71,7 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			targets := make([]string, 0, len(paths))
+			targets := make([]string, 0, len(paths)+len(cpPaths))
 			for i, watchChannel := range watchChannels {
 				_, ok := validChannels[watchChannel.GetVchan().GetChannelName()]
 				if !ok || force {
@@ -84,7 +84,7 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				_, ok := validChannels[orphanCp.GetChannelName()]
 				if !ok || force {
 					fmt.Printf("%s selected as target orpah checkpoint\n", orphanCp.GetChannelName())
-					targets = append(targets, paths[i])
+					targets = append(targets, cpPaths[i])
 				}
 			}
 
