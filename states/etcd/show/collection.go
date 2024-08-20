@@ -86,8 +86,8 @@ func (rs *Collections) PrintAs(format framework.Format) string {
 			printCollection(sb, coll)
 		}
 		fmt.Fprintln(sb, "================================================================================")
-		fmt.Printf("--- Total collections:  %d\t Matched collections:  %d\n", rs.total, len(rs.collections))
-		fmt.Printf("--- Total channel: %d\t Healthy collections: %d\n", rs.channels, rs.healthy)
+		fmt.Fprintf(sb, "--- Total collections:  %d\t Matched collections:  %d\n", rs.total, len(rs.collections))
+		fmt.Fprintf(sb, "--- Total channel: %d\t Healthy collections: %d\n", rs.channels, rs.healthy)
 		return sb.String()
 	}
 	return ""
@@ -98,47 +98,47 @@ func (rs *Collections) Entities() any {
 }
 
 func printCollection(sb *strings.Builder, collection *models.Collection) {
-	fmt.Println("================================================================================")
-	fmt.Printf("DBID: %d\n", collection.DBID)
-	fmt.Printf("Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
+	fmt.Fprintln(sb, "================================================================================")
+	fmt.Fprintf(sb, "DBID: %d\n", collection.DBID)
+	fmt.Fprintf(sb, "Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
 	t, _ := utils.ParseTS(collection.CreateTime)
-	fmt.Printf("Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
-	/*
-		fmt.Printf("Partitions:\n")
-		for idx, partID := range collection.GetPartitionIDs() {
-			fmt.Printf(" - Partition ID: %d\tPartition Name: %s\n", partID, collection.GetPartitionNames()[idx])
-		}*/
-	fmt.Printf("Fields:\n")
+	fmt.Fprintf(sb, "Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(sb, "Fields:\n")
 	fields := collection.Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].FieldID < fields[j].FieldID
 	})
 	for _, field := range fields {
-		fmt.Printf(" - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
+		fmt.Fprintf(sb, " - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
 		if field.IsPrimaryKey {
-			fmt.Printf("\t - Primary Key: %t, AutoID: %t\n", field.IsPrimaryKey, field.AutoID)
+			fmt.Fprintf(sb, "\t - Primary Key: %t, AutoID: %t\n", field.IsPrimaryKey, field.AutoID)
 		}
 		if field.IsDynamic {
-			fmt.Printf("\t - Dynamic Field\n")
+			fmt.Fprintf(sb, "\t - Dynamic Field\n")
 		}
 		if field.IsPartitionKey {
-			fmt.Printf("\t - Partition Key\n")
+			fmt.Fprintf(sb, "\t - Partition Key\n")
 		}
 		if field.IsClusteringKey {
-			fmt.Printf("\t - Clustering Key\n")
+			fmt.Fprintf(sb, "\t - Clustering Key\n")
 		}
+		// print element type if field is array
+		if field.DataType == models.DataTypeArray {
+			fmt.Fprintf(sb, "\t - Element Type:  %s\n", field.ElementType.String())
+		}
+		// type params
 		for key, value := range field.Properties {
-			fmt.Printf("\t - Type Param %s: %s\n", key, value)
+			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", key, value)
 		}
 	}
 
-	fmt.Printf("Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicSchema)
-	fmt.Printf("Consistency Level: %s\n", collection.ConsistencyLevel.String())
+	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicSchema)
+	fmt.Fprintf(sb, "Consistency Level: %s\n", collection.ConsistencyLevel.String())
 	for _, channel := range collection.Channels {
-		fmt.Printf("Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
+		fmt.Fprintf(sb, "Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
 	}
-	fmt.Printf("Collection properties(%d):", len(collection.Properties))
+	fmt.Fprintf(sb, "Collection properties(%d):\n", len(collection.Properties))
 	for k, v := range collection.Properties {
-		fmt.Printf("\tKey: %s: %v\n", k, v)
+		fmt.Fprintf(sb, "\tKey: %s: %v\n", k, v)
 	}
 }

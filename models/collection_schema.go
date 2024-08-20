@@ -22,6 +22,7 @@ type FieldSchema struct {
 	IsDynamic       bool
 	IsPartitionKey  bool
 	IsClusteringKey bool
+	ElementType     DataType
 }
 
 func (fs *FieldSchema) GetDim() (int64, error) {
