@@ -53,4 +53,8 @@ func (rs *Databases) printDatabaseInfo(sb *strings.Builder, db *models.Database)
 	fmt.Fprintln(sb, "=============================")
 	fmt.Fprintf(sb, "ID: %d\tName: %s\n", db.ID, db.Name)
 	fmt.Fprintf(sb, "TenantID: %s\t State: %s\n", db.TenantID, db.State.String())
+	fmt.Fprintf(sb, "Database properties(%d):\n", len(db.Properties))
+	for k, v := range db.Properties {
+		fmt.Fprintf(sb, "\t%s: %v\n", k, v)
+	}
 }
