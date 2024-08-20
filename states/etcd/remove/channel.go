@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
+	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
@@ -59,11 +60,30 @@ func ChannelCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
+			orphanCps, paths, err := common.ListChannelCheckpint(cli, basePath, func(pos *internalpb.MsgPosition) bool {
+				if len(channelName) > 0 {
+					return pos.GetChannelName() == channelName
+				}
+				return true
+			})
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
 			targets := make([]string, 0, len(paths))
 			for i, watchChannel := range watchChannels {
 				_, ok := validChannels[watchChannel.GetVchan().GetChannelName()]
 				if !ok || force {
 					fmt.Printf("%s selected as target channel, collection id: %d\n", watchChannel.GetVchan().GetChannelName(), watchChannel.GetVchan().GetCollectionID())
+					targets = append(targets, paths[i])
+				}
+			}
+
+			for i, orphanCp := range orphanCps {
+				_, ok := validChannels[orphanCp.GetChannelName()]
+				if !ok || force {
+					fmt.Printf("%s selected as target orpah checkpoint\n", orphanCp.GetChannelName())
 					targets = append(targets, paths[i])
 				}
 			}
