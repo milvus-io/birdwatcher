@@ -39,6 +39,14 @@ func ListChannelWatchV2(cli kv.MetaKV, basePath string, filters ...func(channel 
 	return ListProtoObjects(ctx, cli, prefix, filters...)
 }
 
+func ListChannelCheckpint(cli clientv3.KV, basePath string, filters ...func(pos *internalpb.MsgPosition) bool) ([]internalpb.MsgPosition, []string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	prefix := path.Join(basePath, "datacoord-meta", "channel-cp") + "/"
+	return ListProtoObjects(ctx, cli, prefix, filters...)
+}
+
 // ListChannelWatch lists channel watch info meta.
 func ListChannelWatch(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.ChannelWatch) bool) ([]*models.ChannelWatch, error) {
 	prefix := path.Join(basePath, "channelwatch") + "/"
