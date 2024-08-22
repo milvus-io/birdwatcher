@@ -18,7 +18,6 @@ func processMinioAliyunOptions(p MinioClientParam, opts *minio.Options) error {
 			return err
 		}
 		opts.Creds = minioCred.New(credProvider)
-
 	} else {
 		opts.Creds = minioCred.NewStaticV4(p.AK, p.SK, "")
 	}
