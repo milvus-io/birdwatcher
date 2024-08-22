@@ -3,7 +3,7 @@ module github.com/milvus-io/birdwatcher
 go 1.18
 
 require (
-	github.com/aliyun/credentials-go v1.3.6
+	github.com/aliyun/credentials-go v1.3.7
 	github.com/apache/arrow/go/v8 v8.0.0
 	github.com/apache/pulsar-client-go v0.6.1-0.20210728062540-29414db801a7
 	github.com/blang/semver/v4 v4.0.0
@@ -25,7 +25,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/streamnative/pulsarctl v0.5.0
 	github.com/stretchr/testify v1.8.3
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.865
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.982
 	go.etcd.io/etcd/api/v3 v3.5.4
 	go.etcd.io/etcd/client/v3 v3.5.4
 	go.etcd.io/etcd/server/v3 v3.5.4
