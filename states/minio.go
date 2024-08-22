@@ -72,6 +72,7 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 	var ak, sk string
 	var useIAM string
 	var useSSL string
+	var region string
 
 	for _, config := range configurations {
 		switch config.GetKey() {
@@ -81,6 +82,8 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 			addr = config.GetValue()
 		case "minio.port":
 			port = config.GetValue()
+		case "minio.region":
+			region = config.GetValue()
 		case "minio.bucketname":
 			bucketName = config.GetValue()
 		case "minio.rootpath":
@@ -101,6 +104,7 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 
 	mp := oss.MinioClientParam{
 		CloudProvider: cloudProvider,
+		Region:        region,
 		Addr:          addr,
 		Port:          port,
 		AK:            ak,
