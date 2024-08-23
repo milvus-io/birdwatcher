@@ -47,6 +47,7 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 	}
 	endpoint := fmt.Sprintf("%s:%s", p.Addr, p.Port)
 
+	var err error
 	switch p.CloudProvider {
 	case CloudProviderAWS:
 		processMinioAwsOptions(p, opts)
@@ -59,15 +60,17 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 	case CloudProviderAliyun:
 		processMinioAliyunOptions(p, opts)
 	case CloudProviderTencent:
-		// processMinioTencentOptions(p, opts)
-		// cos address issue WIP
-		fallthrough
+		err = processMinioTencentOptions(p, opts)
 	case CloudProviderAzure:
 		// TODO support azure
 		fallthrough
 	default:
 		return nil, errors.Newf("Cloud provider %s not supported yet", p.CloudProvider)
 	}
+	if err != nil {
+		return nil, err
+	}
+
 	fmt.Printf("Start to connect to oss endpoind: %s\n", endpoint)
 	client, err := minio.New(endpoint, opts)
 	if err != nil {

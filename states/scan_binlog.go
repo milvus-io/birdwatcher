@@ -64,6 +64,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, p.MinioAddress)
 	if err != nil {
 		fmt.Println("Failed to create folder,", err.Error())
+		return err
 	}
 
 	fmt.Printf("=== start to execute \"%s\" task with filter expresion: \"%s\" ===\n", p.Action, p.Expr)
@@ -161,7 +162,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 
 	switch strings.ToLower(p.Action) {
 	case "count":
-		fmt.Printf("Total %d entries found", count)
+		fmt.Printf("Total %d entries found\n", count)
 	case "dedup":
 		total := len(dedupResult)
 		fmt.Printf("%d duplicated entries found\n", total)
