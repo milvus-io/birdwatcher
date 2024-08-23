@@ -124,7 +124,6 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 	var cv []byte
 	found := false
 
-	// meta before database
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collID, 10))
 	val, err := cli.Load(ctx, prefix)
 	if err != nil {

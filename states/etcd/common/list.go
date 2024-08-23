@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -53,12 +54,16 @@ func ListProtoObjects[T any, P interface {
 	}
 	result := make([]T, 0, len(keys))
 LOOP:
-	for _, val := range vals {
+	for idx, val := range vals {
 		var elem T
 		info := P(&elem)
 		err = proto.Unmarshal([]byte(val), info)
 		if err != nil {
-			fmt.Println(err.Error())
+			if bytes.Equal([]byte(val), []byte{0xE2, 0x9B, 0xBC}) {
+				fmt.Printf("Tombstone found, key: %s\n", keys[idx])
+				continue
+			}
+			fmt.Printf("failed to unmarshal key=%s, err: %s\n", keys[idx], err.Error())
 			continue
 		}
 
