@@ -3,6 +3,7 @@ package show
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -70,4 +71,35 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, info *mode
 	fmt.Fprintf(sb, "Unflushed segments: %v\n", info.Vchan.UnflushedSegmentIds)
 	fmt.Fprintf(sb, "Flushed segments: %v\n", info.Vchan.FlushedSegmentIds)
 	fmt.Fprintf(sb, "Dropped segments: %v\n", info.Vchan.DroppedSegmentIds)
+
+	fmt.Fprintf(sb, "Fields:\n")
+	fields := info.Schema.Fields
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].FieldID < fields[j].FieldID
+	})
+	for _, field := range fields {
+		fmt.Fprintf(sb, " - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
+		if field.IsPrimaryKey {
+			fmt.Fprintf(sb, "\t - Primary Key: %t, AutoID: %t\n", field.IsPrimaryKey, field.AutoID)
+		}
+		if field.IsDynamic {
+			fmt.Fprintf(sb, "\t - Dynamic Field\n")
+		}
+		if field.IsPartitionKey {
+			fmt.Fprintf(sb, "\t - Partition Key\n")
+		}
+		if field.IsClusteringKey {
+			fmt.Fprintf(sb, "\t - Clustering Key\n")
+		}
+		// print element type if field is array
+		if field.DataType == models.DataTypeArray {
+			fmt.Fprintf(sb, "\t - Element Type:  %s\n", field.ElementType.String())
+		}
+		// type params
+		for key, value := range field.Properties {
+			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", key, value)
+		}
+	}
+
+	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.Schema.EnableDynamicSchema)
 }
