@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/proto"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/milvus-io/birdwatcher/models"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func WriteChannelWatchInfo(ctx context.Context, cli clientv3.KV, basePath string, info *models.ChannelWatch, schema *schemapbv2.CollectionSchema) error {
