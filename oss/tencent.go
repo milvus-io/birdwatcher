@@ -31,11 +31,15 @@ type TencentCredentialProvider struct {
 }
 
 func NewTencentCredentialProvider() (minioCred.Provider, error) {
-	provider, err := common.DefaultTkeOIDCRoleArnProvider()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create tencent credential provider")
+	var provider interface {
+		GetCredential() (common.CredentialIface, error)
 	}
-
+	var err error
+	provider, err = common.DefaultTkeOIDCRoleArnProvider()
+	if err != nil {
+		// try cvm role provider
+		provider = common.DefaultCvmRoleProvider()
+	}
 	cred, err := provider.GetCredential()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get tencent credential")
