@@ -121,18 +121,18 @@ func ListCollectionsVersion(ctx context.Context, cli clientv3.KV, basePath strin
 
 // GetCollectionByIDVersion retruns collection info from etcd with provided version & id.
 func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, collID int64) (*models.Collection, error) {
-	var result []*mvccpb.KeyValue
-
 	// meta before database
+	var legacy []*mvccpb.KeyValue
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collID, 10))
 	resp, err := cli.Get(ctx, prefix)
 	if err != nil {
 		fmt.Println("get error", err.Error())
 		return nil, err
 	}
-	result = append(result, resp.Kvs...)
+	legacy = append(legacy, resp.Kvs...)
 
 	// with database, dbID unknown here
+	var result []*mvccpb.KeyValue
 	prefix = path.Join(basePath, DBCollectionMetaPrefix)
 	resp, _ = cli.Get(ctx, prefix, clientv3.WithPrefix())
 	suffix := strconv.FormatInt(collID, 10)
@@ -142,11 +142,16 @@ func GetCollectionByIDVersion(ctx context.Context, cli clientv3.KV, basePath str
 		}
 	}
 
-	if len(result) != 1 {
+	if len(legacy)+len(result) == 0 {
 		return nil, fmt.Errorf("collection %d not found in etcd %w", collID, ErrCollectionNotFound)
 	}
 
-	kv := result[0]
+	var kv *mvccpb.KeyValue
+	if len(result) > 0 {
+		kv = result[0]
+	} else {
+		kv = legacy[0]
+	}
 
 	if bytes.Equal(kv.Value, CollectionTombstone) {
 		return nil, fmt.Errorf("%w, collection id: %d", ErrCollectionDropped, collID)

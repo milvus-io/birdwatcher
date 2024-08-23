@@ -21,6 +21,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
+	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 )
 
@@ -32,6 +33,7 @@ type embedEtcdMockState struct {
 	cmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
+	*repair.ComponentRepair
 	client       *clientv3.Client
 	server       *embed.Etcd
 	instanceName string
@@ -90,6 +92,7 @@ func (s *embedEtcdMockState) SetInstance(instanceName string) {
 	rootPath := path.Join(instanceName, metaPath)
 	s.ComponentShow = show.NewComponent(s.client, s.config, rootPath)
 	s.ComponentRemove = remove.NewComponent(s.client, s.config, rootPath)
+	s.ComponentRepair = repair.NewComponent(s.client, s.config, rootPath)
 	s.SetupCommands()
 }
 

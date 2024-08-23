@@ -58,7 +58,8 @@ func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, ver
 			return nil, err
 		}
 		result = lo.Map(infos, func(info datapb.ChannelWatchInfo, idx int) *models.ChannelWatch {
-			return models.GetChannelWatchInfo[*datapb.ChannelWatchInfo, datapb.ChannelWatchState, *datapb.VchannelInfo, *internalpb.MsgPosition](&info, paths[idx])
+			result := models.GetChannelWatchInfo[*datapb.ChannelWatchInfo, datapb.ChannelWatchState, *datapb.VchannelInfo, *internalpb.MsgPosition](&info, paths[idx])
+			return result
 		})
 	case models.GTEVersion2_2:
 		infos, paths, err := ListProtoObjects[datapbv2.ChannelWatchInfo](ctx, cli, prefix)
@@ -66,7 +67,7 @@ func ListChannelWatch(ctx context.Context, cli clientv3.KV, basePath string, ver
 			return nil, err
 		}
 		result = lo.Map(infos, func(info datapbv2.ChannelWatchInfo, idx int) *models.ChannelWatch {
-			return models.GetChannelWatchInfoV2[*datapbv2.ChannelWatchInfo, datapbv2.ChannelWatchState, *datapbv2.VchannelInfo, *msgpbv2.MsgPosition](&info, paths[idx])
+			return models.GetChannelWatchInfoV2[*datapbv2.ChannelWatchInfo, datapbv2.ChannelWatchState, *msgpbv2.MsgPosition](&info, paths[idx])
 		})
 	default:
 		return nil, errors.New("version not supported")

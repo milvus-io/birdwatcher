@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -26,7 +27,11 @@ LOOP:
 		info := P(&elem)
 		err = proto.Unmarshal(kv.Value, info)
 		if err != nil {
-			fmt.Println(err.Error())
+			if bytes.Equal(kv.Value, []byte{0xE2, 0x9B, 0xBC}) {
+				fmt.Printf("Tombstone found, key: %s\n", string(kv.Key))
+				continue
+			}
+			fmt.Printf("failed to unmarshal key=%s, err: %s\n", string(kv.Key), err.Error())
 			continue
 		}
 

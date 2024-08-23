@@ -56,8 +56,7 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, info *mode
 	fmt.Fprintln(sb, "=============================")
 	fmt.Fprintf(sb, "key: %s\n", info.Key())
 	fmt.Fprintf(sb, "Channel Name:%s \t WatchState: %s\n", info.Vchan.ChannelName, info.State.String())
-	// t, _ := ParseTS(uint64(info.GetStartTs()))
-	// to, _ := ParseTS(uint64(info.GetTimeoutTs()))
+
 	t := time.Unix(info.StartTs, 0)
 	to := time.Unix(0, info.TimeoutTs)
 	fmt.Fprintf(sb, "Channel Watch start from: %s, timeout at: %s\n", t.Format(tsPrintFormat), to.Format(tsPrintFormat))
@@ -73,6 +72,10 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, info *mode
 	fmt.Fprintf(sb, "Dropped segments: %v\n", info.Vchan.DroppedSegmentIds)
 
 	fmt.Fprintf(sb, "Fields:\n")
+	if info.Schema == nil {
+		fmt.Fprintf(sb, "### Collection schema is empty!!! ###\n")
+		return
+	}
 	fields := info.Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].FieldID < fields[j].FieldID
