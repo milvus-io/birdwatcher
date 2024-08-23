@@ -39,7 +39,6 @@ func NewTencentCredentialProvider() (minioCred.Provider, error) {
 	if err != nil {
 		// try cvm role provider
 		provider = common.DefaultCvmRoleProvider()
-
 	}
 	cred, err := provider.GetCredential()
 	if err != nil {
