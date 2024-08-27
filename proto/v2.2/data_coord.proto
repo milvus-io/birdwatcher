@@ -326,8 +326,11 @@ message SegmentInfo {
   int64 partition_stats_version = 22;
   // use in major compaction, if compaction fail, should revert segment level to last value
   SegmentLevel last_level = 23;
-  // use in major compaction, if compaction fail, should revert partition stats version to last value
+  // use in clustering compaction, if compaction fail, should revert partition stats version to last value
   int64 last_partition_stats_version = 24;
+
+  // used to indicate whether the segment is sorted by primary key.
+  bool is_sorted = 25;
 }
 
 message SegmentStartPosition {

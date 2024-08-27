@@ -37,6 +37,9 @@ type Segment struct {
 	// PartitionStats version
 	PartitionStatsVersion int64
 
+	// sorted by PK
+	IsSorted bool
+
 	// etcd segment key
 	key string
 
@@ -107,6 +110,7 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 	s.StartPosition = NewMsgPosition(info.GetStartPosition())
 	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
 	s.Level = SegmentLevel(info.GetLevel())
+	s.IsSorted = info.GetIsSorted()
 
 	s.lazyLoad = func(s *Segment) {
 		mFunc := func(fbl datapbv2.FieldBinlog, _ int) *FieldBinlog {
