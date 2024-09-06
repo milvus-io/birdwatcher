@@ -16,6 +16,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
@@ -46,7 +47,12 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 	var minioClient *minio.Client
 	var bucketName, rootPath string
 
-	minioClient, bucketName, rootPath, err = s.GetMinioClientFromCfg(ctx, p.MinioAddress)
+	params := []oss.MinioConnectParam{}
+	if p.MinioAddress != "" {
+		params = append(params, oss.WithMinioAddr(p.MinioAddress))
+	}
+
+	minioClient, bucketName, rootPath, err = s.GetMinioClientFromCfg(ctx, params...)
 	if err != nil {
 		return err
 	}

@@ -32,11 +32,11 @@ type MinioConnectParam struct {
 }
 
 func (s *InstanceState) TestMinioCfgCommand(ctx context.Context, p *TestMinioCfgParam) error {
-	_, _, _, err := s.GetMinioClientFromCfg(ctx, "")
+	_, _, _, err := s.GetMinioClientFromCfg(ctx)
 	return err
 }
 
-func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr string) (client *minio.Client, bucketName, rootPath string, err error) {
+func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss.MinioConnectParam) (client *minio.Client, bucketName, rootPath string, err error) {
 	sessions, err := common.ListSessions(s.client, s.basePath)
 	if err != nil {
 		return nil, "", "", err
@@ -98,9 +98,6 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 			useSSL = config.GetValue()
 		}
 	}
-	if minioAddr != "" {
-		addr = minioAddr
-	}
 
 	mp := oss.MinioClientParam{
 		CloudProvider: cloudProvider,
@@ -118,6 +115,10 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, minioAddr str
 	}
 	if useSSL == "true" {
 		mp.UseSSL = true
+	}
+
+	for _, param := range params {
+		param(&mp)
 	}
 
 	mClient, err := oss.NewMinioClient(ctx, mp)
