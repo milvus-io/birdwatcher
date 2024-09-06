@@ -6,8 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
-
+	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -27,7 +26,7 @@ func (c *ComponentRepair) RepairChannelWatchedCommand(ctx context.Context, p *Ch
 			(p.ChannelName == "" || channel.Vchan.ChannelName == p.ChannelName)
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to list channel watch info")
+		return errors.Errorf("failed to list channel watch info, %w", err)
 	}
 
 	var targets []*models.ChannelWatch
