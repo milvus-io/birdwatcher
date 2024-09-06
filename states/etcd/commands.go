@@ -99,8 +99,6 @@ func RemoveCommand(cli kv.MetaKV, instanceName, basePath string) *cobra.Command 
 		remove.EtcdConfigCommand(cli, instanceName),
 		// remove collection has been dropped
 		remove.CollectionCleanCommand(cli, basePath),
-		// remove compaction task
-		remove.CompactionTaskCleanCommand(cli, basePath),
 	)
 
 	return removeCmd
