@@ -31,6 +31,23 @@ type MinioClientParam struct {
 
 	BucketName string
 	RootPath   string
+
+	skipCheckBucket bool
+}
+
+// MinioConnectParam is the function type to override client params
+type MinioConnectParam func(p *MinioClientParam)
+
+func WithSkipCheckBucket(v bool) MinioConnectParam {
+	return func(p *MinioClientParam) {
+		p.skipCheckBucket = v
+	}
+}
+
+func WithMinioAddr(addr string) MinioConnectParam {
+	return func(p *MinioClientParam) {
+		p.Addr = addr
+	}
 }
 
 // MinioClient wraps minio client, bucket info within
@@ -80,13 +97,17 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 
 	fmt.Println("Connection successful!")
 
-	ok, err := client.BucketExists(ctx, p.BucketName)
-	if err != nil {
-		fmt.Printf("check bucket %s exists failed: %s\n", p.BucketName, err.Error())
-		return nil, err
-	}
-	if !ok {
-		return nil, errors.Newf("Bucket %s not exists", p.BucketName)
+	if p.skipCheckBucket {
+		fmt.Println("Skip bucket existence check...")
+	} else {
+		ok, err := client.BucketExists(ctx, p.BucketName)
+		if err != nil {
+			fmt.Printf("check bucket %s exists failed: %s\n", p.BucketName, err.Error())
+			return nil, err
+		}
+		if !ok {
+			return nil, errors.Newf("Bucket %s not exists", p.BucketName)
+		}
 	}
 
 	return &MinioClient{
