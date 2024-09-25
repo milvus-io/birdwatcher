@@ -44,7 +44,7 @@ func CollectionCleanCommand(cli clientv3.KV, basePath string) *cobra.Command {
 			})
 
 			cleanMetaFn := func(ctx context.Context, prefix string, opts ...ExcludePrefixOptions) error {
-				return walkWithPrefix(ctx, cli, prefix, paginationSize, func(k []byte, v []byte) error {
+				return common.WalkWithPrefix(ctx, cli, prefix, paginationSize, func(k []byte, v []byte) error {
 					sKey := string(k)
 					for _, opt := range opts {
 						if opt(sKey) {
@@ -121,35 +121,4 @@ func CollectionCleanCommand(cli clientv3.KV, basePath string) *cobra.Command {
 
 	cmd.Flags().Bool("run", false, "flags indicating whether to execute removed command")
 	return cmd
-}
-
-func walkWithPrefix(ctx context.Context, cli clientv3.KV, prefix string, paginationSize int, fn func([]byte, []byte) error) error {
-	batch := int64(paginationSize)
-	opts := []clientv3.OpOption{
-		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
-		clientv3.WithLimit(batch),
-		clientv3.WithRange(clientv3.GetPrefixRangeEnd(prefix)),
-	}
-
-	key := prefix
-	for {
-		resp, err := cli.Get(ctx, key, opts...)
-		if err != nil {
-			return err
-		}
-
-		for _, kv := range resp.Kvs {
-			if err = fn(kv.Key, kv.Value); err != nil {
-				return err
-			}
-		}
-
-		if !resp.More {
-			break
-		}
-		// move to next key
-		key = string(append(resp.Kvs[len(resp.Kvs)-1].Key, 0))
-	}
-
-	return nil
 }
