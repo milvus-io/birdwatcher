@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/samber/lo"
 
@@ -21,6 +22,8 @@ const (
 	SegmentMetaPrefix      = "datacoord-meta/s"
 	SegmentStatsMetaPrefix = "datacoord-meta/statslog"
 )
+
+var ErrReachMaxNumOfWalkSegment = errors.New("reach max number of the walked segments")
 
 // ListSegmentsVersion list segment info as specified version.
 func ListSegmentsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
@@ -363,4 +366,37 @@ func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collect
 		}
 	}
 	return nil
+}
+
+// WalkAllSegments walk all segment info from etcd with func
+func WalkAllSegments(cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool, op func(*datapb.SegmentInfo) error, limit int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	cnt := int64(0)
+	return WalkWithPrefix(ctx, cli, path.Join(basePath, SegmentMetaPrefix)+"/", 1000, func(k []byte, v []byte) error {
+		info := &datapb.SegmentInfo{}
+		err := proto.Unmarshal(v, info)
+		if err != nil {
+			return err
+		}
+
+		if filter == nil || filter(info) {
+			err = op(info)
+			if err != nil {
+				return err
+			}
+			cnt++
+			if cnt >= limit {
+				return ErrReachMaxNumOfWalkSegment
+			}
+		}
+		return nil
+	})
+}
+
+func WalkWithPrefix(ctx context.Context, cli kv.MetaKV, prefix string, paginationSize int, fn func([]byte, []byte) error) error {
+	return cli.WalkWithPrefix(ctx, prefix, paginationSize, func(key, value []byte) error {
+		return fn(key, value)
+	})
 }
