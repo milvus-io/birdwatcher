@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -21,6 +22,8 @@ const (
 	SegmentMetaPrefix      = "datacoord-meta/s"
 	SegmentStatsMetaPrefix = "datacoord-meta/statslog"
 )
+
+var ErrReachMaxNumOfWalkSegment = errors.New("reach max number of the walked segments")
 
 // ListSegmentsVersion list segment info as specified version.
 func ListSegmentsVersion(ctx context.Context, cli clientv3.KV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
@@ -330,5 +333,63 @@ func UpdateSegments(ctx context.Context, cli clientv3.KV, basePath string, colle
 			return err
 		}
 	}
+	return nil
+}
+
+// WalkAllSegments walk all segment info from etcd with func
+func WalkAllSegments(cli clientv3.KV, basePath string, filter func(*datapb.SegmentInfo) bool, op func(*datapb.SegmentInfo) error, limit int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	cnt := int64(0)
+	return WalkWithPrefix(ctx, cli, path.Join(basePath, SegmentMetaPrefix)+"/", 1000, func(k []byte, v []byte) error {
+		info := &datapb.SegmentInfo{}
+		err := proto.Unmarshal(v, info)
+		if err != nil {
+			return err
+		}
+
+		if filter == nil || filter(info) {
+			err = op(info)
+			if err != nil {
+				return err
+			}
+			cnt++
+			if cnt >= limit {
+				return ErrReachMaxNumOfWalkSegment
+			}
+		}
+		return nil
+	})
+}
+
+func WalkWithPrefix(ctx context.Context, cli clientv3.KV, prefix string, paginationSize int, fn func([]byte, []byte) error) error {
+	batch := int64(paginationSize)
+	opts := []clientv3.OpOption{
+		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
+		clientv3.WithLimit(batch),
+		clientv3.WithRange(clientv3.GetPrefixRangeEnd(prefix)),
+	}
+
+	key := prefix
+	for {
+		resp, err := cli.Get(ctx, key, opts...)
+		if err != nil {
+			return err
+		}
+
+		for _, kv := range resp.Kvs {
+			if err = fn(kv.Key, kv.Value); err != nil {
+				return err
+			}
+		}
+
+		if !resp.More {
+			break
+		}
+		// move to next key
+		key = string(append(resp.Kvs[len(resp.Kvs)-1].Key, 0))
+	}
+
 	return nil
 }

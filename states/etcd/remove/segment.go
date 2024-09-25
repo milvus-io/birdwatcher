@@ -2,9 +2,12 @@ package remove
 
 import (
 	"fmt"
+	"math"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -17,9 +20,14 @@ import (
 func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "segment",
-		Short: "Remove segment from meta with specified segment id",
+		Short: "Remove segment from meta with specified filters",
 		Run: func(cmd *cobra.Command, args []string) {
-			targetSegmentID, err := cmd.Flags().GetInt64("segment")
+			targetSegmentID, err := cmd.Flags().GetInt64("segmentID")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+			collectionID, err := cmd.Flags().GetInt64("collectionID")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -30,51 +38,86 @@ func SegmentCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				return
 			}
 
-			segments, err := common.ListSegments(cli, basePath, func(segmentInfo *datapb.SegmentInfo) bool {
-				return segmentInfo.GetID() == targetSegmentID
-			})
+			maxNum, err := cmd.Flags().GetInt64("maxNum")
 			if err != nil {
-				fmt.Println("failed to list segments", err.Error())
+				fmt.Println(err.Error())
 				return
 			}
 
-			if len(segments) != 1 {
-				fmt.Printf("failed to get segment with id %d, get %d result(s)\n", targetSegmentID, len(segments))
+			state, err := cmd.Flags().GetString("state")
+			if err != nil {
+				fmt.Println(err.Error())
 				return
 			}
 
-			// dry run, display segment first
+			backupDir := fmt.Sprintf("segments-backup_%d", time.Now().UnixMilli())
+
+			filterFunc := func(segmentInfo *datapb.SegmentInfo) bool {
+				return (collectionID == 0 || segmentInfo.CollectionID == collectionID) &&
+					(targetSegmentID == 0 || segmentInfo.GetID() == targetSegmentID) &&
+					(state == "" || strings.EqualFold(segmentInfo.State.String(), state))
+			}
+
+			removedCnt := 0
+			dryRunCount := 0
+			opFunc := func(info *datapb.SegmentInfo) error {
+				// dry run, display segment first
+				if !run {
+					dryRunCount++
+					fmt.Printf("dry run segment:%d collectionID:%d state:%s\n", info.ID, info.CollectionID, info.State.String())
+					return nil
+				}
+
+				if err = backupSegmentInfo(info, backupDir); err != nil {
+					return err
+				}
+
+				if err = common.RemoveSegment(cli, basePath, info); err != nil {
+					fmt.Printf("Remove segment %d from Etcd failed, err: %s\n", info.ID, err.Error())
+					return err
+				}
+
+				removedCnt++
+				fmt.Printf("Remove segment %d from etcd succeeds.\n", info.GetID())
+				return nil
+			}
+
+			err = common.WalkAllSegments(cli, basePath, filterFunc, opFunc, maxNum)
+			if err != nil && !errors.Is(err, common.ErrReachMaxNumOfWalkSegment) {
+				fmt.Printf("WalkAllSegmentsfailed, err: %s\n", err.Error())
+			}
+
 			if !run {
-				// show.PrintSegmentInfo(segments[0], false)
-				fmt.Printf("segment info %v", segments[0])
+				fmt.Println("dry run segments, total count:", dryRunCount)
 				return
 			}
-
-			// TODO put audit log
-			info := segments[0]
-			backupSegmentInfo(info)
-			fmt.Println("[WARNING] about to remove segment from etcd")
-			err = common.RemoveSegment(cli, basePath, info)
-			if err != nil {
-				fmt.Printf("Remove segment %d from Etcd failed, err: %s\n", info.ID, err.Error())
-				return
-			}
-			fmt.Printf("Remove segment %d from etcd succeeds.\n", info.GetID())
+			fmt.Println("Remove segments succeeds, total count:", removedCnt)
 		},
 	}
 
 	cmd.Flags().Bool("run", false, "flags indicating whether to remove segment from meta")
-	cmd.Flags().Int64("segment", 0, "segment id to remove")
+	cmd.Flags().Int64("segmentID", 0, "segment id")
+	cmd.Flags().Int64("collectionID", 0, "collection id")
+	cmd.Flags().String("state", "", "segment state")
+	cmd.Flags().Int64("maxNum", math.MaxInt64, "max number of segment to remove")
 	return cmd
 }
 
-func backupSegmentInfo(info *datapb.SegmentInfo) {
+func backupSegmentInfo(info *datapb.SegmentInfo, backupDir string) error {
+	if _, err := os.Stat(backupDir); errors.Is(err, os.ErrNotExist) {
+		err := os.MkdirAll(backupDir, os.ModePerm)
+		if err != nil {
+			fmt.Println("Failed to create folder,", err.Error())
+			return err
+		}
+	}
+
 	now := time.Now()
-	filePath := fmt.Sprintf("bw_etcd_segment_%d.%s.bak", info.GetID(), now.Format("060102-150405"))
+	filePath := fmt.Sprintf("%s/bw_etcd_segment_%d.%s.bak", backupDir, info.GetID(), now.Format("060102-150405"))
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		fmt.Println("failed to open backup segment file", err.Error())
-		return
+		return err
 	}
 
 	defer f.Close()
@@ -82,8 +125,9 @@ func backupSegmentInfo(info *datapb.SegmentInfo) {
 	bs, err := proto.Marshal(info)
 	if err != nil {
 		fmt.Println("failed to marshal backup segment", err.Error())
-		return
+		return err
 	}
 
-	f.Write(bs)
+	_, err = f.Write(bs)
+	return err
 }
