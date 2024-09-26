@@ -3,12 +3,14 @@ module github.com/milvus-io/birdwatcher
 go 1.18
 
 require (
+	github.com/aliyun/credentials-go v1.3.10
 	github.com/apache/arrow/go/v8 v8.0.0
 	github.com/apache/pulsar-client-go v0.6.1-0.20210728062540-29414db801a7
 	github.com/blang/semver/v4 v4.0.0
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/cockroachdb/errors v1.9.1
 	github.com/confluentinc/confluent-kafka-go v1.9.1
+	github.com/expr-lang/expr v1.16.9
 	github.com/fatih/color v1.7.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang/protobuf v1.5.2
@@ -21,6 +23,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/streamnative/pulsarctl v0.5.0
 	github.com/stretchr/testify v1.8.3
+	github.com/tikv/client-go/v2 v2.0.4
 	go.etcd.io/etcd/api/v3 v3.5.4
 	go.etcd.io/etcd/client/v3 v3.5.4
 	go.etcd.io/etcd/server/v3 v3.5.4
@@ -39,6 +42,8 @@ require (
 	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/DataDog/zstd v1.4.6-0.20210211175136-c6db21d202f4 // indirect
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
+	github.com/alibabacloud-go/debug v1.0.1 // indirect
+	github.com/alibabacloud-go/tea v1.2.2 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20201120111947-b8bd55bc02bd // indirect
 	github.com/apache/thrift v0.15.0 // indirect
@@ -123,8 +128,8 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stathat/consistent v1.0.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
-	github.com/tikv/client-go/v2 v2.0.4 // indirect
 	github.com/tikv/pd/client v0.0.0-20221031025758-80f0d8ca4d07 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
@@ -149,21 +154,21 @@ require (
 	go.opentelemetry.io/proto/otlp v0.7.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/term v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/term v0.16.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220503193339-ba3ae3f07e29 // indirect
-	gopkg.in/ini.v1 v1.62.0 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect

@@ -69,7 +69,8 @@ func NewPromptApp(config *configs.Config, opts ...AppOption) BApp {
 				pa.sugguestHistory = !pa.sugguestHistory
 			},
 		}),
-		HandleFD,
+		// setup InputParser with `TearDown` overrided
+		prompt.OptionParser(NewBInputParser()),
 	)
 	pa.prompt = p
 	return pa
