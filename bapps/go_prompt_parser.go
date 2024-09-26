@@ -3,8 +3,6 @@ package bapps
 import (
 	"os"
 	"os/exec"
-	"reflect"
-	"unsafe"
 
 	"github.com/c-bata/go-prompt"
 )
@@ -24,24 +22,9 @@ func (t *bInputParser) TearDown() error {
 	return nil
 }
 
-func NewInputParser(parser *prompt.PosixParser) *bInputParser {
+func NewBInputParser() *bInputParser {
 	p := &bInputParser{
 		PosixParser: prompt.NewStandardInputParser(),
 	}
 	return p
-}
-
-func HandleFD(p *prompt.Prompt) error {
-	in, ok := GetUnexportedField(reflect.ValueOf(p).Elem().FieldByName("in")).(*prompt.PosixParser)
-	if !ok {
-		// failed to reflect
-		return nil
-	}
-
-	return prompt.OptionParser(NewInputParser(in))(p)
-}
-
-func GetUnexportedField(field reflect.Value) interface{} {
-	// nolint
-	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Interface()
 }
