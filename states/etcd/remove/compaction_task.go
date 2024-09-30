@@ -18,8 +18,8 @@ type CompactionTaskParam struct {
 	Run                 bool   `name:"run" default:"false" desc:"flag to control actually run or dry"`
 }
 
-// CompactionTaskCommand is the command function to remove compaction task.
-func (c *ComponentRemove) CompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) error {
+// RemoveCompactionTaskCommand is the command function to remove compaction task.
+func (c *ComponentRemove) RemoveCompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) error {
 	compactionTasks, err := common.ListCompactionTask(ctx, c.client, c.basePath, func(task *models.CompactionTask) bool {
 		if p.CompactionType != task.GetType().String() {
 			return false
