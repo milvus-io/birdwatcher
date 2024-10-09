@@ -1,6 +1,7 @@
 package show
 
 import (
+	"context"
 	"fmt"
 	"path"
 
@@ -15,9 +16,9 @@ const (
 	queryNodeInfoPrefix = "queryCoord-queryNodeInfo"
 )
 
-func listQueryCoordClusterNodeInfo(cli clientv3.KV, basePath string) ([]*models.Session, error) {
+func listQueryCoordClusterNodeInfo(ctx context.Context, cli clientv3.KV, basePath string) ([]*models.Session, error) {
 	prefix := path.Join(basePath, queryNodeInfoPrefix)
-	return common.ListSessionsByPrefix(cli, prefix)
+	return common.ListSessionsByPrefix(ctx, cli, prefix)
 }
 
 // QueryCoordClusterCommand returns show querycoord-cluster command.
@@ -27,13 +28,15 @@ func QueryCoordClusterCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		Short:   "display querynode information from querycoord cluster",
 		Aliases: []string{"querycoord-clusters"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sessions, err := listQueryCoordClusterNodeInfo(cli, basePath)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			sessions, err := listQueryCoordClusterNodeInfo(ctx, cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list tasks in querycoord", err.Error())
 				return nil
 			}
 
-			onlineSessons, _ := common.ListSessions(cli, basePath)
+			onlineSessons, _ := common.ListSessions(ctx, cli, basePath)
 			onlineSessionMap := make(map[UniqueID]struct{})
 			for _, s := range onlineSessons {
 				onlineSessionMap[s.ServerID] = struct{}{}

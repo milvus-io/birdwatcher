@@ -37,7 +37,7 @@ func (s *InstanceState) TestMinioCfgCommand(ctx context.Context, p *TestMinioCfg
 }
 
 func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss.MinioConnectParam) (client *minio.Client, bucketName, rootPath string, err error) {
-	sessions, err := common.ListSessions(s.client, s.basePath)
+	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
 	if err != nil {
 		return nil, "", "", err
 	}

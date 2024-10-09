@@ -266,7 +266,9 @@ func backupEtcdV2(cli clientv3.KV, base, prefix string, w *bufio.Writer, opt *ba
 }
 
 func backupMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
-	sessions, err := common.ListSessions(cli, basePath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		return err
 	}
@@ -307,7 +309,9 @@ func backupMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 }
 
 func backupAppMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
-	sessions, err := common.ListSessions(cli, basePath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		return err
 	}
@@ -376,7 +380,9 @@ func backupAppMetrics(cli clientv3.KV, basePath string, w *bufio.Writer) error {
 }
 
 func backupConfiguration(cli clientv3.KV, basePath string, w *bufio.Writer) error {
-	sessions, err := common.ListSessions(cli, basePath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		return err
 	}

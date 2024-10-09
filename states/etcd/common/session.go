@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"path"
-	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 
@@ -16,15 +15,13 @@ const (
 )
 
 // ListSessions returns all session.
-func ListSessions(cli clientv3.KV, basePath string) ([]*models.Session, error) {
+func ListSessions(ctx context.Context, cli clientv3.KV, basePath string) ([]*models.Session, error) {
 	prefix := path.Join(basePath, sessionPrefix)
-	return ListSessionsByPrefix(cli, prefix)
+	return ListSessionsByPrefix(ctx, cli, prefix)
 }
 
 // ListSessionsByPrefix returns all session with provided prefix.
-func ListSessionsByPrefix(cli clientv3.KV, prefix string) ([]*models.Session, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
+func ListSessionsByPrefix(ctx context.Context, cli clientv3.KV, prefix string) ([]*models.Session, error) {
 	resp, err := cli.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
