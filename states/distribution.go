@@ -13,7 +13,6 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
@@ -30,7 +29,6 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
 		return p.CollectionID == 0 || p.CollectionID == s.CollectionID
 	})
-
 	if err != nil {
 		return err
 	}
@@ -63,7 +61,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 				grpc.WithBlock(),
 			}
 
-			dialCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			dialCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 			conn, err := grpc.DialContext(dialCtx, session.Address, opts...)
 			cancel()
 			// ignore bad session
@@ -83,7 +81,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 	close(clientCh)
 
 	type distResponse struct {
-		resp *querypb.GetDataDistributionResponse
+		resp *querypbv2.GetDataDistributionResponse
 		err  error
 		id   int64
 	}
@@ -118,7 +116,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 		fmt.Println("===========")
 		fmt.Printf("ServerID %d\n", result.id)
 		if result.err != nil {
-			fmt.Println("Error fetching distribution:", err.Error())
+			fmt.Println("Error fetching distribution:", result.err.Error())
 			continue
 		}
 		resp := result.resp
