@@ -52,8 +52,6 @@ func (s *InstanceState) SetupCommands() {
 	showCmd.AddCommand(
 		// show current-version
 		CurrentVersionCommand(),
-		// show segment-loaded-grpc
-		GetDistributionCommand(cli, basePath),
 	)
 
 	cmd.AddCommand(
@@ -78,9 +76,6 @@ func (s *InstanceState) SetupCommands() {
 		getShowLogLevelCmd(cli, basePath),
 		// update-log-level log_level_name component serverId
 		getUpdateLogLevelCmd(cli, basePath),
-
-		// segment-loaded
-		GetDistributionCommand(cli, basePath),
 
 		// balance-explain
 		ExplainBalanceCommand(cli, basePath),

@@ -213,8 +213,8 @@ func pathPart(p string, idx int) (string, error) {
 	return parts[idx], nil
 }
 
-func ListServers(cli clientv3.KV, basePath string, serverName string) ([]*models.Session, error) {
-	sessions, err := stateCommon.ListSessions(cli, basePath)
+func ListServers(ctx context.Context, cli clientv3.KV, basePath string, serverName string) ([]*models.Session, error) {
+	sessions, err := stateCommon.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		return nil, err
 	}
