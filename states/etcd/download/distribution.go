@@ -25,7 +25,9 @@ func PullGlobalDistributionDetails(cli kv.MetaKV, basePath string) *cobra.Comman
 		Use:   "global-distribution",
 		Short: "pull global distribution details",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sessions, err := common.ListSessions(cli, basePath)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			sessions, err := common.ListSessions(ctx, cli, basePath)
 			if err != nil {
 				return err
 			}

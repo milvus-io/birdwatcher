@@ -29,7 +29,7 @@ type GetConfigurationParam struct {
 
 func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfigurationParam) error {
 	p.Filter = strings.ToLower(p.Filter)
-	sessions, err := common.ListSessions(s.client, s.basePath)
+	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
 	if err != nil {
 		return err
 	}

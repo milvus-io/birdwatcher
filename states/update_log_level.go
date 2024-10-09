@@ -2,6 +2,7 @@ package states
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -24,7 +25,9 @@ func getShowLogLevelCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 		Use:   "show-log-level",
 		Short: "show log level of milvus roles",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sessions, err := common.ListSessions(cli, basePath)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			sessions, err := common.ListSessions(ctx, cli, basePath)
 			if err != nil {
 				return err
 			}
@@ -67,7 +70,9 @@ func getUpdateLogLevelCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 		Use:   "update-log-level log_level [component] [serverId]",
 		Short: "update log level of milvus role ",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sessions, err := common.ListSessions(cli, basePath)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			sessions, err := common.ListSessions(ctx, cli, basePath)
 			if err != nil {
 				return err
 			}

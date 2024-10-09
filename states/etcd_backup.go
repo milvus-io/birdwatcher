@@ -153,7 +153,7 @@ func backupEtcdV2(cli kv.MetaKV, base, prefix string, w *bufio.Writer, opt *Back
 }
 
 func backupMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
-	sessions, err := common.ListSessions(cli, basePath)
+	sessions, err := common.ListSessions(context.Background(), cli, basePath)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func backupMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 }
 
 func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
-	sessions, err := common.ListSessions(cli, basePath)
+	sessions, err := common.ListSessions(context.Background(), cli, basePath)
 	if err != nil {
 		return err
 	}
@@ -269,7 +269,7 @@ func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 }
 
 func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
-	sessions, err := common.ListSessions(cli, basePath)
+	sessions, err := common.ListSessions(context.Background(), cli, basePath)
 	if err != nil {
 		return err
 	}

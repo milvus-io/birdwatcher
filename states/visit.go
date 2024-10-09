@@ -80,7 +80,9 @@ func setNextState(sessionType string, conn *grpc.ClientConn, state framework.Sta
 }
 
 func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
-	sessions, err := common.ListSessions(cli, basePath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session, err:", err.Error())
 		return nil, nil, err

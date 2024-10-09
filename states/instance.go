@@ -48,10 +48,6 @@ func (s *InstanceState) SetupCommands() {
 	basePath := s.basePath
 
 	showCmd := etcd.ShowCommand(cli, basePath)
-	showCmd.AddCommand(
-		// show segment-loaded-grpc
-		GetDistributionCommand(cli, basePath),
-	)
 
 	s.MergeCobraCommands(cmd,
 		// show [subcommand] options...
@@ -73,9 +69,6 @@ func (s *InstanceState) SetupCommands() {
 		getShowLogLevelCmd(cli, basePath),
 		// update-log-level log_level_name component serverId
 		getUpdateLogLevelCmd(cli, basePath),
-
-		// segment-loaded
-		GetDistributionCommand(cli, basePath),
 
 		// balance-explain
 		ExplainBalanceCommand(cli, basePath),
