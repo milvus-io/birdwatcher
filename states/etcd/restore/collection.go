@@ -48,11 +48,7 @@ func CollectionCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				collection.State = etcdpbv2.CollectionState_CollectionCreated
 			}
 
-			if collection.DBID > 0 {
-				// err = common.UpdateCollectionWithDB(ctx, cli, basePath, collectionID, collection.DBID, updateCollState)
-			} else {
-				err = common.UpdateCollection(ctx, cli, basePath, collectionID, updateCollState, false)
-			}
+			err = common.UpdateCollection(ctx, cli, collection.Key(), updateCollState, true)
 
 			if err != nil {
 				fmt.Println(err.Error())
