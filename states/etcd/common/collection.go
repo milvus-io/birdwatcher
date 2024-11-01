@@ -3,13 +3,13 @@ package common
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/samber/lo"
 	"go.etcd.io/etcd/api/v3/mvccpb"
@@ -232,11 +232,14 @@ func FillFieldSchemaIfEmptyV2(cli clientv3.KV, basePath string, collection *etcd
 	return nil
 }
 
-func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo), dryRun bool) error {
-	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collectionID, 10))
-	resp, err := cli.Get(ctx, prefix)
+func UpdateCollection(ctx context.Context, cli clientv3.KV, key string, fn func(coll *etcdpbv2.CollectionInfo), run bool) error {
+	resp, err := cli.Get(ctx, key)
 	if err != nil {
 		return err
+	}
+
+	if len(resp.Kvs) != 1 {
+		return errors.Newf("collection with key[%s] not found", key)
 	}
 
 	info := &etcdpbv2.CollectionInfo{}
@@ -245,24 +248,29 @@ func UpdateCollection(ctx context.Context, cli clientv3.KV, basePath string, col
 		return err
 	}
 
-	fn(info)
-
-	bs, err := proto.Marshal(info)
+	clone := proto.Clone(info).(*etcdpbv2.CollectionInfo)
+	fn(clone)
+	bs, err := proto.Marshal(clone)
 	if err != nil {
 		return err
 	}
 
-	if dryRun {
-		fmt.Println("dry run")
-		fmt.Println("before alter")
-		fmt.Printf("schema:%s", info.Schema.String())
-		fmt.Println("after alter")
-		fmt.Printf("schema:%s", info.Schema.String())
+	fmt.Println("======dry run======")
+	fmt.Println("before alter")
+	fmt.Printf("schema:%s\n", info.String())
+	fmt.Println()
+	fmt.Println("after alter")
+	fmt.Printf("schema:%s\n", clone.String())
+	if !run {
 		return nil
 	}
 
-	_, err = cli.Put(ctx, prefix, string(bs))
-	return err
+	_, err = cli.Put(ctx, key, string(bs))
+	if err != nil {
+		return err
+	}
+	fmt.Println("Update collection done!")
+	return nil
 }
 
 func UpdateField(ctx context.Context, cli clientv3.KV, basePath string, collectionID, fieldID int64, fn func(field *schemapbv2.FieldSchema), dryRun bool) error {
