@@ -3,13 +3,13 @@ package common
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/samber/lo"
 
@@ -239,9 +239,8 @@ func FillFieldSchemaIfEmptyV2(cli kv.MetaKV, basePath string, collection *etcdpb
 	return nil
 }
 
-func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(coll *etcdpbv2.CollectionInfo), dryRun bool) error {
-	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collectionID, 10))
-	val, err := cli.Load(ctx, prefix)
+func UpdateCollection(ctx context.Context, cli kv.MetaKV, key string, fn func(coll *etcdpbv2.CollectionInfo), dryRun bool) error {
+	val, err := cli.Load(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -252,24 +251,26 @@ func UpdateCollection(ctx context.Context, cli kv.MetaKV, basePath string, colle
 		return err
 	}
 
-	fn(info)
-
-	bs, err := proto.Marshal(info)
+	clone := proto.Clone(info).(*etcdpbv2.CollectionInfo)
+	fn(clone)
+	bs, err := proto.Marshal(clone)
 	if err != nil {
 		return err
 	}
 
-	if dryRun {
-		fmt.Println("dry run")
-		fmt.Println("before alter")
-		fmt.Printf("schema:%s", info.Schema.String())
-		fmt.Println("after alter")
-		fmt.Printf("schema:%s", info.Schema.String())
+	fmt.Println("======dry run======")
+	fmt.Println("before alter")
+	fmt.Printf("schema:%s\n", info.String())
+	fmt.Println()
+	fmt.Println("after alter")
+	fmt.Printf("schema:%s\n", clone.String())
+	if !dryRun {
 		return nil
 	}
 
-	err = cli.Save(ctx, prefix, string(bs))
+	err = cli.Save(ctx, key, string(bs))
 	return err
+	return nil
 }
 
 func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, fieldID int64, fn func(field *schemapbv2.FieldSchema), dryRun bool) error {
