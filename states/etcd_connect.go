@@ -51,6 +51,8 @@ type ConnectParams struct {
 	RootCA              string `name:"rootCAPem" default:"" desc:"root CA pem file path"`
 	ETCDPem             string `name:"etcdCert" default:"" desc:"etcd tls cert file path"`
 	ETCDKey             string `name:"etcdKey" default:"" desc:"etcd tls key file path"`
+	ETCDUserName        string `name:"etcdUserName" default:"" desc:"etcd credential username"`
+	ETCDPassword        string `name:"etcdPassword" default:"" desc:"etcd creidentail password"`
 	Auto                bool   `name:"auto" default:"false" desc:"auto detect rootPath if possible"`
 }
 
@@ -114,6 +116,9 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 		DialOptions: []grpc.DialOption{
 			grpc.WithBlock(),
 		},
+
+		Username: cp.ETCDUserName,
+		Password: cp.ETCDPassword,
 
 		TLS: tls,
 		// disable grpc logging
