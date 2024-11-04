@@ -269,7 +269,10 @@ func UpdateCollection(ctx context.Context, cli kv.MetaKV, key string, fn func(co
 	}
 
 	err = cli.Save(ctx, key, string(bs))
-	return err
+	if err != nil {
+		return err
+	}
+	fmt.Println("Update collection done!")
 	return nil
 }
 
