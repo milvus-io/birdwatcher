@@ -20,7 +20,7 @@ jobs:
       - run: git fetch --force --tags
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.21
           cache: true
 
       - uses: goreleaser/goreleaser-action@v4
@@ -48,7 +48,7 @@ jobs:
       - run: git fetch --force --tags
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.21
           cache: true
 
       - uses: goreleaser/goreleaser-action@v4
@@ -76,7 +76,7 @@ jobs:
       - run: git fetch --force --tags
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.21
           cache: true
       - name: Make directories
         run: |
