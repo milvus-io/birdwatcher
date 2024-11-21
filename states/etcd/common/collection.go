@@ -123,11 +123,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 	// meta before database
 	prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collID, 10))
 	val, err := cli.Load(ctx, prefix)
-	if err != nil {
-		fmt.Println("get error", err.Error())
-		return nil, err
-	}
-	if len(val) > 0 {
+	if err == nil && len(val) > 0 {
 		found = true
 		ck = prefix
 		cv = []byte(val)
@@ -135,16 +131,16 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 
 	// with database, dbID unknown here
 	prefix = path.Join(basePath, DBCollectionMetaPrefix)
-	keys, _, _ := cli.LoadWithPrefix(ctx, prefix)
+	keys, values, _ := cli.LoadWithPrefix(ctx, prefix)
 	suffix := strconv.FormatInt(collID, 10)
-	for _, key := range keys {
+	for i, key := range keys {
 		if strings.HasSuffix(key, suffix) {
 			if found {
 				return nil, fmt.Errorf("multiple key found for collection %d: %s, %s", collID, ck, key)
 			}
 			found = true
 			ck = prefix
-			cv = []byte(val)
+			cv = []byte(values[i])
 		}
 	}
 	if !found {
