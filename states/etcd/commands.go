@@ -101,6 +101,8 @@ func RemoveCommand(cli clientv3.KV, instanceName, basePath string) *cobra.Comman
 		remove.EtcdConfigCommand(cli, instanceName),
 		// remove collection has been dropped
 		remove.CollectionCleanCommand(cli, basePath),
+		// remove import job
+		remove.ImportJob(cli, basePath),
 	)
 
 	return removeCmd
