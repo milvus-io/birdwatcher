@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
@@ -27,7 +28,7 @@ type ImportJobParam struct {
 
 // BulkInsertCommand returns show bulkinsert command.
 func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam) error {
-	jobs, err := common.ListImportJobs(ctx, c.client, c.basePath, func(job *datapb.ImportJob) bool {
+	jobs, _, err := common.ListImportJobs(ctx, c.client, c.basePath, func(job *datapb.ImportJob) bool {
 		return (p.JobID == 0 || job.GetJobID() == p.JobID) &&
 			(p.CollectionID == 0 || job.GetCollectionID() == p.CollectionID) &&
 			(p.State == "" || strings.EqualFold(job.GetState().String(), p.State))
@@ -50,9 +51,9 @@ func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam
 					fmt.Println("Please specify the job ID (-job={JobID}) to show detailed info.")
 					return nil
 				}
-				c.PrintDetailedImportJob(ctx, job, p.ShowAllFiles)
+				PrintDetailedImportJob(ctx, c.client, c.basePath, job, p.ShowAllFiles)
 			} else {
-				c.PrintSimpleImportJob(job)
+				PrintSimpleImportJob(job)
 			}
 		}
 		fmt.Printf("\n")
@@ -69,7 +70,7 @@ func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam
 	return nil
 }
 
-func (c *ComponentShow) PrintSimpleImportJob(job *datapb.ImportJob) {
+func PrintSimpleImportJob(job *datapb.ImportJob) {
 	str := fmt.Sprintf("JobID: %d DBID: %d CollectionID: %d State: %s StartTime: %s",
 		job.GetJobID(), job.GetDbID(), job.GetCollectionID(), job.State.String(), job.GetStartTime())
 	if job.GetState() == internalpb.ImportJobState_Failed {
@@ -81,16 +82,16 @@ func (c *ComponentShow) PrintSimpleImportJob(job *datapb.ImportJob) {
 	fmt.Println(str)
 }
 
-func (c *ComponentShow) PrintDetailedImportJob(ctx context.Context, job *datapb.ImportJob, showAllFiles bool) {
+func PrintDetailedImportJob(ctx context.Context, client clientv3.KV, basePath string, job *datapb.ImportJob, showAllFiles bool) {
 	// Get job's tasks.
-	preimportTasks, err := common.ListPreImportTasks(ctx, c.client, c.basePath, func(task *datapb.PreImportTask) bool {
+	preimportTasks, err := common.ListPreImportTasks(ctx, client, basePath, func(task *datapb.PreImportTask) bool {
 		return task.GetJobID() == job.GetJobID()
 	})
 	if err != nil {
 		fmt.Println("failed to list preimport tasks, err=", err.Error())
 		return
 	}
-	importTasks, err := common.ListImportTasks(ctx, c.client, c.basePath, func(task *datapb.ImportTaskV2) bool {
+	importTasks, err := common.ListImportTasks(ctx, client, basePath, func(task *datapb.ImportTaskV2) bool {
 		return task.GetJobID() == job.GetJobID()
 	})
 	if err != nil {
