@@ -21,6 +21,7 @@ import (
 type GetDistributionParam struct {
 	framework.ParamBase `use:"show segment-loaded-grpc" desc:"list segments loaded information"`
 	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	NodeID              int64 `name:"node" default:"0" desc:"node id to check"`
 }
 
 // GetDistributionCommand iterates all querynodes to list distribution.
@@ -56,6 +57,9 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 		wg.Add(1)
 		go func(session *models.Session) {
 			defer wg.Done()
+			if p.NodeID != 0 && session.ServerID != p.NodeID {
+				return
+			}
 			opts := []grpc.DialOption{
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithBlock(),
@@ -92,7 +96,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 		wg.Add(1)
 		go func(idClient clientWithID) {
 			defer wg.Done()
-			resp, err := idClient.client.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
+			resp, err := idClient.client.GetDataDistribution(ctx, &querypbv2.GetDataDistributionRequest{
 				Base: &commonpbv2.MsgBase{
 					SourceID: -1,
 					TargetID: idClient.id,
