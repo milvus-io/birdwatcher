@@ -17,11 +17,11 @@ const (
 )
 
 // ListImportJobs list import jobs.
-func ListImportJobs(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*datapb.ImportJob) bool) ([]*datapb.ImportJob, error) {
+func ListImportJobs(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*datapb.ImportJob) bool) ([]*datapb.ImportJob, []string, error) {
 	prefix := path.Join(basePath, ImportJobPrefix) + "/"
-	jobs, _, err := ListProtoObjects[datapb.ImportJob](ctx, cli, prefix)
+	jobs, keys, err := ListProtoObjects[datapb.ImportJob](ctx, cli, prefix)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return lo.FilterMap(jobs, func(job datapb.ImportJob, idx int) (*datapb.ImportJob, bool) {
@@ -31,7 +31,7 @@ func ListImportJobs(ctx context.Context, cli kv.MetaKV, basePath string, filters
 			}
 		}
 		return &job, true
-	}), nil
+	}), keys, nil
 }
 
 // ListPreImportTasks list pre-import tasks.
