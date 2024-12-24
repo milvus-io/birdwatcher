@@ -12,15 +12,15 @@ import (
 	"github.com/c-bata/go-prompt"
 	"github.com/samber/lo"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/history"
-	"github.com/milvus-io/birdwatcher/states"
 )
 
 // PromptApp wraps go-prompt as application.
 type PromptApp struct {
 	exited          bool
-	currentState    states.State
+	currentState    common.State
 	sugguestHistory bool
 	historyHelper   *history.Helper
 	logger          *log.Logger
@@ -71,7 +71,7 @@ func NewPromptApp(config *configs.Config, opts ...AppOption) BApp {
 	return pa
 }
 
-func (a *PromptApp) Run(start states.State) {
+func (a *PromptApp) Run(start common.State) {
 	a.currentState = start
 	a.prompt.Run()
 }

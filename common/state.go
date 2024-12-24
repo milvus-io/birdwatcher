@@ -1,4 +1,4 @@
-package states
+package common
 
 import (
 	"context"
@@ -18,6 +18,17 @@ import (
 	"github.com/milvus-io/birdwatcher/states/autocomplete"
 )
 
+// ExitErr is the error indicates user needs to exit application.
+var ExitErr = exitErr{}
+
+// exitErr internal err type for comparing.
+type exitErr struct{}
+
+// Error implements error.
+func (e exitErr) Error() string {
+	return "exited"
+}
+
 // State is the interface for application state.
 type State interface {
 	Ctx() (context.Context, context.CancelFunc)
@@ -30,18 +41,18 @@ type State interface {
 	IsEnding() bool
 }
 
-// cmdState is the basic state to process input command.
-type cmdState struct {
-	label     string
-	rootCmd   *cobra.Command
-	nextState State
+// CmdState is the basic state to process input command.
+type CmdState struct {
+	LabelStr  string
+	RootCmd   *cobra.Command
+	NextState State
 	signal    <-chan os.Signal
 
-	setupFn func()
+	SetupFn func()
 }
 
 // Ctx returns context which bind to sigint handler.
-func (s *cmdState) Ctx() (context.Context, context.CancelFunc) {
+func (s *CmdState) Ctx() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		defer cancel()
@@ -54,24 +65,27 @@ func (s *cmdState) Ctx() (context.Context, context.CancelFunc) {
 }
 
 // SetupCommands perform command setup & reset.
-func (s *cmdState) SetupCommands() {
-	if s.setupFn != nil {
-		s.setupFn()
+func (s *CmdState) SetupCommands() {
+	if s.SetupFn != nil {
+		s.SetupFn()
 	}
 }
 
-// mergeFunctionCommands parses all member methods for provided state and add it into cmd.
-func (s *cmdState) mergeFunctionCommands(cmd *cobra.Command, state State) {
+// MergeFunctionCommands parses all member methods for provided state and add it into cmd.
+func (s *CmdState) MergeFunctionCommands(cmd *cobra.Command, state State) {
 	items := parseFunctionCommands(state)
 	for _, item := range items {
+		// log.Println(item.kws, item.cmd.Use)
 		target := cmd
 		for _, kw := range item.kws {
 			node, _, err := cmd.Find([]string{kw})
-			if err != nil {
+			if err != nil || node.Use == "" {
+				// log.Println("not found", err)
 				newNode := &cobra.Command{Use: kw}
 				target.AddCommand(newNode)
 				node = newNode
 			}
+			// log.Println("[After find&check]", node.Use)
 			target = node
 		}
 		target.AddCommand(item.cmd)
@@ -79,19 +93,19 @@ func (s *cmdState) mergeFunctionCommands(cmd *cobra.Command, state State) {
 }
 
 // Label returns the display label for current cli.
-func (s *cmdState) Label() string {
-	return s.label
+func (s *CmdState) Label() string {
+	return s.LabelStr
 }
 
-func (s *cmdState) Suggestions(input string) map[string]string {
-	return autocomplete.SuggestInputCommands(input, s.rootCmd.Commands())
+func (s *CmdState) Suggestions(input string) map[string]string {
+	return autocomplete.SuggestInputCommands(input, s.RootCmd.Commands())
 }
 
 // Process is the main entry for processing command.
-func (s *cmdState) Process(cmd string) (State, error) {
+func (s *CmdState) Process(cmd string) (State, error) {
 	args := strings.Split(cmd, " ")
 
-	target, _, err := s.rootCmd.Find(args)
+	target, _, err := s.RootCmd.Find(args)
 	if err == nil && target != nil {
 		defer target.SetArgs(nil)
 	}
@@ -101,18 +115,18 @@ func (s *cmdState) Process(cmd string) (State, error) {
 	signal.Notify(c, syscall.SIGINT)
 	s.signal = c
 
-	s.rootCmd.SetArgs(args)
-	err = s.rootCmd.Execute()
+	s.RootCmd.SetArgs(args)
+	err = s.RootCmd.Execute()
 	signal.Reset(syscall.SIGINT)
 	if errors.Is(err, ExitErr) {
-		return s.nextState, ExitErr
+		return s.NextState, ExitErr
 	}
 	if err != nil {
 		return s, err
 	}
-	if s.nextState != nil {
-		nextState := s.nextState
-		s.nextState = nil
+	if s.NextState != nil {
+		nextState := s.NextState
+		s.NextState = nil
 		return nextState, nil
 	}
 
@@ -122,23 +136,31 @@ func (s *cmdState) Process(cmd string) (State, error) {
 }
 
 // SetNext simple method to set next state.
-func (s *cmdState) SetNext(state State) {
-	s.nextState = state
+func (s *CmdState) SetNext(state State) {
+	s.NextState = state
 }
 
 // Close empty method to implement State.
-func (s *cmdState) Close() {}
+func (s *CmdState) Close() {}
 
 // Check state is ending state.
-func (s *cmdState) IsEnding() bool { return false }
+func (s *CmdState) IsEnding() bool { return false }
+
+type PrintVerParam struct {
+	framework.ParamBase `use:"version" desc:"print version"`
+}
+
+func (s *CmdState) PrintVersionCommand(ctx context.Context, _ *PrintVerParam) {
+	fmt.Println("Birdwatcher Version", Version)
+}
 
 type exitParam struct {
 	framework.ParamBase `use:"exit" desc:"Close this CLI tool"`
 }
 
 // ExitCommand returns exit command
-func (s *cmdState) ExitCommand(ctx context.Context, _ *exitParam) {
-	s.SetNext(&exitState{})
+func (s *CmdState) ExitCommand(ctx context.Context, _ *exitParam) {
+	s.SetNext(&ExitState{})
 }
 
 type commandItem struct {

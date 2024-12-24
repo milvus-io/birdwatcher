@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
@@ -16,12 +17,12 @@ import (
 )
 
 type queryNodeState struct {
-	cmdState
+	common.CmdState
 	session   *models.Session
 	client    querypb.QueryNodeClient
 	clientv2  querypbv2.QueryNodeClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState common.State
 }
 
 // SetupCommands setups the command.
@@ -45,16 +46,16 @@ func (s *queryNodeState) SetupCommands() {
 		getExitCmd(s),
 	)
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev common.State, session *models.Session) common.State {
 	state := &queryNodeState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address),
 		},
 		session:   session,
 		client:    client,
@@ -68,7 +69,7 @@ func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, pr
 	return state
 }
 
-func getBackCmd(state, prev State) *cobra.Command {
+func getBackCmd(state, prev common.State) *cobra.Command {
 	return &cobra.Command{
 		Use: "back",
 		Run: func(cmd *cobra.Command, args []string) {

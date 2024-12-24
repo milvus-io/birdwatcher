@@ -29,7 +29,7 @@ type InstanceInfo struct {
 	RootPath string `form:"rootPath"`
 }
 
-func (app *WebServerApp) Run(states.State) {
+func (app *WebServerApp) Run(common.State) {
 	r := gin.Default()
 	etcdversion.SetVersion(models.GTEVersion2_2)
 
@@ -42,7 +42,7 @@ func (app *WebServerApp) Run(states.State) {
 	r.Run(fmt.Sprintf(":%d", app.port))
 }
 
-func (app *WebServerApp) ParseRouter(r *gin.Engine, s states.State) {
+func (app *WebServerApp) ParseRouter(r *gin.Engine, s common.State) {
 	v := reflect.ValueOf(s)
 	tp := v.Type()
 
@@ -106,7 +106,7 @@ func (app *WebServerApp) parseMethod(r *gin.Engine, mt reflect.Method, name stri
 
 	// fmt.Println(mt.Name)
 	cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
-	fUse, _ := states.GetCmdFromFlag(cp)
+	fUse, _ := common.GetCmdFromFlag(cp)
 	if len(use) == 0 {
 		use = fUse
 	}
@@ -115,7 +115,7 @@ func (app *WebServerApp) parseMethod(r *gin.Engine, mt reflect.Method, name stri
 		fnName := mt.Name
 		use = strings.ToLower(fnName[:len(fnName)-8])
 	}
-	uses := states.ParseUseSegments(use)
+	uses := common.ParseUseSegments(use)
 	lastKw := uses[len(uses)-1]
 	// hard code, show xxx command only
 	if uses[0] != "show" {

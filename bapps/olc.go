@@ -5,9 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/samber/lo"
-
-	"github.com/milvus-io/birdwatcher/states"
 )
 
 type olcApp struct {
@@ -25,7 +24,7 @@ func NewOlcApp(script string) BApp {
 	}
 }
 
-func (a *olcApp) Run(start states.State) {
+func (a *olcApp) Run(start common.State) {
 	app := start
 	cmds := a.parseScripts(a.script)
 	var err error

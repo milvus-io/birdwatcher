@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 )
@@ -175,7 +176,7 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 }
 
 type etcdConnectedState struct {
-	cmdState
+	common.CmdState
 	client     *clientv3.Client
 	addr       string
 	candidates []string
@@ -187,17 +188,17 @@ type etcdConnectedState struct {
 func (s *etcdConnectedState) SetupCommands() {
 	cmd := &cobra.Command{}
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
 // getEtcdConnectedState returns etcdConnectedState for unknown instance
-func getEtcdConnectedState(cli *clientv3.Client, addr string, config *configs.Config) State {
+func getEtcdConnectedState(cli *clientv3.Client, addr string, config *configs.Config) common.State {
 	state := &etcdConnectedState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("Etcd(%s)", addr),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("Etcd(%s)", addr),
 		},
 		client: cli,
 		addr:   addr,

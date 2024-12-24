@@ -7,19 +7,20 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdcommon "github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
 type indexCoordState struct {
-	cmdState
+	common.CmdState
 	session   *models.Session
 	client    indexpb.IndexCoordClient
 	clientv2  indexpbv2.IndexCoordClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState common.State
 }
 
 // SetupCommands setups the command.
@@ -39,16 +40,16 @@ func (s *indexCoordState) SetupCommands() {
 		getExitCmd(s),
 	)
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev common.State, session *models.Session) common.State {
 	state := &indexCoordState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address),
 		},
 		session:   session,
 		client:    client,
@@ -95,9 +96,9 @@ func printIndexV2(index *indexpbv2.IndexInfo) {
 	fmt.Printf("Total Rows: %d\n", index.GetTotalRows())
 	indexParams := index.GetIndexParams()
 	fmt.Printf("Index Type: %s\tMetric Type: %s\n",
-		common.GetKVPair(indexParams, "index_type"),
-		common.GetKVPair(indexParams, "metric_type"),
+		etcdcommon.GetKVPair(indexParams, "index_type"),
+		etcdcommon.GetKVPair(indexParams, "metric_type"),
 	)
-	fmt.Printf("Index Params: %s\n", common.GetKVPair(index.GetUserIndexParams(), "params"))
+	fmt.Printf("Index Params: %s\n", etcdcommon.GetKVPair(index.GetUserIndexParams(), "params"))
 	fmt.Println("==================================================================")
 }
