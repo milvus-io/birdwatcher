@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/audit"
@@ -20,7 +21,7 @@ import (
 
 // InstanceState provides command for single milvus instance.
 type InstanceState struct {
-	cmdState
+	common.CmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
 	*repair.ComponentRepair
@@ -29,7 +30,7 @@ type InstanceState struct {
 	client       clientv3.KV
 	auditFile    *os.File
 
-	etcdState State
+	etcdState common.State
 	config    *configs.Config
 	basePath  string
 }
@@ -105,13 +106,13 @@ func (s *InstanceState) SetupCommands() {
 	)
 
 	// cmd.AddCommand(etcd.RawCommands(cli)...)
-	s.mergeFunctionCommands(cmd, s)
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.MergeFunctionCommands(cmd, s)
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
 // getDryModeCmd enter dry-mode
-func getDryModeCmd(state *InstanceState, etcdState State) *cobra.Command {
+func getDryModeCmd(state *InstanceState, etcdState common.State) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dry-mode",
 		Short: "enter dry mode to select instance",
@@ -122,7 +123,7 @@ func getDryModeCmd(state *InstanceState, etcdState State) *cobra.Command {
 	return cmd
 }
 
-func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState State, config *configs.Config) State {
+func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState common.State, config *configs.Config) common.State {
 	var kv clientv3.KV
 	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
 	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
@@ -137,8 +138,8 @@ func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState 
 
 	// use audit kv
 	state := &InstanceState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("Milvus(%s)", instanceName),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("Milvus(%s)", instanceName),
 		},
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),

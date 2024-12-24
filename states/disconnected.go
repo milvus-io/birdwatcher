@@ -3,27 +3,28 @@ package states
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 )
 
 type disconnectState struct {
-	cmdState
+	common.CmdState
 	config *configs.Config
 }
 
 func (s *disconnectState) SetupCommands() {
 	cmd := &cobra.Command{}
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getDisconnectedState(config *configs.Config) State {
+func getDisconnectedState(config *configs.Config) common.State {
 	state := &disconnectState{
-		cmdState: cmdState{
-			label: "Offline",
+		CmdState: common.CmdState{
+			LabelStr: "Offline",
 		},
 		config: config,
 	}

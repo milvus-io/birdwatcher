@@ -17,6 +17,7 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd"
@@ -30,7 +31,7 @@ const (
 )
 
 type embedEtcdMockState struct {
-	cmdState
+	common.CmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
 	*repair.ComponentRepair
@@ -80,14 +81,14 @@ func (s *embedEtcdMockState) SetupCommands() {
 	)
 	cmd.AddCommand(etcd.RawCommands(s.client)...)
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
 func (s *embedEtcdMockState) SetInstance(instanceName string) {
-	s.cmdState.label = fmt.Sprintf("Backup(%s)", instanceName)
+	s.CmdState.LabelStr = fmt.Sprintf("Backup(%s)", instanceName)
 	s.instanceName = instanceName
 	rootPath := path.Join(instanceName, metaPath)
 	s.ComponentShow = show.NewComponent(s.client, s.config, rootPath)
@@ -170,12 +171,12 @@ func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
 	s.SetInstance(meta.Instance)
 }
 
-func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string, config *configs.Config) State {
+func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName string, config *configs.Config) common.State {
 	basePath := path.Join(instanceName, metaPath)
 
 	state := &embedEtcdMockState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("Backup(%s)", instanceName),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("Backup(%s)", instanceName),
 		},
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
@@ -195,7 +196,7 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 func getEmbedEtcdInstanceV2(server *embed.Etcd, config *configs.Config) *embedEtcdMockState {
 	client := v3client.New(server.Server)
 	state := &embedEtcdMockState{
-		cmdState:       cmdState{},
+		CmdState:       common.CmdState{},
 		server:         server,
 		client:         client,
 		metrics:        make(map[string][]byte),

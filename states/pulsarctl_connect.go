@@ -6,9 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 	pulsarctl "github.com/streamnative/pulsarctl/pkg/pulsar"
-	"github.com/streamnative/pulsarctl/pkg/pulsar/common"
+	pulsarcommon "github.com/streamnative/pulsarctl/pkg/pulsar/common"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/utils"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/framework"
 )
 
@@ -20,11 +21,11 @@ type PulsarctlParam struct {
 }
 
 func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *PulsarctlParam) error {
-	config := common.Config{
+	config := pulsarcommon.Config{
 		WebServiceURL:    p.Address,
 		AuthPlugin:       p.AuthPlugin,
 		AuthParams:       p.AuthParam,
-		PulsarAPIVersion: common.V2,
+		PulsarAPIVersion: pulsarcommon.V2,
 	}
 	admin, err := pulsarctl.New(&config)
 	if err != nil {
@@ -37,7 +38,7 @@ func (s *disconnectState) PulsarctlCommand(ctx context.Context, p *PulsarctlPara
 	return nil
 }
 
-func getPulsarctlCmd(state State) *cobra.Command {
+func getPulsarctlCmd(state common.State) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pulsarctl",
 		Short: "connect to pulsar admin with pulsarctl",
@@ -55,11 +56,11 @@ func getPulsarctlCmd(state State) *cobra.Command {
 				fmt.Println(err.Error())
 			}
 
-			config := common.Config{
+			config := pulsarcommon.Config{
 				WebServiceURL:    address,
 				AuthPlugin:       authPlugin,
 				AuthParams:       authParams,
-				PulsarAPIVersion: common.V2,
+				PulsarAPIVersion: pulsarcommon.V2,
 			}
 			admin, err := pulsarctl.New(&config)
 			if err != nil {
@@ -78,10 +79,10 @@ func getPulsarctlCmd(state State) *cobra.Command {
 	return cmd
 }
 
-func getPulsarAdminState(admin pulsarctl.Client, addr string) State {
+func getPulsarAdminState(admin pulsarctl.Client, addr string) common.State {
 	state := &pulsarAdminState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("PulsarAdmin(%s)", addr),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("PulsarAdmin(%s)", addr),
 		},
 		admin: admin,
 		addr:  addr,
@@ -91,7 +92,7 @@ func getPulsarAdminState(admin pulsarctl.Client, addr string) State {
 }
 
 type pulsarAdminState struct {
-	cmdState
+	common.CmdState
 	admin pulsarctl.Client
 	addr  string
 
@@ -112,8 +113,8 @@ func (s *pulsarAdminState) SetupCommands() {
 		getExitCmd(s),
 	)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
 func getListTopicCmd(admin pulsarctl.Client) *cobra.Command {

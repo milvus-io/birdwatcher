@@ -9,12 +9,13 @@ import (
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/common"
+	etcdcommon "github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 // getCmdCmd returns exit command for input state.
-func getWebCmd(state State, cli clientv3.KV, basePath string) *cobra.Command {
+func getWebCmd(state common.State, cli clientv3.KV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "web",
 		Short: "start a web server to see more details on browser",
@@ -44,7 +45,7 @@ func ginHandler(cli clientv3.KV, basePath string) http.Handler {
 		c.String(http.StatusOK, "pong")
 	})
 	r.GET("/collections", func(c *gin.Context) {
-		collections, err := common.ListCollectionsVersion(c, cli, basePath, etcdversion.GetVersion())
+		collections, err := etcdcommon.ListCollectionsVersion(c, cli, basePath, etcdversion.GetVersion())
 		if err != nil {
 			c.Error(err)
 			return

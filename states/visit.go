@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -24,7 +25,7 @@ import (
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	milvuspbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdcommon "github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
 func getSessionTypes() []string {
@@ -39,7 +40,7 @@ func getSessionTypes() []string {
 	}
 }
 
-func getVisitCmd(state State, cli clientv3.KV, basePath string) *cobra.Command {
+func getVisitCmd(state common.State, cli clientv3.KV, basePath string) *cobra.Command {
 	callCmd := &cobra.Command{
 		Use:   "visit",
 		Short: "enter state that could visit some service of component",
@@ -52,7 +53,7 @@ func getVisitCmd(state State, cli clientv3.KV, basePath string) *cobra.Command {
 	return callCmd
 }
 
-func setNextState(sessionType string, conn *grpc.ClientConn, statePtr *State, session *models.Session) {
+func setNextState(sessionType string, conn *grpc.ClientConn, statePtr *common.State, session *models.Session) {
 	state := *statePtr
 	switch sessionType {
 	case "datacoord":
@@ -82,7 +83,7 @@ func setNextState(sessionType string, conn *grpc.ClientConn, statePtr *State, se
 func getSessionConnect(cli clientv3.KV, basePath string, id int64, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	sessions, err := common.ListSessions(ctx, cli, basePath)
+	sessions, err := etcdcommon.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session, err:", err.Error())
 		return nil, nil, err
@@ -107,7 +108,7 @@ func getSessionConnect(cli clientv3.KV, basePath string, id int64, sessionType s
 	return nil, nil, errors.New("invalid id")
 }
 
-func getVisitSessionCmds(state State, cli clientv3.KV, basePath string) []*cobra.Command {
+func getVisitSessionCmds(state common.State, cli clientv3.KV, basePath string) []*cobra.Command {
 	sessionCmds := make([]*cobra.Command, 0, len(getSessionTypes()))
 	sessionTypes := getSessionTypes()
 

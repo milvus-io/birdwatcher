@@ -6,18 +6,19 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 )
 
 type indexNodeState struct {
-	cmdState
+	common.CmdState
 	session   *models.Session
 	client    indexpb.IndexNodeClient
 	clientv2  indexpbv2.IndexNodeClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState common.State
 }
 
 // SetupCommands setups the command.
@@ -34,16 +35,16 @@ func (s *indexNodeState) SetupCommands() {
 		// exit
 		getExitCmd(s),
 	)
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getIndexNodeState(client indexpb.IndexNodeClient, conn *grpc.ClientConn, prev common.State, session *models.Session) common.State {
 	state := &indexNodeState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("IndexNode-%d(%s)", session.ServerID, session.Address),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("IndexNode-%d(%s)", session.ServerID, session.Address),
 		},
 		session:   session,
 		client:    client,

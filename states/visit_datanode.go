@@ -6,18 +6,19 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
+	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 )
 
 type dataNodeState struct {
-	cmdState
+	common.CmdState
 	session   *models.Session
 	client    datapb.DataNodeClient
 	clientv2  datapbv2.DataNodeClient
 	conn      *grpc.ClientConn
-	prevState State
+	prevState common.State
 }
 
 // SetupCommands setups the command.
@@ -35,16 +36,16 @@ func (s *dataNodeState) SetupCommands() {
 		getExitCmd(s),
 	)
 
-	s.mergeFunctionCommands(cmd, s)
+	s.MergeFunctionCommands(cmd, s)
 
-	s.cmdState.rootCmd = cmd
-	s.setupFn = s.SetupCommands
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 }
 
-func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev State, session *models.Session) State {
+func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev common.State, session *models.Session) common.State {
 	state := &dataNodeState{
-		cmdState: cmdState{
-			label: fmt.Sprintf("DataNode-%d(%s)", session.ServerID, session.Address),
+		CmdState: common.CmdState{
+			LabelStr: fmt.Sprintf("DataNode-%d(%s)", session.ServerID, session.Address),
 		},
 		session:   session,
 		client:    client,
