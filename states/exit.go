@@ -3,9 +3,10 @@ package states
 import (
 	"context"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/spf13/cobra"
 )
 
 // getExitCmd returns exit command for input state.
