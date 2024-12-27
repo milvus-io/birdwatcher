@@ -28,10 +28,13 @@ type SegmentParam struct {
 }
 
 type segStats struct {
+	// field id => log size
 	binlogLogSize map[int64]int64
+	// field id => mem size
 	binlogMemSize map[int64]int64
 	deltaLogSize  int64
 	deltaMemSize  int64
+	deltaEntryNum int64
 	statsLogSize  int64
 	statsMemSize  int64
 }
@@ -110,6 +113,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 						for _, log := range delta.Binlogs {
 							collectionID2SegStats[collectionID].deltaLogSize += log.LogSize
 							collectionID2SegStats[collectionID].deltaMemSize += log.MemSize
+							collectionID2SegStats[collectionID].deltaEntryNum += log.EntriesNum
 						}
 					}
 					for _, statslog := range info.GetStatslogs() {
@@ -120,7 +124,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 					}
 				}
 			default:
-				err := fmt.Errorf("unsupport format:%s\n", p.Format)
+				err := fmt.Errorf("unsupport format:%s", p.Format)
 				return err
 			}
 		}
@@ -143,10 +147,11 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 func outputStats(scope string, stats ...*segStats) {
 	var totalBinlogLogSize int64
 	var totalBinlogMemSize int64
-	var TotalDeltaLogSize int64
-	var TotalDeltaMemSize int64
-	var TotalStatsLogSize int64
-	var TotalStatsMemSize int64
+	var totalDeltaLogSize int64
+	var totalDeltaMemSize int64
+	var totalDeltaEntryNum int64
+	var totalStatsLogSize int64
+	var totalStatsMemSize int64
 	for _, s := range stats {
 		for fieldID, logSize := range s.binlogLogSize {
 			memSize := s.binlogMemSize[fieldID]
@@ -157,15 +162,16 @@ func outputStats(scope string, stats ...*segStats) {
 			totalBinlogMemSize += memSize
 		}
 
-		TotalDeltaLogSize += s.deltaLogSize
-		TotalDeltaMemSize += s.deltaMemSize
-		TotalStatsLogSize += s.statsLogSize
-		TotalStatsMemSize += s.statsMemSize
+		totalDeltaLogSize += s.deltaLogSize
+		totalDeltaMemSize += s.deltaMemSize
+		totalDeltaEntryNum += s.deltaEntryNum
+		totalStatsLogSize += s.statsLogSize
+		totalStatsMemSize += s.statsMemSize
 	}
 
 	fmt.Printf("--- %s binlog size: %s, mem size: %s\n", scope, hrSize(totalBinlogLogSize), hrSize(totalBinlogMemSize))
-	fmt.Printf("--- %s deltalog size: %s, mem size: %s\n", scope, hrSize(TotalDeltaLogSize), hrSize(TotalDeltaMemSize))
-	fmt.Printf("--- %s statslog size: %s, mem size: %s\n", scope, hrSize(TotalStatsLogSize), hrSize(TotalStatsMemSize))
+	fmt.Printf("--- %s deltalog size: %s, mem size: %s, delta entry number: %d\n", scope, hrSize(totalDeltaLogSize), hrSize(totalDeltaMemSize), totalDeltaEntryNum)
+	fmt.Printf("--- %s statslog size: %s, mem size: %s\n", scope, hrSize(totalStatsLogSize), hrSize(totalStatsMemSize))
 }
 
 func hrSize(size int64) string {
