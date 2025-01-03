@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"strings"
@@ -110,6 +111,14 @@ func (s *disconnectState) ConnectCommand(ctx context.Context, cp *ConnectParams)
 	tls, err := s.getTLSConfig(cp)
 	if err != nil {
 		return errors.Wrap(err, "failed to load tls certificates")
+	}
+	_, _, err = net.SplitHostPort(cp.EtcdAddr)
+	if err != nil {
+		if strings.Contains(err.Error(), "missing port in address") {
+			cp.EtcdAddr = cp.EtcdAddr + ":2379"
+		} else {
+			return errors.Wrap(err, "invalid etcd address")
+		}
 	}
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{cp.EtcdAddr},
