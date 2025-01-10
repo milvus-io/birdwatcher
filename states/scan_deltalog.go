@@ -8,6 +8,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/expr-lang/expr"
+	"github.com/minio/minio-go/v7"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
@@ -15,7 +17,6 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
-	"github.com/minio/minio-go/v7"
 )
 
 type ScanDeltalogParams struct {
