@@ -154,7 +154,6 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 						if !match {
 							return true
 						}
-
 					}
 
 					process(pk, ts, segment, deltaBinlog.LogPath, offset)
