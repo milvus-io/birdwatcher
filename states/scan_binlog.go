@@ -20,7 +20,7 @@ import (
 )
 
 type ScanBinlogParams struct {
-	framework.ParamBase `use:"scan-binlog" desc:"test expr"`
+	framework.ParamBase `use:"scan-binlog" desc:"scan binlog to check data"`
 	CollectionID        int64    `name:"collection" default:"0"`
 	SegmentID           int64    `name:"segment" default:"0"`
 	Fields              []string `name:"fields"`
