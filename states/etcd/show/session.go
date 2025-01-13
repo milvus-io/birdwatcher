@@ -19,7 +19,7 @@ type SessionParam struct {
 // SessionCommand returns show session command.
 // usage: show session
 func (c *ComponentShow) SessionCommand(ctx context.Context, p *SessionParam) (*Sessions, error) {
-	sessions, err := common.ListSessions(ctx, c.client, c.basePath)
+	sessions, err := common.ListSessions(ctx, c.client, c.metaPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list sessions")
 	}

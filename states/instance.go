@@ -141,7 +141,7 @@ func getInstanceState(cli clientv3.KV, instanceName, metaPath string, etcdState 
 		CmdState: common.CmdState{
 			LabelStr: fmt.Sprintf("Milvus(%s)", instanceName),
 		},
-		ComponentShow:   show.NewComponent(cli, config, basePath),
+		ComponentShow:   show.NewComponent(cli, config, instanceName, metaPath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
 		ComponentRepair: repair.NewComponent(cli, config, basePath),
 		ComponentSet:    set.NewComponent(cli, config, basePath),

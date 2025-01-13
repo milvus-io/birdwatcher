@@ -52,7 +52,7 @@ type IndexInfoV1 struct {
 }
 
 func (c *ComponentShow) listIndexMeta(ctx context.Context) ([]IndexInfoV1, error) {
-	prefix := path.Join(c.basePath, "root-coord/index")
+	prefix := path.Join(c.metaPath, "root-coord/index")
 	indexes, keys, err := common.ListProtoObjects[etcdpb.IndexInfo](ctx, c.client, prefix)
 	result := make([]IndexInfoV1, 0, len(indexes))
 	for idx, info := range indexes {
@@ -70,7 +70,7 @@ func (c *ComponentShow) listIndexMeta(ctx context.Context) ([]IndexInfoV1, error
 }
 
 func (c *ComponentShow) listIndexMetaV2(ctx context.Context) ([]indexpbv2.FieldIndex, error) {
-	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, c.client, path.Join(c.basePath, "field-index"))
+	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, c.client, path.Join(c.metaPath, "field-index"))
 	return indexes, err
 }
 

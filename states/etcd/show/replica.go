@@ -25,13 +25,13 @@ func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*R
 	var collections []*models.Collection
 	var err error
 	if p.CollectionID > 0 {
-		collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
+		collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), p.CollectionID)
 		if err != nil {
 			return nil, err
 		}
 		collections = []*models.Collection{collection}
 	} else {
-		collections, err = common.ListCollectionsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(c *models.Collection) bool {
+		collections, err = common.ListCollectionsVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(c *models.Collection) bool {
 			return p.CollectionID == 0 || p.CollectionID == c.ID
 		})
 		if err != nil {
@@ -39,7 +39,7 @@ func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*R
 		}
 	}
 
-	replicas, err := common.ListReplica(ctx, c.client, c.basePath, p.CollectionID)
+	replicas, err := common.ListReplica(ctx, c.client, c.metaPath, p.CollectionID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list replica info")
 	}
