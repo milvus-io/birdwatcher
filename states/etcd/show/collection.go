@@ -30,12 +30,12 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 	// perform get by id to accelerate
 	if p.CollectionID > 0 {
 		var collection *models.Collection
-		collection, err = common.GetCollectionByIDVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
+		collection, err = common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), p.CollectionID)
 		if err == nil {
 			collections = append(collections, collection)
 		}
 	} else {
-		collections, err = common.ListCollectionsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
+		collections, err = common.ListCollectionsVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
 			if p.CollectionName != "" && coll.Schema.Name != p.CollectionName {
 				return false
 			}

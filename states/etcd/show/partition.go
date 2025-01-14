@@ -23,7 +23,7 @@ func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam)
 		return nil, errors.New("collection id not provided")
 	}
 
-	partitions, err := common.ListCollectionPartitions(ctx, c.client, c.basePath, p.CollectionID)
+	partitions, err := common.ListCollectionPartitions(ctx, c.client, c.metaPath, p.CollectionID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list partition info")
 	}

@@ -28,7 +28,7 @@ type ImportJobParam struct {
 
 // BulkInsertCommand returns show bulkinsert command.
 func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam) error {
-	jobs, _, err := common.ListImportJobs(ctx, c.client, c.basePath, func(job *datapb.ImportJob) bool {
+	jobs, _, err := common.ListImportJobs(ctx, c.client, c.metaPath, func(job *datapb.ImportJob) bool {
 		return (p.JobID == 0 || job.GetJobID() == p.JobID) &&
 			(p.CollectionID == 0 || job.GetCollectionID() == p.CollectionID) &&
 			(p.State == "" || strings.EqualFold(job.GetState().String(), p.State))
@@ -51,7 +51,7 @@ func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam
 					fmt.Println("Please specify the job ID (-job={JobID}) to show detailed info.")
 					return nil
 				}
-				PrintDetailedImportJob(ctx, c.client, c.basePath, job, p.ShowAllFiles)
+				PrintDetailedImportJob(ctx, c.client, c.metaPath, job, p.ShowAllFiles)
 			} else {
 				PrintSimpleImportJob(job)
 			}

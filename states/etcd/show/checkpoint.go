@@ -23,7 +23,7 @@ type CheckpointParam struct {
 
 // CheckpointCommand returns show checkpoint command.
 func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) (*Checkpoints, error) {
-	coll, err := common.GetCollectionByIDVersion(context.Background(), c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
+	coll, err := common.GetCollectionByIDVersion(context.Background(), c.client, c.metaPath, etcdversion.GetVersion(), p.CollectionID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get collection")
 	}
@@ -93,7 +93,7 @@ func (rs *Checkpoints) PrintAs(format framework.Format) string {
 }
 
 func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*models.MsgPosition, error) {
-	prefix := path.Join(c.basePath, "datacoord-meta", "channel-cp", channelName)
+	prefix := path.Join(c.metaPath, "datacoord-meta", "channel-cp", channelName)
 	results, _, err := common.ListProtoObjects[internalpb.MsgPosition](ctx, c.client, prefix)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName st
 }
 
 func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID int64, vchannel string) (*models.MsgPosition, int64, error) {
-	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(info *models.Segment) bool {
+	segments, err := common.ListSegmentsVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(info *models.Segment) bool {
 		return info.CollectionID == collID && info.InsertChannel == vchannel
 	})
 	if err != nil {

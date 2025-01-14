@@ -91,7 +91,7 @@ func (s *embedEtcdMockState) SetInstance(instanceName string) {
 	s.CmdState.LabelStr = fmt.Sprintf("Backup(%s)", instanceName)
 	s.instanceName = instanceName
 	rootPath := path.Join(instanceName, metaPath)
-	s.ComponentShow = show.NewComponent(s.client, s.config, rootPath)
+	s.ComponentShow = show.NewComponent(s.client, s.config, instanceName, metaPath)
 	s.ComponentRemove = remove.NewComponent(s.client, s.config, rootPath)
 	s.ComponentRepair = repair.NewComponent(s.client, s.config, rootPath)
 	s.SetupCommands()
@@ -178,7 +178,7 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli *clientv3.Client, instanceName
 		CmdState: common.CmdState{
 			LabelStr: fmt.Sprintf("Backup(%s)", instanceName),
 		},
-		ComponentShow:   show.NewComponent(cli, config, basePath),
+		ComponentShow:   show.NewComponent(cli, config, instanceName, metaPath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
 		server:          server,

@@ -27,7 +27,7 @@ func (c *ComponentShow) CollectionHistoryCommand(ctx context.Context, p *Collect
 	}
 
 	// fetch current for now
-	collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
+	collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), p.CollectionID)
 	if err != nil {
 		switch {
 		case errors.Is(err, common.ErrCollectionDropped):
@@ -43,7 +43,7 @@ func (c *ComponentShow) CollectionHistoryCommand(ctx context.Context, p *Collect
 		Collection: collection,
 	}
 	// fetch history
-	items, err := common.ListCollectionHistory(ctx, c.client, c.basePath, etcdversion.GetVersion(), collection.DBID, p.CollectionID)
+	items, err := common.ListCollectionHistory(ctx, c.client, c.metaPath, etcdversion.GetVersion(), collection.DBID, p.CollectionID)
 	if err != nil {
 		return nil, err
 	}
