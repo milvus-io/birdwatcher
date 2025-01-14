@@ -12,9 +12,10 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/milvus-io/birdwatcher/common"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
+	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 )
 
@@ -46,6 +47,32 @@ func (s *queryCoordState) SetupCommands() {
 
 	s.CmdState.RootCmd = cmd
 	s.SetupFn = s.SetupCommands
+}
+
+type BalanceSegmentParam struct {
+	framework.ParamBase `use:"balance-segment" desc:"balance segment"`
+	CollectionID        int64   `name:"collection" default:"0"`
+	SegmentIDs          []int64 `name:"segment" desc:"segment ids to balance"`
+	SourceNodes         []int64 `name:"srcNodes" desc:"from querynode ids"`
+	DstNodes            int64   `name:"dstNode" desc:"to querynode ids"`
+}
+
+func (s *queryCoordState) BalanceSegmentCommand(ctx context.Context, p *BalanceSegmentParam) error {
+	req := &querypbv2.LoadBalanceRequest{
+		Base: &commonpbv2.MsgBase{
+			TargetID: s.session.ServerID,
+		},
+		CollectionID:     p.CollectionID,
+		SealedSegmentIDs: p.SegmentIDs,
+		SourceNodeIDs:    p.SourceNodes,
+	}
+
+	resp, err := s.clientv2.LoadBalance(ctx, req)
+	if err != nil {
+		return err
+	}
+	fmt.Println(resp)
+	return nil
 }
 
 /*
@@ -121,7 +148,7 @@ func checkerActivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Co
 				return
 			}
 			req := &querypbv2.ActivateCheckerRequest{
-				Base: &commonpb.MsgBase{
+				Base: &commonpbv2.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
@@ -133,7 +160,7 @@ func checkerActivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Co
 				fmt.Println(err.Error())
 				return
 			}
-			if status.ErrorCode != commonpb.ErrorCode_Success {
+			if status.ErrorCode != commonpbv2.ErrorCode_Success {
 				fmt.Print(status.Reason)
 				return
 			}
@@ -155,7 +182,7 @@ func checkerDeactivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 				return
 			}
 			req := &querypbv2.DeactivateCheckerRequest{
-				Base: &commonpb.MsgBase{
+				Base: &commonpbv2.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
@@ -167,7 +194,7 @@ func checkerDeactivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 				fmt.Println(err.Error())
 				return
 			}
-			if status.ErrorCode != commonpb.ErrorCode_Success {
+			if status.ErrorCode != commonpbv2.ErrorCode_Success {
 				fmt.Print(status.Reason)
 				return
 			}
@@ -193,7 +220,7 @@ func checkerListCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Comman
 			}
 
 			req := &querypbv2.ListCheckersRequest{
-				Base: &commonpb.MsgBase{
+				Base: &commonpbv2.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
@@ -205,7 +232,7 @@ func checkerListCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Comman
 				fmt.Println(err.Error())
 				return
 			}
-			if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
+			if resp.Status.ErrorCode != commonpbv2.ErrorCode_Success {
 				fmt.Println(resp.Status.Reason)
 				return
 			}
