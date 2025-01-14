@@ -18,7 +18,7 @@ type PartitionLoadedParam struct {
 }
 
 func (c *ComponentShow) PartitionLoadedCommand(ctx context.Context, p *PartitionLoadedParam) (*PartitionsLoaded, error) {
-	partitions, err := common.ListPartitionLoadedInfo(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(pl *models.PartitionLoaded) bool {
+	partitions, err := common.ListPartitionLoadedInfo(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(pl *models.PartitionLoaded) bool {
 		return (p.CollectionID == 0 || p.CollectionID == pl.CollectionID) &&
 			(p.PartitionID == 0 || p.PartitionID == pl.PartitionID)
 	})

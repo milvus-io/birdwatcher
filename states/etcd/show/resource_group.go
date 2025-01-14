@@ -16,7 +16,7 @@ type ResourceGroupParam struct {
 }
 
 func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGroupParam) (*ResourceGroups, error) {
-	rgs, err := common.ListResourceGroups(ctx, c.client, c.basePath, func(rg *models.ResourceGroup) bool {
+	rgs, err := common.ListResourceGroups(ctx, c.client, c.metaPath, func(rg *models.ResourceGroup) bool {
 		return p.Name == "" || p.Name == rg.GetName()
 	})
 	if err != nil {

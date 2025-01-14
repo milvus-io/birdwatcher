@@ -23,7 +23,7 @@ type SegmentIndexParam struct {
 
 // SegmentIndexCommand returns show segment-index command.
 func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndexParam) error {
-	segments, err := common.ListSegments(c.client, c.basePath, func(info *datapb.SegmentInfo) bool {
+	segments, err := common.ListSegments(c.client, c.metaPath, func(info *datapb.SegmentInfo) bool {
 		return (p.CollectionID == 0 || info.CollectionID == p.CollectionID) &&
 			(p.SegmentID == 0 || info.ID == p.SegmentID)
 	})
@@ -31,7 +31,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 		return err
 	}
 
-	segmentIndexes, err := common.ListSegmentIndex(c.client, c.basePath)
+	segmentIndexes, err := common.ListSegmentIndex(c.client, c.metaPath)
 	if err != nil {
 		return err
 	}
@@ -40,12 +40,12 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 		return err
 	}
 
-	indexBuildInfo, err := common.ListIndex(ctx, c.client, c.basePath)
+	indexBuildInfo, err := common.ListIndex(ctx, c.client, c.metaPath)
 	if err != nil {
 		return err
 	}
 
-	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, c.client, path.Join(c.basePath, "field-index"))
+	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, c.client, path.Join(c.metaPath, "field-index"))
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 }
 
 func (c *ComponentShow) listSegmentIndexV2(ctx context.Context) ([]indexpbv2.SegmentIndex, error) {
-	prefix := path.Join(c.basePath, "segment-index") + "/"
+	prefix := path.Join(c.metaPath, "segment-index") + "/"
 	result, _, err := common.ListProtoObjects[indexpbv2.SegmentIndex](ctx, c.client, prefix)
 	return result, err
 }
