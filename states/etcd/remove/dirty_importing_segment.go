@@ -13,8 +13,9 @@ import (
 )
 
 type DirtyImportingSegment struct {
-	framework.ParamBase `use:"remove dirty-importing-segment" desc:"remove dirty importing segments that collection meta already gone"`
+	framework.ParamBase `use:"remove dirty-importing-segment" desc:"remove dirty importing segments with 0 rows"`
 	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	Ts                  int64 `name:"ts" default:"0" desc:"only remove segments with ts less than this value"`
 	Run                 bool  `name:"run" default:"false" desc:"flag to control actually run or dry"`
 }
 
@@ -35,7 +36,11 @@ func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *D
 	for collectionID, segments := range groups {
 		for _, segment := range segments {
 			if segment.State == models.SegmentStateImporting {
-				if segment.NumOfRows == 0 {
+				segmentTs := segment.GetDmlPosition().GetTimestamp()
+				if segmentTs == 0 {
+					segmentTs = segment.GetStartPosition().GetTimestamp()
+				}
+				if segment.NumOfRows == 0 && segmentTs < uint64(p.Ts) {
 					fmt.Printf("collection %d, segment %d is dirty importing with 0 rows, remove it\n", collectionID, segment.ID)
 					if p.Run {
 						err := common.RemoveSegmentByID(ctx, c.client, c.basePath, segment.CollectionID, segment.PartitionID, segment.ID)
@@ -44,7 +49,7 @@ func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *D
 						}
 					}
 				} else {
-					fmt.Printf("collection %d, segment %d is dirty importing with %d rows, skip it\n", collectionID, segment.ID, segment.NumOfRows)
+					fmt.Printf("collection %d, segment %d is dirty importing with %d rows, ts=%d, skip it\n", collectionID, segment.ID, segment.NumOfRows, segmentTs)
 				}
 			}
 		}
