@@ -109,7 +109,7 @@ func (app *ApplicationState) ValidateIndexFilesCommand(ctx context.Context, p *V
 					validateIndexFolder(fp, params)
 				}
 			} else if errors.Is(err, os.ErrNotExist) {
-				// file not exist
+				fmt.Println("fail not exists: ", idxParam)
 			} else {
 				fmt.Println(err.Error())
 			}
