@@ -20,6 +20,10 @@ linters:
     - revive
 
 linters-settings:
+  revive:
+    rules:
+      - name: unused-parameter
+        disabled: true
   misspell:
     locale: US
   gocritic:
