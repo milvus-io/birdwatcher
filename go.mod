@@ -2,8 +2,6 @@ module github.com/milvus-io/birdwatcher
 
 go 1.21
 
-toolchain go1.22.10
-
 require (
 	github.com/aliyun/credentials-go v1.3.10
 	github.com/apache/arrow/go/v8 v8.0.0
