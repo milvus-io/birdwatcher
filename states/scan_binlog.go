@@ -175,8 +175,8 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 
 			err = s.scanBinlogs(pkObject, fieldObjects, func(pk storage.PrimaryKey, offset int, values map[int64]any) error {
 				pkv := pk.GetValue()
+				ts := values[1].(int64)
 				if !p.IgnoreDelete {
-					ts := values[1].(int64)
 					if deletedRecords[pkv] > uint64(ts) {
 						return nil
 					}
@@ -188,6 +188,8 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 					env := lo.MapKeys(values, func(_ any, fid int64) string {
 						return fields[fid].Name
 					})
+					env["$pk"] = pkv
+					env["$timestamp"] = ts
 					program, err := expr.Compile(p.Expr, expr.Env(env))
 					if err != nil {
 						return err

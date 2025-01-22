@@ -132,8 +132,8 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 					}()
 					if len(p.Expr) != 0 {
 						env := map[string]any{
-							"pk": pk.GetValue(),
-							"ts": ts,
+							"$pk":        pk.GetValue(),
+							"$timestamp": ts,
 						}
 						program, err := expr.Compile(p.Expr, expr.Env(env))
 						if err != nil {
