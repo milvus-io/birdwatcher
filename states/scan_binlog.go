@@ -153,7 +153,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 			}
 		}
 
-		if pkBinlog == nil && segment.State != models.SegmentStateGrowing {
+		if pkBinlog == nil {
 			fmt.Printf("PK Binlog not found, segment %d\n", segment.ID)
 			continue
 		}
