@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"strings"
@@ -82,8 +83,8 @@ func (rs *Checkpoints) PrintAs(format framework.Format) string {
 				continue
 			}
 			t, _ := utils.ParseTS(checkpoint.Checkpoint.GetTimestamp())
-			fmt.Fprintf(sb, "vchannel %s seek to %v, cp channel: %s, Source: %s\n",
-				checkpoint.Channel.VirtualName, t, checkpoint.Checkpoint.ChannelName,
+			fmt.Fprintf(sb, "vchannel %s seek to %v, cp channel: %s, Source: %s\n, msgID: %s\n",
+				checkpoint.Channel.VirtualName, t, checkpoint.Checkpoint.ChannelName, hex.EncodeToString(checkpoint.Checkpoint.MsgID),
 				checkpoint.Source)
 		}
 		return sb.String()
