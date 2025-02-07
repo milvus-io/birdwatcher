@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	"path"
-	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 
@@ -19,10 +18,7 @@ func ListIndex(ctx context.Context, cli clientv3.KV, basePath string, filters ..
 }
 
 // ListSegmentIndex list segment index info.
-func ListSegmentIndex(cli clientv3.KV, basePath string, filters ...func(segIdx *etcdpb.SegmentIndexInfo) bool) ([]etcdpb.SegmentIndexInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
+func ListSegmentIndex(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(segIdx *etcdpb.SegmentIndexInfo) bool) ([]etcdpb.SegmentIndexInfo, error) {
 	prefix := path.Join(basePath, "root-coord/segment-index") + "/"
 	result, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
 	return result, err
