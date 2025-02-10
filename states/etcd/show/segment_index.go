@@ -31,7 +31,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 		return err
 	}
 
-	segmentIndexes, err := common.ListSegmentIndex(c.client, c.metaPath)
+	segmentIndexes, err := common.ListSegmentIndex(ctx, c.client, c.metaPath)
 	if err != nil {
 		return err
 	}
@@ -111,6 +111,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 				fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(idx.GetIndexInfo().GetIndexParams(), "index_type"), idx.GetIndexInfo().GetFieldID())
 				fmt.Printf("\tSerialized Size: %d\n", segIdx.GetSerializeSize())
 				fmt.Printf("\tCurrent Index Version: %d\n", segIdx.GetCurrentIndexVersion())
+				fmt.Printf("\t Index Files: %v\n", segIdx.IndexFileKeys)
 			}
 		} else {
 			// use v1 info
