@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	"github.com/samber/lo"
 )
 
 // Segment is the common model for segment information.
@@ -32,6 +33,12 @@ type Segment struct {
 	deltalogs []*FieldBinlog
 	// Semantic version
 	Version string
+
+	// PartitionStats version
+	PartitionStatsVersion int64
+
+	// sorted by PK
+	IsSorted bool
 
 	// etcd segment key
 	key string
@@ -103,6 +110,7 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 	s.StartPosition = NewMsgPosition(info.GetStartPosition())
 	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
 	s.Level = SegmentLevel(info.GetLevel())
+	s.IsSorted = info.GetIsSorted()
 
 	s.lazyLoad = func(s *Segment) {
 		mFunc := func(fbl datapbv2.FieldBinlog, _ int) *FieldBinlog {
@@ -125,6 +133,7 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 	}
 
 	s.Version = ">=2.2.0"
+	s.PartitionStatsVersion = info.GetPartitionStatsVersion()
 	return s
 }
 
@@ -217,6 +226,7 @@ type Binlog struct {
 	TimestampTo   uint64
 	LogPath       string
 	LogSize       int64
+	LogID         int64
 	MemSize       int64
 }
 
@@ -242,6 +252,7 @@ func newBinlogV2[T interface {
 	GetTimestampTo() uint64
 	GetLogPath() string
 	GetLogSize() int64
+	GetLogID() int64
 	GetMemorySize() int64
 }](binlog T) *Binlog {
 	return &Binlog{
@@ -250,6 +261,7 @@ func newBinlogV2[T interface {
 		TimestampTo:   binlog.GetTimestampTo(),
 		LogPath:       binlog.GetLogPath(),
 		LogSize:       binlog.GetLogSize(),
+		LogID:         binlog.GetLogID(),
 		MemSize:       binlog.GetMemorySize(),
 	}
 }
