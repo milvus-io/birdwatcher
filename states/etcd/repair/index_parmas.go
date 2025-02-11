@@ -7,11 +7,11 @@ import (
 
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 // DiskAnnIndexParamsCommand return repair segment command.
-func DiskAnnIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func DiskAnnIndexParamsCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "diskann_index_params",
 		Aliases: []string{"diskann_index_params"},
