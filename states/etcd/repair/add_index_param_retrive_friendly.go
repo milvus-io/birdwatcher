@@ -8,11 +8,11 @@ import (
 	"github.com/golang/protobuf/proto"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 // AddIndexParamsCommand return repair segment command.
-func AddIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
+func AddIndexParamsCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "add_index_params",
 		Aliases: []string{"add_index_params"},
