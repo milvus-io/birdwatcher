@@ -27,6 +27,7 @@ type SegmentParam struct {
 func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) error {
 	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID) &&
+			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
 			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
 			(p.State == "" || segment.State.String() == p.State)
 	})
@@ -37,9 +38,13 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 
 	totalRC := int64(0)
 	healthy := 0
+
 	var statsLogSize int64
 	var deltaLogSize int64
 	var growing, sealed, flushed, dropped int
+	var small, other int
+	var smallCnt, otherCnt int64
+
 	fieldSize := make(map[int64]int64)
 	totalBinlogCount := 0
 	totalStatsLogCount := 0
@@ -57,6 +62,13 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			sealed++
 		case models.SegmentStateFlushing, models.SegmentStateFlushed:
 			flushed++
+			if float64(info.NumOfRows)/float64(info.MaxRowNum) < 0.2 {
+				small++
+				smallCnt += info.NumOfRows
+			} else {
+				other++
+				otherCnt += info.NumOfRows
+			}
 		case models.SegmentStateDropped:
 			dropped++
 		}
@@ -65,7 +77,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 		case "table":
 			PrintSegmentInfo(info, p.Detail)
 		case "line":
-			fmt.Printf("SegmentID: %d State: %s, Row Count:%d\n", info.ID, info.State.String(), info.NumOfRows)
+			fmt.Printf("SegmentID: %d State: %s, Level: %s, Row Count:%d\n", info.ID, info.State.String(), info.Level.String(), info.NumOfRows)
 		case "statistics":
 			if info.State != models.SegmentStateDropped {
 				for _, binlog := range info.GetBinlogs() {
@@ -106,6 +118,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 	}
 
 	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
+	fmt.Printf("--- Small Segments: %d, row count: %d\t Other Segments: %d, row count: %d\n", small, smallCnt, other, otherCnt)
 	fmt.Printf("--- Total Segments: %d, row count: %d\n", healthy, totalRC)
 	return nil
 }
@@ -129,11 +142,12 @@ const (
 func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Segment ID: %d\n", info.ID)
-	fmt.Printf("Segment State:%v", info.State)
+	fmt.Printf("Segment State: %v", info.State)
 	if info.State == models.SegmentStateDropped {
 		dropTime := time.Unix(0, int64(info.DroppedAt))
 		fmt.Printf("\tDropped Time: %s", dropTime.Format(tsPrintFormat))
 	}
+	fmt.Printf("\tSegment Level: %s", info.Level.String())
 	fmt.Println()
 	fmt.Printf("Collection ID: %d\t\tPartitionID: %d\n", info.CollectionID, info.PartitionID)
 	fmt.Printf("Insert Channel:%s\n", info.InsertChannel)
@@ -164,6 +178,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 			return info.GetBinlogs()[i].FieldID < info.GetBinlogs()[j].FieldID
 		})
 		for _, log := range info.GetBinlogs() {
+			var fieldLogSize int64
 			fmt.Printf("Field %d:\n", log.FieldID)
 			for _, binlog := range log.Binlogs {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
@@ -173,8 +188,11 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 					binlog.LogSize, binlog.EntriesNum,
 					tf.Format(tsPrintFormat), tt.Format(tsPrintFormat))
 				binlogSize += binlog.LogSize
+				fieldLogSize += binlog.LogSize
 			}
+			fmt.Println("--- Field Log Size:", hrSize(fieldLogSize))
 		}
+		fmt.Println("=== Segment Total Binlog Size: ", hrSize(binlogSize))
 
 		fmt.Println("**************************************")
 		fmt.Println("Statslogs:")

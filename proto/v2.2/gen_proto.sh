@@ -4,8 +4,6 @@ SCRIPTS_DIR=$(dirname "$0")
 PROTO_DIR=$SCRIPTS_DIR
 MILVUS_PROTO_DIR=$SCRIPTS_DIR
 
-GOOGLE_PROTO_DIR="/home/silverxia/workspace/milvus/cmake_build/thirdparty/protobuf/protobuf-src/src"
-
 PROGRAM=$(basename "$0")
 GOPATH=$(go env GOPATH)
 
@@ -32,13 +30,22 @@ mkdir -p indexpb
 mkdir -p rootcoordpb
 mkdir -p querypb
 mkdir -p proxypb
+mkdir -p msgpb
+mkdir -p federpb
 
 # milvus.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb" \
     --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.2/commonpb" \
     --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.2/schemapb" \
+    --go_opt="Mmsg.proto=github.com/milvus-io/birdwatcher/proto/v2.2/msgpb" \
+    --go_opt="Mfeder.proto=github.com/milvus-io/birdwatcher/proto/v2.2/federpb" \
     --go_out=plugins=grpc,paths=source_relative:milvuspb milvus.proto
+# feder.proto
+${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
+    --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb" \
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.2/commonpb" \
+    --go_out=plugins=grpc,paths=source_relative:federpb feder.proto
 # schema.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb" \
@@ -51,6 +58,11 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.2/commonpb" \
     --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.2/schemapb" \
     --go_out=plugins=grpc,paths=source_relative:commonpb common.proto
+# msg.proto
+${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
+    --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.2/commonpb" \
+    --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.2/schemapb" \
+    --go_out=plugins=grpc,paths=source_relative:msgpb msg.proto
 # internal.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mmilvus.proto=github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb" \
@@ -80,6 +92,8 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mcommon.proto=github.com/milvus-io/birdwatcher/proto/v2.2/commonpb" \
     --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.2/schemapb" \
     --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.2/internalpb" \
+    --go_opt="Mmsg.proto=github.com/milvus-io/birdwatcher/proto/v2.2/msgpb" \
+    --go_opt="Mindex_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.2/indexpb" \
     --go_out=plugins=grpc,paths=source_relative:datapb data_coord.proto
 # query_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
@@ -88,6 +102,8 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.2/schemapb" \
     --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.2/internalpb" \
     --go_opt="Mdata_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.2/datapb" \
+    --go_opt="Mmsg.proto=github.com/milvus-io/birdwatcher/proto/v2.2/msgpb" \
+    --go_opt="Mindex_coord.proto=github.com/milvus-io/birdwatcher/proto/v2.2/indexpb" \
     --go_out=plugins=grpc,paths=source_relative:querypb query_coord.proto
 # index_coord.proto
 ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
@@ -103,3 +119,10 @@ ${protoc} --proto_path=${MILVUS_PROTO_DIR} --proto_path=${GOOGLE_PROTO_DIR}\
     --go_opt="Mschema.proto=github.com/milvus-io/birdwatcher/proto/v2.2/schemapb" \
     --go_opt="Minternal.proto=github.com/milvus-io/birdwatcher/proto/v2.2/internalpb" \
     --go_out=plugins=grpc,paths=source_relative:proxypb proxy.proto
+
+sed -i "s/\/milvus.protov2.data/\/milvus.proto.data/g" datapb/data_coord.pb.go
+sed -i "s/\/milvus.protov2.milvus/\/milvus.proto.milvus/g" milvuspb/milvus.pb.go
+sed -i "s/\/milvus.protov2.query/\/milvus.proto.query/g" querypb/query_coord.pb.go
+sed -i "s/\/milvus.protov2.index/\/milvus.proto.index/g" indexpb/index_coord.pb.go
+sed -i "s/\/milvus.protov2.rootcoord/\/milvus.proto.rootcoord/g" rootcoordpb/root_coord.pb.go
+

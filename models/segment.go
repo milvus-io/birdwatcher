@@ -22,6 +22,7 @@ type Segment struct {
 	CreatedByCompaction bool
 	CompactionFrom      []int64
 	DroppedAt           uint64
+	Level               SegmentLevel
 	// position
 	StartPosition *MsgPosition
 	DmlPosition   *MsgPosition
@@ -74,6 +75,7 @@ func NewSegmentFromV2_1(info *datapb.SegmentInfo, key string) *Segment {
 	s.State = SegmentState(info.GetState())
 	s.StartPosition = NewMsgPosition(info.GetStartPosition())
 	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
+	s.Level = SegmentLevelLegacy
 
 	mFunc := func(fbl *datapb.FieldBinlog, _ int) *FieldBinlog {
 		r := &FieldBinlog{
@@ -99,6 +101,7 @@ func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
 	s.State = SegmentState(info.GetState())
 	s.StartPosition = NewMsgPosition(info.GetStartPosition())
 	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
+	s.Level = SegmentLevel(info.GetLevel())
 
 	s.lazyLoad = func(s *Segment) {
 		mFunc := func(fbl datapbv2.FieldBinlog, _ int) *FieldBinlog {

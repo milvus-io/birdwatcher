@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/birdwatcher/models"
 	"go.etcd.io/etcd/api/v3/mvccpb"
@@ -45,6 +46,10 @@ func (c *FileAuditKV) Save(ctx context.Context, key, value string) error {
 	}
 	c.writeHeader(models.OpPutAfter, 1)
 	return err
+}
+
+func (c *FileAuditKV) MultiSave(ctx context.Context, keys, values []string) error {
+	return errors.New("not implemented")
 }
 
 func (c *FileAuditKV) Remove(ctx context.Context, key string) error {

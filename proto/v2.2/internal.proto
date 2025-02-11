@@ -29,10 +29,6 @@ message StringList {
   common.Status status = 2;
 }
 
-message TimeTickMsg {
-  common.MsgBase base = 1;
-}
-
 message GetStatisticsRequest {
   common.MsgBase base = 1;
   // Not useful for now
@@ -55,49 +51,6 @@ message GetStatisticsResponse {
   repeated common.KeyValuePair stats = 3;
 }
 
-message CreateCollectionRequest {
-  common.MsgBase base = 1;
-  string db_name = 2;
-  string collectionName = 3;
-  string partitionName = 4;
-  // `schema` is the serialized `schema.CollectionSchema`
-  int64 dbID = 5;
-  int64 collectionID = 6;
-  int64 partitionID = 7; // deprecated
-  bytes schema = 8;
-  repeated string virtualChannelNames = 9;
-  repeated string physicalChannelNames = 10;
-  repeated int64 partitionIDs = 11;
-}
-
-message DropCollectionRequest {
-  common.MsgBase base = 1;
-  string db_name = 2;
-  string collectionName = 3;
-  int64 dbID = 4;
-  int64 collectionID = 5;
-}
-
-message CreatePartitionRequest {
-  common.MsgBase base = 1;
-  string db_name = 2;
-  string collection_name = 3;
-  string partition_name = 4;
-  int64 dbID = 5;
-  int64 collectionID = 6;
-  int64 partitionID = 7;
-}
-
-message DropPartitionRequest {
-  common.MsgBase base = 1;
-  string db_name = 2;
-  string collection_name = 3;
-  string partition_name = 4;
-  int64 dbID = 5;
-  int64 collectionID = 6;
-  int64 partitionID = 7;
-}
-
 message CreateAliasRequest {
   common.MsgBase base = 1;
   string db_name = 2;
@@ -118,29 +71,15 @@ message AlterAliasRequest{
   string alias = 4;
 }
 
-enum InsertDataVersion {
-  // 0 must refer to row-based format, since it's the first version in Milvus.
-  RowBased = 0;
-  ColumnBased = 1;
-}
-
-message InsertRequest {
+message CreateIndexRequest {
   common.MsgBase base = 1;
-  string shardName = 2;
-  string db_name = 3;
-  string collection_name = 4;
-  string partition_name = 5;
-  int64 dbID = 6;
-  int64 collectionID = 7;
-  int64 partitionID = 8;
-  int64 segmentID = 9;
-  repeated uint64 timestamps = 10;
-  repeated int64 rowIDs = 11;
-  // row_data was reserved for compatibility
-  repeated common.Blob row_data = 12;
-  repeated schema.FieldData fields_data = 13;
-  uint64 num_rows = 14;
-  InsertDataVersion version = 15;
+  string db_name = 2;
+  string collection_name = 3;
+  string field_name = 4;
+  int64 dbID = 5;
+  int64 collectionID = 6;
+  int64 fieldID = 7;
+  repeated common.KeyValuePair extra_params = 8;
 }
 
 message SearchRequest {
@@ -155,13 +94,13 @@ message SearchRequest {
   common.DslType dsl_type = 8;
   bytes serialized_expr_plan = 9;
   repeated int64 output_fields_id = 10;
-  uint64 travel_timestamp = 11;
   uint64 guarantee_timestamp = 12;
   uint64 timeout_timestamp = 13;
   int64  nq = 14;
   int64  topk = 15;
   string metricType = 16;
   bool ignoreGrowing = 17; // Optional
+  string username = 18;
 }
 
 message SearchResults {
@@ -178,6 +117,15 @@ message SearchResults {
   bytes sliced_blob = 10;
   int64 sliced_num_count = 11;
   int64 sliced_offset = 12;
+
+  // search request cost
+  CostAggregation costAggregation = 13;
+}
+
+message CostAggregation {
+  int64 responseTime = 1;
+  int64 serviceTime = 2;
+  int64 totalNQ = 3;
 }
 
 message RetrieveRequest {
@@ -188,12 +136,18 @@ message RetrieveRequest {
   repeated int64 partitionIDs = 5;
   bytes serialized_expr_plan = 6;
   repeated int64 output_fields_id = 7;
-  uint64 travel_timestamp = 8;
+  uint64 mvcc_timestamp = 8;
   uint64 guarantee_timestamp = 9;
   uint64 timeout_timestamp = 10;
   int64 limit = 11; // Optional
   bool ignoreGrowing = 12;
+  bool is_count = 13;
+  int64 iteration_extension_reduce_rate = 14;
+  string username = 15;
+  bool reduce_stop_for_best = 16;
 }
+
+
 
 message RetrieveResults {
   common.MsgBase base = 1;
@@ -204,21 +158,9 @@ message RetrieveResults {
   repeated int64 sealed_segmentIDs_retrieved = 6;
   repeated string channelIDs_retrieved = 7;
   repeated int64 global_sealed_segmentIDs = 8;
-}
 
-message DeleteRequest {
-  common.MsgBase base = 1;
-  string shardName = 2;
-  string db_name = 3;
-  string collection_name = 4;
-  string partition_name = 5;
-  int64 dbID = 6;
-  int64 collectionID = 7;
-  int64 partitionID = 8;
-  repeated int64 int64_primary_keys = 9; // deprecated
-  repeated uint64 timestamps = 10;
-  int64 num_rows = 11;
-  schema.IDs primary_keys = 12;
+   // query request cost
+   CostAggregation costAggregation = 13;
 }
 
 message LoadIndex {
@@ -246,13 +188,6 @@ message SegmentStats {
   int64 memory_size = 2;
   int64 num_rows = 3;
   bool recently_modified = 4;
-}
-
-message MsgPosition {
-  string channel_name = 1;
-  bytes msgID = 2;
-  string msgGroup = 3;
-  uint64 timestamp = 4;
 }
 
 message ChannelTimeTickMsg {
@@ -305,6 +240,7 @@ enum RateType {
   DMLBulkLoad = 7;
   DQLSearch = 8;
   DQLQuery = 9;
+  DMLUpsert = 10;
 }
 
 message Rate {

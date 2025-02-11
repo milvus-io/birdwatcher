@@ -134,10 +134,6 @@ func printIndexV2(index indexpbv2.FieldIndex) {
 	createTime, _ := utils.ParseTS(index.GetCreateTime())
 	fmt.Printf("Create Time: %s\tDeleted: %t\n", createTime.Format(tsPrintFormat), index.GetDeleted())
 	indexParams := index.GetIndexInfo().GetIndexParams()
-	fmt.Printf("Index Type: %s\tMetric Type: %s\n",
-		common.GetKVPair(indexParams, "index_type"),
-		common.GetKVPair(indexParams, "metric_type"),
-	)
-	fmt.Printf("Index Params: %s\n", common.GetKVPair(index.GetIndexInfo().GetUserIndexParams(), "params"))
+	fmt.Printf("Index Params: %s\n", indexParams)
 	fmt.Println("===========================================================================================")
 }

@@ -126,6 +126,11 @@ func NewCollectionFromV2_2(info *etcdpbv2.CollectionInfo, key string, fields []*
 	c.ConsistencyLevel = ConsistencyLevel(info.GetConsistencyLevel())
 	info.GetStartPositions()
 
+	c.Properties = make(map[string]string)
+	for _, prop := range info.GetProperties() {
+		c.Properties[prop.GetKey()] = prop.GetValue()
+	}
+
 	return c
 }
 

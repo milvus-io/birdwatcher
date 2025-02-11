@@ -2423,7 +2423,7 @@ func _RootCoord_ListDatabases_Handler(srv interface{}, ctx context.Context, dec 
 }
 
 var _RootCoord_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "milvus.proto.rootcoord.RootCoord",
+	ServiceName: "milvus.protov2.rootcoord.RootCoord",
 	HandlerType: (*RootCoordServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
