@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/errors"
-	"github.com/milvus-io/birdwatcher/framework"
 	pulsarctl "github.com/streamnative/pulsarctl/pkg/pulsar"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/common"
 	"github.com/streamnative/pulsarctl/pkg/pulsar/utils"
+
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 type PulsarctlParam struct {
@@ -19,7 +20,6 @@ type PulsarctlParam struct {
 }
 
 func (app *ApplicationState) PulsarctlCommand(ctx context.Context, p *PulsarctlParam) error {
-
 	config := common.Config{
 		WebServiceURL:    p.Address,
 		AuthPlugin:       p.AuthPlugin,
@@ -96,7 +96,6 @@ type ListSubscriptionParam struct {
 }
 
 func (s *pulsarAdminState) ListSubscriptionCommand(ctx context.Context, p *ListSubscriptionParam) error {
-
 	topicName, err := utils.GetTopicName(fmt.Sprintf("%s/%s/%s", p.Tenant, p.Namespace, p.Topic))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse topic name")

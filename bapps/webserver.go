@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
@@ -103,7 +104,7 @@ func (app *WebServerApp) parseMethod(r *gin.Engine, mt reflect.Method, name stri
 		}
 	}
 
-	//fmt.Println(mt.Name)
+	// fmt.Println(mt.Name)
 	cp := reflect.New(paramType.Elem()).Interface().(framework.CmdParam)
 	fUse, _ := framework.GetCmdFromFlag(cp)
 	if len(use) == 0 {
@@ -124,13 +125,11 @@ func (app *WebServerApp) parseMethod(r *gin.Engine, mt reflect.Method, name stri
 	// fmt.Printf("path: /%s\n", lastKw)
 
 	r.GET(fmt.Sprintf("/%s", lastKw), func(c *gin.Context) {
-
 		info := &InstanceInfo{}
 		c.ShouldBind(info)
 
 		start := states.Start(app.config)
 		s, err := start.Process(fmt.Sprintf("connect --etcd=%s --rootPath=%s", info.EtcdAddr, info.RootPath))
-
 		if err != nil {
 			c.Error(err)
 			return

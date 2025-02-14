@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 var backupKeyPrefix = "birdwatcher/backup"
@@ -148,7 +148,6 @@ func BinlogCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				}
 				fmt.Printf("Remove one binlog %s/%d from etcd succeeds.\n", key, logID)
 			}
-
 		},
 	}
 
@@ -173,9 +172,9 @@ func backupBinlog(cli kv.MetaKV, key string) error {
 		return err
 	}
 
-	backupKey := path.Join(backupKeyPrefix, string(key))
+	backupKey := path.Join(backupKeyPrefix, key)
 	fmt.Printf("start backup key:%s to %s \n", key, backupKey)
-	err = cli.Save(ctx, backupKey, string(val))
+	err = cli.Save(ctx, backupKey, val)
 	if err != nil {
 		fmt.Println("failed save kv into etcd, ", err.Error())
 		return err
@@ -196,7 +195,7 @@ func restoreBinlog(cli kv.MetaKV, key string) error {
 	}
 
 	fmt.Printf("start restore key:%s to %s\n", backupKey, key)
-	err = cli.Save(ctx, key, string(val))
+	err = cli.Save(ctx, key, val)
 	if err != nil {
 		fmt.Println("failed save kv into etcd, ", err.Error())
 		return err

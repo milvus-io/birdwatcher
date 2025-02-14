@@ -7,11 +7,9 @@ import (
 )
 
 // EventReader binlog event reader from Milvus
-type EventReader struct {
-}
+type EventReader struct{}
 
 func (reader *EventReader) readHeader(in io.Reader) (*eventHeader, error) {
-
 	header, err := readEventHeader(in)
 	if err != nil {
 		return nil, err

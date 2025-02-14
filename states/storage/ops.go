@@ -3,8 +3,9 @@ package storage
 import (
 	"context"
 
-	"github.com/milvus-io/birdwatcher/models"
 	"github.com/minio/minio-go/v7"
+
+	"github.com/milvus-io/birdwatcher/models"
 )
 
 func (s *MinioState) Stat(ctx context.Context, path string) (*models.FsStat, error) {

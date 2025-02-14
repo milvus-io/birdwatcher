@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/samber/lo"
 )
 
 const (
@@ -25,9 +26,9 @@ type CollectionLoadedParam struct {
 // CollectionLoadedCommand return show collection-loaded command.
 func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *CollectionLoadedParam) (*CollectionsLoaded, error) {
 	var total int
-	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(_ any) bool {
+	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(info *models.CollectionLoaded) bool {
 		total++
-		return true
+		return p.CollectionID == 0 || p.CollectionID == info.CollectionID
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list collection load info")

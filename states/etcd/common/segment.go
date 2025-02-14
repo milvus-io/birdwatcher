@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 const (
@@ -78,7 +79,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 		}
 
 		binlogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
-			return fmt.Sprintf("files/insert_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
+			return fmt.Sprintf("ROOT_PATH/insert_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
 		})
 		if err != nil {
 			return nil, nil, nil, err
@@ -86,7 +87,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 
 		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 		statslogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
-			return fmt.Sprintf("files/stats_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
+			return fmt.Sprintf("ROOT_PATH/stats_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
 		})
 		if err != nil {
 			return nil, nil, nil, err
@@ -94,7 +95,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 
 		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("deltalog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 		deltalogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
-			return fmt.Sprintf("files/delta_log/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, logID)
+			return fmt.Sprintf("ROOT_PATH/delta_log/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, logID)
 		})
 		if err != nil {
 			return nil, nil, nil, err
@@ -341,7 +342,6 @@ func RemoveSegmentStatLogPath(ctx context.Context, cli kv.MetaKV, basePath strin
 }
 
 func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
-
 	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", SegmentMetaPrefix, collectionID)) + "/"
 	segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
 	if err != nil {
@@ -361,7 +361,6 @@ func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collect
 		if err != nil {
 			return err
 		}
-
 	}
 	return nil
 }

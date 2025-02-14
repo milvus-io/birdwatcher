@@ -12,6 +12,10 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
+	"github.com/spf13/cobra"
+	"go.etcd.io/etcd/server/v3/embed"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
+
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -19,9 +23,6 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
-	"go.etcd.io/etcd/server/v3/embed"
-	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
 )
 
 const (
@@ -70,9 +71,6 @@ func (s *embedEtcdMockState) SetupCommands() {
 		getDownloadPKCmd(s.client, rootPath),
 		// inspect-pk
 		getInspectPKCmd(s.client, rootPath),
-
-		// force-release
-		getForceReleaseCmd(s.client, rootPath),
 
 		// for testing
 		etcd.RepairCommand(s.client, rootPath),
@@ -169,7 +167,6 @@ func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
 }
 
 func getEmbedEtcdInstance(server *embed.Etcd, cli kv.MetaKV, instanceName string, config *configs.Config) framework.State {
-
 	basePath := path.Join(instanceName, metaPath)
 
 	state := &embedEtcdMockState{
@@ -209,7 +206,6 @@ func getPrintMetricsCmd(state *embedEtcdMockState) *cobra.Command {
 		Use:   "print-metrics",
 		Short: "print metrics restored from backup file",
 		Run: func(cmd *cobra.Command, args []string) {
-
 			node, err := cmd.Flags().GetString("node")
 			if err != nil {
 				fmt.Println(err.Error())
@@ -253,7 +249,6 @@ func getListMetricsNodeCmd(state *embedEtcdMockState) *cobra.Command {
 
 	cmd.Flags().String("node", "", "select node metrics to print")
 	return cmd
-
 }
 
 func readFixLengthHeader[T proto.Message](rd *bufio.Reader, header T) error {

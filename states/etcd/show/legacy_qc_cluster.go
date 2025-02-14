@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
 )
 
 const (

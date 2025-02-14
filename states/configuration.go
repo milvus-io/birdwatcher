@@ -7,6 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
@@ -14,9 +18,6 @@ import (
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/samber/lo"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type GetConfigurationParam struct {

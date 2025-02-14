@@ -321,7 +321,7 @@ func TestBackupKV(t *testing.T) {
 		}
 		now := time.Now()
 		filePath := fmt.Sprintf("/tmp/bw_test_%d.%s.bak.gz", i, now.Format("060102-150405"))
-		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 		assert.NoError(t, err)
 		defer f.Close()
 

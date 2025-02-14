@@ -9,6 +9,8 @@ import (
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/milvus-io/birdwatcher/mq/ifc"
 )
 
 func TestConsumer(t *testing.T) {
@@ -18,7 +20,6 @@ func TestConsumer(t *testing.T) {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL: address,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +45,9 @@ func TestConsumer(t *testing.T) {
 		}
 	}
 
-	c, err := NewPulsarConsumer(address, topic, "gid")
+	c, err := NewPulsarConsumer(address, topic, "gid", ifc.MqOption{
+		SubscriptionInitPos: ifc.SubscriptionPositionLatest,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

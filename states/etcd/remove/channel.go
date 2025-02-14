@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
+	"github.com/spf13/cobra"
+
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
 )
 
 // ChannelCommand returns remove channel command.
@@ -28,27 +29,22 @@ func ChannelCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
-
-			var collections []etcdpb.CollectionInfo
-
-			colls, err := common.ListCollections(cli, basePath, func(info *etcdpb.CollectionInfo) bool {
-				return true
-			})
+			force, err := cmd.Flags().GetBool("force")
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
-			collections = append(collections, colls...)
 
-			if len(collections) == 0 {
-				fmt.Println("no collection found")
+			collections, err := common.ListCollectionsVersion(context.Background(), cli, basePath, etcdversion.GetVersion())
+			if err != nil {
+				fmt.Println(err.Error())
 				return
 			}
 
 			validChannels := make(map[string]struct{})
 			for _, collection := range collections {
-				for _, vchan := range collection.GetVirtualChannelNames() {
-					validChannels[vchan] = struct{}{}
+				for _, channel := range collection.Channels {
+					validChannels[channel.VirtualName] = struct{}{}
 				}
 			}
 
@@ -58,12 +54,16 @@ func ChannelCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				}
 				return true
 			})
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
 
 			targets := make([]string, 0, len(paths))
 			for i, watchChannel := range watchChannels {
 				_, ok := validChannels[watchChannel.GetVchan().GetChannelName()]
-				if !ok {
-					fmt.Printf("%s might be an orphan channel, collection id: %d\n", watchChannel.GetVchan().GetChannelName(), watchChannel.GetVchan().GetCollectionID())
+				if !ok || force {
+					fmt.Printf("%s selected as target channel, collection id: %d\n", watchChannel.GetVchan().GetChannelName(), watchChannel.GetVchan().GetCollectionID())
 					targets = append(targets, paths[i])
 				}
 			}
@@ -87,5 +87,6 @@ func ChannelCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 
 	cmd.Flags().Bool("run", false, "flags indicating whether to remove channel from meta")
 	cmd.Flags().String("channel", "", "channel name to remove")
+	cmd.Flags().Bool("force", false, "force remove channel ignoring collection check")
 	return cmd
 }

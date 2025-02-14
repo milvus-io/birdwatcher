@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 type queryNodeState struct {
@@ -53,7 +53,6 @@ func (s *queryNodeState) SetupCommands() {
 }
 
 func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
-
 	state := &queryNodeState{
 		CmdState:  framework.NewCmdState(fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address)),
 		session:   session,

@@ -8,9 +8,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/states/autocomplete"
-	"github.com/spf13/cobra"
 )
 
 // State is the interface for application state.

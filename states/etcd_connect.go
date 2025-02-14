@@ -7,26 +7,27 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/milvus-io/birdwatcher/configs"
-	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/tikv/client-go/v2/config"
 	"github.com/tikv/client-go/v2/txnkv"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
+	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 const (
 	metaPath = `meta`
 )
 
-var (
-	// ErrNotMilvsuRootPath sample error for non-valid root path.
-	ErrNotMilvsuRootPath = errors.New("is not a Milvus RootPath")
-)
+// ErrNotMilvsuRootPath sample error for non-valid root path.
+var ErrNotMilvsuRootPath = errors.New("is not a Milvus RootPath")
 
 func pingMetaStore(ctx context.Context, cli kv.MetaKV, rootPath string, metaPath string) error {
 	key := path.Join(rootPath, metaPath, "session/id")
@@ -101,6 +102,9 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	cfg := clientv3.Config{
 		Endpoints:   []string{cp.EtcdAddr},
 		DialTimeout: time.Second * 10,
+		DialOptions: []grpc.DialOption{
+			grpc.WithBlock(),
+		},
 
 		TLS: tls,
 		// disable grpc logging
@@ -108,7 +112,22 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	}
 	etcdCli, err := clientv3.New(cfg)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to connect to etcd")
+	}
+
+	if cp.Auto {
+		candidates, err := findMilvusInstance(ctx, etcdCli)
+		if err != nil {
+			return err
+		}
+		if len(candidates) == 1 {
+			cp.RootPath = candidates[0]
+		} else if len(candidates) > 1 {
+			fmt.Println("multiple possible rootPath find, cannot use auto mode")
+		} else {
+			fmt.Println("failed to find rootPath candidate")
+			return nil
+		}
 	}
 
 	cli := kv.NewEtcdKV(etcdCli)
@@ -163,6 +182,8 @@ type ConnectParams struct {
 	TiKVTLSKey    string `name:"tikvKey" default:"" desc:"tikv tls key file path"`
 	TiKVUseSSL    bool   `name:"tikv_use_ssl" default:"false" desc:"enable to use SSL for tikv"`
 	TiKVAddr      string `name:"tikv" default:"127.0.0.1:2389" desc:"the tikv endpoint to connect"`
+
+	Auto bool `name:"auto" default:"false" desc:"auto detect rootPath if possible"`
 }
 
 func (app *ApplicationState) getTLSConfig(cp *ConnectParams) (*tls.Config, error) {
@@ -234,7 +255,6 @@ func (s *kvConnectedState) SetupCommands() {
 
 // getKVConnectedState returns kvConnectedState for unknown instance
 func getKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config) framework.State {
-
 	state := &kvConnectedState{
 		CmdState: parent.Spawn(fmt.Sprintf("MetaStore(%s)", addr)),
 		client:   cli,
@@ -295,6 +315,33 @@ func (s *kvConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
 
 	s.SetNext(getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config))
 	return nil
+}
+
+// findMilvusInstance iterate all possible rootPath
+func findMilvusInstance(ctx context.Context, cli clientv3.KV) ([]string, error) {
+	var apps []string
+	current := ""
+	for {
+		resp, err := cli.Get(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
+		if err != nil {
+			return nil, err
+		}
+		for _, kv := range resp.Kvs {
+			key := string(kv.Key)
+			parts := strings.Split(key, "/")
+			if parts[0] != "" {
+				apps = append(apps, parts[0])
+			}
+			// next key, since '0' is the next ascii char of '/'
+			current = parts[0] + "0"
+		}
+
+		if !resp.More {
+			break
+		}
+	}
+
+	return apps, nil
 }
 
 func (s *kvConnectedState) Close() {

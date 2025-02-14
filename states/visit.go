@@ -7,6 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
@@ -19,9 +23,6 @@ import (
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func getSessionTypes() []string {
@@ -181,7 +182,7 @@ func getMetrics(ctx context.Context, client metricsSource) (string, error) {
 }
 
 func getConfiguration(ctx context.Context, client configurationSource, id int64) ([]*commonpbv2.KeyValuePair, error) {
-	resp, err := client.ShowConfigurations(context.Background(), &internalpbv2.ShowConfigurationsRequest{
+	resp, err := client.ShowConfigurations(ctx, &internalpbv2.ShowConfigurationsRequest{
 		Base: &commonpbv2.MsgBase{
 			SourceID: -1,
 			TargetID: id,
@@ -196,7 +197,6 @@ func getMetricsCmd(client metricsSource) *cobra.Command {
 		Short:   "show the metrics provided by current server",
 		Aliases: []string{"GetMetrics"},
 		Run: func(cmd *cobra.Command, args []string) {
-
 			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
 				Base:    &commonpb.MsgBase{},
 				Request: `{"metric_type": "system_info"}`,

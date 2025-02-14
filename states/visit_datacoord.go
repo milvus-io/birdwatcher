@@ -3,12 +3,13 @@ package states
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 type dataCoordState struct {
@@ -29,7 +30,7 @@ func (s *dataCoordState) SetupCommands() {
 		getMetricsCmd(s.client),
 		// configuration
 		getConfigurationCmd(s.clientv2, s.session.ServerID),
-		//back
+		// back
 		getBackCmd(s, s.prevState),
 
 		// exit
@@ -43,7 +44,6 @@ func (s *dataCoordState) SetupCommands() {
 }
 
 func getDataCoordState(client datapb.DataCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
-
 	state := &dataCoordState{
 		CmdState:  framework.NewCmdState(fmt.Sprintf("DataCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,

@@ -84,7 +84,7 @@ func printIndex(index IndexInfoV1) {
 	)
 	fmt.Printf("Index Params: %s\n", common.GetKVPair(index.info.GetIndexParams(), "params"))
 	for _, v := range indexParams {
-		fmt.Printf("%s:%s", v.GetKey(), v.GetValue())
+		fmt.Printf("%s:%s\n", v.GetKey(), v.GetValue())
 	}
 	fmt.Println("==================================================================")
 }
@@ -101,7 +101,7 @@ func printIndexV2(index indexpbv2.FieldIndex) {
 	)
 	fmt.Printf("Index Params: %s\n", common.GetKVPair(index.GetIndexInfo().GetUserIndexParams(), "params"))
 	for _, v := range indexParams {
-		fmt.Printf("%s:%s", v.GetKey(), v.GetValue())
+		fmt.Printf("%s:%s\n", v.GetKey(), v.GetValue())
 	}
 	fmt.Println("==================================================================")
 }

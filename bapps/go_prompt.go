@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/c-bata/go-prompt"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/history"
-	"github.com/samber/lo"
 )
 
 // PromptApp wraps go-prompt as application.
@@ -166,7 +167,6 @@ func (a *PromptApp) promptExecute(in string) {
 
 // completeInput auto-complete logic entry.
 func (a *PromptApp) completeInput(d prompt.Document) []prompt.Suggest {
-
 	input := d.CurrentLineBeforeCursor()
 	if a.sugguestHistory {
 		return a.historySuggestions(input)
@@ -194,10 +194,12 @@ func (a *PromptApp) historySuggestions(input string) []prompt.Suggest {
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Ts > items[j].Ts
 	})
+
+	lastIdx := strings.LastIndex(input, " ") + 1
 	return lo.Map(items, func(item history.Item, _ int) prompt.Suggest {
 		t := time.Unix(item.Ts, 0)
 		return prompt.Suggest{
-			Text:        item.Cmd,
+			Text:        item.Cmd[lastIdx:],
 			Description: t.Format("2006-01-02 15:03:04"),
 		}
 	})

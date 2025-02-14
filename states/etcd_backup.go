@@ -14,6 +14,9 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
@@ -27,8 +30,6 @@ import (
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type milvusComponent string
@@ -126,7 +127,7 @@ func (s *InstanceState) BackupCommand(ctx context.Context, p *BackupParam) error
 func getBackupFile(component string) (*os.File, error) {
 	now := time.Now()
 	filePath := fmt.Sprintf("bw_etcd_%s.%s.bak.gz", component, now.Format("060102-150405"))
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +266,6 @@ func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 	}
 
 	return nil
-
 }
 
 func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
@@ -358,7 +358,7 @@ func writeBackupBytes(w *bufio.Writer, data []byte) {
 func readBackupBytes(rd io.Reader) ([]byte, uint64, error) {
 	lb := make([]byte, 8)
 	var nextBytes uint64
-	bsRead, err := io.ReadFull(rd, lb) //rd.Read(lb)
+	bsRead, err := io.ReadFull(rd, lb) // rd.Read(lb)
 	// all file read
 	if err == io.EOF {
 		return nil, nextBytes, err

@@ -53,7 +53,7 @@ func GetSizeOfIDs(data *schemapb.IDs) int {
 	case *schemapb.IDs_StrId:
 		result = len(data.GetStrId().GetData())
 	default:
-		//TODO::
+		// TODO::
 	}
 
 	return result

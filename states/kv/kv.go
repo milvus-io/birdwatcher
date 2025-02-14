@@ -15,12 +15,13 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
-	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	tikv "github.com/tikv/client-go/v2/kv"
 	"github.com/tikv/client-go/v2/txnkv"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 )
 
 const (
@@ -42,8 +43,8 @@ var EmptyValueByte = []byte(EmptyValueString)
 
 // MetaKV contains base operations of kv. Include save, load and remove etc.
 type MetaKV interface {
-	Load(ctx context.Context, key string) (string, error)
-	LoadWithPrefix(ctx context.Context, key string) ([]string, []string, error)
+	Load(ctx context.Context, key string, opts ...LoadOption) (string, error)
+	LoadWithPrefix(ctx context.Context, key string, opts ...LoadOption) ([]string, []string, error)
 	Save(ctx context.Context, key, value string) error
 	MultiSave(ctx context.Context, keys, values []string) error
 	Remove(ctx context.Context, key string) error
@@ -75,9 +76,13 @@ func NewEtcdKV(client *clientv3.Client) *etcdKV {
 }
 
 // Load returns value of the key.
-func (kv *etcdKV) Load(ctx context.Context, key string) (string, error) {
+func (kv *etcdKV) Load(ctx context.Context, key string, opts ...LoadOption) (string, error) {
+	opt := defaultLoadOption()
+	for _, f := range opts {
+		f(opt)
+	}
 	key = joinPath(kv.rootPath, key)
-	resp, err := kv.client.Get(ctx, key)
+	resp, err := kv.client.Get(ctx, key, opt.EtcdOptions()...)
 	if err != nil {
 		return "", err
 	}
@@ -88,10 +93,18 @@ func (kv *etcdKV) Load(ctx context.Context, key string) (string, error) {
 }
 
 // LoadWithPrefix returns all the keys and values with the given key prefix.
-func (kv *etcdKV) LoadWithPrefix(ctx context.Context, key string) ([]string, []string, error) {
+func (kv *etcdKV) LoadWithPrefix(ctx context.Context, key string, opts ...LoadOption) ([]string, []string, error) {
+	opt := defaultLoadOption()
+	for _, f := range opts {
+		f(opt)
+	}
 	key = joinPath(kv.rootPath, key)
-	resp, err := kv.client.Get(ctx, key, clientv3.WithPrefix(),
-		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	options := []clientv3.OpOption{
+		clientv3.WithPrefix(),
+		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
+	}
+	options = append(options, opt.EtcdOptions()...)
+	resp, err := kv.client.Get(ctx, key, options...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -159,7 +172,6 @@ func (kv *etcdKV) GetAllRootPath(ctx context.Context) ([]string, error) {
 	current := ""
 	for {
 		resp, err := kv.client.Get(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
-
 		if err != nil {
 			return nil, err
 		}
@@ -354,10 +366,9 @@ func convertEmptyStringToByte(value string) ([]byte, error) {
 	if len(value) == 0 {
 		return EmptyValueByte, nil
 	} else if value == EmptyValueString {
-		return nil, fmt.Errorf("Value for key is reserved by EmptyValue: %s", EmptyValueString)
-	} else {
-		return []byte(value), nil
+		return nil, fmt.Errorf("value for key is reserved by EmptyValue: %s", EmptyValueString)
 	}
+	return []byte(value), nil
 }
 
 // NewTiKV creates a new txnTiKV client.
@@ -370,9 +381,10 @@ func NewTiKV(txn *txnkv.Client) *txnTiKV {
 }
 
 // Load returns value of the key.
-func (kv *txnTiKV) Load(ctx context.Context, key string) (string, error) {
+func (kv *txnTiKV) Load(ctx context.Context, key string, opts ...LoadOption) (string, error) {
 	key = joinPath(kv.rootPath, key)
 
+	// TODO handle load option
 	ss := kv.client.GetSnapshot(MaxSnapshotTS)
 	ss.SetScanBatchSize(SnapshotScanSize)
 
@@ -388,9 +400,10 @@ func (kv *txnTiKV) Load(ctx context.Context, key string) (string, error) {
 }
 
 // LoadWithPrefix returns all the keys and values for the given key prefix.
-func (kv *txnTiKV) LoadWithPrefix(ctx context.Context, prefix string) ([]string, []string, error) {
+func (kv *txnTiKV) LoadWithPrefix(ctx context.Context, prefix string, opts ...LoadOption) ([]string, []string, error) {
 	prefix = joinPath(kv.rootPath, prefix)
 
+	// TODO handle load option
 	ss := kv.client.GetSnapshot(MaxSnapshotTS)
 	ss.SetScanBatchSize(SnapshotScanSize)
 
@@ -559,6 +572,9 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 	startKey := []byte(keyprefix)
 	endKey := tikv.PrefixNextKey([]byte(keyprefix))
 	iter, err := ss.Iter(startKey, endKey)
+	if err != nil {
+		return err
+	}
 
 	cnt := 0
 	for iter.Valid() {
@@ -604,6 +620,9 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 	fmt.Fprintf(progressDisplay, progressFmt, 0, 0, cnt)
 
 	iter, err = ss.Iter(startKey, endKey)
+	if err != nil {
+		return err
+	}
 	i := 0
 	prefixBS := []byte(base)
 	for iter.Valid() {
@@ -623,12 +642,12 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 		}
 
 		i++
-		progress := i * 100 / int(cnt)
+		progress := i * 100 / cnt
 		if i%int(batchSize) == 0 {
 			fmt.Fprintf(progressDisplay, progressFmt, progress, i, cnt)
 		}
 	}
-	fmt.Fprintf(progressDisplay, progressFmt, (i * 100 / int(cnt)), i, cnt)
+	fmt.Fprintf(progressDisplay, progressFmt, (i * 100 / cnt), i, cnt)
 
 	w.Flush()
 	progressDisplay.Stop()

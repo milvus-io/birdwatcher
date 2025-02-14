@@ -89,7 +89,8 @@ func CollectionCleanCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				fieldsPrefix,
 				fieldsSnapShotPrefix,
 				partitionsPrefix,
-				partitionsSnapShotPrefix}
+				partitionsSnapShotPrefix,
+			}
 
 			for _, prefix := range prefixes {
 				fmt.Printf("start cleaning leaked collection meta, prefix: %s\n", prefix)

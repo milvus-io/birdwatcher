@@ -45,6 +45,7 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 			if p.State != "" && !strings.EqualFold(p.State, coll.State.String()) {
 				return false
 			}
+
 			total++
 			return true
 		})

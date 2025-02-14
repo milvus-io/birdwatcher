@@ -11,6 +11,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
+	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
 )
@@ -20,6 +21,7 @@ type InstanceState struct {
 	*framework.CmdState
 	*show.ComponentShow
 	*remove.ComponentRemove
+	*repair.ComponentRepair
 	instanceName string
 	client       metakv.MetaKV
 	auditFile    *os.File
@@ -52,8 +54,6 @@ func (s *InstanceState) SetupCommands() {
 	)
 
 	s.MergeCobraCommands(cmd,
-		// download-segment
-		getDownloadSegmentCmd(cli, basePath),
 		// show [subcommand] options...
 		showCmd,
 		// repair [subcommand] options...
@@ -67,8 +67,6 @@ func (s *InstanceState) SetupCommands() {
 
 		// kill --component [component] --id [id]
 		getEtcdKillCmd(cli, basePath),
-		// force-release
-		getForceReleaseCmd(cli, basePath),
 		// download-pk
 		getDownloadPKCmd(cli, basePath),
 		// visit [component] [id]
@@ -81,7 +79,7 @@ func (s *InstanceState) SetupCommands() {
 		// segment-loaded
 		GetDistributionCommand(cli, basePath),
 
-		//balance-explain
+		// balance-explain
 		ExplainBalanceCommand(cli, basePath),
 
 		//
@@ -91,7 +89,7 @@ func (s *InstanceState) SetupCommands() {
 		GetProbeCmd(cli, basePath),
 
 		// remove-segment-by-id
-		//removeSegmentByID(cli, basePath),
+		// removeSegmentByID(cli, basePath),
 		// garbage-collect
 		getGarbageCollectCmd(cli, basePath),
 		// release-dropped-collection
@@ -101,9 +99,14 @@ func (s *InstanceState) SetupCommands() {
 		getWebCmd(s, cli, basePath),
 		// fetch-metrics
 		getFetchMetricsCmd(cli, basePath),
+		etcd.DownloadCommand(cli, basePath),
 	)
 
-	//cmd.AddCommand(etcd.RawCommands(cli)...)
+	// cmd.AddCommand(etcd.RawCommands(cli)...)
+
+	s.MergeFunctionCommands(cmd, s)
+	s.CmdState.RootCmd = cmd
+	s.SetupFn = s.SetupCommands
 
 	s.UpdateState(cmd, s, s.SetupCommands)
 }
@@ -120,7 +123,7 @@ func (s *InstanceState) DryModeCommand(ctx context.Context, p *DryModeParam) {
 func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config) framework.State {
 	var kv metakv.MetaKV
 	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
-	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		fmt.Println("failed to open audit.log file!")
 		kv = cli
@@ -135,6 +138,7 @@ func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		CmdState:        parent.Spawn(fmt.Sprintf("Milvus(%s)", instanceName)),
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
+		ComponentRepair: repair.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
 		client:          kv,
 		auditFile:       file,

@@ -9,8 +9,9 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
-	"github.com/milvus-io/birdwatcher/models"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+
+	"github.com/milvus-io/birdwatcher/models"
 )
 
 // implementation assertion
@@ -29,12 +30,12 @@ func NewFileAuditKV(kv MetaKV, file *os.File) *FileAuditKV {
 	}
 }
 
-func (c *FileAuditKV) Load(ctx context.Context, key string) (string, error) {
-	return c.cli.Load(ctx, key)
+func (c *FileAuditKV) Load(ctx context.Context, key string, opts ...LoadOption) (string, error) {
+	return c.cli.Load(ctx, key, opts...)
 }
 
-func (c *FileAuditKV) LoadWithPrefix(ctx context.Context, key string) ([]string, []string, error) {
-	return c.cli.LoadWithPrefix(ctx, key)
+func (c *FileAuditKV) LoadWithPrefix(ctx context.Context, key string, opts ...LoadOption) ([]string, []string, error) {
+	return c.cli.LoadWithPrefix(ctx, key, opts...)
 }
 
 func (c *FileAuditKV) Save(ctx context.Context, key, value string) error {

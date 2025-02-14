@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/minio/minio-go/v7"
+
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 func (s *MinioState) getBase() string {
@@ -89,7 +90,6 @@ func (p *CdParam) ParseArgs(args []string) error {
 }
 
 func (s *MinioState) CdCommand(ctx context.Context, p *CdParam) error {
-
 	base := s.getBase()
 
 	// use absolute path

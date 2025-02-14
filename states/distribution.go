@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // GetDistributionCommand returns command to iterate all querynodes to list distribution.
@@ -77,7 +79,7 @@ func GetDistributionCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 							continue
 						}
 						fmt.Printf("Leader view for channel: %s\n", lv.GetChannel())
-						growings := lv.GetGrowingSegmentIDs()
+						growings := lo.Uniq(lo.Union(lv.GetGrowingSegmentIDs(), lo.Keys(lv.GetGrowingSegments())))
 						fmt.Printf("Growing segments number: %d , ids: %v\n", len(growings), growings)
 					}
 

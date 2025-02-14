@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/storage"
-	"github.com/samber/lo"
-	"github.com/spf13/cobra"
 )
 
 // ApplicationState application background state.

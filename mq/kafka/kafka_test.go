@@ -10,6 +10,8 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/milvus-io/birdwatcher/mq/ifc"
 )
 
 func TestConsumer(t *testing.T) {
@@ -38,7 +40,7 @@ func TestConsumer(t *testing.T) {
 		fmt.Println("send finished, msg offset:", km.TopicPartition.Offset)
 	}
 
-	c, err := NewKafkaConsumer(address, topic, "gid")
+	c, err := NewKafkaConsumer(address, topic, "gid", ifc.MqOption{})
 	if err != nil {
 		t.Fatal("create consumer fail", err)
 	}

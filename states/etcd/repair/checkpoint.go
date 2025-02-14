@@ -11,6 +11,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/mq"
+	"github.com/milvus-io/birdwatcher/mq/ifc"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
@@ -47,11 +48,10 @@ func CheckpointCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			//coll, err := common.GetCollectionByID(cli, basePath, collID)
+			// coll, err := common.GetCollectionByID(cli, basePath, collID)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
-
 			if err != nil {
 				fmt.Println("failed to get collection", err.Error())
 				return
@@ -199,7 +199,9 @@ func getLatestCheckpointFromPChannel(cli kv.MetaKV, basePath string) (map[string
 
 func getLatestFromPChannel(mqType, address, vchannel string) (*internalpb.MsgPosition, error) {
 	topic := ToPhysicalChannel(vchannel)
-	consumer, err := mq.NewConsumer(mqType, address, topic)
+	consumer, err := mq.NewConsumer(mqType, address, topic, ifc.MqOption{
+		SubscriptionInitPos: ifc.SubscriptionPositionLatest,
+	})
 	if err != nil {
 		return nil, err
 	}

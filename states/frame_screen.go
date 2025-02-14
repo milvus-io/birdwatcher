@@ -8,8 +8,9 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gosuri/uilive"
-	"github.com/milvus-io/birdwatcher/eventlog"
 	"go.uber.org/atomic"
+
+	"github.com/milvus-io/birdwatcher/eventlog"
 )
 
 type FrameScreen struct {
@@ -38,6 +39,7 @@ func NewFrameScreen(lines int, display *uilive.Writer) *FrameScreen {
 var (
 	colorPending = color.New(color.FgYellow)
 	colorReady   = color.New(color.FgGreen)
+	colorError   = color.New(color.FgRed)
 
 	levelColor = map[eventlog.Level]*color.Color{
 		eventlog.Level_Debug: color.New(color.FgGreen),
@@ -75,7 +77,7 @@ func (s *FrameScreen) printEvents(display *uilive.Writer, m *sync.Map, events []
 	if qcOk {
 		qctext = colorReady.Sprintf("  Ready  ")
 	}
-	fmt.Fprintf(display, fmt.Sprintf("RootCoord[%s] QueryCoord[%s]\n", rctext, qctext))
+	fmt.Fprintf(display, "RootCoord[%s] QueryCoord[%s]\n", rctext, qctext)
 
 	start := 0
 	if len(events) > 10 {
@@ -85,6 +87,6 @@ func (s *FrameScreen) printEvents(display *uilive.Writer, m *sync.Map, events []
 	for i := start; i < len(events); i++ {
 		evt := events[i]
 		lvl := evt.GetLevel()
-		fmt.Fprintf(s.lines[i+1], fmt.Sprintf("[%s][%s]%s\n", time.Unix(0, evt.GetTs()).Format("01/02 15:04:05"), levelColor[lvl].Sprint(lvl.String()), string(evt.Data)))
+		fmt.Fprintf(s.lines[i+1], "[%s][%s]%s\n", time.Unix(0, evt.GetTs()).Format("01/02 15:04:05"), levelColor[lvl].Sprint(lvl.String()), string(evt.Data))
 	}
 }

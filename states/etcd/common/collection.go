@@ -11,13 +11,14 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 const (
@@ -31,7 +32,11 @@ const (
 	// CollectionLoadPrefix is prefix for querycoord collection loaded in milvus v2.1.x
 	CollectionLoadPrefix = "queryCoord-collectionMeta"
 	// CollectionLoadPrefixV2 is prefix for querycoord collection loaded in milvus v2.2.x
-	CollectionLoadPrefixV2 = "querycoord-collection-loadinfo"
+	CollectionLoadPrefixV2      = "querycoord-collection-loadinfo"
+	PartitionLoadedPrefixLegacy = "queryCoord-partitionMeta"
+	PartitionLoadedPrefix       = "querycoord-partition-loadinfo"
+
+	CompactionTaskPrefix = "datacoord-meta/compaction-task"
 )
 
 var (
@@ -57,7 +62,6 @@ func ListCollections(cli kv.MetaKV, basePath string, filter func(*etcdpb.Collect
 
 // ListCollectionsVersion returns collection information as provided version.
 func ListCollectionsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
-
 	prefixes := []string{
 		path.Join(basePath, CollectionMetaPrefix),
 		path.Join(basePath, DBCollectionMetaPrefix),
@@ -162,7 +166,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 		if err != nil {
 			return nil, err
 		}
-		c := models.NewCollectionFromV2_1(info, string(ck))
+		c := models.NewCollectionFromV2_1(info, ck)
 		return c, nil
 
 	case models.GTEVersion2_2:
@@ -175,7 +179,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 		if err != nil {
 			return nil, err
 		}
-		c := models.NewCollectionFromV2_2(info, string(ck), fields)
+		c := models.NewCollectionFromV2_2(info, ck, fields)
 		return c, nil
 	default:
 		return nil, errors.New("not supported version")
@@ -188,7 +192,6 @@ func getCollectionFields(ctx context.Context, cli kv.MetaKV, basePath string, co
 		fmt.Println(err.Error())
 	}
 	return lo.Map(fields, func(field schemapbv2.FieldSchema, _ int) *schemapbv2.FieldSchema { return &field }), nil
-
 }
 
 func FillFieldSchemaIfEmpty(cli kv.MetaKV, basePath string, collection *etcdpb.CollectionInfo) error {

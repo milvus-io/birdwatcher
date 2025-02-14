@@ -21,7 +21,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-//*
+// *
 // @brief Field data type
 type DataType int32
 
@@ -78,7 +78,7 @@ func (DataType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_1c5fb4d8cc22d66a, []int{0}
 }
 
-//*
+// *
 // @brief Field schema
 type FieldSchema struct {
 	FieldID              int64                    `protobuf:"varint,1,opt,name=fieldID,proto3" json:"fieldID,omitempty"`
@@ -175,7 +175,7 @@ func (m *FieldSchema) GetAutoID() bool {
 	return false
 }
 
-//*
+// *
 // @brief Collection schema
 type CollectionSchema struct {
 	Name                 string         `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`

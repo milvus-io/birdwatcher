@@ -7,8 +7,12 @@ import (
 type Consumer interface {
 	GetLastMessageID() (MessageID, error)
 	GetLastMessage() (Message, error)
+	Consume() (Message, error)
+	Seek(MessageID) error
 	Close() error
 }
 
-var Endian = binary.LittleEndian
-var DefaultPartitionIdx = int32(0)
+var (
+	Endian              = binary.LittleEndian
+	DefaultPartitionIdx = int32(0)
+)

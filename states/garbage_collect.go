@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/manifoldco/promptui"
+	"github.com/minio/minio-go/v7"
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/minio/minio-go/v7"
-	"github.com/spf13/cobra"
 )
 
 func getGarbageCollectCmd(cli kv.MetaKV, basePath string) *cobra.Command {
@@ -45,7 +46,7 @@ func getGarbageCollectCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			exists, err := minioClient.BucketExists(context.Background(), bucketName)
+			exists, _ := minioClient.BucketExists(context.Background(), bucketName)
 			if !exists {
 				fmt.Printf("bucket %s not exists\n", bucketName)
 				return
@@ -58,14 +59,13 @@ func getGarbageCollectCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 }
 
 const (
-	//TODO silverxia change to configuration
+	// TODO silverxia change to configuration
 	insertLogPrefix = `insert_log`
 	statsLogPrefix  = `stats_log`
 	deltaLogPrefix  = `delta_log`
 )
 
 func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, minioRootPath string, bucketName string) {
-
 	segments, err := common.ListSegments(cli, basePath, func(*datapb.SegmentInfo) bool { return true })
 	if err != nil {
 		fmt.Println("failed to list segments:", err.Error())
@@ -101,7 +101,6 @@ func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, m
 				deltalog[l.GetLogPath()] = struct{}{}
 			}
 		}
-
 	}
 
 	// walk only data cluster related prefixes
@@ -153,7 +152,6 @@ func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, m
 			}
 
 			w.WriteString(", not relate meta found, maybe garbage\n")
-
 		}
 	}
 	w.Flush()
