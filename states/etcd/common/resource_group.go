@@ -5,10 +5,10 @@ import (
 	"path"
 
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/models"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 // ListCollectionPartitions returns partition list of collection.
-func ListResourceGroups(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(rg *models.ResourceGroup) bool) ([]*models.ResourceGroup, error) {
+func ListResourceGroups(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(rg *models.ResourceGroup) bool) ([]*models.ResourceGroup, error) {
 	prefix := path.Join(basePath, ResourceGroupPrefix)
 
 	infos, keys, err := ListProtoObjects[querypbv2.ResourceGroup](ctx, cli, prefix)
