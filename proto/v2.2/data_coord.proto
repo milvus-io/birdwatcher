@@ -286,6 +286,24 @@ message SegmentMsg{
   SegmentInfo segment = 2;
 }
 
+message TextIndexStats {
+  int64 fieldID = 1;
+  int64 version = 2;
+  repeated string files = 3;
+  int64 log_size = 4;
+  int64 memory_size = 5;
+  int64 buildID = 6;
+}
+
+message JsonKeyStats {
+  int64 fieldID = 1;
+  int64 version = 2;
+  repeated string files = 3;
+  int64 log_size = 4;
+  int64 memory_size = 5;
+  int64 buildID = 6;
+}
+
 message SegmentInfo {
   int64 ID = 1;
   int64 collectionID = 2;
@@ -326,11 +344,21 @@ message SegmentInfo {
   int64 partition_stats_version = 22;
   // use in major compaction, if compaction fail, should revert segment level to last value
   SegmentLevel last_level = 23;
-  // use in clustering compaction, if compaction fail, should revert partition stats version to last value
+  // use in major compaction, if compaction fail, should revert partition stats version to last value 
   int64 last_partition_stats_version = 24;
 
   // used to indicate whether the segment is sorted by primary key.
   bool is_sorted = 25;
+
+  // textStatsLogs is used to record tokenization index for fields.
+  map<int64, TextIndexStats> textStatsLogs = 26;
+  repeated FieldBinlog bm25statslogs = 27;
+
+  // This field is used to indicate that some intermediate state segments should not be loaded.
+  // For example, segments that have been clustered but haven't undergone stats yet.
+  bool is_invisible = 28;
+  // jsonKeyStats is used to record json key index for fields.
+  map<int64, JsonKeyStats> jsonKeyStats = 29;
 }
 
 message SegmentStartPosition {
