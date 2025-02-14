@@ -59,6 +59,8 @@ func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		repair.ManualCompactionCommand(cli, basePath),
 		// check querynode collection leak
 		repair.CheckQNCollectionLeak(cli, basePath),
+		// remove current json key index stats
+		repair.JsonKeyStatsCommand(cli, basePath),
 	)
 
 	return repairCmd
