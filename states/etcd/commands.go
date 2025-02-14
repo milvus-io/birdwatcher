@@ -119,7 +119,7 @@ func RawCommands(cli kv.MetaKV) []*cobra.Command {
 			}
 			for _, arg := range args {
 				fmt.Println("list with", arg)
-				keys, vals, err := cli.LoadWithPrefix(context.Background(), arg)
+				keys, vals, err := cli.LoadWithPrefix(context.Background(), arg, options...)
 				if err != nil {
 					fmt.Println(err.Error())
 					continue

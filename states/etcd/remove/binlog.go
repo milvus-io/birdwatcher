@@ -172,9 +172,9 @@ func backupBinlog(cli kv.MetaKV, key string) error {
 		return err
 	}
 
-	backupKey := path.Join(backupKeyPrefix, string(key))
+	backupKey := path.Join(backupKeyPrefix, key)
 	fmt.Printf("start backup key:%s to %s \n", key, backupKey)
-	err = cli.Save(ctx, backupKey, string(val))
+	err = cli.Save(ctx, backupKey, val)
 	if err != nil {
 		fmt.Println("failed save kv into etcd, ", err.Error())
 		return err
@@ -195,7 +195,7 @@ func restoreBinlog(cli kv.MetaKV, key string) error {
 	}
 
 	fmt.Printf("start restore key:%s to %s\n", backupKey, key)
-	err = cli.Save(ctx, key, string(val))
+	err = cli.Save(ctx, key, val)
 	if err != nil {
 		fmt.Println("failed save kv into etcd, ", err.Error())
 		return err

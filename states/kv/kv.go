@@ -367,9 +367,8 @@ func convertEmptyStringToByte(value string) ([]byte, error) {
 		return EmptyValueByte, nil
 	} else if value == EmptyValueString {
 		return nil, fmt.Errorf("Value for key is reserved by EmptyValue: %s", EmptyValueString)
-	} else {
-		return []byte(value), nil
 	}
+	return []byte(value), nil
 }
 
 // NewTiKV creates a new txnTiKV client.
@@ -573,6 +572,9 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 	startKey := []byte(keyprefix)
 	endKey := tikv.PrefixNextKey([]byte(keyprefix))
 	iter, err := ss.Iter(startKey, endKey)
+	if err != nil {
+		return err
+	}
 
 	cnt := 0
 	for iter.Valid() {
@@ -618,6 +620,9 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 	fmt.Fprintf(progressDisplay, progressFmt, 0, 0, cnt)
 
 	iter, err = ss.Iter(startKey, endKey)
+	if err != nil {
+		return err
+	}
 	i := 0
 	prefixBS := []byte(base)
 	for iter.Valid() {
@@ -642,7 +647,7 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 			fmt.Fprintf(progressDisplay, progressFmt, progress, i, cnt)
 		}
 	}
-	fmt.Fprintf(progressDisplay, progressFmt, (i * 100 / int(cnt)), i, cnt)
+	fmt.Fprintf(progressDisplay, progressFmt, (i * 100 / cnt), i, cnt)
 
 	w.Flush()
 	progressDisplay.Stop()
