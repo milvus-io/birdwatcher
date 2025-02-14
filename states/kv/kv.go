@@ -366,7 +366,7 @@ func convertEmptyStringToByte(value string) ([]byte, error) {
 	if len(value) == 0 {
 		return EmptyValueByte, nil
 	} else if value == EmptyValueString {
-		return nil, fmt.Errorf("Value for key is reserved by EmptyValue: %s", EmptyValueString)
+		return nil, fmt.Errorf("value for key is reserved by EmptyValue: %s", EmptyValueString)
 	}
 	return []byte(value), nil
 }
@@ -642,7 +642,7 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 		}
 
 		i++
-		progress := i * 100 / int(cnt)
+		progress := i * 100 / cnt
 		if i%int(batchSize) == 0 {
 			fmt.Fprintf(progressDisplay, progressFmt, progress, i, cnt)
 		}
