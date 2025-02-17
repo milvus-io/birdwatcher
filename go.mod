@@ -18,12 +18,14 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/minio/minio-go/v7 v7.0.30
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/samber/lo v1.28.2
 	github.com/spaolacci/murmur3 v1.1.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/streamnative/pulsarctl v0.5.0
 	github.com/stretchr/testify v1.9.0
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.865
 	github.com/tikv/client-go/v2 v2.0.4
 	go.etcd.io/etcd/api/v3 v3.5.5
 	go.etcd.io/etcd/client/v3 v3.5.5

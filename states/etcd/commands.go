@@ -3,6 +3,7 @@ package etcd
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/spf13/cobra"
 
@@ -56,6 +57,8 @@ func RepairCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 		repair.AddIndexParamsCommand(cli, basePath),
 		// repair manual compaction
 		repair.ManualCompactionCommand(cli, basePath),
+		// check querynode collection leak
+		repair.CheckQNCollectionLeak(cli, basePath),
 	)
 
 	return repairCmd
@@ -70,6 +73,7 @@ func SetCommand(cli kv.MetaKV, instanceName string, metaPath string) *cobra.Comm
 	setCmd.AddCommand(
 		// by-dev/config not by-dev/meta/config
 		set.EtcdConfigCommand(cli, instanceName),
+		set.FieldAlterCommand(cli, path.Join(instanceName, metaPath)),
 	)
 
 	return setCmd
@@ -97,6 +101,8 @@ func RemoveCommand(cli kv.MetaKV, instanceName, basePath string) *cobra.Command 
 		remove.EtcdConfigCommand(cli, instanceName),
 		// remove collection has been dropped
 		remove.CollectionCleanCommand(cli, basePath),
+		// remove import job
+		remove.ImportJob(cli, basePath),
 	)
 
 	return removeCmd

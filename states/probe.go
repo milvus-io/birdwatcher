@@ -64,7 +64,7 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			sessions, err := common.ListSessions(cli, basePath)
+			sessions, err := common.ListSessions(ctx, cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list online sessions", err.Error())
 				return
@@ -215,7 +215,7 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 
 			bs, _ := proto.Marshal(plan)
 
-			sessions, err := common.ListSessions(cli, basePath)
+			sessions, err := common.ListSessions(ctx, cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list online sessions", err.Error())
 				return

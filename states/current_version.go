@@ -20,12 +20,12 @@ func (app *ApplicationState) ShowCurrentVersionCommand(ctx context.Context, p *S
 	fmt.Println("Current Version:", etcdversion.GetVersion())
 }
 
-type setCurrentVersionParam struct {
+type SetCurrentVersionParam struct {
 	framework.ParamBase `use:"set current-version" desc:"set current version for etcd meta parsing"`
 	newVersion          string
 }
 
-func (p *setCurrentVersionParam) ParseArgs(args []string) error {
+func (p *SetCurrentVersionParam) ParseArgs(args []string) error {
 	if len(args) != 1 {
 		return errors.New("invalid parameter number")
 	}
@@ -33,7 +33,7 @@ func (p *setCurrentVersionParam) ParseArgs(args []string) error {
 	return nil
 }
 
-func (app *ApplicationState) SetCurrentVersionCommand(ctx context.Context, param setCurrentVersionParam) {
+func (app *ApplicationState) SetCurrentVersionCommand(ctx context.Context, param *SetCurrentVersionParam) error {
 	switch param.newVersion {
 	case models.LTEVersion2_1:
 		fallthrough
@@ -46,4 +46,5 @@ func (app *ApplicationState) SetCurrentVersionCommand(ctx context.Context, param
 	default:
 		fmt.Println("Invalid version string:", param.newVersion)
 	}
+	return nil
 }

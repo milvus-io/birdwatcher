@@ -73,7 +73,7 @@ func (c *InstanceState) checkSegmentTarget(ctx context.Context) ([]*HealthzCheck
 	}
 	validIDs := lo.SliceToMap(segments, func(segment *models.Segment) (int64, struct{}) { return segment.ID, struct{}{} })
 
-	sessions, err := common.ListSessions(c.client, c.basePath)
+	sessions, err := common.ListSessions(ctx, c.client, c.basePath)
 	if err != nil {
 		return nil, err
 	}

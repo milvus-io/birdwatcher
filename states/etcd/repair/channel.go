@@ -84,7 +84,9 @@ func ChannelCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 }
 
 func doDatacoordWatch(cli kv.MetaKV, basePath string, collectionID int64, vchannels []string) {
-	sessions, err := common.ListSessions(cli, basePath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session")
 		return

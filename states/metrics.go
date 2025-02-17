@@ -1,6 +1,7 @@
 package states
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -18,7 +19,9 @@ func getFetchMetricsCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 		Use:   "fetch-metrics",
 		Short: "fetch metrics from milvus instances",
 		Run: func(cmd *cobra.Command, args []string) {
-			sessions, err := common.ListSessions(cli, basePath)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			sessions, err := common.ListSessions(ctx, cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list session", err.Error())
 				return

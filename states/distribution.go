@@ -3,103 +3,177 @@ package states
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/models"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/birdwatcher/states/kv"
+	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
-// GetDistributionCommand returns command to iterate all querynodes to list distribution.
-func GetDistributionCommand(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "segment-loaded-grpc",
-		Short: "list segments loaded information",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			collectionID, err := cmd.Flags().GetInt64("collection")
-			var sealedCnt int64
-			if err != nil {
-				return err
-			}
-			sessions, err := common.ListSessions(cli, basePath)
-			if err != nil {
-				return err
-			}
+type GetDistributionParam struct {
+	framework.ParamBase `use:"show segment-loaded-grpc" desc:"list segments loaded information"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	NodeID              int64 `name:"node" default:"0" desc:"node id to check"`
+}
 
-			for _, session := range sessions {
-				opts := []grpc.DialOption{
-					grpc.WithTransportCredentials(insecure.NewCredentials()),
-					grpc.WithBlock(),
-				}
-
-				var conn *grpc.ClientConn
-				var err error
-				func() {
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-					defer cancel()
-
-					conn, err = grpc.DialContext(ctx, session.Address, opts...)
-				}()
-				if err != nil {
-					fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
-					continue
-				}
-
-				if session.ServerName == "querynode" {
-					fmt.Println("===========")
-					fmt.Printf("ServerID %d\n", session.ServerID)
-					clientv2 := querypbv2.NewQueryNodeClient(conn)
-					resp, err := clientv2.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
-						Base: &commonpbv2.MsgBase{
-							SourceID: -1,
-							TargetID: session.ServerID,
-						},
-					})
-					if err != nil {
-						fmt.Println(err.Error())
-						continue
-					}
-
-					// print channel
-					for _, channel := range resp.GetChannels() {
-						if collectionID != 0 && channel.GetCollection() != collectionID {
-							continue
-						}
-						fmt.Printf("Channel %s, collection: %d, version %d\n", channel.Channel, channel.Collection, channel.Version)
-					}
-
-					for _, lv := range resp.GetLeaderViews() {
-						if collectionID != 0 && lv.GetCollection() != collectionID {
-							continue
-						}
-						fmt.Printf("Leader view for channel: %s\n", lv.GetChannel())
-						growings := lo.Uniq(lo.Union(lv.GetGrowingSegmentIDs(), lo.Keys(lv.GetGrowingSegments())))
-						fmt.Printf("Growing segments number: %d , ids: %v\n", len(growings), growings)
-					}
-
-					sealedNum := 0
-					for _, segment := range resp.GetSegments() {
-						if collectionID != 0 && segment.GetCollection() != collectionID {
-							continue
-						}
-						fmt.Printf("SegmentID: %d CollectionID: %d Channel: %s\n", segment.GetID(), segment.GetCollection(), segment.GetChannel())
-						sealedNum++
-					}
-					fmt.Println("Sealed segments number:", sealedNum)
-					sealedCnt += int64(sealedNum)
-				}
-			}
-			fmt.Printf("==== total loaded sealed segment number: %d\n", sealedCnt)
-
-			return nil
-		},
+// GetDistributionCommand iterates all querynodes to list distribution.
+func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistributionParam) error {
+	// list segment info to get row count information
+	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
+		return p.CollectionID == 0 || p.CollectionID == s.CollectionID
+	})
+	if err != nil {
+		return err
 	}
-	cmd.Flags().Int64("collection", 0, "collection id to filter with")
-	return cmd
+
+	id2Segment := lo.SliceToMap(segments, func(s *models.Segment) (int64, *models.Segment) {
+		return s.ID, s
+	})
+
+	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
+	if err != nil {
+		return err
+	}
+
+	qnSessions := lo.Filter(sessions, func(sess *models.Session, _ int) bool {
+		return sess.ServerName == "querynode"
+	})
+
+	type clientWithID struct {
+		client querypbv2.QueryNodeClient
+		id     int64
+	}
+	var wg sync.WaitGroup
+	clientCh := make(chan clientWithID, len(qnSessions))
+	for _, session := range qnSessions {
+		wg.Add(1)
+		go func(session *models.Session) {
+			defer wg.Done()
+			if p.NodeID != 0 && session.ServerID != p.NodeID {
+				return
+			}
+			opts := []grpc.DialOption{
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithBlock(),
+			}
+
+			dialCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			conn, err := grpc.DialContext(dialCtx, session.Address, opts...)
+			cancel()
+			// ignore bad session
+			if err != nil {
+				fmt.Printf("failed to connect %s(%d), err: %s\n", session.ServerName, session.ServerID, err.Error())
+				return
+			}
+
+			clientv2 := querypbv2.NewQueryNodeClient(conn)
+			clientCh <- clientWithID{
+				client: clientv2,
+				id:     session.ServerID,
+			}
+		}(session)
+	}
+	wg.Wait()
+	close(clientCh)
+
+	type distResponse struct {
+		resp *querypbv2.GetDataDistributionResponse
+		err  error
+		id   int64
+	}
+
+	respCh := make(chan distResponse, len(qnSessions))
+
+	for idClient := range clientCh {
+		wg.Add(1)
+		go func(idClient clientWithID) {
+			defer wg.Done()
+			resp, err := idClient.client.GetDataDistribution(ctx, &querypbv2.GetDataDistributionRequest{
+				Base: &commonpbv2.MsgBase{
+					SourceID: -1,
+					TargetID: idClient.id,
+				},
+			})
+			respCh <- distResponse{
+				resp: resp,
+				err:  err,
+				id:   idClient.id,
+			}
+		}(idClient)
+	}
+
+	wg.Wait()
+	close(respCh)
+
+	var totalSealedCnt int
+	var totalSealedRowcount int64
+
+	for result := range respCh {
+		fmt.Println("===========")
+		fmt.Printf("ServerID %d\n", result.id)
+		if result.err != nil {
+			fmt.Println("Error fetching distribution:", result.err.Error())
+			continue
+		}
+		resp := result.resp
+
+		// print channel
+		for _, channel := range resp.GetChannels() {
+			if p.CollectionID != 0 && channel.GetCollection() != p.CollectionID {
+				continue
+			}
+			fmt.Printf("Channel %s, collection: %d, version %d\n", channel.Channel, channel.Collection, channel.Version)
+		}
+
+		for _, lv := range resp.GetLeaderViews() {
+			if p.CollectionID != 0 && lv.GetCollection() != p.CollectionID {
+				continue
+			}
+			fmt.Printf("Leader view for channel: %s\n", lv.GetChannel())
+			growings := lo.Uniq(lo.Union(lv.GetGrowingSegmentIDs(), lo.Keys(lv.GetGrowingSegments())))
+			fmt.Printf("Growing segments number: %d , ids: %v\n", len(growings), growings)
+		}
+
+		sealedNum := 0
+		sealedRowCount := int64(0)
+
+		collSegments := lo.GroupBy(resp.GetSegments(), func(segment *querypbv2.SegmentVersionInfo) int64 {
+			return segment.GetCollection()
+		})
+
+		for collection, segments := range collSegments {
+			if p.CollectionID != 0 && collection != p.CollectionID {
+				continue
+			}
+			fmt.Printf("------ Collection %d ------\n", collection)
+			var collRowCount int64
+			for _, segment := range segments {
+				segmentInfo := id2Segment[segment.GetID()]
+				var rc int64
+				if segmentInfo != nil {
+					rc = segmentInfo.NumOfRows
+				}
+				fmt.Printf("SegmentID: %d CollectionID: %d Channel: %s, NumOfRows %d\n", segment.GetID(), segment.GetCollection(), segment.GetChannel(), rc)
+				sealedNum++
+				collRowCount += rc
+			}
+			fmt.Printf("Collection RowCount total %d\n\n", collRowCount)
+			sealedRowCount += collRowCount
+		}
+		fmt.Println("------------------")
+		fmt.Printf("Sealed segments number: %d Sealed Row Num: %d\n", sealedNum, sealedRowCount)
+		totalSealedCnt += sealedNum
+		totalSealedRowcount += sealedRowCount
+	}
+	fmt.Println("==========================================")
+	fmt.Printf("\n#### total loaded sealed segment number: %d, total loaded row count: %d\n", totalSealedCnt, totalSealedRowcount)
+	return nil
 }

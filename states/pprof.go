@@ -26,12 +26,12 @@ type PprofParam struct {
 
 func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) error {
 	switch p.Type {
-	case "goroutine", "heap", "profile", "allocs":
+	case "goroutine", "heap", "profile", "allocs", "block", "mutex":
 	default:
 		return errors.New("invalid pprof metric type provided")
 	}
 
-	sessions, err := common.ListSessions(s.client, s.basePath)
+	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to list sessions")
 	}

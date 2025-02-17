@@ -34,6 +34,8 @@ func ExplainBalanceCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 		Use:   "explain-balance",
 		Short: "explain segments and channels current balance status",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			// 0. set up collection, policy, servers and params
 			collectionID, err := cmd.Flags().GetInt64(collectionLabel)
 			if err != nil {
@@ -45,7 +47,7 @@ func ExplainBalanceCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 			}
 
 			// 1. set up segment distribution view, replicas and segmentInfos
-			sessions, err := ListServers(cli, basePath, queryNode)
+			sessions, err := ListServers(ctx, cli, basePath, queryNode)
 			if err != nil {
 				return err
 			}

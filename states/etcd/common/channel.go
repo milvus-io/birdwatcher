@@ -39,6 +39,14 @@ func ListChannelWatchV2(cli kv.MetaKV, basePath string, filters ...func(channel 
 	return ListProtoObjects(ctx, cli, prefix, filters...)
 }
 
+func ListChannelCheckpint(cli kv.MetaKV, basePath string, filters ...func(pos *internalpb.MsgPosition) bool) ([]internalpb.MsgPosition, []string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	prefix := path.Join(basePath, "datacoord-meta", "channel-cp") + "/"
+	return ListProtoObjects(ctx, cli, prefix, filters...)
+}
+
 // ListChannelWatch lists channel watch info meta.
 func ListChannelWatch(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.ChannelWatch) bool) ([]*models.ChannelWatch, error) {
 	prefix := path.Join(basePath, "channelwatch") + "/"
@@ -50,7 +58,8 @@ func ListChannelWatch(ctx context.Context, cli kv.MetaKV, basePath string, versi
 			return nil, err
 		}
 		result = lo.Map(infos, func(info datapb.ChannelWatchInfo, idx int) *models.ChannelWatch {
-			return models.GetChannelWatchInfo[*datapb.ChannelWatchInfo, datapb.ChannelWatchState, *datapb.VchannelInfo, *internalpb.MsgPosition](&info, paths[idx])
+			result := models.GetChannelWatchInfo[*datapb.ChannelWatchInfo, datapb.ChannelWatchState, *datapb.VchannelInfo, *internalpb.MsgPosition](&info, paths[idx])
+			return result
 		})
 	case models.GTEVersion2_2:
 		infos, paths, err := ListProtoObjects[datapbv2.ChannelWatchInfo](ctx, cli, prefix)
@@ -58,7 +67,7 @@ func ListChannelWatch(ctx context.Context, cli kv.MetaKV, basePath string, versi
 			return nil, err
 		}
 		result = lo.Map(infos, func(info datapbv2.ChannelWatchInfo, idx int) *models.ChannelWatch {
-			return models.GetChannelWatchInfo[*datapbv2.ChannelWatchInfo, datapbv2.ChannelWatchState, *datapbv2.VchannelInfo, *msgpbv2.MsgPosition](&info, paths[idx])
+			return models.GetChannelWatchInfoV2[*datapbv2.ChannelWatchInfo, datapbv2.ChannelWatchState, *msgpbv2.MsgPosition](&info, paths[idx])
 		})
 	default:
 		return nil, errors.New("version not supported")

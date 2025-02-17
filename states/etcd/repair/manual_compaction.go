@@ -37,7 +37,9 @@ func ManualCompactionCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 }
 
 func doManualCompaction(cli kv.MetaKV, basePath string, collID int64) {
-	sessions, err := common.ListSessions(cli, basePath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session")
 		return

@@ -15,6 +15,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
@@ -22,7 +23,7 @@ import (
 type DownloadSegmentParam struct {
 	framework.ParamBase `use:"download-segment" desc:"download segment file with provided segment id"`
 	MinioAddress        string `name:"minioAddr" default:"" desc:"the minio address to override, leave empty to use milvus.yaml value"`
-	SegmentID           int64  `name:"segment" default:"0" desc:"segment id to downloads"`
+	SegmentID           int64  `name:"segment" default:"0" desc:"segment id to download"`
 }
 
 func (s *InstanceState) DownloadSegmentCommand(ctx context.Context, p *DownloadSegmentParam) error {
@@ -33,7 +34,12 @@ func (s *InstanceState) DownloadSegmentCommand(ctx context.Context, p *DownloadS
 		return err
 	}
 
-	minioClient, bucketName, _, err := s.GetMinioClientFromCfg(ctx, p.MinioAddress)
+	params := []oss.MinioConnectParam{}
+	if p.MinioAddress != "" {
+		params = append(params, oss.WithMinioAddr(p.MinioAddress))
+	}
+
+	minioClient, bucketName, _, err := s.GetMinioClientFromCfg(ctx, params...)
 	if err != nil {
 		return err
 	}

@@ -93,7 +93,19 @@ func (app *ApplicationState) connectTiKV(ctx context.Context, cp *ConnectParams)
 	return nil
 }
 
+func (app *ApplicationState) readEnv(cp *ConnectParams) {
+	if cp.EtcdAddr == "127.0.0.1:2379" && os.Getenv("MILVUS_ETCD_ADDR") != "" {
+		cp.EtcdAddr = os.Getenv("MILVUS_ETCD_ADDR")
+		fmt.Println("using env MILVUS_ETCD_ADDR,", cp.EtcdAddr)
+	}
+	if cp.RootPath == "by-dev" && os.Getenv("MILVUS_ROOT_PATH") != "" {
+		cp.RootPath = os.Getenv("MILVUS_ROOT_PATH")
+		fmt.Println("using env MILVUS_ROOT_PATH,", cp.RootPath)
+	}
+}
+
 func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams) error {
+	app.readEnv(cp)
 	tls, err := app.getTLSConfig(cp)
 	if err != nil {
 		return err
@@ -105,6 +117,9 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 		DialOptions: []grpc.DialOption{
 			grpc.WithBlock(),
 		},
+
+		Username: cp.ETCDUserName,
+		Password: cp.ETCDPassword,
 
 		TLS: tls,
 		// disable grpc logging
@@ -174,6 +189,8 @@ type ConnectParams struct {
 	RootCA              string `name:"rootCAPem" default:"" desc:"root CA pem file path"`
 	ETCDPem             string `name:"etcdCert" default:"" desc:"etcd tls cert file path"`
 	ETCDKey             string `name:"etcdKey" default:"" desc:"etcd tls key file path"`
+	ETCDUserName        string `name:"etcdUserName" default:"" desc:"etcd credential username"`
+	ETCDPassword        string `name:"etcdPassword" default:"" desc:"etcd creidentail password"`
 	TLSMinVersion       string `name:"min_version" default:"1.2" desc:"TLS min version"`
 	// TiKV Params
 	UseTiKV       bool   `name:"use_tikv" default:"false" desc:"enable to use tikv for metastore"`

@@ -12,15 +12,17 @@ type CollectionSchema struct {
 }
 
 type FieldSchema struct {
-	FieldID        int64
-	Name           string
-	IsPrimaryKey   bool
-	AutoID         bool
-	DataType       DataType
-	Description    string
-	Properties     map[string]string
-	IsDynamic      bool
-	IsPartitionKey bool
+	FieldID         int64
+	Name            string
+	IsPrimaryKey    bool
+	AutoID          bool
+	DataType        DataType
+	Description     string
+	Properties      map[string]string
+	IsDynamic       bool
+	IsPartitionKey  bool
+	IsClusteringKey bool
+	ElementType     DataType
 }
 
 func (fs *FieldSchema) GetDim() (int64, error) {

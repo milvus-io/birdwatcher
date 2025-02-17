@@ -10,8 +10,9 @@ type Database struct {
 	Name        string
 	TenantID    string
 	State       DatabaseState
-	key         string
 	CreatedTime uint64
+	key         string
+	Properties  map[string]string
 }
 
 type DatabaseState int32
@@ -45,11 +46,19 @@ func (x DatabaseState) String() string {
 }
 
 func NewDatabase(info *etcdpbv2.DatabaseInfo, key string) *Database {
-	return &Database{
+	d := &Database{
 		ID:          info.GetId(),
 		Name:        info.GetName(),
 		TenantID:    info.GetTenantId(),
 		State:       DatabaseState(info.GetState()),
 		CreatedTime: info.GetCreatedTime(),
+		key:         key,
 	}
+
+	d.Properties = make(map[string]string)
+	for _, prop := range info.GetProperties() {
+		d.Properties[prop.GetKey()] = prop.GetValue()
+	}
+
+	return d
 }

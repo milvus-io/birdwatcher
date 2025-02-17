@@ -32,7 +32,7 @@ type ListMetricsPortParam struct {
 
 // ListMetricsPortCommand returns command logic listing metrics port for all online components.
 func (s *InstanceState) ListMetricsPortCommand(ctx context.Context, p *ListMetricsPortParam) error {
-	sessions, err := common.ListSessions(s.client, s.basePath)
+	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to list sessions")
 	}
@@ -138,7 +138,7 @@ func getEventLogPort(ctx context.Context, ip string, metricPort string) int {
 }
 
 func (s *InstanceState) prepareListenerClients(ctx context.Context) ([]*eventlog.Listener, error) {
-	sessions, err := common.ListSessions(s.client, s.basePath)
+	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list sessions")
 	}

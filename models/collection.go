@@ -28,6 +28,8 @@ type Collection struct {
 	Properties       map[string]string
 	DBID             int64
 
+	CollectionPBv2 *schemapbv2.CollectionSchema
+
 	// etcd collection key
 	key string
 
@@ -114,12 +116,15 @@ func NewCollectionFromV2_2(info *etcdpbv2.CollectionInfo, key string, fields []*
 	schema := info.GetSchema()
 	schema.Fields = fields
 	c.Schema = newSchemaFromBase(schema)
+	c.CollectionPBv2 = schema
 
 	c.Schema.Fields = lo.Map(fields, func(fieldSchema *schemapbv2.FieldSchema, _ int) FieldSchema {
 		fs := NewFieldSchemaFromBase[*schemapbv2.FieldSchema, schemapbv2.DataType](fieldSchema)
 		fs.Properties = GetMapFromKVPairs(fieldSchema.GetTypeParams())
 		fs.IsDynamic = fieldSchema.GetIsDynamic()
 		fs.IsPartitionKey = fieldSchema.GetIsPartitionKey()
+		fs.IsClusteringKey = fieldSchema.GetIsClusteringKey()
+		fs.ElementType = DataType(fieldSchema.GetElementType())
 		return fs
 	})
 	c.Schema.EnableDynamicSchema = info.GetSchema().GetEnableDynamicField()

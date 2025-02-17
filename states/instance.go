@@ -12,6 +12,7 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
+	"github.com/milvus-io/birdwatcher/states/etcd/set"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
 )
@@ -22,6 +23,7 @@ type InstanceState struct {
 	*show.ComponentShow
 	*remove.ComponentRemove
 	*repair.ComponentRepair
+	*set.ComponentSet
 	instanceName string
 	client       metakv.MetaKV
 	auditFile    *os.File
@@ -48,10 +50,6 @@ func (s *InstanceState) SetupCommands() {
 	basePath := s.basePath
 
 	showCmd := etcd.ShowCommand(cli, basePath)
-	showCmd.AddCommand(
-		// show segment-loaded-grpc
-		GetDistributionCommand(cli, basePath),
-	)
 
 	s.MergeCobraCommands(cmd,
 		// show [subcommand] options...
@@ -67,17 +65,12 @@ func (s *InstanceState) SetupCommands() {
 
 		// kill --component [component] --id [id]
 		getEtcdKillCmd(cli, basePath),
-		// download-pk
-		getDownloadPKCmd(cli, basePath),
 		// visit [component] [id]
 		getVisitCmd(s, cli, basePath),
 		// show-log-level
 		getShowLogLevelCmd(cli, basePath),
 		// update-log-level log_level_name component serverId
 		getUpdateLogLevelCmd(cli, basePath),
-
-		// segment-loaded
-		GetDistributionCommand(cli, basePath),
 
 		// balance-explain
 		ExplainBalanceCommand(cli, basePath),
@@ -139,6 +132,7 @@ func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		ComponentShow:   show.NewComponent(cli, config, basePath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
 		ComponentRepair: repair.NewComponent(cli, config, basePath),
+		ComponentSet:    set.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
 		client:          kv,
 		auditFile:       file,

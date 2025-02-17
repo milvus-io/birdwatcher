@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -20,7 +21,9 @@ import (
 	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
 	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
+	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
+	milvuspbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
@@ -77,7 +80,9 @@ func setNextState(sessionType string, conn *grpc.ClientConn, state framework.Sta
 }
 
 func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
-	sessions, err := common.ListSessions(cli, basePath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		fmt.Println("failed to list session, err:", err.Error())
 		return nil, nil, err
@@ -189,6 +194,36 @@ func getConfiguration(ctx context.Context, client configurationSource, id int64)
 		},
 	})
 	return resp.GetConfiguations(), err
+}
+
+func compactCmd(client datapbv2.DataCoordClient) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "compact",
+		Short:   "manual compact with collectionID",
+		Aliases: []string{"manualCompact"},
+		Run: func(cmd *cobra.Command, args []string) {
+			collectionID, err := cmd.Flags().GetInt64("collectionID")
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+			defer cancel()
+			resp, err := client.ManualCompaction(ctx, &milvuspbv2.ManualCompactionRequest{
+				CollectionID: collectionID,
+			})
+			if err != nil {
+				fmt.Printf("manual compact fail with collectionID:%d, error: %s", collectionID, err.Error())
+				return
+			}
+			fmt.Printf("manual compact done, collectionID:%d, compactionID:%d, rpc status:%v",
+				collectionID, resp.GetCompactionID(), resp.GetStatus())
+		},
+	}
+
+	cmd.Flags().Int64("collectionID", -1, "compact with collectionID")
+	return cmd
 }
 
 func getMetricsCmd(client metricsSource) *cobra.Command {
