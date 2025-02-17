@@ -39,7 +39,7 @@ func ListChannelWatchV2(cli kv.MetaKV, basePath string, filters ...func(channel 
 	return ListProtoObjects(ctx, cli, prefix, filters...)
 }
 
-func ListChannelCheckpint(cli clientv3.KV, basePath string, filters ...func(pos *internalpb.MsgPosition) bool) ([]internalpb.MsgPosition, []string, error) {
+func ListChannelCheckpint(cli kv.MetaKV, basePath string, filters ...func(pos *internalpb.MsgPosition) bool) ([]internalpb.MsgPosition, []string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
