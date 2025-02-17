@@ -10,7 +10,6 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 
 	"github.com/milvus-io/birdwatcher/models"
@@ -19,9 +18,10 @@ import (
 	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
-func CheckQNCollectionLeak(cli clientv3.KV, basePath string) *cobra.Command {
+func CheckQNCollectionLeak(cli kv.MetaKV, basePath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check_qn_collection_leak",
 		Short: "check whether querynode has collection leak",
