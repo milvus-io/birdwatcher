@@ -5,9 +5,9 @@ import (
 	"path"
 
 	"github.com/samber/lo"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 )
 
 // ListImportJobs list import jobs.
-func ListImportJobs(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(*datapb.ImportJob) bool) ([]*datapb.ImportJob, error) {
+func ListImportJobs(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*datapb.ImportJob) bool) ([]*datapb.ImportJob, error) {
 	prefix := path.Join(basePath, ImportJobPrefix) + "/"
 	jobs, _, err := ListProtoObjects[datapb.ImportJob](ctx, cli, prefix)
 	if err != nil {
@@ -35,7 +35,7 @@ func ListImportJobs(ctx context.Context, cli clientv3.KV, basePath string, filte
 }
 
 // ListPreImportTasks list pre-import tasks.
-func ListPreImportTasks(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(v2 *datapb.PreImportTask) bool) ([]*datapb.PreImportTask, error) {
+func ListPreImportTasks(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(v2 *datapb.PreImportTask) bool) ([]*datapb.PreImportTask, error) {
 	prefix := path.Join(basePath, PreImportTaskPrefix) + "/"
 	tasks, _, err := ListProtoObjects[datapb.PreImportTask](ctx, cli, prefix)
 	if err != nil {
@@ -53,7 +53,7 @@ func ListPreImportTasks(ctx context.Context, cli clientv3.KV, basePath string, f
 }
 
 // ListImportTasks list import tasks.
-func ListImportTasks(ctx context.Context, cli clientv3.KV, basePath string, filters ...func(v2 *datapb.ImportTaskV2) bool) ([]*datapb.ImportTaskV2, error) {
+func ListImportTasks(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(v2 *datapb.ImportTaskV2) bool) ([]*datapb.ImportTaskV2, error) {
 	prefix := path.Join(basePath, ImportTaskPrefix) + "/"
 	tasks, _, err := ListProtoObjects[datapb.ImportTaskV2](ctx, cli, prefix)
 	if err != nil {
