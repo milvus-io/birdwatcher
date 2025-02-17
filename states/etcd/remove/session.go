@@ -42,7 +42,7 @@ func (c *ComponentRemove) RemoveSessionCommand(ctx context.Context, p *RemoveSes
 	if p.Run {
 		fmt.Println("Start to remove session")
 		for _, session := range sessions {
-			_, err := c.client.Delete(ctx, session.GetKey())
+			err := c.client.Remove(ctx, session.GetKey())
 			if err != nil {
 				return err
 			}

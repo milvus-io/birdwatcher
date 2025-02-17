@@ -24,19 +24,19 @@ func ListSessions(cli kv.MetaKV, basePath string) ([]*models.Session, error) {
 func ListSessionsByPrefix(cli kv.MetaKV, prefix string) ([]*models.Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, vals, err := cli.LoadWithPrefix(ctx, prefix)
+	keys, vals, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, err
 	}
 
 	sessions := make([]*models.Session, 0, len(vals))
-	for _, val := range vals {
+	for idx, val := range vals {
 		session := &models.Session{}
 		err := json.Unmarshal([]byte(val), session)
 		if err != nil {
 			continue
 		}
-		session.SetKey(string(kv.Key))
+		session.SetKey(keys[idx])
 
 		sessions = append(sessions, session)
 	}
