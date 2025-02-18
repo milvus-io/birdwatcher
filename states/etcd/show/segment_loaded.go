@@ -22,7 +22,7 @@ type SegmentLoadedParam struct {
 
 func (c *ComponentShow) SegmentLoadedCommand(ctx context.Context, p *SegmentLoadedParam) (*LoadedSegments, error) {
 	if etcdversion.GetVersion() != models.LTEVersion2_1 {
-		return nil, errors.New("list segment-loaded from meta only support before 2.1.x, try use `show segment-loaded-grc` instead")
+		return nil, errors.New("list segment-loaded from meta only support before 2.1.x, try use `show segment-loaded-grpc` instead")
 	}
 	segments, err := common.ListLoadedSegments(c.client, c.basePath, func(info *querypb.SegmentInfo) bool {
 		return (p.CollectionID == 0 || info.CollectionID == p.CollectionID) &&
