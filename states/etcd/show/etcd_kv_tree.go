@@ -6,9 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
-
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 type EtcdKVTree struct {
@@ -21,15 +20,9 @@ type EtcdKVTree struct {
 // EtcdKVTreeCommand retrieves and prints the top K prefixes and their key counts up to the specified level
 func (c *ComponentShow) EtcdKVTreeCommand(ctx context.Context, p *EtcdKVTree) error {
 	// Fetch all keys under the given prefix
-	resp, err := c.client.Get(ctx, p.Prefix, clientv3.WithPrefix(), clientv3.WithKeysOnly())
+	keys, _, err := c.client.LoadWithPrefix(ctx, p.Prefix, kv.WithKeysOnly())
 	if err != nil {
 		return err
-	}
-
-	// Extract keys from the response
-	keys := make([]string, len(resp.Kvs))
-	for i, kv := range resp.Kvs {
-		keys[i] = string(kv.Key)
 	}
 
 	// Count keys for prefixes up to the specified level
