@@ -13,14 +13,16 @@ type ConfigEtcdParam struct {
 }
 
 // ConfigEtcdCommand return show config-etcd command.
-func (c *ComponentShow) ConfigEtcdCommand(ctx context.Context, p *ConfigEtcdParam) {
+func (c *ComponentShow) ConfigEtcdCommand(ctx context.Context, p *ConfigEtcdParam) error {
 	keys, values, err := common.ListEtcdConfigs(ctx, c.client, c.basePath)
 	if err != nil {
 		fmt.Println("failed to list configurations from etcd", err.Error())
-		return
+		return err
 	}
 
 	for i, key := range keys {
 		fmt.Printf("Key: %s, Value: %s\n", key, values[i])
 	}
+
+	return nil
 }

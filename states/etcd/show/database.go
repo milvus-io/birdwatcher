@@ -20,7 +20,7 @@ type DatabaseParam struct {
 
 // DatabaseCommand returns show database comand.
 func (c *ComponentShow) DatabaseCommand(ctx context.Context, p *DatabaseParam) (*Databases, error) {
-	dbs, err := common.ListDatabase(ctx, c.client, c.basePath, func(db *models.Database) bool {
+	dbs, err := common.ListDatabase(ctx, c.client, c.metaPath, func(db *models.Database) bool {
 		return (p.DatabaseName == "" || db.Name == p.DatabaseName) && (p.DatabaseID == 0 || db.ID == p.DatabaseID)
 	})
 	if err != nil {

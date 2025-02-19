@@ -26,7 +26,7 @@ type CollectionLoadedParam struct {
 // CollectionLoadedCommand return show collection-loaded command.
 func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *CollectionLoadedParam) (*CollectionsLoaded, error) {
 	var total int
-	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(info *models.CollectionLoaded) bool {
+	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(info *models.CollectionLoaded) bool {
 		total++
 		return p.CollectionID == 0 || p.CollectionID == info.CollectionID
 	})

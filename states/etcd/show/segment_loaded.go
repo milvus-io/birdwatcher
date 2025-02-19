@@ -24,7 +24,7 @@ func (c *ComponentShow) SegmentLoadedCommand(ctx context.Context, p *SegmentLoad
 	if etcdversion.GetVersion() != models.LTEVersion2_1 {
 		return nil, errors.New("list segment-loaded from meta only support before 2.1.x, try use `show segment-loaded-grpc` instead")
 	}
-	segments, err := common.ListLoadedSegments(c.client, c.basePath, func(info *querypb.SegmentInfo) bool {
+	segments, err := common.ListLoadedSegments(c.client, c.metaPath, func(info *querypb.SegmentInfo) bool {
 		return (p.CollectionID == 0 || info.CollectionID == p.CollectionID) &&
 			(p.SegmentID == 0 || info.SegmentID == p.SegmentID)
 	})

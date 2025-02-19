@@ -24,14 +24,25 @@ func ListImportJobs(ctx context.Context, cli kv.MetaKV, basePath string, filters
 		return nil, nil, err
 	}
 
-	return lo.FilterMap(jobs, func(job datapb.ImportJob, idx int) (*datapb.ImportJob, bool) {
+	resultJobs := make([]*datapb.ImportJob, 0, len(jobs))
+	resultKeys := make([]string, 0, len(keys))
+
+	filterFn := func(job datapb.ImportJob) bool {
 		for _, filter := range filters {
 			if !filter(&job) {
-				return nil, false
+				return false
 			}
 		}
-		return &job, true
-	}), keys, nil
+		return true
+	}
+	for i, job := range jobs {
+		if ok := filterFn(job); ok {
+			resultJobs = append(resultJobs, &jobs[i])
+			resultKeys = append(resultKeys, keys[i])
+		}
+	}
+
+	return resultJobs, resultKeys, nil
 }
 
 // ListPreImportTasks list pre-import tasks.

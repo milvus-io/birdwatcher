@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
@@ -56,8 +57,11 @@ func SegmentCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			defer cancel()
+
 			// use v1 meta for now
-			segmentIndexes, err := common.ListSegmentIndex(cli, basePath)
+			segmentIndexes, err := common.ListSegmentIndex(ctx, cli, basePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return

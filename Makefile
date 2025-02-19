@@ -20,12 +20,12 @@ all: static-check birdwatcher
 birdwatcher:
 	@echo "Compiling birdwatcher"
 	@mkdir -p bin
-	@CGO_ENABLED=0 go build -o bin/birdwatcher main.go
+	@CGO_ENABLED=0 go build -o bin/birdwatcher cmd/birdwatcher/main.go
 
 birdwatcher_wkafka:
 	@echo "Compiling birdwatcher with kafka(CGO_ENABLED)"
 	@mkdir -p bin
-	@CGO_ENABLED=1 go build -o bin/birdwatcher_wkafka -tags WKAFKA main.go
+	@CGO_ENABLED=1 go build -o bin/birdwatcher_wkafka -tags WKAFKA cmd/birdwatcher/main.go
 
 getdeps:
 	@mkdir -p $(INSTALL_PATH)
