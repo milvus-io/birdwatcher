@@ -2,7 +2,7 @@
 
 [![linter status](https://github.com/milvus-io/birdwatcher/workflows/golangci-lint/badge.svg)](https://github.com/milvus-io/birdwatcher/actions/workflows/golangci-lint.yml?query=branch%3Amain+)
 
-Debug tool for Milvus 2.0 project. This tool connects to etcd and inspect some status of the Milvus system.
+A debug tool for Milvus 2.0 or later. This tool connects to etcd and inspects some status of the Milvus system.
 
 ## Get Started
 
