@@ -83,11 +83,11 @@ func (rs *Collections) PrintAs(format framework.Format) string {
 	case framework.FormatDefault, framework.FormatPlain:
 		sb := &strings.Builder{}
 		for _, coll := range rs.collections {
-			printCollection(sb, coll)
+			printCollection( coll)
 		}
-		fmt.Fprintln(sb, "================================================================================")
-		fmt.Fprintf(sb, "--- Total collections:  %d\t Matched collections:  %d\n", rs.total, len(rs.collections))
-		fmt.Fprintf(sb, "--- Total channel: %d\t Healthy collections: %d\n", rs.channels, rs.healthy)
+		fmt.Printf( "================================================================================")
+		fmt.Printf( "--- Total collections:  %d\t Matched collections:  %d\n", rs.total, len(rs.collections))
+		fmt.Printf( "--- Total channel: %d\t Healthy collections: %d\n", rs.channels, rs.healthy)
 		return sb.String()
 	}
 	return ""
@@ -97,48 +97,48 @@ func (rs *Collections) Entities() any {
 	return rs.collections
 }
 
-func printCollection(sb *strings.Builder, collection *models.Collection) {
-	fmt.Fprintln(sb, "================================================================================")
-	fmt.Fprintf(sb, "DBID: %d\n", collection.DBID)
-	fmt.Fprintf(sb, "Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
+func printCollection( collection *models.Collection) {
+	fmt.Printf( "================================================================================")
+	fmt.Printf( "DBID: %d\n", collection.DBID)
+	fmt.Printf( "Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
 	t, _ := utils.ParseTS(collection.CreateTime)
-	fmt.Fprintf(sb, "Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(sb, "Fields:\n")
+	fmt.Printf( "Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
+	fmt.Printf( "Fields:\n")
 	fields := collection.Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].FieldID < fields[j].FieldID
 	})
 	for _, field := range fields {
-		fmt.Fprintf(sb, " - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
+		fmt.Printf( " - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
 		if field.IsPrimaryKey {
-			fmt.Fprintf(sb, "\t - Primary Key: %t, AutoID: %t\n", field.IsPrimaryKey, field.AutoID)
+			fmt.Printf( "\t - Primary Key: %t, AutoID: %t\n", field.IsPrimaryKey, field.AutoID)
 		}
 		if field.IsDynamic {
-			fmt.Fprintf(sb, "\t - Dynamic Field\n")
+			fmt.Printf( "\t - Dynamic Field\n")
 		}
 		if field.IsPartitionKey {
-			fmt.Fprintf(sb, "\t - Partition Key\n")
+			fmt.Printf( "\t - Partition Key\n")
 		}
 		if field.IsClusteringKey {
-			fmt.Fprintf(sb, "\t - Clustering Key\n")
+			fmt.Printf( "\t - Clustering Key\n")
 		}
 		// print element type if field is array
 		if field.DataType == models.DataTypeArray {
-			fmt.Fprintf(sb, "\t - Element Type:  %s\n", field.ElementType.String())
+			fmt.Printf( "\t - Element Type:  %s\n", field.ElementType.String())
 		}
 		// type params
 		for key, value := range field.Properties {
-			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", key, value)
+			fmt.Printf( "\t - Type Param %s: %s\n", key, value)
 		}
 	}
 
-	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicSchema)
-	fmt.Fprintf(sb, "Consistency Level: %s\n", collection.ConsistencyLevel.String())
+	fmt.Printf( "Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicSchema)
+	fmt.Printf( "Consistency Level: %s\n", collection.ConsistencyLevel.String())
 	for _, channel := range collection.Channels {
-		fmt.Fprintf(sb, "Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
+		fmt.Printf( "Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
 	}
-	fmt.Fprintf(sb, "Collection properties(%d):\n", len(collection.Properties))
+	fmt.Printf( "Collection properties(%d):\n", len(collection.Properties))
 	for k, v := range collection.Properties {
-		fmt.Fprintf(sb, "\tKey: %s: %v\n", k, v)
+		fmt.Printf( "\tKey: %s: %v\n", k, v)
 	}
 }
