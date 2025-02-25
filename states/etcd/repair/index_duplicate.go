@@ -15,7 +15,7 @@ import (
 
 type IndexDuplicateParam struct {
 	framework.ParamBase `use:"repair index-dup"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"specifiy collection id to process"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"specify collection id to process"`
 	RunFix              bool  `name:"runFix" default:"false" desc:"whether to fix the duplicate index"`
 }
 
