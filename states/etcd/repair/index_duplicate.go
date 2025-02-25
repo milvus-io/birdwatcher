@@ -9,6 +9,7 @@ import (
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/samber/lo"
 )
 
 type IndexDuplicateParam struct {
@@ -22,14 +23,20 @@ func (c *ComponentRepair) RepairIndexRepairCommand(ctx context.Context, p *Index
 		return err
 	}
 
+	fieldIndexes, err := c.listIndexMetaV2(ctx)
+	collIndexs := lo.GroupBy(fieldIndexes, func(index indexpbv2.FieldIndex) int64 {
+		return index.IndexInfo.CollectionID
+	})
+
 	for _, collection := range collections {
+		indexes := collIndexs[collection.ID]
 		fields := make(map[int64]struct{})
-		fieldIndexes, err := c.listIndexMetaV2(ctx)
+
 		if err != nil {
 			fmt.Println(err.Error())
 			return err
 		}
-		for _, fieldIndex := range fieldIndexes {
+		for _, fieldIndex := range indexes {
 			_, ok := fields[fieldIndex.IndexInfo.FieldID]
 			if ok {
 				fmt.Printf("duplicate index found, collectionID = %d, fieldID = %d\n", collection.ID, fieldIndex.IndexInfo.FieldID)
