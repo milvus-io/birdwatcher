@@ -55,6 +55,7 @@ func RepairCommand(cli clientv3.KV, basePath string) *cobra.Command {
 		repair.IndexMetricCommand(cli, basePath),
 		repair.DiskAnnIndexParamsCommand(cli, basePath),
 		repair.AddIndexParamsCommand(cli, basePath),
+		repair.FieldIndexParamsCommand(cli, basePath),
 		// repair manual compaction
 		repair.ManualCompactionCommand(cli, basePath),
 		// check querynode collection leak
