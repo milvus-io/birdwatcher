@@ -1,6 +1,7 @@
 package repair
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -51,14 +52,9 @@ func FieldIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				if !run {
 					continue
 				}
-				newIndex := &indexpbv2.FieldIndex{
-					IndexInfo:  index.GetIndexInfo(),
-					Deleted:    true,
-					CreateTime: index.GetCreateTime(),
-				}
-				if err := writeRepairedIndex(cli, basePath, newIndex); err != nil {
+				err := markFieldIndexDeleted(context.Background(), cli, basePath, index)
+				if err != nil {
 					fmt.Println("write repaired index failed, ", err.Error())
-					return
 				}
 			}
 			fmt.Println("==========================after repair index metric========================================")
@@ -79,4 +75,16 @@ func FieldIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
 	cmd.Flags().Int64("indexID", 0, "index id to filter with")
 	cmd.Flags().Bool("run", false, "actual do repair")
 	return cmd
+}
+
+func markFieldIndexDeleted(ctx context.Context, cli clientv3.KV, basePath string, index indexpbv2.FieldIndex) error {
+	newIndex := &indexpbv2.FieldIndex{
+		IndexInfo:  index.GetIndexInfo(),
+		Deleted:    true,
+		CreateTime: index.GetCreateTime(),
+	}
+	if err := writeRepairedIndex(cli, basePath, newIndex); err != nil {
+		return err
+	}
+	return nil
 }

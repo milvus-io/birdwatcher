@@ -37,9 +37,15 @@ func (c *ComponentRepair) RepairIndexRepairCommand(ctx context.Context, p *Index
 			return err
 		}
 		for _, fieldIndex := range indexes {
+			if fieldIndex.Deleted {
+				continue
+			}
 			_, ok := fields[fieldIndex.IndexInfo.FieldID]
 			if ok {
 				fmt.Printf("duplicate index found, collectionID = %d, fieldID = %d\n", collection.ID, fieldIndex.IndexInfo.FieldID)
+				if p.RunFix {
+					markFieldIndexDeleted(ctx, c.client, c.basePath, fieldIndex)
+				}
 				continue
 			}
 			fields[fieldIndex.IndexInfo.FieldID] = struct{}{}
