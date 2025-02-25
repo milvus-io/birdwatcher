@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/samber/lo"
 )
 
 type IndexDuplicateParam struct {
 	framework.ParamBase `use:"repair index-dup"`
-	RunFix              bool `name:"runFix" default:"false" desc:"whether to fix the duplicate index"`
+	CollectionID        int64 `name:"collection" default:"0" desc:"specifiy collection id to process"`
+	RunFix              bool  `name:"runFix" default:"false" desc:"whether to fix the duplicate index"`
 }
 
 func (c *ComponentRepair) RepairIndexRepairCommand(ctx context.Context, p *IndexDuplicateParam) error {
@@ -29,6 +31,9 @@ func (c *ComponentRepair) RepairIndexRepairCommand(ctx context.Context, p *Index
 	})
 
 	for _, collection := range collections {
+		if p.CollectionID > 0 && p.CollectionID != collection.ID {
+			continue
+		}
 		indexes := collIndexs[collection.ID]
 		fields := make(map[int64]struct{})
 
