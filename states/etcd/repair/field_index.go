@@ -2,9 +2,11 @@ package repair
 
 import (
 	"fmt"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
+
 	"github.com/spf13/cobra"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 )
 
 // FieldIndexParamsCommand return repair segment command.
@@ -49,8 +51,12 @@ func FieldIndexParamsCommand(cli clientv3.KV, basePath string) *cobra.Command {
 				if !run {
 					continue
 				}
-				index.Deleted = true
-				if err := writeRepairedIndex(cli, basePath, &index); err != nil {
+				newIndex := &indexpbv2.FieldIndex{
+					IndexInfo:  index.GetIndexInfo(),
+					Deleted:    true,
+					CreateTime: index.GetCreateTime(),
+				}
+				if err := writeRepairedIndex(cli, basePath, newIndex); err != nil {
 					fmt.Println("write repaired index failed, ", err.Error())
 					return
 				}
