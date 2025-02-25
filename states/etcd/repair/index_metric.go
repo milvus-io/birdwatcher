@@ -129,7 +129,7 @@ func writeRepairedIndex(cli clientv3.KV, basePath string, index *indexpbv2.Field
 }
 
 func printIndexV2(index indexpbv2.FieldIndex) {
-	fmt.Println("==========================after repair index metric========================================")
+	fmt.Println("===========================================================================================")
 	fmt.Printf("Index ID: %d\tIndex Name: %s\tCollectionID:%d\n", index.GetIndexInfo().GetIndexID(), index.GetIndexInfo().GetIndexName(), index.GetIndexInfo().GetCollectionID())
 	createTime, _ := utils.ParseTS(index.GetCreateTime())
 	fmt.Printf("Create Time: %s\tDeleted: %t\n", createTime.Format(tsPrintFormat), index.GetDeleted())
