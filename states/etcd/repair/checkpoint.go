@@ -6,9 +6,9 @@ import (
 	"path"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/mq"

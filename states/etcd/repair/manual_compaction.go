@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"google.golang.org/grpc"
 
-	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
@@ -29,8 +29,6 @@ func (c *ComponentRepair) ManualCompactionCommand(ctx context.Context, p *Manual
 }
 
 func doManualCompaction(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to list session")

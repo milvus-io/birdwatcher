@@ -6,11 +6,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 var backupKeyPrefix = "birdwatcher/backup"

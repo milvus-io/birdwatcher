@@ -96,14 +96,14 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 
 		switch ph.PartType {
 		case models.PartType_EtcdBackup:
-			instance, err := restoreEtcdFromBackV2(state.client, rd, ph)
+			instance, err := restoreEtcdFromBackV2(state.client, rd, &ph)
 			if err != nil {
 				fmt.Println("failed to restore etcd from backup file", err.Error())
 				return err
 			}
 			state.SetInstance(instance)
 		case models.PartType_MetricsBackup:
-			restoreMetrics(rd, ph, func(session *models.Session, metrics, defaultMetrics []byte) {
+			restoreMetrics(rd, &ph, func(session *models.Session, metrics, defaultMetrics []byte) {
 				state.metrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = metrics
 				state.defaultMetrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = defaultMetrics
 			})
@@ -115,7 +115,7 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 	}
 }
 
-func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph models.PartHeader) (string, error) {
+func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph *models.PartHeader) (string, error) {
 	meta := make(map[string]string)
 	err := json.Unmarshal(ph.Extra, &meta)
 	if err != nil {
@@ -251,7 +251,7 @@ func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph models.PartHeader) (s
 	return meta["instance"], nil
 }
 
-func restoreMetrics(rd io.Reader, ph models.PartHeader, handler func(session *models.Session, metrics, defaultMetrics []byte)) error {
+func restoreMetrics(rd io.Reader, ph *models.PartHeader, handler func(session *models.Session, metrics, defaultMetrics []byte)) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {
@@ -285,7 +285,7 @@ func restoreMetrics(rd io.Reader, ph models.PartHeader, handler func(session *mo
 	}
 }
 
-func testRestoreMetrics(rd io.Reader, ph models.PartHeader) error {
+func testRestoreMetrics(rd io.Reader, ph *models.PartHeader) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {
@@ -316,7 +316,7 @@ func testRestoreMetrics(rd io.Reader, ph models.PartHeader) error {
 	}
 }
 
-func testRestoreConfigurations(rd io.Reader, ph models.PartHeader) error {
+func testRestoreConfigurations(rd io.Reader, ph *models.PartHeader) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {
@@ -342,7 +342,7 @@ func testRestoreConfigurations(rd io.Reader, ph models.PartHeader) error {
 	}
 }
 
-func testRestoreAppMetrics(rd io.Reader, ph models.PartHeader) error {
+func testRestoreAppMetrics(rd io.Reader, ph *models.PartHeader) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {

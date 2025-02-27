@@ -37,7 +37,6 @@ func (c *ComponentRemove) RemoveChannelCommand(ctx context.Context, p *RemoveCha
 		}
 		return true
 	})
-
 	if err != nil {
 		return err
 	}
@@ -48,7 +47,6 @@ func (c *ComponentRemove) RemoveChannelCommand(ctx context.Context, p *RemoveCha
 		}
 		return true
 	})
-
 	if err != nil {
 		return err
 	}

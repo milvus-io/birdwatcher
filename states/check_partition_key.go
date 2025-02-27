@@ -306,7 +306,7 @@ func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Cli
 	if !has {
 		return nil, errors.New("pk not found")
 	}
-	data := storage.NewDeltaData(schemapb.DataType(pkField.DataType), 0)
+	data := storage.NewDeltaData(pkField.DataType, 0)
 	for _, delFieldBinlog := range segment.GetDeltalogs() {
 		for _, binlog := range delFieldBinlog.Binlogs {
 			filePath := strings.Replace(binlog.LogPath, "ROOT_PATH", rootPath, -1)
@@ -324,7 +324,7 @@ func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Cli
 
 			var deltaData *storage.DeltaData
 			for err == nil {
-				deltaData, err = reader.NextEventReader(schemapb.DataType(pkField.DataType))
+				deltaData, err = reader.NextEventReader(pkField.DataType)
 				if err == nil {
 					err = data.Merge(deltaData)
 					if err != nil {

@@ -7,5 +7,5 @@ import (
 type Database = ProtoWrapper[*etcdpb.DatabaseInfo]
 
 func NewDatabase(info *etcdpb.DatabaseInfo, key string) *Database {
-	return NewDatabase(info, key)
+	return NewProtoWrapper(info, key)
 }

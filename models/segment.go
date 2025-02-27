@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
-	"github.com/samber/lo"
 )
 
 // Segment is the common model for segment information.
@@ -29,7 +30,8 @@ type Segment struct {
 }
 
 func NewSegment(segment *datapb.SegmentInfo, key string,
-	lazy func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error)) *Segment {
+	lazy func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error),
+) *Segment {
 	s := &Segment{
 		SegmentInfo: segment,
 	}

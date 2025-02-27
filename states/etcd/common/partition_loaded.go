@@ -5,7 +5,6 @@ import (
 	"path"
 
 	"github.com/milvus-io/birdwatcher/models"
-
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 

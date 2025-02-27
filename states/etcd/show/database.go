@@ -55,7 +55,7 @@ func (rs *Databases) printDatabaseInfo(sb *strings.Builder, m *models.Database) 
 	fmt.Fprintf(sb, "ID: %d\tName: %s\n", db.Id, db.Name)
 	fmt.Fprintf(sb, "TenantID: %s\t State: %s\n", db.TenantId, db.State.String())
 	fmt.Fprintf(sb, "Database properties(%d):\n", len(db.Properties))
-	for k, v := range db.Properties {
-		fmt.Fprintf(sb, "\t%s: %v\n", k, v)
+	for _, kv := range db.Properties {
+		fmt.Fprintf(sb, "\t%s: %v\n", kv.GetKey(), kv.GetValue())
 	}
 }

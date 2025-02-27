@@ -15,7 +15,6 @@ import (
 )
 
 func ListChannelCheckpoint(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(pos *models.MsgPosition) bool) ([]*models.MsgPosition, error) {
-
 	prefix := path.Join(basePath, DCPrefix, ChannelCheckpointPrefix) + "/"
 	// return ListProtoObjects(ctx, cli, prefix, filters...)
 	return ListObj2Models(ctx, cli, prefix, models.NewProtoWrapper[*msgpb.MsgPosition], filters...)

@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
-	"github.com/samber/lo"
 )
 
 type SegmentIndexParam struct {

@@ -15,15 +15,12 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
-const ()
-
 var ErrReachMaxNumOfWalkSegment = errors.New("reach max number of the walked segments")
 
 func ListSegments(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
 	prefix := path.Join(basePath, DCPrefix, SegmentMetaPrefix) + "/"
 
 	segments, err := ListObj2Models(ctx, cli, prefix, func(info *datapb.SegmentInfo, key string) *models.Segment {
-
 		return models.NewSegment(info, key, getSegmentLazyFunc(cli, basePath, info))
 	}, filters...)
 	if err != nil {
@@ -255,8 +252,6 @@ func ListLoadedSegments(cli kv.MetaKV, basePath string, filter func(*querypb.Seg
 
 // RemoveSegment delete segment entry from etcd.
 func RemoveSegment(ctx context.Context, cli kv.MetaKV, basePath string, info *datapb.SegmentInfo) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
 	segmentPath := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
 	err := cli.Remove(ctx, segmentPath)
 	if err != nil {

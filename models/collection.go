@@ -1,10 +1,11 @@
 package models
 
 import (
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
-	"github.com/samber/lo"
 )
 
 type Collection struct {
@@ -17,7 +18,6 @@ func (c *Collection) WithFields(fields []*schemapb.FieldSchema) {
 
 func (c *Collection) Channels() []*Channel {
 	return lo.Map(c.proto.VirtualChannelNames, func(virtualName string, idx int) *Channel {
-
 		return &Channel{
 			PhysicalName: c.proto.PhysicalChannelNames[idx],
 			VirtualName:  virtualName,
