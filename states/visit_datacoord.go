@@ -8,15 +8,13 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 type dataCoordState struct {
 	*framework.CmdState
 	session   *models.Session
 	client    datapb.DataCoordClient
-	clientv2  datapbv2.DataCoordClient
 	conn      *grpc.ClientConn
 	prevState framework.State
 }
@@ -29,12 +27,12 @@ func (s *dataCoordState) SetupCommands() {
 		// metrics
 		getMetricsCmd(s.client),
 		// configuration
-		getConfigurationCmd(s.clientv2, s.session.ServerID),
+		getConfigurationCmd(s.client, s.session.ServerID),
 		// back
 		getBackCmd(s, s.prevState),
 
 		// compact
-		compactCmd(s.clientv2),
+		compactCmd(s.client),
 
 		// exit
 		getExitCmd(s),
@@ -51,7 +49,6 @@ func getDataCoordState(client datapb.DataCoordClient, conn *grpc.ClientConn, pre
 		CmdState:  framework.NewCmdState(fmt.Sprintf("DataCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
-		clientv2:  datapbv2.NewDataCoordClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}

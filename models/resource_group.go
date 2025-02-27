@@ -1,17 +1,11 @@
 package models
 
 import (
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
-type ResourceGroup struct {
-	querypbv2.ResourceGroup
-	key string
-}
+type ResourceGroup = ProtoWrapper[*querypb.ResourceGroup]
 
-func NewResourceGroup(rg querypbv2.ResourceGroup, key string) *ResourceGroup {
-	return &ResourceGroup{
-		ResourceGroup: rg,
-		key:           key,
-	}
+func NewResourceGroup(rg *querypb.ResourceGroup, key string) *ResourceGroup {
+	return NewProtoWrapper(rg, key)
 }

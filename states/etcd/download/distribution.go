@@ -13,11 +13,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
 func PullGlobalDistributionDetails(cli kv.MetaKV, basePath string) *cobra.Command {
@@ -61,9 +60,9 @@ func PullGlobalDistributionDetails(cli kv.MetaKV, basePath string) *cobra.Comman
 				}
 
 				if session.ServerName == "querynode" {
-					clientv2 := querypbv2.NewQueryNodeClient(conn)
-					resp, err := clientv2.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
-						Base: &commonpbv2.MsgBase{
+					clientv2 := querypb.NewQueryNodeClient(conn)
+					resp, err := clientv2.GetDataDistribution(context.Background(), &querypb.GetDataDistributionRequest{
+						Base: &commonpb.MsgBase{
 							SourceID: -1,
 							TargetID: session.ServerID,
 						},
@@ -86,7 +85,7 @@ func PullGlobalDistributionDetails(cli kv.MetaKV, basePath string) *cobra.Comman
 					segmentMap := lo.SliceToMap(segmentIDs, func(id int64) (int64, struct{}) {
 						return id, struct{}{}
 					})
-					segments, err := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
+					segments, err := common.ListSegments(context.TODO(), cli, basePath, func(segment *models.Segment) bool {
 						_, ok := segmentMap[segment.ID]
 						return ok
 					})

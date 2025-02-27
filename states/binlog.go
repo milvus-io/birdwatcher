@@ -15,8 +15,8 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type ScanBinlogsParam struct {
@@ -37,12 +37,12 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 		return err
 	}
 
-	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), p.CollectionID)
+	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, p.CollectionID)
 	if err != nil {
 		return err
 	}
-	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
-		return segment.CollectionID == collection.ID
+	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(segment *models.Segment) bool {
+		return segment.CollectionID == collection.GetProto().ID
 	})
 	if err != nil {
 		return err
@@ -51,8 +51,8 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 	if !ok {
 		return errors.New("collection does not has pk")
 	}
-	idField := lo.SliceToMap(collection.Schema.Fields, func(field models.FieldSchema) (int64, models.FieldSchema) {
-		return field.FieldID, field
+	idField := lo.SliceToMap(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) (int64, models.FieldSchema) {
+		return field.FieldID, models.NewFieldSchemaFromBase(field)
 	})
 	var f *os.File
 	var pqWriter *storage.ParquetWriter
@@ -61,13 +61,13 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 	case "stdout":
 		selector = func(_ int64) bool { return false }
 	case "json":
-		f, err = os.Create(fmt.Sprintf("%d.json", collection.ID))
+		f, err = os.Create(fmt.Sprintf("%d.json", collection.GetProto().ID))
 		if err != nil {
 			return err
 		}
 		defer f.Close()
 	case "parquet":
-		f, err = os.Create(fmt.Sprintf("%d.parquet", collection.ID))
+		f, err = os.Create(fmt.Sprintf("%d.parquet", collection.GetProto().ID))
 		if err != nil {
 			return err
 		}
@@ -135,7 +135,7 @@ func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlo
 func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Client, bucketName string, rootPath string, collection *models.Collection, segment *models.Segment,
 	selectField func(fieldID int64) bool, fn func(map[int64]*storage.BinlogReader),
 ) {
-	pkField, has := lo.Find(collection.Schema.Fields, func(field models.FieldSchema) bool {
+	pkField, has := lo.Find(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) bool {
 		return field.IsPrimaryKey
 	})
 	if !has {
@@ -177,7 +177,7 @@ func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Clie
 }
 
 type BinlogIterator struct {
-	schema  *models.CollectionSchema
+	schema  *schemapb.CollectionSchema
 	readers map[int64]*storage.BinlogReader
 
 	rowIDs     []int64
@@ -224,8 +224,8 @@ func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage
 		pks = sPks
 	}
 
-	idField := lo.SliceToMap(collection.Schema.Fields, func(field models.FieldSchema) (int64, models.FieldSchema) {
-		return field.FieldID, field
+	idField := lo.SliceToMap(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) (int64, models.FieldSchema) {
+		return field.FieldID, models.NewFieldSchemaFromBase(field)
 	})
 	data := make(map[int64][]any)
 	for fieldID, reader := range readers {
@@ -241,7 +241,7 @@ func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage
 	}
 
 	return &BinlogIterator{
-		schema:  &collection.Schema,
+		schema:  collection.GetProto().Schema,
 		readers: readers,
 
 		rowIDs:     rowIDs,
@@ -313,7 +313,7 @@ func readerToSlice(reader *storage.BinlogReader, field models.FieldSchema) ([]an
 
 func writeParquetData(collection *models.Collection, pqWriter *storage.ParquetWriter, rowID, ts int64, pk storage.PrimaryKey, output map[string]any) error {
 	pkField, _ := collection.GetPKField()
-	for _, field := range collection.Schema.Fields {
+	for _, field := range collection.GetProto().Schema.Fields {
 		var err error
 		switch field.FieldID {
 		case 0: // RowID
@@ -328,7 +328,7 @@ func writeParquetData(collection *models.Collection, pqWriter *storage.ParquetWr
 				err = pqWriter.AppendString(pkField.Name, pk.GetValue().(string))
 			}
 		default:
-			err = writeParquetField(pqWriter, field, output[field.Name])
+			err = writeParquetField(pqWriter, models.NewFieldSchemaFromBase(field), output[field.Name])
 		}
 		if err != nil {
 			return err

@@ -17,12 +17,12 @@ import (
 	"github.com/milvus-io/birdwatcher/eventlog"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 type ListMetricsPortParam struct {
@@ -176,7 +176,7 @@ func (s *InstanceState) prepareListenerClients(ctx context.Context) ([]*eventlog
 				return
 			}
 
-			items = lo.Filter(items, func(kv *commonpbv2.KeyValuePair, _ int) bool {
+			items = lo.Filter(items, func(kv *commonpb.KeyValuePair, _ int) bool {
 				return kv.GetKey() == "commonmetricsport"
 			})
 
@@ -226,19 +226,19 @@ func getConfigurationSource(session *models.Session, conn *grpc.ClientConn) conf
 	var client configurationSource
 	switch session.ServerName {
 	case "datacoord":
-		client = datapbv2.NewDataCoordClient(conn)
+		client = datapb.NewDataCoordClient(conn)
 	case "datanode":
-		client = datapbv2.NewDataNodeClient(conn)
+		client = datapb.NewDataNodeClient(conn)
 	case "indexcoord":
-		client = indexpbv2.NewIndexCoordClient(conn)
-	case "indexnode":
-		client = indexpbv2.NewIndexNodeClient(conn)
+		client = indexpb.NewIndexCoordClient(conn)
+	// case "indexnode":
+	// 	client = indexpbv2.NewIndexNodeClient(conn)
 	case "querycoord":
-		client = querypbv2.NewQueryCoordClient(conn)
+		client = querypb.NewQueryCoordClient(conn)
 	case "querynode":
-		client = querypbv2.NewQueryNodeClient(conn)
+		client = querypb.NewQueryNodeClient(conn)
 	case "rootcoord":
-		client = rootcoordpbv2.NewRootCoordClient(conn)
+		client = rootcoordpb.NewRootCoordClient(conn)
 		//	case "proxy":
 		// client:= milvuspb.NewMilvusServiceClient(conn)
 		// state.SetNext(getProxy)

@@ -10,17 +10,14 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
 type queryNodeState struct {
 	*framework.CmdState
 	session   *models.Session
 	client    querypb.QueryNodeClient
-	clientv2  querypbv2.QueryNodeClient
 	conn      *grpc.ClientConn
 	prevState framework.State
 }
@@ -35,11 +32,11 @@ func (s *queryNodeState) SetupCommands() {
 		// metrics
 		getMetricsCmd(s.client),
 		// configuration
-		getConfigurationCmd(s.clientv2, s.session.ServerID),
+		getConfigurationCmd(s.client, s.session.ServerID),
 		// distribution
-		getQNGetDataDistributionCmd(s.clientv2, s.session.ServerID),
+		getQNGetDataDistributionCmd(s.client, s.session.ServerID),
 		// segment-analysis --collection collection --segment
-		getQNGetSegmentInfoCmd(s.clientv2, s.session.ServerID),
+		getQNGetSegmentInfoCmd(s.client, s.session.ServerID),
 		// back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -57,7 +54,6 @@ func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, pr
 		CmdState:  framework.NewCmdState(fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
-		clientv2:  querypbv2.NewQueryNodeClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -109,14 +105,14 @@ func getQNGetSegmentsCmd(client querypb.QueryNodeClient) *cobra.Command {
 	return cmd
 }
 
-func getQNGetDataDistributionCmd(clientv2 querypbv2.QueryNodeClient, id int64) *cobra.Command {
+func getQNGetDataDistributionCmd(clientv2 querypb.QueryNodeClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "distribution",
 		Short:   "get data distribution",
 		Aliases: []string{"GetDataDistribution"},
 		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := clientv2.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
-				Base: &commonpbv2.MsgBase{
+			resp, err := clientv2.GetDataDistribution(context.Background(), &querypb.GetDataDistributionRequest{
+				Base: &commonpb.MsgBase{
 					SourceID: -1,
 					TargetID: id,
 				},
@@ -143,7 +139,7 @@ func getQNGetDataDistributionCmd(clientv2 querypbv2.QueryNodeClient, id int64) *
 	return cmd
 }
 
-func getQNGetSegmentInfoCmd(clientv2 querypbv2.QueryNodeClient, id int64) *cobra.Command {
+func getQNGetSegmentInfoCmd(clientv2 querypb.QueryNodeClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "segment-analysis",
 		Short:   "call ShowConfigurations for config inspection",
@@ -171,8 +167,8 @@ func getQNGetSegmentInfoCmd(clientv2 querypbv2.QueryNodeClient, id int64) *cobra
 				fmt.Println("segment id & collection id not provided")
 				return
 			}
-			req := &querypbv2.GetSegmentInfoRequest{
-				Base: &commonpbv2.MsgBase{
+			req := &querypb.GetSegmentInfoRequest{
+				Base: &commonpb.MsgBase{
 					SourceID: -1,
 					TargetID: id,
 				},
@@ -209,9 +205,9 @@ func getQNGetSegmentInfoCmd(clientv2 querypbv2.QueryNodeClient, id int64) *cobra
 					}
 				}
 				switch info.SegmentState {
-				case commonpbv2.SegmentState_Sealed:
+				case commonpb.SegmentState_Sealed:
 					indexed++
-				case commonpbv2.SegmentState_Growing:
+				case commonpb.SegmentState_Growing:
 					growing++
 				}
 			}

@@ -7,9 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
@@ -31,8 +29,8 @@ func SegmentCollectionDroppedCommand(cli kv.MetaKV, basePath string) *cobra.Comm
 			}
 
 			var collections []*models.Collection
-			collections, _ = common.ListCollectionsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
-				return coll.ID == collectionID
+			collections, _ = common.ListCollections(context.TODO(), cli, basePath, func(coll *models.Collection) bool {
+				return coll.GetProto().ID == collectionID
 			})
 			if len(collections) != 0 {
 				fmt.Printf("collection %d is still exist.", collectionID)
@@ -40,7 +38,7 @@ func SegmentCollectionDroppedCommand(cli kv.MetaKV, basePath string) *cobra.Comm
 			}
 			fmt.Printf("Drop segments meta with dropped collection: %d\n", collectionID)
 
-			segments, err := common.ListSegments(cli, basePath, func(segmentInfo *datapb.SegmentInfo) bool {
+			segments, err := common.ListSegments(context.TODO(), cli, basePath, func(segmentInfo *models.Segment) bool {
 				return segmentInfo.GetCollectionID() == collectionID
 			})
 			if err != nil {
@@ -59,7 +57,7 @@ func SegmentCollectionDroppedCommand(cli kv.MetaKV, basePath string) *cobra.Comm
 
 			for _, info := range segments {
 				fmt.Printf("[WARNING] about to remove segment %d from etcd\n", info.GetID())
-				err = common.RemoveSegment(cli, basePath, info)
+				err = common.RemoveSegment(context.TODO(), cli, basePath, info.SegmentInfo)
 				if err != nil {
 					fmt.Printf("Remove segment %d from Etcd failed, err: %s\n", info.ID, err.Error())
 					return

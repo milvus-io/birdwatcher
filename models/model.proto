@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package milvus.proto.birdwatcher;
+
+option go_package = "github.com/milvus-io/birdwatcher/models";
+
+enum AuditOpType {
+    AuditOpNone = 0;
+    OpDel = 1;
+    OpPut = 2;
+    OpPutBefore = 3;
+    OpPutAfter = 4;
+}
+
+message AuditHeader {
+    int32 version = 1;
+    int32 op_type = 2;
+    int32 entries_num = 3;
+}
+
+message BackupHeader {
+    int32 version = 1;
+    string instance = 2;
+    string meta_path = 3;
+    int64 entries = 4;
+    string component = 5;
+    bytes extra = 6;
+}
+
+enum PartType {
+    PartTypeNone = 0;
+    EtcdBackup = 1;
+    MetricsBackup = 2;
+    MetricsDefaultBackup = 3;
+    Configurations = 4;
+    AppMetrics = 5;
+    LoadedSegments = 6;
+}
+
+message PartHeader {
+    PartType part_type = 1;
+    int64 part_len = 2;
+    bytes extra = 3;
+}
+
+message WorkspaceMeta {
+    string version = 1;
+    string instance = 2;
+    string meta_path = 3;
+}

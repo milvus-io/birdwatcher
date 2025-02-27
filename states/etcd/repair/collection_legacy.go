@@ -7,7 +7,6 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 type CollectionLegacyDroppedParams struct {
@@ -17,25 +16,27 @@ type CollectionLegacyDroppedParams struct {
 }
 
 func (c *ComponentRepair) CollectionLegacyDroppedCommand(ctx context.Context, p *CollectionLegacyDroppedParams) error {
-	collections, err := common.ListCollectionsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
-		return coll.DBID == 0 && len(coll.Schema.Fields) == 0 && (p.CollectionID == 0 || p.CollectionID == coll.ID)
+	collections, err := common.ListCollections(ctx, c.client, c.basePath, func(info *models.Collection) bool {
+		coll := info.GetProto()
+		return coll.DbId == 0 && len(coll.Schema.Fields) == 0 && (p.CollectionID == 0 || p.CollectionID == coll.ID)
 	})
 	if err != nil {
 		return err
 	}
 
 	var removed int
-	for _, collection := range collections {
+	for _, info := range collections {
+		collection := info.GetProto()
 		fmt.Printf("collection [%d]%s is suspect of legacy collection remnant\n", collection.ID, collection.Schema.Name)
 		if p.Run {
-			key := collection.Key()
+			key := info.Key()
 			fmt.Printf("start to remove remnant meta for %s, key:%s\n", collection.Schema.Name, key)
-			err := c.client.Remove(ctx, collection.Key())
+			err := c.client.Remove(ctx, info.Key())
 			if err != nil {
 				fmt.Printf("failed to remove %s, error: %s\n", key, err.Error())
 				continue
 			}
-			historyCollections, err := common.ListCollectionHistory(ctx, c.client, c.basePath, etcdversion.GetVersion(), collection.DBID, collection.ID)
+			historyCollections, err := common.ListCollectionHistory(ctx, c.client, c.basePath, collection.DbId, collection.ID)
 			if err != nil {
 				fmt.Println("failed to list collection history", err.Error())
 			} else {
@@ -50,7 +51,7 @@ func (c *ComponentRepair) CollectionLegacyDroppedCommand(ctx context.Context, p 
 	if len(collections) == 0 {
 		// try to delete legacy history when collection removed
 		if p.CollectionID != 0 {
-			historyCollections, err := common.ListCollectionHistory(ctx, c.client, c.basePath, etcdversion.GetVersion(), 0, p.CollectionID)
+			historyCollections, err := common.ListCollectionHistory(ctx, c.client, c.basePath, 0, p.CollectionID)
 			if err != nil {
 				fmt.Println("failed to list legacy collection history")
 				return err

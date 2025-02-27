@@ -12,10 +12,9 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
 type GetDistributionParam struct {
@@ -27,7 +26,7 @@ type GetDistributionParam struct {
 // GetDistributionCommand iterates all querynodes to list distribution.
 func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistributionParam) error {
 	// list segment info to get row count information
-	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(s *models.Segment) bool {
 		return p.CollectionID == 0 || p.CollectionID == s.CollectionID
 	})
 	if err != nil {
@@ -48,7 +47,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 	})
 
 	type clientWithID struct {
-		client querypbv2.QueryNodeClient
+		client querypb.QueryNodeClient
 		id     int64
 	}
 	var wg sync.WaitGroup
@@ -74,7 +73,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 				return
 			}
 
-			clientv2 := querypbv2.NewQueryNodeClient(conn)
+			clientv2 := querypb.NewQueryNodeClient(conn)
 			clientCh <- clientWithID{
 				client: clientv2,
 				id:     session.ServerID,
@@ -85,7 +84,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 	close(clientCh)
 
 	type distResponse struct {
-		resp *querypbv2.GetDataDistributionResponse
+		resp *querypb.GetDataDistributionResponse
 		err  error
 		id   int64
 	}
@@ -96,8 +95,8 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 		wg.Add(1)
 		go func(idClient clientWithID) {
 			defer wg.Done()
-			resp, err := idClient.client.GetDataDistribution(ctx, &querypbv2.GetDataDistributionRequest{
-				Base: &commonpbv2.MsgBase{
+			resp, err := idClient.client.GetDataDistribution(ctx, &querypb.GetDataDistributionRequest{
+				Base: &commonpb.MsgBase{
 					SourceID: -1,
 					TargetID: idClient.id,
 				},
@@ -145,7 +144,7 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 		sealedNum := 0
 		sealedRowCount := int64(0)
 
-		collSegments := lo.GroupBy(resp.GetSegments(), func(segment *querypbv2.SegmentVersionInfo) int64 {
+		collSegments := lo.GroupBy(resp.GetSegments(), func(segment *querypb.SegmentVersionInfo) int64 {
 			return segment.GetCollection()
 		})
 

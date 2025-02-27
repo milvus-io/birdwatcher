@@ -13,23 +13,19 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 type milvusComponent string
@@ -159,7 +155,7 @@ func backupMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 	}
 
 	ph := models.PartHeader{
-		PartType: int32(models.MetricsBackup),
+		PartType: models.PartType_MetricsBackup,
 		PartLen:  -1, // not sure for length
 	}
 	// write stopper
@@ -200,7 +196,7 @@ func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 	}
 
 	ph := models.PartHeader{
-		PartType: int32(models.AppMetrics),
+		PartType: models.PartType_AppMetrics,
 		PartLen:  -1, // not sure for length
 	}
 	// write stopper
@@ -245,8 +241,8 @@ func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 			client = datapb.NewDataNodeClient(conn)
 		case "querynode":
 			client = querypb.NewQueryNodeClient(conn)
-		case "indexnode":
-			client = indexpb.NewIndexNodeClient(conn)
+			// case "indexnode":
+			// 	client = indexpb.NewIndexNodeClient(conn)
 		}
 		if client == nil {
 			continue
@@ -275,7 +271,7 @@ func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error 
 	}
 
 	ph := models.PartHeader{
-		PartType: int32(models.Configurations),
+		PartType: models.PartType_Configurations,
 		PartLen:  -1, // not sure for length
 	}
 	// write stopper
@@ -303,19 +299,19 @@ func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error 
 		var client configurationSource
 		switch strings.ToLower(session.ServerName) {
 		case "rootcoord":
-			client = rootcoordpbv2.NewRootCoordClient(conn)
+			client = rootcoordpb.NewRootCoordClient(conn)
 		case "datacoord":
-			client = datapbv2.NewDataCoordClient(conn)
+			client = datapb.NewDataCoordClient(conn)
 		case "indexcoord":
-			client = indexpbv2.NewIndexCoordClient(conn)
+			client = indexpb.NewIndexCoordClient(conn)
 		case "querycoord":
-			client = querypbv2.NewQueryCoordClient(conn)
+			client = querypb.NewQueryCoordClient(conn)
 		case "datanode":
-			client = datapbv2.NewDataNodeClient(conn)
+			client = datapb.NewDataNodeClient(conn)
 		case "querynode":
-			client = querypbv2.NewQueryNodeClient(conn)
-		case "indexnode":
-			client = indexpbv2.NewIndexNodeClient(conn)
+			client = querypb.NewQueryNodeClient(conn)
+			// case "indexnode":
+			// 	client = indexpbv2.NewIndexNodeClient(conn)
 		}
 		if client == nil {
 			continue
@@ -331,7 +327,7 @@ func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error 
 		}
 
 		// wrap with response
-		model := &internalpbv2.ShowConfigurationsResponse{
+		model := &internalpb.ShowConfigurationsResponse{
 			Configuations: configurations,
 		}
 		bs, err := proto.Marshal(model)

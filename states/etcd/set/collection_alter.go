@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	schemapbv2 "github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 // FieldAlterCommand returns `set collection-alter` command.

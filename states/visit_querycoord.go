@@ -13,16 +13,14 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
 type queryCoordState struct {
 	*framework.CmdState
 	session   *models.Session
 	client    querypb.QueryCoordClient
-	clientv2  querypbv2.QueryCoordClient
 	conn      *grpc.ClientConn
 	prevState framework.State
 }
@@ -35,7 +33,7 @@ func (s *queryCoordState) SetupCommands() {
 		// metrics
 		getMetricsCmd(s.client),
 		// configuration
-		getConfigurationCmd(s.clientv2, s.session.ServerID),
+		getConfigurationCmd(s.client, s.session.ServerID),
 		// back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -56,8 +54,8 @@ type BalanceSegmentParam struct {
 }
 
 func (s *queryCoordState) BalanceSegmentCommand(ctx context.Context, p *BalanceSegmentParam) error {
-	req := &querypbv2.LoadBalanceRequest{
-		Base: &commonpbv2.MsgBase{
+	req := &querypb.LoadBalanceRequest{
+		Base: &commonpb.MsgBase{
 			TargetID: s.session.ServerID,
 		},
 		CollectionID:     p.CollectionID,
@@ -65,7 +63,7 @@ func (s *queryCoordState) BalanceSegmentCommand(ctx context.Context, p *BalanceS
 		SourceNodeIDs:    p.SourceNodes,
 	}
 
-	resp, err := s.clientv2.LoadBalance(ctx, req)
+	resp, err := s.client.LoadBalance(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -84,8 +82,8 @@ func (s *queryCoordState) ShowCollectionCmd() *cobra.Command {
 				return
 			}
 
-			req := &querypbv2.ShowCollectionsRequest{
-				Base: &commonpbv2.MsgBase{
+			req := &querypb.ShowCollectionsRequest{
+				Base: &commonpb.MsgBase{
 					TargetID: s.session.ServerID,
 				},
 				CollectionIDs: []int64{collection},
@@ -110,7 +108,6 @@ func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, 
 		CmdState:  framework.NewCmdState(fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
-		clientv2:  querypbv2.NewQueryCoordClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -120,7 +117,7 @@ func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, 
 	return state
 }
 
-func checkerActivationCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Command {
+func checkerActivationCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "checker",
 		Short: "checker cmd",
@@ -133,7 +130,7 @@ func checkerActivationCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 	return cmd
 }
 
-func checkerActivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Command {
+func checkerActivateCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activate",
 		Short: "activate checkerID",
@@ -143,8 +140,8 @@ func checkerActivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Co
 				fmt.Println("checkerID must be a number")
 				return
 			}
-			req := &querypbv2.ActivateCheckerRequest{
-				Base: &commonpbv2.MsgBase{
+			req := &querypb.ActivateCheckerRequest{
+				Base: &commonpb.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
@@ -156,7 +153,7 @@ func checkerActivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Co
 				fmt.Println(err.Error())
 				return
 			}
-			if status.ErrorCode != commonpbv2.ErrorCode_Success {
+			if status.ErrorCode != commonpb.ErrorCode_Success {
 				fmt.Print(status.Reason)
 				return
 			}
@@ -167,7 +164,7 @@ func checkerActivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Co
 	return cmd
 }
 
-func checkerDeactivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Command {
+func checkerDeactivateCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deactivate",
 		Short: "deactivate checkerID",
@@ -177,8 +174,8 @@ func checkerDeactivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 				fmt.Println("checkerID must be a number")
 				return
 			}
-			req := &querypbv2.DeactivateCheckerRequest{
-				Base: &commonpbv2.MsgBase{
+			req := &querypb.DeactivateCheckerRequest{
+				Base: &commonpb.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
@@ -190,7 +187,7 @@ func checkerDeactivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 				fmt.Println(err.Error())
 				return
 			}
-			if status.ErrorCode != commonpbv2.ErrorCode_Success {
+			if status.ErrorCode != commonpb.ErrorCode_Success {
 				fmt.Print(status.Reason)
 				return
 			}
@@ -201,7 +198,7 @@ func checkerDeactivateCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.
 	return cmd
 }
 
-func checkerListCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Command {
+func checkerListCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "checker list [checkerIDs]",
@@ -215,8 +212,8 @@ func checkerListCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Comman
 				checkerIDs = append(checkerIDs, int32(checkerID))
 			}
 
-			req := &querypbv2.ListCheckersRequest{
-				Base: &commonpbv2.MsgBase{
+			req := &querypb.ListCheckersRequest{
+				Base: &commonpb.MsgBase{
 					TargetID: id,
 					SourceID: -1,
 				},
@@ -228,7 +225,7 @@ func checkerListCmd(clientv2 querypbv2.QueryCoordClient, id int64) *cobra.Comman
 				fmt.Println(err.Error())
 				return
 			}
-			if resp.Status.ErrorCode != commonpbv2.ErrorCode_Success {
+			if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
 				fmt.Println(resp.Status.Reason)
 				return
 			}

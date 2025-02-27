@@ -1,105 +1,80 @@
 package repair
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 )
 
-// AddIndexParamsCommand return repair segment command.
-func AddIndexParamsCommand(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "add_index_params",
-		Aliases: []string{"add_index_params"},
-		Short:   "check index param and try to add param",
-		Run: func(cmd *cobra.Command, args []string) {
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			run, err := cmd.Flags().GetBool("run")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			key, err := cmd.Flags().GetString("key")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			value, err := cmd.Flags().GetString("value")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			indexes, err := listIndexMetaV2(cli, basePath)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			newIndexes := make([]*indexpbv2.FieldIndex, 0)
-			for i, index := range indexes {
-				if collID != 0 && index.IndexInfo.CollectionID != collID {
-					continue
-				}
-				newIndex := proto.Clone(&indexes[i]).(*indexpbv2.FieldIndex)
-				indexType := ""
-				for _, pair := range index.IndexInfo.IndexParams {
-					if pair.Key == "index_type" {
-						indexType = pair.Value
-					}
-				}
-				if indexType != "DISKANN" && indexType != "HNSW" {
-					continue
-				}
-				exist := false
-				for _, pair := range index.IndexInfo.IndexParams {
-					if pair.Key == key {
-						exist = true
-						break
-					}
-				}
-				if !exist {
-					newIndex.IndexInfo.IndexParams = append(newIndex.IndexInfo.IndexParams, &commonpbv2.KeyValuePair{
-						Key:   key,
-						Value: value,
-					})
-					newIndexes = append(newIndexes, newIndex)
-				}
-			}
-			if !run {
-				fmt.Println("after repair index:")
-				for _, index := range newIndexes {
-					printIndexV2(*index)
-				}
-				return
-			}
-			for _, index := range newIndexes {
-				if err := writeRepairedIndex(cli, basePath, index); err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-			}
-			afterRepairIndexes, err := listIndexMetaV2(cli, basePath)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			for _, index := range afterRepairIndexes {
-				printIndexV2(index)
-			}
-		},
-	}
+type AddIndexParamParam struct {
+	framework.ParamBase `use:"repair add_index_params" desc:"check index param and try to add param"`
+	Collection          int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	Key                 string `name:"key" default:"retrieve_friendly" desc:"add params key"`
+	Value               string `name:"value" default:"true" desc:"add params value"`
+	Run                 bool   `name:"run" default:"false" desc:"actual do repair"`
+}
 
-	cmd.Flags().Int64("collection", 0, "collection id to filter with")
-	cmd.Flags().Bool("run", false, "actual do repair")
-	cmd.Flags().String("key", "retrieve_friendly", "add params key")
-	cmd.Flags().String("value", "true", "add params value")
-	return cmd
+func (c *ComponentRepair) AddIndexParamsCommand(ctx context.Context, p *AddIndexParamParam) error {
+	indexes, err := common.ListIndex(ctx, c.client, c.basePath, func(index *models.FieldIndex) bool {
+		return p.Collection == 0 || p.Collection == index.GetProto().GetIndexInfo().GetCollectionID()
+	})
+	if err != nil {
+		return err
+	}
+	newIndexes := make([]*models.FieldIndex, 0)
+	for _, index := range indexes {
+		indexType := ""
+		for _, pair := range index.GetProto().GetIndexInfo().GetIndexParams() {
+			if pair.Key == "index_type" {
+				indexType = pair.Value
+			}
+		}
+		if indexType != "DISKANN" && indexType != "HNSW" {
+			continue
+		}
+		exist := false
+		for _, pair := range index.GetProto().GetIndexInfo().GetIndexParams() {
+			if pair.Key == p.Key {
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			newIndex := proto.Clone(index.GetProto()).(*indexpb.FieldIndex)
+			newIndex.IndexInfo.IndexParams = append(newIndex.IndexInfo.IndexParams, &commonpb.KeyValuePair{
+				Key:   p.Key,
+				Value: p.Value,
+			})
+			newIndexes = append(newIndexes, models.NewProtoWrapper[*indexpb.FieldIndex](newIndex, index.Key()))
+		}
+	}
+	if !p.Run {
+		fmt.Println("Dry run, after repair index:")
+		for _, index := range newIndexes {
+			printIndexV2(index.GetProto())
+		}
+		return nil
+	}
+	for _, index := range newIndexes {
+		if err := writeRepairedIndex(c.client, c.basePath, index.GetProto()); err != nil {
+			return err
+		}
+	}
+	afterRepairIndexes, err := common.ListIndex(ctx, c.client, c.basePath, func(index *models.FieldIndex) bool {
+		return p.Collection == 0 || p.Collection == index.GetProto().GetIndexInfo().GetCollectionID()
+	})
+	if err != nil {
+		return err
+	}
+	for _, index := range afterRepairIndexes {
+		printIndexV2(index.GetProto())
+	}
+	return nil
 }

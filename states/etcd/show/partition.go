@@ -43,8 +43,9 @@ func (rs *Partitions) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
 		sb := &strings.Builder{}
-		for _, partition := range rs.Data {
-			fmt.Fprintf(sb, "Parition ID: %d\tName: %s\tState: %s\n", partition.ID, partition.Name, partition.State.String())
+		for _, info := range rs.Data {
+			partition := info.GetProto()
+			fmt.Fprintf(sb, "Parition ID: %d\tName: %s\tState: %s\n", partition.GetPartitionID(), partition.GetPartitionName(), partition.State.String())
 		}
 		fmt.Fprintf(sb, "--- Total Partition(s): %d\n", len(rs.Data))
 		return sb.String()

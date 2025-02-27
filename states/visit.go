@@ -14,18 +14,15 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
-	milvuspbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 func getSessionTypes() []string {
@@ -64,9 +61,10 @@ func setNextState(sessionType string, conn *grpc.ClientConn, state framework.Sta
 	case "indexcoord":
 		client := indexpb.NewIndexCoordClient(conn)
 		state.SetNext(getIndexCoordState(client, conn, state, session))
-	case "indexnode":
-		client := indexpb.NewIndexNodeClient(conn)
-		state.SetNext(getIndexNodeState(client, conn, state, session))
+	// case "indexnode":
+	// indexpb.New
+	// client := indexpb.NewIndexNodeClient(conn)
+	// state.SetNext(getIndexNodeState(client, conn, state, session))
 	case "querycoord":
 		client := querypb.NewQueryCoordClient(conn)
 		state.SetNext(getQueryCoordState(client, conn, state, session))
@@ -170,7 +168,7 @@ func getVisitSessionCmds(state framework.State, cli kv.MetaKV, basePath string) 
 }
 
 type configurationSource interface {
-	ShowConfigurations(context.Context, *internalpbv2.ShowConfigurationsRequest, ...grpc.CallOption) (*internalpbv2.ShowConfigurationsResponse, error)
+	ShowConfigurations(context.Context, *internalpb.ShowConfigurationsRequest, ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error)
 }
 
 type metricsSource interface {
@@ -186,9 +184,9 @@ func getMetrics(ctx context.Context, client metricsSource) (string, error) {
 	return resp.GetResponse(), err
 }
 
-func getConfiguration(ctx context.Context, client configurationSource, id int64) ([]*commonpbv2.KeyValuePair, error) {
-	resp, err := client.ShowConfigurations(ctx, &internalpbv2.ShowConfigurationsRequest{
-		Base: &commonpbv2.MsgBase{
+func getConfiguration(ctx context.Context, client configurationSource, id int64) ([]*commonpb.KeyValuePair, error) {
+	resp, err := client.ShowConfigurations(ctx, &internalpb.ShowConfigurationsRequest{
+		Base: &commonpb.MsgBase{
 			SourceID: -1,
 			TargetID: id,
 		},
@@ -196,7 +194,7 @@ func getConfiguration(ctx context.Context, client configurationSource, id int64)
 	return resp.GetConfiguations(), err
 }
 
-func compactCmd(client datapbv2.DataCoordClient) *cobra.Command {
+func compactCmd(client datapb.DataCoordClient) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "compact",
 		Short:   "manual compact with collectionID",
@@ -210,7 +208,7 @@ func compactCmd(client datapbv2.DataCoordClient) *cobra.Command {
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 			defer cancel()
-			resp, err := client.ManualCompaction(ctx, &milvuspbv2.ManualCompactionRequest{
+			resp, err := client.ManualCompaction(ctx, &milvuspb.ManualCompactionRequest{
 				CollectionID: collectionID,
 			})
 			if err != nil {
@@ -258,8 +256,8 @@ func getConfigurationCmd(client configurationSource, id int64) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
-			resp, err := client.ShowConfigurations(context.Background(), &internalpbv2.ShowConfigurationsRequest{
-				Base: &commonpbv2.MsgBase{
+			resp, err := client.ShowConfigurations(context.Background(), &internalpb.ShowConfigurationsRequest{
+				Base: &commonpb.MsgBase{
 					SourceID: -1,
 					TargetID: id,
 				},

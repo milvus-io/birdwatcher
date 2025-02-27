@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
 
 func restoreFromV1File(cli kv.MetaKV, rd io.Reader, header *models.BackupHeader) error {
@@ -95,27 +95,27 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 		}
 
 		switch ph.PartType {
-		case int32(models.EtcdBackup):
-			instance, err := restoreEtcdFromBackV2(state.client, rd, ph)
+		case models.PartType_EtcdBackup:
+			instance, err := restoreEtcdFromBackV2(state.client, rd, &ph)
 			if err != nil {
 				fmt.Println("failed to restore etcd from backup file", err.Error())
 				return err
 			}
 			state.SetInstance(instance)
-		case int32(models.MetricsBackup):
-			restoreMetrics(rd, ph, func(session *models.Session, metrics, defaultMetrics []byte) {
+		case models.PartType_MetricsBackup:
+			restoreMetrics(rd, &ph, func(session *models.Session, metrics, defaultMetrics []byte) {
 				state.metrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = metrics
 				state.defaultMetrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = defaultMetrics
 			})
-		case int32(models.Configurations):
+		case models.PartType_Configurations:
 			// testRestoreConfigurations(rd, ph)
-		case int32(models.AppMetrics):
+		case models.PartType_AppMetrics:
 			// testRestoreConfigurations(rd, ph)
 		}
 	}
 }
 
-func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph models.PartHeader) (string, error) {
+func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph *models.PartHeader) (string, error) {
 	meta := make(map[string]string)
 	err := json.Unmarshal(ph.Extra, &meta)
 	if err != nil {
@@ -251,7 +251,7 @@ func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph models.PartHeader) (s
 	return meta["instance"], nil
 }
 
-func restoreMetrics(rd io.Reader, ph models.PartHeader, handler func(session *models.Session, metrics, defaultMetrics []byte)) error {
+func restoreMetrics(rd io.Reader, ph *models.PartHeader, handler func(session *models.Session, metrics, defaultMetrics []byte)) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {
@@ -285,7 +285,7 @@ func restoreMetrics(rd io.Reader, ph models.PartHeader, handler func(session *mo
 	}
 }
 
-func testRestoreMetrics(rd io.Reader, ph models.PartHeader) error {
+func testRestoreMetrics(rd io.Reader, ph *models.PartHeader) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {
@@ -316,7 +316,7 @@ func testRestoreMetrics(rd io.Reader, ph models.PartHeader) error {
 	}
 }
 
-func testRestoreConfigurations(rd io.Reader, ph models.PartHeader) error {
+func testRestoreConfigurations(rd io.Reader, ph *models.PartHeader) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {
@@ -342,7 +342,7 @@ func testRestoreConfigurations(rd io.Reader, ph models.PartHeader) error {
 	}
 }
 
-func testRestoreAppMetrics(rd io.Reader, ph models.PartHeader) error {
+func testRestoreAppMetrics(rd io.Reader, ph *models.PartHeader) error {
 	for {
 		bs, nb, err := readBackupBytes(rd)
 		if err != nil {

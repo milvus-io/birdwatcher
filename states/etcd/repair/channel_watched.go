@@ -11,7 +11,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type ChannelWatchedParam struct {
@@ -22,9 +22,9 @@ type ChannelWatchedParam struct {
 }
 
 func (c *ComponentRepair) RepairChannelWatchedCommand(ctx context.Context, p *ChannelWatchedParam) error {
-	infos, err := common.ListChannelWatch(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(channel *models.ChannelWatch) bool {
-		return (p.CollectionID == 0 || channel.Vchan.CollectionID == p.CollectionID) &&
-			(p.ChannelName == "" || channel.Vchan.ChannelName == p.ChannelName)
+	infos, err := common.ListChannelWatch(ctx, c.client, c.basePath, func(channel *models.ChannelWatch) bool {
+		return (p.CollectionID == 0 || channel.GetProto().Vchan.CollectionID == p.CollectionID) &&
+			(p.ChannelName == "" || channel.GetProto().Vchan.ChannelName == p.ChannelName)
 	})
 	if err != nil {
 		return errors.Errorf("failed to list channel watch info, %w", err)
@@ -33,7 +33,7 @@ func (c *ComponentRepair) RepairChannelWatchedCommand(ctx context.Context, p *Ch
 	var targets []*models.ChannelWatch
 
 	for _, info := range infos {
-		if info.Schema == nil {
+		if info.GetProto().Schema == nil {
 			targets = append(targets, info)
 		}
 	}
@@ -45,19 +45,19 @@ func (c *ComponentRepair) RepairChannelWatchedCommand(ctx context.Context, p *Ch
 
 	for _, info := range targets {
 		fmt.Println("=================================================================")
-		fmt.Printf("Watch info with empty schema found, channel name = %s, key = %s", info.Vchan.ChannelName, info.Key())
+		fmt.Printf("Watch info with empty schema found, channel name = %s, key = %s", info.GetProto().Vchan.ChannelName, info.Key())
 
-		collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), info.Vchan.CollectionID)
+		collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, info.GetProto().Vchan.CollectionID)
 		if err != nil {
 			fmt.Println("failed to get collection schema: ", err.Error())
 		}
 		sb := &strings.Builder{}
-		info.Schema = &collection.Schema
+		info.GetProto().Schema = collection.GetProto().Schema
 		printSchema(sb, info)
 		fmt.Println("Collection schema found, about to set schema as:")
 		fmt.Println(sb.String())
 		if p.Run {
-			err := common.WriteChannelWatchInfo(ctx, c.client, c.basePath, info, collection.CollectionPBv2)
+			err := common.WriteChannelWatchInfo(ctx, c.client, c.basePath, info, collection.GetProto().GetSchema())
 			if err != nil {
 				fmt.Println("failed to write modified channel watch info, err: ", err.Error())
 				continue
@@ -71,7 +71,7 @@ func (c *ComponentRepair) RepairChannelWatchedCommand(ctx context.Context, p *Ch
 
 func printSchema(sb *strings.Builder, info *models.ChannelWatch) {
 	fmt.Fprintf(sb, "Fields:\n")
-	fields := info.Schema.Fields
+	fields := info.GetProto().Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].FieldID < fields[j].FieldID
 	})
@@ -90,14 +90,14 @@ func printSchema(sb *strings.Builder, info *models.ChannelWatch) {
 			fmt.Fprintf(sb, "\t - Clustering Key\n")
 		}
 		// print element type if field is array
-		if field.DataType == models.DataTypeArray {
+		if field.DataType == schemapb.DataType_Array {
 			fmt.Fprintf(sb, "\t - Element Type:  %s\n", field.ElementType.String())
 		}
 		// type params
-		for key, value := range field.Properties {
-			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", key, value)
+		for _, kv := range field.TypeParams {
+			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", kv.Key, kv.Value)
 		}
 	}
 
-	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.Schema.EnableDynamicSchema)
+	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.GetProto().Schema.EnableDynamicField)
 }

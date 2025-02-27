@@ -20,7 +20,6 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 type DownloadPKParam struct {
@@ -31,7 +30,7 @@ type DownloadPKParam struct {
 }
 
 func (s *InstanceState) DownloadPKCommand(ctx context.Context, p *DownloadPKParam) error {
-	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), p.CollectionID)
+	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, p.CollectionID)
 	if err != nil {
 		return err
 	}
@@ -40,7 +39,7 @@ func (s *InstanceState) DownloadPKCommand(ctx context.Context, p *DownloadPKPara
 		return errors.New("pk field not found")
 	}
 
-	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(s *models.Segment) bool {
 		return s.CollectionID == p.CollectionID && (p.SegmentID == 0 || p.SegmentID == s.ID)
 	})
 	if err != nil {

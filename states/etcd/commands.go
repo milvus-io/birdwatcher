@@ -11,7 +11,6 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/set"
-	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
@@ -23,16 +22,6 @@ func ShowCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 		Use: "show",
 	}
 
-	showCmd.AddCommand(
-		// v2.1 legacy commands
-
-		// show querycoord-tasks
-		show.QueryCoordTasks(cli, basePath),
-		// show querycoord-channels
-		show.QueryCoordChannelCommand(cli, basePath),
-		// show querycoord-cluster
-		show.QueryCoordClusterCommand(cli, basePath),
-	)
 	return showCmd
 }
 
@@ -43,20 +32,9 @@ func RepairCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	}
 
 	repairCmd.AddCommand(
-		// repair segment
-		repair.SegmentCommand(cli, basePath),
-		// repair channel
-		repair.ChannelCommand(cli, basePath),
-		// repair checkpoint
-		repair.CheckpointCommand(cli, basePath),
-		// repair empty-segment
-		repair.EmptySegmentCommand(cli, basePath),
 		// repair miss index metric_type
 		repair.IndexMetricCommand(cli, basePath),
 		repair.DiskAnnIndexParamsCommand(cli, basePath),
-		repair.AddIndexParamsCommand(cli, basePath),
-		// repair manual compaction
-		repair.ManualCompactionCommand(cli, basePath),
 		// check querynode collection leak
 		repair.CheckQNCollectionLeak(cli, basePath),
 	)
@@ -89,8 +67,6 @@ func RemoveCommand(cli kv.MetaKV, instanceName, basePath string) *cobra.Command 
 	removeCmd.AddCommand(
 		// remove segment
 		remove.SegmentCommand(cli, basePath),
-		// remove channel
-		remove.ChannelCommand(cli, basePath),
 		// remove binlog file
 		remove.BinlogCommand(cli, basePath),
 		// remove collection-drop
@@ -101,8 +77,6 @@ func RemoveCommand(cli kv.MetaKV, instanceName, basePath string) *cobra.Command 
 		remove.EtcdConfigCommand(cli, instanceName),
 		// remove collection has been dropped
 		remove.CollectionCleanCommand(cli, basePath),
-		// remove import job
-		remove.ImportJob(cli, basePath),
 	)
 
 	return removeCmd

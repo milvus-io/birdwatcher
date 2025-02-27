@@ -17,7 +17,7 @@ type ResourceGroupParam struct {
 
 func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGroupParam) (*ResourceGroups, error) {
 	rgs, err := common.ListResourceGroups(ctx, c.client, c.metaPath, func(rg *models.ResourceGroup) bool {
-		return p.Name == "" || p.Name == rg.GetName()
+		return p.Name == "" || p.Name == rg.GetProto().GetName()
 	})
 	if err != nil {
 		return nil, err
@@ -34,7 +34,8 @@ func (rs *ResourceGroups) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
 		sb := &strings.Builder{}
-		for _, rg := range rs.Data {
+		for _, info := range rs.Data {
+			rg := info.GetProto()
 			fmt.Fprintf(sb, "Resource Group Name: %s\tCapacity[Legacy]: %d\tNodes: %v\tLimit: %d\tRequest: %d\n", rg.GetName(), rg.GetCapacity(), rg.GetNodes(), rg.GetConfig().GetLimits().GetNodeNum(), rg.GetConfig().GetRequests().GetNodeNum())
 		}
 		fmt.Fprintf(sb, "--- Total Resource Group(s): %d\n", len(rs.Data))

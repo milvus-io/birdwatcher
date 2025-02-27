@@ -12,7 +12,6 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
@@ -32,15 +31,15 @@ func CollectionCleanCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			collections, err := common.ListCollectionsVersion(context.TODO(), cli, basePath, etcdversion.GetVersion())
+			collections, err := common.ListCollections(context.TODO(), cli, basePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
 
 			id2Collection := lo.SliceToMap(collections, func(col *models.Collection) (string, *models.Collection) {
-				fmt.Printf("existing collectionID %v\n", col.ID)
-				return strconv.FormatInt(col.ID, 10), col
+				fmt.Printf("existing collectionID %v\n", col.GetProto().ID)
+				return strconv.FormatInt(col.GetProto().ID, 10), col
 			})
 
 			cleanMetaFn := func(ctx context.Context, prefix string, opts ...ExcludePrefixOptions) error {

@@ -6,12 +6,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 var backupKeyPrefix = "birdwatcher/backup"
@@ -216,7 +216,7 @@ func removeBinlog(cli kv.MetaKV, key string) error {
 	return nil
 }
 
-func getFieldBinlog(cli kv.MetaKV, key string) (*datapbv2.FieldBinlog, error) {
+func getFieldBinlog(cli kv.MetaKV, key string) (*datapb.FieldBinlog, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	cli.Load(ctx, key)
@@ -225,7 +225,7 @@ func getFieldBinlog(cli kv.MetaKV, key string) (*datapbv2.FieldBinlog, error) {
 		fmt.Printf("get key:%s failed\n", key)
 		return nil, err
 	}
-	fieldBinlog := &datapbv2.FieldBinlog{}
+	fieldBinlog := &datapb.FieldBinlog{}
 	err = proto.Unmarshal([]byte(value), fieldBinlog)
 	if err != nil {
 		return nil, err
@@ -237,8 +237,8 @@ func getFieldBinlog(cli kv.MetaKV, key string) (*datapbv2.FieldBinlog, error) {
 	return fieldBinlog, nil
 }
 
-func removeLogFromFieldBinlog(key string, logID int64, fieldBinlog *datapbv2.FieldBinlog) (*datapbv2.FieldBinlog, error) {
-	binlogs := lo.Filter(fieldBinlog.GetBinlogs(), func(binlog *datapbv2.Binlog, _ int) bool {
+func removeLogFromFieldBinlog(key string, logID int64, fieldBinlog *datapb.FieldBinlog) (*datapb.FieldBinlog, error) {
+	binlogs := lo.Filter(fieldBinlog.GetBinlogs(), func(binlog *datapb.Binlog, _ int) bool {
 		if logID == binlog.GetLogID() {
 			fmt.Printf("logID matched, binlog: %s/%d\n", key, logID)
 		}
@@ -253,7 +253,7 @@ func removeLogFromFieldBinlog(key string, logID int64, fieldBinlog *datapbv2.Fie
 	return fieldBinlog, nil
 }
 
-func saveFieldBinlog(cli kv.MetaKV, key string, fieldBinlog *datapbv2.FieldBinlog) error {
+func saveFieldBinlog(cli kv.MetaKV, key string, fieldBinlog *datapb.FieldBinlog) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	mb, err := proto.Marshal(fieldBinlog)

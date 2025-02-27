@@ -13,8 +13,8 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
-	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 type TestMinioCfgParam struct {
@@ -59,7 +59,7 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss
 	if err != nil {
 		return nil, "", "", errors.New("find to connect to rootcoord")
 	}
-	source := rootcoordpbv2.NewRootCoordClient(conn)
+	source := rootcoordpb.NewRootCoordClient(conn)
 
 	configurations, err := getConfiguration(ctx, source, session.ServerID)
 	if err != nil {

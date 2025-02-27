@@ -29,9 +29,9 @@ import (
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	stateCommon "github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 const (

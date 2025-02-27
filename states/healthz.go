@@ -12,10 +12,9 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
 type HealthzCheckParam struct {
@@ -67,7 +66,7 @@ func (c *InstanceState) HealthzCheckCommand(ctx context.Context, p *HealthzCheck
 }
 
 func (c *InstanceState) checkSegmentTarget(ctx context.Context) ([]*HealthzCheckReport, error) {
-	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion())
+	segments, err := common.ListSegments(ctx, c.client, c.basePath)
 	if err != nil {
 		return nil, err
 	}
@@ -93,9 +92,9 @@ func (c *InstanceState) checkSegmentTarget(ctx context.Context) ([]*HealthzCheck
 		}
 
 		if session.ServerName == "querynode" {
-			clientv2 := querypbv2.NewQueryNodeClient(conn)
-			resp, err := clientv2.GetDataDistribution(ctx, &querypbv2.GetDataDistributionRequest{
-				Base: &commonpbv2.MsgBase{
+			clientv2 := querypb.NewQueryNodeClient(conn)
+			resp, err := clientv2.GetDataDistribution(ctx, &querypb.GetDataDistributionRequest{
+				Base: &commonpb.MsgBase{
 					SourceID: -1,
 					TargetID: session.ServerID,
 				},

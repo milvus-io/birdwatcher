@@ -21,7 +21,7 @@ type DatabaseParam struct {
 // DatabaseCommand returns show database comand.
 func (c *ComponentShow) DatabaseCommand(ctx context.Context, p *DatabaseParam) (*Databases, error) {
 	dbs, err := common.ListDatabase(ctx, c.client, c.metaPath, func(db *models.Database) bool {
-		return (p.DatabaseName == "" || db.Name == p.DatabaseName) && (p.DatabaseID == 0 || db.ID == p.DatabaseID)
+		return (p.DatabaseName == "" || db.GetProto().GetName() == p.DatabaseName) && (p.DatabaseID == 0 || db.GetProto().GetId() == p.DatabaseID)
 	})
 	if err != nil {
 		fmt.Println("failed to list database info", err.Error())
@@ -49,12 +49,13 @@ func (rs *Databases) PrintAs(format framework.Format) string {
 	return ""
 }
 
-func (rs *Databases) printDatabaseInfo(sb *strings.Builder, db *models.Database) {
+func (rs *Databases) printDatabaseInfo(sb *strings.Builder, m *models.Database) {
+	db := m.GetProto()
 	fmt.Fprintln(sb, "=============================")
-	fmt.Fprintf(sb, "ID: %d\tName: %s\n", db.ID, db.Name)
-	fmt.Fprintf(sb, "TenantID: %s\t State: %s\n", db.TenantID, db.State.String())
+	fmt.Fprintf(sb, "ID: %d\tName: %s\n", db.Id, db.Name)
+	fmt.Fprintf(sb, "TenantID: %s\t State: %s\n", db.TenantId, db.State.String())
 	fmt.Fprintf(sb, "Database properties(%d):\n", len(db.Properties))
-	for k, v := range db.Properties {
-		fmt.Fprintf(sb, "\t%s: %v\n", k, v)
+	for _, kv := range db.Properties {
+		fmt.Fprintf(sb, "\t%s: %v\n", kv.GetKey(), kv.GetValue())
 	}
 }

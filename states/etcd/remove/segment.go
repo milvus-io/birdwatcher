@@ -1,6 +1,7 @@
 package remove
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -8,12 +9,12 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 // SegmentCommand returns remove segment command.
@@ -72,7 +73,7 @@ func SegmentCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 					return err
 				}
 
-				if err = common.RemoveSegment(cli, basePath, info); err != nil {
+				if err = common.RemoveSegment(context.TODO(), cli, basePath, info); err != nil {
 					fmt.Printf("Remove segment %d from Etcd failed, err: %s\n", info.ID, err.Error())
 					return err
 				}

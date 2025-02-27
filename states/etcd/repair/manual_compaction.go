@@ -5,44 +5,33 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/spf13/cobra"
+	"github.com/cockroachdb/errors"
 	"google.golang.org/grpc"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/milvuspb"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
-func ManualCompactionCommand(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "manual-compaction",
-		Short: "do manual compaction",
-		Run: func(cmd *cobra.Command, args []string) {
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if collID == 0 {
-				fmt.Printf("collection id should not be zero\n")
-				return
-			}
-			doManualCompaction(cli, basePath, collID)
-		},
-	}
-	cmd.Flags().Int64("collection", 0, "collection id")
-	return cmd
+type ManualCompactionParam struct {
+	framework.ParamBase `use:"repair manual-compaction" desc:"do manual compaction"`
+	Collection          int64 `name:"collection" default:"0" desc:"collection id"`
 }
 
-func doManualCompaction(cli kv.MetaKV, basePath string, collID int64) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func (c *ComponentRepair) ManualCompactionCommand(ctx context.Context, p *ManualCompactionParam) error {
+	if p.Collection == 0 {
+		return errors.New("collection id should not be zero")
+	}
+	return doManualCompaction(ctx, c.client, c.basePath, p.Collection)
+}
+
+func doManualCompaction(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) error {
 	sessions, err := common.ListSessions(ctx, cli, basePath)
 	if err != nil {
-		fmt.Println("failed to list session")
-		return
+		return errors.Wrap(err, "failed to list session")
 	}
 	for _, session := range sessions {
 		if session.ServerName == "datacoord" {
@@ -54,8 +43,7 @@ func doManualCompaction(cli kv.MetaKV, basePath string, collID int64) {
 
 			conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
 			if err != nil {
-				fmt.Printf("failed to connect to DataCoord(%d) addr: %s, err: %s\n", session.ServerID, session.Address, err.Error())
-				return
+				return errors.Wrapf(err, "failed to connect to DataCoord(%d) addr: %s", session.ServerID, session.Address)
 			}
 
 			client := datapb.NewDataCoordClient(conn)
@@ -63,14 +51,14 @@ func doManualCompaction(cli kv.MetaKV, basePath string, collID int64) {
 				CollectionID: collID,
 			})
 			if err != nil {
-				fmt.Println("failed to call ManualCompaction", err.Error())
-				return
+				return errors.Wrap(err, "failed to call ManualCompaction")
 			}
 			if result.Status.ErrorCode != commonpb.ErrorCode_Success {
-				fmt.Printf("ManualCompaction failed, error code = %s, reason = %s\n", result.Status.ErrorCode.String(), result.Status.Reason)
-				return
+				return errors.Newf("ManualCompaction failed, error code = %s, reason = %s", result.Status.ErrorCode.String(), result.Status.Reason)
 			}
 			fmt.Printf("ManualCompaction trigger success, id: %d\n", result.CompactionID)
+			return nil
 		}
 	}
+	return errors.New("datacoord not found in session list")
 }

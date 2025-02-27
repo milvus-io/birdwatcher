@@ -13,10 +13,10 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type ScanDeltalogParams struct {
@@ -33,7 +33,7 @@ type ScanDeltalogParams struct {
 }
 
 func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalogParams) error {
-	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), p.CollectionID)
+	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, p.CollectionID)
 	if err != nil {
 		return err
 	}
@@ -51,22 +51,22 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 
 	fields := make(map[int64]models.FieldSchema) // make([]models.FieldSchema, 0, len(p.Fields))
 
-	for _, fieldSchema := range collection.Schema.Fields {
+	for _, fieldSchema := range collection.GetProto().Schema.Fields {
 		// timestamp field id
 		if fieldSchema.FieldID == 1 {
-			fields[fieldSchema.FieldID] = fieldSchema
+			fields[fieldSchema.FieldID] = models.NewFieldSchemaFromBase(fieldSchema)
 			continue
 		}
 		if _, ok := fieldsMap[fieldSchema.Name]; ok {
 			fmt.Printf("Output Field %s field id %d\n", fieldSchema.Name, fieldSchema.FieldID)
-			fields[fieldSchema.FieldID] = fieldSchema
+			fields[fieldSchema.FieldID] = models.NewFieldSchemaFromBase(fieldSchema)
 		}
 	}
 
-	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(s *models.Segment) bool {
 		return (p.SegmentID == 0 || p.SegmentID == s.ID) &&
 			p.CollectionID == s.CollectionID &&
-			(p.IncludeUnhealthy || s.State != models.SegmentStateDropped)
+			(p.IncludeUnhealthy || s.State != commonpb.SegmentState_Dropped)
 	})
 	if err != nil {
 		return err

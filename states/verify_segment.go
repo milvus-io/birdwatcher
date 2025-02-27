@@ -11,8 +11,8 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
 
 func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
@@ -31,8 +31,8 @@ func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			segments, err := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(seg *models.Segment) bool {
-				return seg.CollectionID == collectionID && seg.State == models.SegmentStateFlushed
+			segments, err := common.ListSegments(context.Background(), cli, basePath, func(seg *models.Segment) bool {
+				return seg.CollectionID == collectionID && seg.State == commonpb.SegmentState_Flushed
 			})
 			if err != nil {
 				fmt.Println("failed to list segment info", err.Error())

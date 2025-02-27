@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
-	"google.golang.org/protobuf/runtime/protoiface"
+	"github.com/samber/lo"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
@@ -43,8 +44,8 @@ LOOP:
 // ListProtoObjects returns proto objects with specified prefix.
 func ListProtoObjects[T any, P interface {
 	*T
-	protoiface.MessageV1
-}](ctx context.Context, kv kv.MetaKV, prefix string, filters ...func(t *T) bool) ([]T, []string, error) {
+	proto.Message
+}](ctx context.Context, kv kv.MetaKV, prefix string, filters ...func(t *T) bool) ([]*T, []string, error) {
 	keys, vals, err := kv.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, nil, err
@@ -52,7 +53,7 @@ func ListProtoObjects[T any, P interface {
 	if len(keys) != len(vals) {
 		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListProtoObjects:%d vs %d", len(keys), len(vals))
 	}
-	result := make([]T, 0, len(keys))
+	result := make([]*T, 0, len(keys))
 LOOP:
 	for idx, val := range vals {
 		var elem T
@@ -72,7 +73,7 @@ LOOP:
 				continue LOOP
 			}
 		}
-		result = append(result, elem)
+		result = append(result, &elem)
 	}
 	return result, keys, nil
 }
@@ -81,8 +82,8 @@ LOOP:
 // add preFilter to handle tombstone cases.
 func ListProtoObjectsAdv[T any, P interface {
 	*T
-	protoiface.MessageV1
-}](ctx context.Context, kv kv.MetaKV, prefix string, preFilter func(string, []byte) bool, filters ...func(t *T) bool) ([]T, []string, error) {
+	proto.Message
+}](ctx context.Context, kv kv.MetaKV, prefix string, preFilter func(string, []byte) bool, filters ...func(t *T) bool) ([]*T, []string, error) {
 	keys, vals, err := kv.LoadWithPrefix(ctx, prefix)
 	if err != nil {
 		return nil, nil, err
@@ -90,7 +91,7 @@ func ListProtoObjectsAdv[T any, P interface {
 	if len(keys) != len(vals) {
 		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListProtoObjectsAdv:%d vs %d", len(keys), len(vals))
 	}
-	result := make([]T, 0, len(vals))
+	result := make([]*T, 0, len(vals))
 LOOP:
 	for i, val := range vals {
 		if !preFilter(keys[i], []byte(val)) {
@@ -109,7 +110,26 @@ LOOP:
 				continue LOOP
 			}
 		}
-		result = append(result, elem)
+		result = append(result, &elem)
 	}
 	return result, keys, nil
+}
+
+func ListObj2Models[T any, proto interface {
+	*T
+	protoreflect.ProtoMessage
+}, M any](ctx context.Context, cli kv.MetaKV, prefix string, convert func(proto, string) *M, filters ...func(*M) bool) ([]*M, error) {
+	infos, keys, err := ListProtoObjects[T, proto](ctx, cli, prefix)
+	if err != nil {
+		return nil, err
+	}
+	return lo.FilterMap(infos, func(info *T, idx int) (*M, bool) {
+		result := convert(info, keys[idx])
+		for _, filter := range filters {
+			if !filter(result) {
+				return nil, false
+			}
+		}
+		return result, true
+	}), nil
 }

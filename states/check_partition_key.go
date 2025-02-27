@@ -17,10 +17,10 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type CheckPartitionKeyParam struct {
@@ -37,8 +37,8 @@ type CheckPartitionKeyParam struct {
 var errQuickExit = errors.New("quick exit")
 
 func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPartitionKeyParam) error {
-	collections, err := common.ListCollectionsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(collection *models.Collection) bool {
-		return p.CollectionID == 0 || collection.ID == p.CollectionID
+	collections, err := common.ListCollections(ctx, s.client, s.basePath, func(collection *models.Collection) bool {
+		return p.CollectionID == 0 || collection.GetProto().ID == p.CollectionID
 	})
 	if err != nil {
 		return err
@@ -69,17 +69,18 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 
 	var suspectCollections []*suspectCollection
 
-	for _, collection := range collections {
-		partKeyField, enablePartKey := lo.Find(collection.Schema.Fields, func(field models.FieldSchema) bool {
+	for _, info := range collections {
+		collection := info.GetProto()
+		partKeyField, enablePartKey := lo.Find(collection.Schema.Fields, func(field *schemapb.FieldSchema) bool {
 			return field.IsPartitionKey
 		})
 		if !enablePartKey {
 			continue
 		}
-		pkField, _ := lo.Find(collection.Schema.Fields, func(field models.FieldSchema) bool {
+		pkField, _ := lo.Find(collection.Schema.Fields, func(field *schemapb.FieldSchema) bool {
 			return field.IsPrimaryKey
 		})
-		tsField, _ := lo.Find(collection.Schema.Fields, func(field models.FieldSchema) bool {
+		tsField, _ := lo.Find(collection.Schema.Fields, func(field *schemapb.FieldSchema) bool {
 			return field.FieldID == 1
 		})
 
@@ -89,7 +90,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		}
 
 		partIdx := lo.SliceToMap(partitions, func(partition *models.Partition) (int64, uint32) {
-			splits := strings.Split(partition.Name, "_")
+			splits := strings.Split(partition.GetProto().PartitionName, "_")
 			if len(splits) < 2 {
 				return -1, 0
 			}
@@ -100,36 +101,36 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 			if (index >= int64(len(partitions))) || (index < 0) {
 				return -1, 0
 			}
-			return partition.ID, uint32(index)
+			return partition.GetProto().PartitionID, uint32(index)
 		})
 		idName := lo.SliceToMap(partitions, func(partition *models.Partition) (int64, string) {
-			return partition.ID, partition.Name
+			return partition.GetProto().PartitionID, partition.GetProto().PartitionName
 		})
 
 		suspectCollections = append(suspectCollections, &suspectCollection{
-			collection:   collection,
+			collection:   info,
 			partitions:   partitions,
 			partIndex:    partIdx,
 			idName:       idName,
-			partKeyField: partKeyField,
-			pkField:      pkField,
-			tsField:      tsField,
+			partKeyField: models.NewFieldSchemaFromBase(partKeyField),
+			pkField:      models.NewFieldSchemaFromBase(pkField),
+			tsField:      models.NewFieldSchemaFromBase(tsField),
 		})
 	}
 
 	for _, susCol := range suspectCollections {
-		collection := susCol.collection
+		collection := susCol.collection.GetProto()
 		partitions := susCol.partitions
 		partKeyField := susCol.partKeyField
 		partIdx := susCol.partIndex
-		pkField, _ := collection.GetPKField()
-		idField := lo.SliceToMap(collection.Schema.Fields, func(field models.FieldSchema) (int64, models.FieldSchema) {
+		pkField, _ := susCol.collection.GetPKField()
+		idField := lo.SliceToMap(collection.Schema.Fields, func(field *schemapb.FieldSchema) (int64, *schemapb.FieldSchema) {
 			return field.FieldID, field
 		})
 
 		fmt.Printf("Start to check collection %s id = %d\n", collection.Schema.Name, collection.ID)
 
-		segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
+		segments, err := common.ListSegments(ctx, s.client, s.basePath, func(segment *models.Segment) bool {
 			return segment.CollectionID == collection.ID
 		})
 		if err != nil {
@@ -146,7 +147,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		fmt.Fprintf(progressDisplay, progressFmt, 0, 0, len(segments), "")
 
 		for idx, segment := range segments {
-			if segment.State == models.SegmentStateDropped || segment.State == models.SegmentStateSegmentStateNone {
+			if segment.State == commonpb.SegmentState_Dropped || segment.State == commonpb.SegmentState_NotExist {
 				continue
 			}
 			var errCnt int
@@ -170,16 +171,16 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 					if err != nil {
 						return err
 					}
-					pqWriter = storage.NewParquetWriter(collection)
+					pqWriter = storage.NewParquetWriter(susCol.collection)
 				}
-				deltalog, err := s.DownloadDeltalogs(ctx, minioClient, bucketName, rootPath, collection, segment)
+				deltalog, err := s.DownloadDeltalogs(ctx, minioClient, bucketName, rootPath, susCol.collection, segment)
 				if err != nil {
 					return err
 				}
 
-				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, selector, func(readers map[int64]*storage.BinlogReader) {
+				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, susCol.collection, segment, selector, func(readers map[int64]*storage.BinlogReader) {
 					targetIndex := partIdx[segment.PartitionID]
-					iter, err := NewBinlogIterator(collection, readers)
+					iter, err := NewBinlogIterator(susCol.collection, readers)
 					if err != nil {
 						fmt.Println("failed to create iterator", err.Error())
 						return
@@ -238,7 +239,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 							data[0] = rowID
 							data[1] = ts
 							data[pkField.FieldID] = pk.GetValue()
-							writeParquetData(collection, pqWriter, rowID, ts, pk, output)
+							writeParquetData(susCol.collection, pqWriter, rowID, ts, pk, output)
 						}
 						return nil
 					})
@@ -299,13 +300,13 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 // }
 
 func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Client, bucket, rootPath string, collection *models.Collection, segment *models.Segment) (*storage.DeltaData, error) {
-	pkField, has := lo.Find(collection.Schema.Fields, func(field models.FieldSchema) bool {
+	pkField, has := lo.Find(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) bool {
 		return field.IsPrimaryKey
 	})
 	if !has {
 		return nil, errors.New("pk not found")
 	}
-	data := storage.NewDeltaData(schemapb.DataType(pkField.DataType), 0)
+	data := storage.NewDeltaData(pkField.DataType, 0)
 	for _, delFieldBinlog := range segment.GetDeltalogs() {
 		for _, binlog := range delFieldBinlog.Binlogs {
 			filePath := strings.Replace(binlog.LogPath, "ROOT_PATH", rootPath, -1)
@@ -323,7 +324,7 @@ func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Cli
 
 			var deltaData *storage.DeltaData
 			for err == nil {
-				deltaData, err = reader.NextEventReader(schemapb.DataType(pkField.DataType))
+				deltaData, err = reader.NextEventReader(pkField.DataType)
 				if err == nil {
 					err = data.Merge(deltaData)
 					if err != nil {

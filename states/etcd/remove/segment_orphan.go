@@ -10,7 +10,6 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 type SegmentOrphan struct {
@@ -21,7 +20,7 @@ type SegmentOrphan struct {
 
 // SegmentOrphanCommand returns command to remove
 func (c *ComponentRemove) SegmentOrphanCommand(ctx context.Context, p *SegmentOrphan) error {
-	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, c.client, c.basePath, func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID)
 	})
 	if err != nil {
@@ -33,7 +32,7 @@ func (c *ComponentRemove) SegmentOrphanCommand(ctx context.Context, p *SegmentOr
 	})
 
 	for collectionID, segments := range groups {
-		_, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), collectionID)
+		_, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, collectionID)
 		if errors.Is(err, common.ErrCollectionNotFound) {
 			// print segments
 			fmt.Printf("Collection %d missing, orphan segments: %v\n", collectionID, lo.Map(segments, func(segment *models.Segment, idx int) int64 {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
 )
 
 // CollectionDropCommand returns `remove collection-drop` command.
@@ -32,20 +32,20 @@ func CollectionDropCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 
 			var collections []*models.Collection
 			if collectionID > 0 {
-				collection, err := common.GetCollectionByIDVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), collectionID)
+				collection, err := common.GetCollectionByIDVersion(context.Background(), cli, basePath, collectionID)
 				if err != nil {
 					fmt.Printf("failed to get collection by id(%d): %s\n", collectionID, err.Error())
 					return
 				}
 				// skip healthy collection
-				if collection.State != models.CollectionStateCollectionDropping && collection.State != models.CollectionStateCollectionDropped {
-					fmt.Printf("Collection State is [%s]\n", collection.State.String())
+				if collection.GetProto().State != etcdpb.CollectionState_CollectionDropping && collection.GetProto().State != etcdpb.CollectionState_CollectionDropped {
+					fmt.Printf("Collection State is [%s]\n", collection.GetProto().State.String())
 					return
 				}
 				collections = append(collections, collection)
 			} else {
-				collections, err = common.ListCollectionsVersion(context.Background(), cli, basePath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
-					return coll.State == models.CollectionStateCollectionDropping || coll.State == models.CollectionStateCollectionDropped
+				collections, err = common.ListCollections(context.Background(), cli, basePath, func(coll *models.Collection) bool {
+					return coll.GetProto().State == etcdpb.CollectionState_CollectionDropping || coll.GetProto().State == etcdpb.CollectionState_CollectionDropped
 				})
 				if err != nil {
 					fmt.Println("failed to list collection", err.Error())
@@ -54,7 +54,7 @@ func CollectionDropCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 			}
 
 			for _, collection := range collections {
-				fmt.Printf("Found Dropping Collection ID: %s[%d]\n", collection.Schema.Name, collection.ID)
+				fmt.Printf("Found Dropping Collection ID: %s[%d]\n", collection.GetProto().Schema.Name, collection.GetProto().ID)
 				cleanCollectionDropMeta(cli, basePath, collection, run)
 			}
 		},
@@ -65,9 +65,10 @@ func CollectionDropCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func cleanCollectionDropMeta(cli kv.MetaKV, basePath string, collection *models.Collection, run bool) {
+func cleanCollectionDropMeta(cli kv.MetaKV, basePath string, info *models.Collection, run bool) {
+	collection := info.GetProto()
 	fmt.Println("Clean collection(drop) meta:")
-	if collection.Key() == "" {
+	if info.Key() == "" {
 		fmt.Printf("Collection %s[%d] key is empty string, cannot perform cleanup", collection.Schema.Name, collection.ID)
 		return
 	}
@@ -85,8 +86,8 @@ func cleanCollectionDropMeta(cli kv.MetaKV, basePath string, collection *models.
 	}
 
 	var collectionKey string
-	if collection.DBID != 0 {
-		collectionKey = fmt.Sprintf("root-coord/database/collection-info/%d/%d", collection.DBID, collection.ID)
+	if collection.DbId != 0 {
+		collectionKey = fmt.Sprintf("root-coord/database/collection-info/%d/%d", collection.DbId, collection.ID)
 	} else {
 		collectionKey = fmt.Sprintf("root-coord/collection/%d", collection.ID)
 	}
@@ -103,8 +104,8 @@ func cleanCollectionDropMeta(cli kv.MetaKV, basePath string, collection *models.
 		}
 	}
 
-	channelWatchInfos, err := common.ListChannelWatch(context.Background(), cli, basePath, etcdversion.GetVersion(), func(cw *models.ChannelWatch) bool {
-		return cw.Vchan.CollectionID == collection.ID
+	channelWatchInfos, err := common.ListChannelWatch(context.Background(), cli, basePath, func(cw *models.ChannelWatch) bool {
+		return cw.GetProto().Vchan.CollectionID == collection.ID
 	})
 	if err != nil {
 		fmt.Printf("failed to list channel watch info for collection[%d], err: %s\n", collection.ID, err.Error())
@@ -113,7 +114,7 @@ func cleanCollectionDropMeta(cli kv.MetaKV, basePath string, collection *models.
 	for _, info := range channelWatchInfos {
 		// remove channel watch meta
 		if info.Key() == "" {
-			fmt.Printf("channel[%s] watch info key is empty\n", info.Vchan.ChannelName)
+			fmt.Printf("channel[%s] watch info key is empty\n", info.GetProto().Vchan.ChannelName)
 			return
 		}
 		fmt.Println("channel watch info:", info.Key())
@@ -121,7 +122,7 @@ func cleanCollectionDropMeta(cli kv.MetaKV, basePath string, collection *models.
 	}
 
 	// channel checkpoint and removal
-	for _, channel := range collection.Channels {
+	for _, channel := range info.Channels() {
 		cpKey := path.Join(basePath, "datacoord-meta/channel-cp", channel.VirtualName)
 		fmt.Println("channel checkpoint:", cpKey)
 		cli.Remove(context.TODO(), cpKey)

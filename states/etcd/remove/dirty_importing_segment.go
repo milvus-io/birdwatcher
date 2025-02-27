@@ -9,7 +9,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
 
 type DirtyImportingSegment struct {
@@ -22,7 +22,7 @@ type DirtyImportingSegment struct {
 // DirtyImportingSegmentCommand returns command to remove
 func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *DirtyImportingSegment) error {
 	fmt.Println("start to remove dirty importing segment")
-	segments, err := common.ListSegmentsVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, c.client, c.basePath, func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID)
 	})
 	if err != nil {
@@ -35,7 +35,7 @@ func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *D
 
 	for collectionID, segments := range groups {
 		for _, segment := range segments {
-			if segment.State == models.SegmentStateImporting {
+			if segment.State == commonpb.SegmentState_Importing {
 				segmentTs := segment.GetDmlPosition().GetTimestamp()
 				if segmentTs == 0 {
 					segmentTs = segment.GetStartPosition().GetTimestamp()
