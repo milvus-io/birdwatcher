@@ -19,7 +19,7 @@ package mq
 import (
 	"errors"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
 
 // UnmarshalFunc is an interface that has been implemented by each Msg

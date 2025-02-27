@@ -13,8 +13,8 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type ChannelWatchedParam struct {
@@ -27,8 +27,9 @@ type ChannelWatchedParam struct {
 
 // ChannelWatchedCommand return show channel-watched commands.
 func (c *ComponentShow) ChannelWatchedCommand(ctx context.Context, p *ChannelWatchedParam) (*framework.PresetResultSet, error) {
-	infos, err := common.ListChannelWatch(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(channel *models.ChannelWatch) bool {
-		return (p.CollectionID == 0 || channel.Vchan.CollectionID == p.CollectionID) && (!p.WithoutSchema || channel.Schema == nil)
+	infos, err := common.ListChannelWatch(ctx, c.client, c.metaPath, func(ch *models.ChannelWatch) bool {
+		channel := ch.GetProto()
+		return (p.CollectionID == 0 || channel.GetVchan().CollectionID == p.CollectionID) && (!p.WithoutSchema || channel.GetSchema() == nil)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list channel watch info")
@@ -66,9 +67,10 @@ func (rs *ChannelsWatched) PrintAs(format framework.Format) string {
 	return sb.String()
 }
 
-func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, info *models.ChannelWatch) {
+func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, m *models.ChannelWatch) {
+	info := m.GetProto()
 	fmt.Fprintln(sb, "=============================")
-	fmt.Fprintf(sb, "key: %s\n", info.Key())
+	fmt.Fprintf(sb, "key: %s\n", m.Key())
 	fmt.Fprintf(sb, "Channel Name:%s \t WatchState: %s\n", info.Vchan.ChannelName, info.State.String())
 
 	t := time.Unix(info.StartTs, 0)
@@ -114,21 +116,22 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, info *mode
 			fmt.Fprintf(sb, "\t - Clustering Key\n")
 		}
 		// print element type if field is array
-		if field.DataType == models.DataTypeArray {
+		if field.DataType == schemapb.DataType_Array {
 			fmt.Fprintf(sb, "\t - Element Type:  %s\n", field.ElementType.String())
 		}
 		// type params
-		for key, value := range field.Properties {
-			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", key, value)
+		for _, kv := range field.TypeParams {
+			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", kv.Key, kv.Value)
 		}
 	}
 
-	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.Schema.EnableDynamicSchema)
+	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.Schema.EnableDynamicField)
 }
 
-func (rs *ChannelsWatched) printChannelWatchInfoJSON(sb *strings.Builder, info *models.ChannelWatch) {
+func (rs *ChannelsWatched) printChannelWatchInfoJSON(sb *strings.Builder, model *models.ChannelWatch) {
+	info := model.GetProto()
 	m := make(map[string]any)
-	m["key"] = info.Key()
+	m["key"] = model.Key()
 	m["channel_name"] = info.Vchan.ChannelName
 
 	pos := info.Vchan.SeekPosition

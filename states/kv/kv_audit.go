@@ -8,8 +8,9 @@ import (
 	"os"
 
 	"github.com/cockroachdb/errors"
-	"github.com/golang/protobuf/proto"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/protoadapt"
 
 	"github.com/milvus-io/birdwatcher/models"
 )
@@ -39,13 +40,13 @@ func (c *FileAuditKV) LoadWithPrefix(ctx context.Context, key string, opts ...Lo
 }
 
 func (c *FileAuditKV) Save(ctx context.Context, key, value string) error {
-	c.writeHeader(models.OpPut, 2)
+	c.writeHeader(models.AuditOpType_OpPut, 2)
 	err := c.cli.Save(ctx, key, value)
 	if err == nil {
-		c.writeHeader(models.OpPutBefore, 1)
+		c.writeHeader(models.AuditOpType_OpPutBefore, 1)
 		c.writeKeyValue(key, value)
 	}
-	c.writeHeader(models.OpPutAfter, 1)
+	c.writeHeader(models.AuditOpType_OpPutAfter, 1)
 	return err
 }
 
@@ -64,7 +65,7 @@ func (c *FileAuditKV) Remove(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	c.writeHeader(models.OpDel, 1)
+	c.writeHeader(models.AuditOpType_OpDel, 1)
 	c.writeKeyValue(key, val)
 	return nil
 }
@@ -80,7 +81,7 @@ func (c *FileAuditKV) RemoveWithPrefix(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	c.writeHeader(models.OpDel, 1)
+	c.writeHeader(models.AuditOpType_OpDel, 1)
 	for i, key := range keys {
 		val := values[i]
 		c.writeKeyValue(key, val)
@@ -122,7 +123,7 @@ func (c *FileAuditKV) writeLogKV(kv *mvccpb.KeyValue) {
 	if kv == (*mvccpb.KeyValue)(nil) {
 		return
 	}
-	bs, _ := proto.Marshal(kv)
+	bs, _ := proto.Marshal(protoadapt.MessageV2Of(kv))
 	c.writeData(bs)
 }
 

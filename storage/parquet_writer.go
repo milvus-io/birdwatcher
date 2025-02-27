@@ -15,6 +15,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 func ToArrowDataType(dataType models.DataType, dim int) arrow.DataType {
@@ -58,11 +59,12 @@ type ParquetWriter struct {
 }
 
 func NewParquetWriter(collection *models.Collection) *ParquetWriter {
-	fields := lo.Map(collection.Schema.Fields, func(field models.FieldSchema, _ int) arrow.Field {
-		dim, _ := field.GetDim()
+	fields := lo.Map(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema, _ int) arrow.Field {
+		fs := models.NewFieldSchemaFromBase(field)
+		dim, _ := fs.GetDim()
 		return arrow.Field{
 			Name: field.Name,
-			Type: ToArrowDataType(field.DataType, int(dim)),
+			Type: ToArrowDataType(fs.DataType, int(dim)),
 		}
 	})
 

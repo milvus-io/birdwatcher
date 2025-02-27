@@ -12,12 +12,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 type GetConfigurationParam struct {
@@ -58,19 +58,19 @@ func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfi
 		var client configurationSource
 		switch strings.ToLower(session.ServerName) {
 		case "rootcoord":
-			client = rootcoordpbv2.NewRootCoordClient(conn)
+			client = rootcoordpb.NewRootCoordClient(conn)
 		case "datacoord":
-			client = datapbv2.NewDataCoordClient(conn)
+			client = datapb.NewDataCoordClient(conn)
 		case "indexcoord":
-			client = indexpbv2.NewIndexCoordClient(conn)
+			client = indexpb.NewIndexCoordClient(conn)
 		case "querycoord":
-			client = querypbv2.NewQueryCoordClient(conn)
+			client = querypb.NewQueryCoordClient(conn)
 		case "datanode":
-			client = datapbv2.NewDataNodeClient(conn)
+			client = datapb.NewDataNodeClient(conn)
 		case "querynode":
-			client = querypbv2.NewQueryNodeClient(conn)
-		case "indexnode":
-			client = indexpbv2.NewIndexNodeClient(conn)
+			client = querypb.NewQueryNodeClient(conn)
+			// case "indexnode":
+			// 	client = indexpbv2.NewIndexNodeClient(conn)
 		}
 		if client == nil {
 			fmt.Println("client nil", session.String())

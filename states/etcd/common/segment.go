@@ -4,72 +4,79 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"sort"
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/golang/protobuf/proto"
-	"github.com/samber/lo"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
-const (
-	SegmentMetaPrefix      = "datacoord-meta/s"
-	SegmentStatsMetaPrefix = "datacoord-meta/statslog"
-)
+const ()
 
 var ErrReachMaxNumOfWalkSegment = errors.New("reach max number of the walked segments")
 
-// ListSegmentsVersion list segment info as specified version.
-func ListSegmentsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
-	prefix := path.Join(basePath, SegmentMetaPrefix) + "/"
-	switch version {
-	case models.LTEVersion2_1:
-		segments, keys, err := ListProtoObjects[datapb.SegmentInfo](ctx, cli, prefix)
-		if err != nil {
-			return nil, err
-		}
+func ListSegments(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
+	prefix := path.Join(basePath, DCPrefix, SegmentMetaPrefix) + "/"
 
-		return lo.FilterMap(segments, func(segment datapb.SegmentInfo, idx int) (*models.Segment, bool) {
-			s := models.NewSegmentFromV2_1(&segment, keys[idx])
-			for _, filter := range filters {
-				if !filter(s) {
-					return nil, false
-				}
-			}
-			return s, true
-		}), nil
-	case models.GTEVersion2_2:
-		segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
-		if err != nil {
-			return nil, err
-		}
+	segments, err := ListObj2Models(ctx, cli, prefix, func(info *datapb.SegmentInfo, key string) *models.Segment {
 
-		return lo.FilterMap(segments, func(segment datapbv2.SegmentInfo, idx int) (*models.Segment, bool) {
-			s := models.NewSegmentFromV2_2(&segment, keys[idx], getSegmentLazyFunc(cli, basePath, segment))
-			for _, filter := range filters {
-				if !filter(s) {
-					return nil, false
-				}
-			}
-			return s, true
-		}), nil
-	default:
-		return nil, fmt.Errorf("undefined version: %s", version)
+		return models.NewSegment(info, key, getSegmentLazyFunc(cli, basePath, info))
+	}, filters...)
+	if err != nil {
+		return nil, err
 	}
+	return segments, nil
 }
 
-func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.SegmentInfo) func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error) {
-	return func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error) {
+// ListSegmentsVersion list segment info as specified version.
+// func ListSegmentsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
+// 	prefix := path.Join(basePath, DCPrefix, SegmentMetaPrefix) + "/"
+// 	switch version {
+// 	case models.LTEVersion2_1:
+// 		segments, keys, err := ListProtoObjects[datapb.SegmentInfo](ctx, cli, prefix)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+
+// 		return lo.FilterMap(segments, func(segment datapb.SegmentInfo, idx int) (*models.Segment, bool) {
+// 			s := models.NewSegmentFromV2_1(&segment, keys[idx])
+// 			for _, filter := range filters {
+// 				if !filter(s) {
+// 					return nil, false
+// 				}
+// 			}
+// 			return s, true
+// 		}), nil
+// 	case models.GTEVersion2_2:
+// 		segments, keys, err := ListProtoObjects[datapb.SegmentInfo](ctx, cli, prefix)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+
+// 		return lo.FilterMap(segments, func(segment datapb.SegmentInfo, idx int) (*models.Segment, bool) {
+// 			s := models.NewSegmentFromV2_2(&segment, keys[idx], getSegmentLazyFunc(cli, basePath, segment))
+// 			for _, filter := range filters {
+// 				if !filter(s) {
+// 					return nil, false
+// 				}
+// 			}
+// 			return s, true
+// 		}), nil
+// 	default:
+// 		return nil, fmt.Errorf("undefined version: %s", version)
+// 	}
+// }
+
+func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo) func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error) {
+	return func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error) {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 
-		f := func(pb func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string) ([]datapbv2.FieldBinlog, error) {
-			fields, _, err := ListProtoObjects[datapbv2.FieldBinlog](context.Background(), cli, prefix)
+		f := func(pb func(segment *datapb.SegmentInfo, fieldID int64, logID int64) string) ([]*datapb.FieldBinlog, error) {
+			fields, _, err := ListProtoObjects[datapb.FieldBinlog](context.Background(), cli, prefix)
 			if err != nil {
 				return nil, err
 			}
@@ -81,7 +88,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 			return fields, err
 		}
 
-		binlogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
+		binlogs, err := f(func(segment *datapb.SegmentInfo, fieldID int64, logID int64) string {
 			return fmt.Sprintf("ROOT_PATH/insert_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
 		})
 		if err != nil {
@@ -89,7 +96,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 		}
 
 		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		statslogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
+		statslogs, err := f(func(segment *datapb.SegmentInfo, fieldID int64, logID int64) string {
 			return fmt.Sprintf("ROOT_PATH/stats_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
 		})
 		if err != nil {
@@ -97,7 +104,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 		}
 
 		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("deltalog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		deltalogs, err := f(func(segment datapbv2.SegmentInfo, fieldID int64, logID int64) string {
+		deltalogs, err := f(func(segment *datapb.SegmentInfo, fieldID int64, logID int64) string {
 			return fmt.Sprintf("ROOT_PATH/delta_log/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, logID)
 		})
 		if err != nil {
@@ -109,36 +116,36 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment datapbv2.Segment
 }
 
 // ListSegments list segment info from etcd
-func ListSegments(cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	_, vals, err := cli.LoadWithPrefix(ctx, path.Join(basePath, SegmentMetaPrefix)+"/")
-	if err != nil {
-		return nil, err
-	}
-	segments := make([]*datapb.SegmentInfo, 0, len(vals))
-	for _, val := range vals {
-		info := &datapb.SegmentInfo{}
-		err = proto.Unmarshal([]byte(val), info)
-		if err != nil {
-			continue
-		}
-		if filter == nil || filter(info) {
-			segments = append(segments, info)
-		}
-	}
+// func ListSegments(cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool) ([]*datapb.SegmentInfo, error) {
+// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+// 	defer cancel()
+// 	_, vals, err := cli.LoadWithPrefix(ctx, path.Join(basePath, SegmentMetaPrefix)+"/")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	segments := make([]*datapb.SegmentInfo, 0, len(vals))
+// 	for _, val := range vals {
+// 		info := &datapb.SegmentInfo{}
+// 		err = proto.Unmarshal([]byte(val), info)
+// 		if err != nil {
+// 			continue
+// 		}
+// 		if filter == nil || filter(info) {
+// 			segments = append(segments, info)
+// 		}
+// 	}
 
-	sort.Slice(segments, func(i, j int) bool {
-		return segments[i].GetID() < segments[j].GetID()
-	})
-	return segments, nil
-}
+// 	sort.Slice(segments, func(i, j int) bool {
+// 		return segments[i].GetID() < segments[j].GetID()
+// 	})
+// 	return segments, nil
+// }
 
 // FillFieldsIfV2 fill binlog paths fields for v2 segment info.
 func FillFieldsIfV2(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo) error {
 	if len(segment.Binlogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		fields, _, err := ListProtoObjects[datapbv2.FieldBinlog](context.Background(), cli, prefix)
+		fields, _, err := ListProtoObjects[datapb.FieldBinlog](context.Background(), cli, prefix)
 		if err != nil {
 			return err
 		}
@@ -169,7 +176,7 @@ func FillFieldsIfV2(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo)
 
 	if len(segment.Deltalogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("deltalog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		fields, _, err := ListProtoObjects[datapbv2.FieldBinlog](context.Background(), cli, prefix)
+		fields, _, err := ListProtoObjects[datapb.FieldBinlog](context.Background(), cli, prefix)
 		if err != nil {
 			return err
 		}
@@ -200,7 +207,7 @@ func FillFieldsIfV2(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo)
 
 	if len(segment.Statslogs) == 0 {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
-		fields, _, err := ListProtoObjects[datapbv2.FieldBinlog](context.Background(), cli, prefix)
+		fields, _, err := ListProtoObjects[datapb.FieldBinlog](context.Background(), cli, prefix)
 		if err != nil {
 			return err
 		}
@@ -233,7 +240,7 @@ func FillFieldsIfV2(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo)
 }
 
 // ListLoadedSegments list v2.1 loaded segment info.
-func ListLoadedSegments(cli kv.MetaKV, basePath string, filter func(*querypb.SegmentInfo) bool) ([]querypb.SegmentInfo, error) {
+func ListLoadedSegments(cli kv.MetaKV, basePath string, filter func(*querypb.SegmentInfo) bool) ([]*querypb.SegmentInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	prefix := path.Join(basePath, "queryCoord-segmentMeta")
@@ -247,7 +254,7 @@ func ListLoadedSegments(cli kv.MetaKV, basePath string, filter func(*querypb.Seg
 }
 
 // RemoveSegment delete segment entry from etcd.
-func RemoveSegment(cli kv.MetaKV, basePath string, info *datapb.SegmentInfo) error {
+func RemoveSegment(ctx context.Context, cli kv.MetaKV, basePath string, info *datapb.SegmentInfo) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	segmentPath := path.Join(basePath, "datacoord-meta/s", fmt.Sprintf("%d/%d/%d", info.CollectionID, info.PartitionID, info.ID))
@@ -344,18 +351,16 @@ func RemoveSegmentStatLogPath(ctx context.Context, cli kv.MetaKV, basePath strin
 	return err
 }
 
-func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(segment *datapbv2.SegmentInfo)) error {
+func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64, fn func(segment *datapb.SegmentInfo)) error {
 	prefix := path.Join(basePath, fmt.Sprintf("%s/%d", SegmentMetaPrefix, collectionID)) + "/"
-	segments, keys, err := ListProtoObjects[datapbv2.SegmentInfo](ctx, cli, prefix)
+	segments, keys, err := ListProtoObjects[datapb.SegmentInfo](ctx, cli, prefix)
 	if err != nil {
 		return err
 	}
 
 	for idx, info := range segments {
-		info := info
-		seg := &info
-		fn(seg)
-		bs, err := proto.Marshal(seg)
+		fn(info)
+		bs, err := proto.Marshal(info)
 		if err != nil {
 			return err
 		}

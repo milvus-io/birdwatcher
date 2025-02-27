@@ -8,10 +8,11 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
 )
 
 const printFileLimit = 3
@@ -28,10 +29,11 @@ type ImportJobParam struct {
 
 // BulkInsertCommand returns show bulkinsert command.
 func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam) error {
-	jobs, _, err := common.ListImportJobs(ctx, c.client, c.metaPath, func(job *datapb.ImportJob) bool {
-		return (p.JobID == 0 || job.GetJobID() == p.JobID) &&
-			(p.CollectionID == 0 || job.GetCollectionID() == p.CollectionID) &&
-			(p.State == "" || strings.EqualFold(job.GetState().String(), p.State))
+	jobs, err := common.ListImportJobs(ctx, c.client, c.metaPath, func(job *models.ImportJob) bool {
+		proto := job.GetProto()
+		return (p.JobID == 0 || proto.GetJobID() == p.JobID) &&
+			(p.CollectionID == 0 || proto.GetCollectionID() == p.CollectionID) &&
+			(p.State == "" || strings.EqualFold(proto.GetState().String(), p.State))
 	})
 	if err != nil {
 		fmt.Println("failed to list bulkinsert jobs, err=", err.Error())
@@ -39,21 +41,21 @@ func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam
 	}
 
 	countMap := make(map[string]int)
-	collectionID2Jobs := lo.GroupBy(jobs, func(job *datapb.ImportJob) int64 {
-		return job.GetCollectionID()
+	collectionID2Jobs := lo.GroupBy(jobs, func(job *models.ImportJob) int64 {
+		return job.GetProto().GetCollectionID()
 	})
 
 	for _, colJobs := range collectionID2Jobs {
 		for _, job := range colJobs {
-			countMap[job.GetState().String()]++
+			countMap[job.GetProto().GetState().String()]++
 			if p.Detail {
 				if p.JobID == 0 {
 					fmt.Println("Please specify the job ID (-job={JobID}) to show detailed info.")
 					return nil
 				}
-				PrintDetailedImportJob(ctx, c.client, c.metaPath, job, p.ShowAllFiles)
+				PrintDetailedImportJob(ctx, c.client, c.metaPath, job.GetProto(), p.ShowAllFiles)
 			} else {
-				PrintSimpleImportJob(job)
+				PrintSimpleImportJob(job.GetProto())
 			}
 		}
 		fmt.Printf("\n")
@@ -84,15 +86,15 @@ func PrintSimpleImportJob(job *datapb.ImportJob) {
 
 func PrintDetailedImportJob(ctx context.Context, client kv.MetaKV, basePath string, job *datapb.ImportJob, showAllFiles bool) {
 	// Get job's tasks.
-	preimportTasks, err := common.ListPreImportTasks(ctx, client, basePath, func(task *datapb.PreImportTask) bool {
-		return task.GetJobID() == job.GetJobID()
+	preimportTasks, err := common.ListPreImportTasks(ctx, client, basePath, func(task *models.PreImportTask) bool {
+		return task.GetProto().GetJobID() == job.GetJobID()
 	})
 	if err != nil {
 		fmt.Println("failed to list preimport tasks, err=", err.Error())
 		return
 	}
-	importTasks, err := common.ListImportTasks(ctx, client, basePath, func(task *datapb.ImportTaskV2) bool {
-		return task.GetJobID() == job.GetJobID()
+	importTasks, err := common.ListImportTasks(ctx, client, basePath, func(task *models.ImportTaskV2) bool {
+		return task.GetProto().GetJobID() == job.GetJobID()
 	})
 	if err != nil {
 		fmt.Println("failed to list import tasks, err=", err.Error())
@@ -121,13 +123,13 @@ func PrintDetailedImportJob(ctx context.Context, client kv.MetaKV, basePath stri
 	fmt.Println("\n--------- Pre-Import Tasks ---------")
 	for i, task := range preimportTasks {
 		fmt.Printf("\n[%d] %s\n", i+1, strings.Repeat("-", 30))
-		PrintPreImportTask(task, showAllFiles)
+		PrintPreImportTask(task.GetProto(), showAllFiles)
 	}
 
 	fmt.Println("\n--------- Import Tasks ---------")
 	for i, task := range importTasks {
 		fmt.Printf("\n[%d] %s\n", i+1, strings.Repeat("-", 30))
-		PrintImportTask(task, showAllFiles)
+		PrintImportTask(task.GetProto(), showAllFiles)
 	}
 
 	fmt.Println("===================================")

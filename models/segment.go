@@ -4,29 +4,15 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/samber/lo"
-
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
 )
 
 // Segment is the common model for segment information.
 type Segment struct {
-	ID                  int64
-	CollectionID        int64
-	PartitionID         int64
-	InsertChannel       string
-	NumOfRows           int64
-	State               SegmentState
-	MaxRowNum           int64
-	LastExpireTime      uint64
-	CreatedByCompaction bool
-	CompactionFrom      []int64
-	DroppedAt           uint64
-	Level               SegmentLevel
-	// position
-	StartPosition *MsgPosition
-	DmlPosition   *MsgPosition
+	*datapb.SegmentInfo
+
 	// field binlogs
 	binlogs   []*FieldBinlog
 	statslogs []*FieldBinlog
@@ -34,18 +20,41 @@ type Segment struct {
 	// Semantic version
 	Version string
 
-	// PartitionStats version
-	PartitionStatsVersion int64
-
-	// sorted by PK
-	IsSorted bool
-
 	// etcd segment key
 	key string
 
 	// lazy load func
 	loadOnce sync.Once
 	lazyLoad func(*Segment)
+}
+
+func NewSegment(segment *datapb.SegmentInfo, key string,
+	lazy func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error)) *Segment {
+	s := &Segment{
+		SegmentInfo: segment,
+	}
+
+	s.lazyLoad = func(s *Segment) {
+		mFunc := func(fbl *datapb.FieldBinlog, _ int) *FieldBinlog {
+			r := &FieldBinlog{
+				FieldID: fbl.GetFieldID(),
+				Binlogs: lo.Map(fbl.GetBinlogs(), func(binlog *datapb.Binlog, _ int) *Binlog {
+					return newBinlogV2(binlog)
+				}),
+			}
+			return r
+		}
+		binlogs, statslogs, deltalogs, err := lazy()
+		if err != nil {
+			fmt.Println("lazy load binlog failed", err.Error())
+			return
+		}
+		s.binlogs = lo.Map(binlogs, mFunc)
+		s.statslogs = lo.Map(statslogs, mFunc)
+		s.deltalogs = lo.Map(deltalogs, mFunc)
+	}
+
+	return s
 }
 
 func newSegmentFromBase[segmentBase interface {
@@ -76,67 +85,6 @@ func newSegmentFromBase[segmentBase interface {
 	return s
 }
 
-func NewSegmentFromV2_1(info *datapb.SegmentInfo, key string) *Segment {
-	s := newSegmentFromBase(info)
-	s.key = key
-	s.State = SegmentState(info.GetState())
-	s.StartPosition = NewMsgPosition(info.GetStartPosition())
-	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
-	s.Level = SegmentLevelLegacy
-
-	mFunc := func(fbl *datapb.FieldBinlog, _ int) *FieldBinlog {
-		r := &FieldBinlog{
-			FieldID: fbl.GetFieldID(),
-			Binlogs: lo.Map(fbl.GetBinlogs(), func(binlog *datapb.Binlog, _ int) *Binlog {
-				return newBinlog(binlog)
-			}),
-		}
-		return r
-	}
-	s.binlogs = lo.Map(info.GetBinlogs(), mFunc)
-	s.statslogs = lo.Map(info.GetStatslogs(), mFunc)
-	s.deltalogs = lo.Map(info.GetDeltalogs(), mFunc)
-
-	s.Version = "<=2.1.4"
-	return s
-}
-
-func NewSegmentFromV2_2(info *datapbv2.SegmentInfo, key string,
-	lazy func() ([]datapbv2.FieldBinlog, []datapbv2.FieldBinlog, []datapbv2.FieldBinlog, error),
-) *Segment {
-	s := newSegmentFromBase(info)
-	s.key = key
-	s.State = SegmentState(info.GetState())
-	s.StartPosition = NewMsgPosition(info.GetStartPosition())
-	s.DmlPosition = NewMsgPosition(info.GetDmlPosition())
-	s.Level = SegmentLevel(info.GetLevel())
-	s.IsSorted = info.GetIsSorted()
-
-	s.lazyLoad = func(s *Segment) {
-		mFunc := func(fbl datapbv2.FieldBinlog, _ int) *FieldBinlog {
-			r := &FieldBinlog{
-				FieldID: fbl.GetFieldID(),
-				Binlogs: lo.Map(fbl.GetBinlogs(), func(binlog *datapbv2.Binlog, _ int) *Binlog {
-					return newBinlogV2(binlog)
-				}),
-			}
-			return r
-		}
-		binlogs, statslogs, deltalogs, err := lazy()
-		if err != nil {
-			fmt.Println("lazy load binlog failed", err.Error())
-			return
-		}
-		s.binlogs = lo.Map(binlogs, mFunc)
-		s.statslogs = lo.Map(statslogs, mFunc)
-		s.deltalogs = lo.Map(deltalogs, mFunc)
-	}
-
-	s.Version = ">=2.2.0"
-	s.PartitionStatsVersion = info.GetPartitionStatsVersion()
-	return s
-}
-
 func (s *Segment) GetBinlogs() []*FieldBinlog {
 	s.loadOnce.Do(func() {
 		if s.lazyLoad != nil {
@@ -164,56 +112,56 @@ func (s *Segment) GetDeltalogs() []*FieldBinlog {
 	return s.deltalogs
 }
 
-func (s *Segment) GetStartPosition() *MsgPosition {
+func (s *Segment) GetStartPosition() *msgpb.MsgPosition {
 	if s == nil {
 		return nil
 	}
 	return s.StartPosition
 }
 
-func (s *Segment) GetDmlPosition() *MsgPosition {
+func (s *Segment) GetDmlPosition() *msgpb.MsgPosition {
 	if s == nil {
 		return nil
 	}
 	return s.DmlPosition
 }
 
-type MsgPosition struct {
-	ChannelName string
-	MsgID       []byte
-	MsgGroup    string
-	Timestamp   uint64
-}
+// type MsgPosition struct {
+// 	ChannelName string
+// 	MsgID       []byte
+// 	MsgGroup    string
+// 	Timestamp   uint64
+// }
 
-type msgPosBase interface {
-	GetChannelName() string
-	GetMsgID() []byte
-	GetMsgGroup() string
-	GetTimestamp() uint64
-}
+// type msgPosBase interface {
+// 	GetChannelName() string
+// 	GetMsgID() []byte
+// 	GetMsgGroup() string
+// 	GetTimestamp() uint64
+// }
 
-func NewMsgPosition[T msgPosBase](pos T) *MsgPosition {
-	return &MsgPosition{
-		ChannelName: pos.GetChannelName(),
-		MsgID:       pos.GetMsgID(),
-		MsgGroup:    pos.GetMsgGroup(),
-		Timestamp:   pos.GetTimestamp(),
-	}
-}
+// func NewMsgPosition[T msgPosBase](pos T) *MsgPosition {
+// 	return &MsgPosition{
+// 		ChannelName: pos.GetChannelName(),
+// 		MsgID:       pos.GetMsgID(),
+// 		MsgGroup:    pos.GetMsgGroup(),
+// 		Timestamp:   pos.GetTimestamp(),
+// 	}
+// }
 
-func (pos *MsgPosition) GetTimestamp() uint64 {
-	if pos == nil {
-		return 0
-	}
-	return pos.Timestamp
-}
+// func (pos *MsgPosition) GetTimestamp() uint64 {
+// 	if pos == nil {
+// 		return 0
+// 	}
+// 	return pos.Timestamp
+// }
 
-func (pos *MsgPosition) GetChannelName() string {
-	if pos == nil {
-		return ""
-	}
-	return pos.ChannelName
-}
+// func (pos *MsgPosition) GetChannelName() string {
+// 	if pos == nil {
+// 		return ""
+// 	}
+// 	return pos.ChannelName
+// }
 
 type FieldBinlog struct {
 	FieldID int64

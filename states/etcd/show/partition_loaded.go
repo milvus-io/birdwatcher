@@ -8,7 +8,6 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 type PartitionLoadedParam struct {
@@ -18,7 +17,8 @@ type PartitionLoadedParam struct {
 }
 
 func (c *ComponentShow) PartitionLoadedCommand(ctx context.Context, p *PartitionLoadedParam) (*PartitionsLoaded, error) {
-	partitions, err := common.ListPartitionLoadedInfo(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(pl *models.PartitionLoaded) bool {
+	partitions, err := common.ListPartitionLoadedInfo(ctx, c.client, c.metaPath, func(info *models.PartitionLoaded) bool {
+		pl := info.GetProto()
 		return (p.CollectionID == 0 || p.CollectionID == pl.CollectionID) &&
 			(p.PartitionID == 0 || p.PartitionID == pl.PartitionID)
 	})
@@ -46,12 +46,9 @@ func (rs *PartitionsLoaded) PrintAs(format framework.Format) string {
 	return ""
 }
 
-func (rs *PartitionsLoaded) printPartitionLoaded(sb *strings.Builder, info *models.PartitionLoaded) {
+func (rs *PartitionsLoaded) printPartitionLoaded(sb *strings.Builder, m *models.PartitionLoaded) {
+	info := m.GetProto()
 	fmt.Fprintf(sb, "CollectionID: %d\tPartitionID: %d\n", info.CollectionID, info.PartitionID)
 	fmt.Fprintf(sb, "ReplicaNumber: %d", info.ReplicaNumber)
-	switch info.Version {
-	case models.LTEVersion2_1:
-	case models.GTEVersion2_2:
-		fmt.Fprintf(sb, "\tLoadStatus: %s\n", info.Status.String())
-	}
+	fmt.Fprintf(sb, "\tLoadStatus: %s\n", info.Status.String())
 }

@@ -7,66 +7,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/samber/lo"
-	"google.golang.org/protobuf/runtime/protoiface"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
-	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
-func ListCollectionHistoryWithDB(ctx context.Context, cli kv.MetaKV, basePath string, version string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
-	var prefix string
-
-	if dbID > 0 {
-		prefix = path.Join(basePath, "snapshots/root-coord/database/collection-info", strconv.FormatInt(dbID, 10), strconv.FormatInt(collectionID, 10))
-	} else {
-		prefix = path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
-	}
-
-	var dropped, paths []string
-	var err error
-	var result []*models.CollectionHistory
-	switch version {
-	case models.LTEVersion2_1:
-		var colls []etcdpb.CollectionInfo
-		colls, paths, dropped, err = ListHistoryCollection[etcdpb.CollectionInfo](ctx, cli, prefix)
-		if err != nil {
-			return nil, err
-		}
-		result = lo.Map(colls, func(coll etcdpb.CollectionInfo, idx int) *models.CollectionHistory {
-			ch := &models.CollectionHistory{}
-			ch.Collection = *models.NewCollectionFromV2_1(&coll, paths[idx])
-			ch.Ts = parseHistoryTs(paths[idx])
-			return ch
-		})
-	case models.GTEVersion2_2:
-		var colls []etcdpbv2.CollectionInfo
-		colls, paths, dropped, err = ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
-		if err != nil {
-			return nil, err
-		}
-		result = lo.Map(colls, func(coll etcdpbv2.CollectionInfo, idx int) *models.CollectionHistory {
-			ch := &models.CollectionHistory{}
-			// TODO add history field schema
-			ch.Collection = *models.NewCollectionFromV2_2(&coll, paths[idx], nil)
-			ch.Ts = parseHistoryTs(paths[idx])
-			return ch
-		})
-	}
-
-	for _, entry := range dropped {
-		collHistory := &models.CollectionHistory{Dropped: true}
-		collHistory.Ts = parseHistoryTs(entry)
-		result = append(result, collHistory)
-	}
-
-	return result, nil
-}
-
-// ListCollectionHistory list collection history from snapshots.
-func ListCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, version string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
+func ListCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {
 	var prefix string
 	if dbID == 0 {
 		prefix = path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
@@ -74,44 +24,28 @@ func ListCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, 
 		prefix = path.Join(basePath, "snapshots/root-coord/database/collection-info", strconv.FormatInt(dbID, 10), strconv.FormatInt(collectionID, 10))
 	}
 
-	var dropped, paths []string
-	var err error
-	var result []*models.CollectionHistory
-	switch version {
-	case models.LTEVersion2_1:
-		var colls []etcdpb.CollectionInfo
-		colls, paths, dropped, err = ListHistoryCollection[etcdpb.CollectionInfo](ctx, cli, prefix)
-		if err != nil {
-			return nil, err
-		}
-		result = lo.Map(colls, func(coll etcdpb.CollectionInfo, idx int) *models.CollectionHistory {
-			ch := &models.CollectionHistory{}
-			ch.Collection = *models.NewCollectionFromV2_1(&coll, paths[idx])
-			ch.Ts = parseHistoryTs(paths[idx])
-			return ch
-		})
-	case models.GTEVersion2_2:
-		var colls []etcdpbv2.CollectionInfo
-		colls, paths, dropped, err = ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
-		if err != nil {
-			return nil, err
-		}
-		result = lo.Map(colls, func(coll etcdpbv2.CollectionInfo, idx int) *models.CollectionHistory {
-			ch := &models.CollectionHistory{}
-			// TODO add history field schema
-			ch.Collection = *models.NewCollectionFromV2_2(&coll, paths[idx], nil)
-			ch.Ts = parseHistoryTs(paths[idx])
-			return ch
-		})
+	var results []*models.CollectionHistory
+
+	colls, paths, dropped, err := ListHistoryCollection[etcdpb.CollectionInfo](ctx, cli, prefix)
+	if err != nil {
+		return nil, err
 	}
+	results = lo.Map(colls, func(coll *etcdpb.CollectionInfo, idx int) *models.CollectionHistory {
+		ch := &models.CollectionHistory{}
+		// TODO add history field schema
+		ch.Collection = models.NewCollection(coll, paths[idx])
+		ch.Ts = parseHistoryTs(paths[idx])
+		return ch
+	})
 
 	for _, entry := range dropped {
 		collHistory := &models.CollectionHistory{Dropped: true}
 		collHistory.Ts = parseHistoryTs(entry)
-		result = append(result, collHistory)
+		results = append(results, collHistory)
 	}
 
-	return result, nil
+	return results, nil
+
 }
 
 func parseHistoryTs(entry string) uint64 {
@@ -126,8 +60,8 @@ func parseHistoryTs(entry string) uint64 {
 
 func ListHistoryCollection[T any, P interface {
 	*T
-	protoiface.MessageV1
-}](ctx context.Context, cli kv.MetaKV, prefix string) ([]T, []string, []string, error) {
+	proto.Message
+}](ctx context.Context, cli kv.MetaKV, prefix string) ([]*T, []string, []string, error) {
 	var dropped []string
 	colls, paths, err := ListProtoObjectsAdv[T, P](ctx, cli, prefix,
 		func(key string, value []byte) bool {
@@ -146,7 +80,7 @@ func ListHistoryCollection[T any, P interface {
 
 func RemoveCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, version string, collectionID int64) error {
 	prefix := path.Join(basePath, "snapshots/root-coord/collection", strconv.FormatInt(collectionID, 10))
-	colls, paths, _, err := ListHistoryCollection[etcdpbv2.CollectionInfo](ctx, cli, prefix)
+	colls, paths, _, err := ListHistoryCollection[etcdpb.CollectionInfo](ctx, cli, prefix)
 	if err != nil {
 		return err
 	}
@@ -154,7 +88,7 @@ func RemoveCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string
 		if coll.GetID() != collectionID {
 			continue
 		}
-		if coll.State == etcdpbv2.CollectionState_CollectionDropped || coll.State == etcdpbv2.CollectionState_CollectionDropping {
+		if coll.State == etcdpb.CollectionState_CollectionDropped || coll.State == etcdpb.CollectionState_CollectionDropping {
 			cli.Remove(ctx, paths[idx])
 		}
 	}

@@ -1,8 +1,6 @@
 package models
 
-import (
-	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
-)
+import "github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
 
 type Alias struct {
 	Name         string
@@ -14,7 +12,7 @@ type Alias struct {
 	key string
 }
 
-func NewAlias(info *etcdpbv2.AliasInfo, key string) *Alias {
+func NewAlias(info *etcdpb.AliasInfo, key string) *Alias {
 	a := &Alias{
 		Name:         info.GetAliasName(),
 		CollectionID: info.GetCollectionId(),

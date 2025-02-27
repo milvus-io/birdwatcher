@@ -11,7 +11,6 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 const (
@@ -26,16 +25,16 @@ type CollectionLoadedParam struct {
 // CollectionLoadedCommand return show collection-loaded command.
 func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *CollectionLoadedParam) (*CollectionsLoaded, error) {
 	var total int
-	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(info *models.CollectionLoaded) bool {
+	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.metaPath, func(info *models.CollectionLoaded) bool {
 		total++
-		return p.CollectionID == 0 || p.CollectionID == info.CollectionID
+		return p.CollectionID == 0 || p.CollectionID == info.GetProto().CollectionID
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list collection load info")
 	}
 	if p.CollectionID > 0 {
 		infos = lo.Filter(infos, func(info *models.CollectionLoaded, _ int) bool {
-			return info.CollectionID == p.CollectionID
+			return info.GetProto().CollectionID == p.CollectionID
 		})
 	}
 
@@ -60,13 +59,9 @@ func (rs *CollectionsLoaded) PrintAs(format framework.Format) string {
 	return ""
 }
 
-func (rs *CollectionsLoaded) printCollectionLoaded(sb *strings.Builder, info *models.CollectionLoaded) {
-	fmt.Fprintf(sb, "Version: [%s]\tCollectionID: %d\n", info.Version, info.CollectionID)
+func (rs *CollectionsLoaded) printCollectionLoaded(sb *strings.Builder, cl *models.CollectionLoaded) {
+	info := cl.GetProto()
+	fmt.Fprintf(sb, "CollectionID: %d\n", info.CollectionID)
 	fmt.Fprintf(sb, "ReplicaNumber: %d", info.ReplicaNumber)
-	switch info.Version {
-	case models.LTEVersion2_1:
-		fmt.Fprintf(sb, "\tInMemoryPercent: %d\n", info.InMemoryPercentage)
-	case models.GTEVersion2_2:
-		fmt.Fprintf(sb, "\tLoadStatus: %s\n", info.Status.String())
-	}
+	fmt.Fprintf(sb, "\tLoadStatus: %s\n", info.Status.String())
 }

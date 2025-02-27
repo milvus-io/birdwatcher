@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type PrimaryKey interface {

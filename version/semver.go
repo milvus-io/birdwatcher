@@ -1,7 +1,5 @@
 package version
 
-import "github.com/golang/protobuf/proto"
-
 // SemVer is the model for Semantic versioning
 type SemVer struct {
 	Major      int32  `protobuf:"varint,1,opt,name=major,proto3" json:"major,omitempty"`
@@ -18,7 +16,8 @@ func (v *SemVer) Reset() {
 
 // String implements protoiface.MessageV1
 func (v *SemVer) String() string {
-	return proto.CompactTextString(v)
+	// return proto.CompactTextString(v)
+	return ""
 }
 
 // String implements protoiface.MessageV1

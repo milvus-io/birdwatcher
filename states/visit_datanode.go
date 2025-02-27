@@ -8,15 +8,13 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	datapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/datapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 type dataNodeState struct {
 	*framework.CmdState
 	session   *models.Session
 	client    datapb.DataNodeClient
-	clientv2  datapbv2.DataNodeClient
 	conn      *grpc.ClientConn
 	prevState framework.State
 }
@@ -29,7 +27,7 @@ func (s *dataNodeState) SetupCommands() {
 		// metrics
 		getMetricsCmd(s.client),
 		// configuration
-		getConfigurationCmd(s.clientv2, s.session.ServerID),
+		getConfigurationCmd(s.client, s.session.ServerID),
 		// back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -47,7 +45,6 @@ func getDataNodeState(client datapb.DataNodeClient, conn *grpc.ClientConn, prev 
 		CmdState:  framework.NewCmdState(fmt.Sprintf("DataNode-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
-		clientv2:  datapbv2.NewDataNodeClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}

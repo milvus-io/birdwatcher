@@ -8,15 +8,13 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/rootcoordpb"
-	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 type rootCoordState struct {
 	*framework.CmdState
 	session   *models.Session
 	client    rootcoordpb.RootCoordClient
-	clientv2  rootcoordpbv2.RootCoordClient
 	conn      *grpc.ClientConn
 	prevState framework.State
 }
@@ -29,7 +27,7 @@ func (s *rootCoordState) SetupCommands() {
 		// metrics
 		getMetricsCmd(s.client),
 		// configuration
-		getConfigurationCmd(s.clientv2, s.session.ServerID),
+		getConfigurationCmd(s.client, s.session.ServerID),
 		// back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -46,7 +44,6 @@ func getRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn
 		session:   session,
 		CmdState:  framework.NewCmdState(fmt.Sprintf("RootCoord-%d(%s)", session.ServerID, session.Address)),
 		client:    client,
-		clientv2:  rootcoordpbv2.NewRootCoordClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}

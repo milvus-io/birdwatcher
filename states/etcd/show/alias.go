@@ -22,7 +22,7 @@ type AliasParam struct {
 
 // AliasCommand implements `show alias` command.
 func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*Aliases, error) {
-	aliases, err := common.ListAliasVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(a *models.Alias) bool {
+	aliases, err := common.ListAlias(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(a *models.Alias) bool {
 		return p.DBID == -1 || p.DBID == a.DBID
 	})
 	if err != nil {

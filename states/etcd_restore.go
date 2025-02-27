@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
 
 func restoreFromV1File(cli kv.MetaKV, rd io.Reader, header *models.BackupHeader) error {
@@ -95,21 +95,21 @@ func restoreV2File(rd *bufio.Reader, state *embedEtcdMockState) error {
 		}
 
 		switch ph.PartType {
-		case int32(models.EtcdBackup):
+		case models.PartType_EtcdBackup:
 			instance, err := restoreEtcdFromBackV2(state.client, rd, ph)
 			if err != nil {
 				fmt.Println("failed to restore etcd from backup file", err.Error())
 				return err
 			}
 			state.SetInstance(instance)
-		case int32(models.MetricsBackup):
+		case models.PartType_MetricsBackup:
 			restoreMetrics(rd, ph, func(session *models.Session, metrics, defaultMetrics []byte) {
 				state.metrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = metrics
 				state.defaultMetrics[fmt.Sprintf("%s-%d", session.ServerName, session.ServerID)] = defaultMetrics
 			})
-		case int32(models.Configurations):
+		case models.PartType_Configurations:
 			// testRestoreConfigurations(rd, ph)
-		case int32(models.AppMetrics):
+		case models.PartType_AppMetrics:
 			// testRestoreConfigurations(rd, ph)
 		}
 	}

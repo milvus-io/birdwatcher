@@ -12,8 +12,8 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
 
 type SegmentParam struct {
@@ -41,7 +41,7 @@ type segStats struct {
 
 // SegmentCommand returns show segments command.
 func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) error {
-	segments, err := common.ListSegmentsVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(segment *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, c.client, c.metaPath, func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID) &&
 			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
 			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
@@ -73,16 +73,17 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 		}
 
 		for _, info := range segs {
-			if info.State != models.SegmentStateDropped {
+			// if info.State != models.SegmentStateDropped {
+			if info.State != commonpb.SegmentState_Dropped {
 				totalRC += info.NumOfRows
 				healthy++
 			}
 			switch info.State {
-			case models.SegmentStateGrowing:
+			case commonpb.SegmentState_Growing:
 				growing++
-			case models.SegmentStateSealed:
+			case commonpb.SegmentState_Sealed:
 				sealed++
-			case models.SegmentStateFlushing, models.SegmentStateFlushed:
+			case commonpb.SegmentState_Flushing, commonpb.SegmentState_Flushed:
 				flushed++
 				if float64(info.NumOfRows)/float64(info.MaxRowNum) < 0.2 {
 					small++
@@ -91,7 +92,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 					other++
 					otherCnt += info.NumOfRows
 				}
-			case models.SegmentStateDropped:
+			case commonpb.SegmentState_Dropped:
 				dropped++
 			}
 
@@ -102,7 +103,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 				fmt.Printf("SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  PartitionStatsVersion:%d, IsSorted: %v \n",
 					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.PartitionStatsVersion, info.IsSorted)
 			case "statistics":
-				if info.State != models.SegmentStateDropped {
+				if info.State != commonpb.SegmentState_Dropped {
 					for _, binlog := range info.GetBinlogs() {
 						for _, log := range binlog.Binlogs {
 							collectionID2SegStats[collectionID].binlogLogSize[binlog.FieldID] += log.LogSize
@@ -194,7 +195,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Segment ID: %d\n", info.ID)
 	fmt.Printf("Segment State: %v", info.State)
-	if info.State == models.SegmentStateDropped {
+	if info.State == commonpb.SegmentState_Dropped {
 		dropTime := time.Unix(0, int64(info.DroppedAt))
 		fmt.Printf("\tDropped Time: %s", dropTime.Format(tsPrintFormat))
 	}

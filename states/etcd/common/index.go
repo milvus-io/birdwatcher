@@ -4,21 +4,18 @@ import (
 	"context"
 	"path"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 )
 
 // ListIndex list all index with all filter satified.
-func ListIndex(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(index *indexpb.IndexMeta) bool) ([]indexpb.IndexMeta, error) {
-	prefix := path.Join(basePath, "indexes") + "/"
-	result, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
-	return result, err
+func ListIndex(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(index *models.FieldIndex) bool) ([]*models.FieldIndex, error) {
+	prefix := path.Join(basePath, IndexPrefix) + "/"
+	return ListObj2Models(ctx, cli, prefix, models.NewProtoWrapper[*indexpb.FieldIndex], filters...)
 }
 
-// ListSegmentIndex list segment index info.
-func ListSegmentIndex(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(segIdx *etcdpb.SegmentIndexInfo) bool) ([]etcdpb.SegmentIndexInfo, error) {
-	prefix := path.Join(basePath, "root-coord/segment-index") + "/"
-	result, _, err := ListProtoObjects(ctx, cli, prefix, filters...)
-	return result, err
+func ListSegmentIndex(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(segIdx *models.SegmentIndex) bool) ([]*models.SegmentIndex, error) {
+	prefix := path.Join(basePath, SegmentIndexPrefix) + "/"
+	return ListObj2Models(ctx, cli, prefix, models.NewProtoWrapper[*indexpb.SegmentIndex], filters...)
 }

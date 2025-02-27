@@ -17,7 +17,6 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 )
 
 type DownloadSegmentParam struct {
@@ -27,7 +26,7 @@ type DownloadSegmentParam struct {
 }
 
 func (s *InstanceState) DownloadSegmentCommand(ctx context.Context, p *DownloadSegmentParam) error {
-	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(s *models.Segment) bool {
 		return s.ID == p.SegmentID
 	})
 	if err != nil {

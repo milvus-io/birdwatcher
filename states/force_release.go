@@ -10,7 +10,6 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
@@ -40,14 +39,14 @@ func (s *InstanceState) ForceReleaseCommand(ctx context.Context, p *ForceRelease
 		return nil
 	}
 
-	collections, err := common.ListCollectionLoadedInfo(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(cl *models.CollectionLoaded) bool {
-		return cl.CollectionID == p.CollectionID
+	collections, err := common.ListCollectionLoadedInfo(ctx, s.client, s.basePath, func(cl *models.CollectionLoaded) bool {
+		return cl.GetProto().CollectionID == p.CollectionID
 	})
 	if err != nil {
 		return err
 	}
-	partitions, err := common.ListPartitionLoadedInfo(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(pl *models.PartitionLoaded) bool {
-		return p.CollectionID == pl.CollectionID
+	partitions, err := common.ListPartitionLoadedInfo(ctx, s.client, s.basePath, func(pl *models.PartitionLoaded) bool {
+		return p.CollectionID == pl.GetProto().CollectionID
 	})
 	if err != nil {
 		return err
@@ -57,18 +56,20 @@ func (s *InstanceState) ForceReleaseCommand(ctx context.Context, p *ForceRelease
 		return nil
 	}
 
-	for _, cl := range collections {
-		fmt.Printf("Force release collection %d, key: %s\n", cl.CollectionID, cl.Key)
-		err := s.client.Remove(ctx, cl.Key)
+	for _, info := range collections {
+		cl := info.GetProto()
+		fmt.Printf("Force release collection %d, key: %s\n", cl.CollectionID, info.Key())
+		err := s.client.Remove(ctx, info.Key())
 		if err != nil {
 			fmt.Printf("failed to force release collection %d, err: %v\n", cl.CollectionID, err)
 			continue
 		}
 		fmt.Printf("Force release collection %d done", cl.CollectionID)
 	}
-	for _, pl := range partitions {
-		fmt.Printf("Force release partition %d, key: %s\n", pl.PartitionID, pl.Key)
-		err := s.client.Remove(ctx, pl.Key)
+	for _, info := range partitions {
+		pl := info.GetProto()
+		fmt.Printf("Force release partition %d, key: %s\n", pl.PartitionID, info.Key())
+		err := s.client.Remove(ctx, info.Key())
 		if err != nil {
 			fmt.Printf("failed to force release partition %d, err: %v\n", pl.PartitionID, err)
 			continue
@@ -90,8 +91,8 @@ func getReleaseDroppedCollectionCmd(cli kv.MetaKV, basePath string) *cobra.Comma
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			// force release only for version <= v2.1.4
-			collectionLoadInfos, err := common.ListCollectionLoadedInfo(ctx, cli, basePath, models.LTEVersion2_1)
+
+			collectionLoadInfos, err := common.ListCollectionLoadedInfo(ctx, cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list loaded collections", err.Error())
 				return
@@ -99,9 +100,9 @@ func getReleaseDroppedCollectionCmd(cli kv.MetaKV, basePath string) *cobra.Comma
 
 			var missing []int64
 			for _, info := range collectionLoadInfos {
-				_, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), info.CollectionID)
+				_, err := common.GetCollectionByIDVersion(ctx, cli, basePath, info.GetProto().CollectionID)
 				if err != nil {
-					missing = append(missing, info.CollectionID)
+					missing = append(missing, info.GetProto().CollectionID)
 				}
 			}
 			for _, id := range missing {
@@ -135,39 +136,41 @@ func releaseQueryCoordLoadMeta(cli kv.MetaKV, basePath string, collectionID int6
 		return err
 	}
 
-	segments, err := common.ListLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
-		return info.CollectionID == collectionID
-	})
-	if err != nil {
-		return err
-	}
+	// legacy
 
-	for _, segment := range segments {
-		p := path.Join(basePath, "queryCoord-segmentMeta", fmt.Sprintf("%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.SegmentID))
-		cli.Remove(ctx, p)
-	}
+	// segments, err := common.ListLoadedSegments(cli, basePath, func(info *querypb.SegmentInfo) bool {
+	// 	return info.CollectionID == collectionID
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	dmChannels, err := common.ListQueryCoordDMLChannelInfos(cli, basePath)
-	if err != nil {
-		return err
-	}
+	// for _, segment := range segments {
+	// 	p := path.Join(basePath, "queryCoord-segmentMeta", fmt.Sprintf("%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.SegmentID))
+	// 	cli.Remove(ctx, p)
+	// }
 
-	for _, dmChannel := range dmChannels {
-		if dmChannel.CollectionID != collectionID {
-			continue
-		}
-		p := path.Join(basePath, common.QCDmChannelMetaPrefix, fmt.Sprintf("%d/%s", dmChannel.CollectionID, dmChannel.DmChannel))
-		cli.Remove(ctx, p)
-	}
+	// dmChannels, err := common.ListQueryCoordDMLChannelInfos(cli, basePath)
+	// if err != nil {
+	// 	return err
+	// }
 
-	deltaChannels, err := common.ListQueryCoordDeltaChannelInfos(cli, basePath)
-	for _, deltaChannel := range deltaChannels {
-		if deltaChannel.CollectionID != collectionID {
-			continue
-		}
-		p := path.Join(basePath, common.QCDeltaChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
-		cli.Remove(ctx, p)
-	}
+	// for _, dmChannel := range dmChannels {
+	// 	if dmChannel.CollectionID != collectionID {
+	// 		continue
+	// 	}
+	// 	p := path.Join(basePath, common.QCDmChannelMetaPrefix, fmt.Sprintf("%d/%s", dmChannel.CollectionID, dmChannel.DmChannel))
+	// 	cli.Remove(ctx, p)
+	// }
 
-	return err
+	// deltaChannels, err := common.ListQueryCoordDeltaChannelInfos(cli, basePath)
+	// for _, deltaChannel := range deltaChannels {
+	// 	if deltaChannel.CollectionID != collectionID {
+	// 		continue
+	// 	}
+	// 	p := path.Join(basePath, common.QCDeltaChannelMetaPrefix, fmt.Sprintf("%d/%s", deltaChannel.CollectionID, deltaChannel.ChannelName))
+	// 	cli.Remove(ctx, p)
+	// }
+
+	return nil
 }

@@ -9,16 +9,14 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 )
 
 type indexCoordState struct {
 	*framework.CmdState
 	session   *models.Session
 	client    indexpb.IndexCoordClient
-	clientv2  indexpbv2.IndexCoordClient
 	conn      *grpc.ClientConn
 	prevState framework.State
 }
@@ -31,9 +29,9 @@ func (s *indexCoordState) SetupCommands() {
 		// metrics
 		getMetricsCmd(s.client),
 		// configuration
-		getConfigurationCmd(s.clientv2, s.session.ServerID),
+		getConfigurationCmd(s.client, s.session.ServerID),
 		// build index progress
-		getDescribeIndex(s.clientv2, s.session.ServerID),
+		getDescribeIndex(s.client, s.session.ServerID),
 		// back
 		getBackCmd(s, s.prevState),
 		// exit
@@ -51,7 +49,6 @@ func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, 
 		CmdState:  framework.NewCmdState(fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
-		clientv2:  indexpbv2.NewIndexCoordClient(conn),
 		conn:      conn,
 		prevState: prev,
 	}
@@ -61,7 +58,7 @@ func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, 
 	return state
 }
 
-func getDescribeIndex(client indexpbv2.IndexCoordClient, serverID int64) *cobra.Command {
+func getDescribeIndex(client indexpb.IndexCoordClient, serverID int64) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "describe",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -71,7 +68,7 @@ func getDescribeIndex(client indexpbv2.IndexCoordClient, serverID int64) *cobra.
 				cmd.Usage()
 				return
 			}
-			resp, err := client.DescribeIndex(context.Background(), &indexpbv2.DescribeIndexRequest{
+			resp, err := client.DescribeIndex(context.Background(), &indexpb.DescribeIndexRequest{
 				CollectionID: collectionID,
 			})
 			if err != nil {
@@ -87,7 +84,7 @@ func getDescribeIndex(client indexpbv2.IndexCoordClient, serverID int64) *cobra.
 	return cmd
 }
 
-func printIndexV2(index *indexpbv2.IndexInfo) {
+func printIndexV2(index *indexpb.IndexInfo) {
 	fmt.Println("==================================================================")
 	fmt.Printf("Index ID: %d\tIndex Name: %s\tCollectionID:%d\n", index.GetIndexID(), index.GetIndexName(), index.GetCollectionID())
 	fmt.Printf("Indexed Rows: %d\n", index.GetIndexedRows())

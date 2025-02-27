@@ -6,118 +6,76 @@ import (
 	"path"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/cockroachdb/errors"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/mq"
 	"github.com/milvus-io/birdwatcher/mq/ifc"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/birdwatcher/utils"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 )
+
+type RepairCheckpointParam struct {
+	framework.ParamBase `use:"repair checkpoint" desc:"reset checkpoint of vchannels to latest checkpoint(or latest msgID) of physical channel"`
+	Collection          int64  `name:"collection" default:"0" desc:"collection id"`
+	VChannel            string `name:"vchannel" default:"" desc:"vchannel name"`
+	SetTo               string `name:"set_to" default:"latest-cp" desc:"support latest-cp(the latest checkpoint from segment checkpoint of corresponding collection on this physical channel) and latest-msgid(the latest msg from this physical channel)"`
+	MqType              string `name:"mq_type" default:"kafka" desc:"MQ type, only support kafka(default) and pulsar"`
+	Address             string `name:"address" default:"localhost:9092" desc:"mq endpoint, default value is kafka address"`
+	Run                 bool   `name:"run" default:"false" desc:"actual do repair"`
+}
 
 // CheckpointCommand usage:
 // repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type kafka --address localhost:9092 --set_to latest-msgid
 // repair checkpoint --collection 437744071571606912 --vchannel by-dev-rootcoord-dml_3_437744071571606912v1 --mq_type pulsar --address pulsar://localhost:6650 --set_to latest-msgid
-func CheckpointCommand(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "checkpoint",
-		Short:   "reset checkpoint of vchannels to latest checkpoint(or latest msgID) of physical channel",
-		Aliases: []string{"rc"},
-		Run: func(cmd *cobra.Command, args []string) {
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			vchannel, err := cmd.Flags().GetString("vchannel")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			setTo, err := cmd.Flags().GetString("set_to")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			// coll, err := common.GetCollectionByID(cli, basePath, collID)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
-			if err != nil {
-				fmt.Println("failed to get collection", err.Error())
-				return
-			}
-
-			switch setTo {
-			case "latest-cp":
-				setCheckPointWithLatestCheckPoint(cli, basePath, coll, vchannel)
-				return
-			case "latest-msgid":
-				mqType, err := cmd.Flags().GetString("mq_type")
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-
-				address, err := cmd.Flags().GetString("address")
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				setCheckPointWithLatestMsgID(cli, basePath, coll, mqType, address, vchannel)
-				return
-			default:
-				fmt.Println("Unknown set to target:", setTo)
-				return
-			}
-		},
+func (c *ComponentRepair) RepairCheckpointCommand(ctx context.Context, p *RepairCheckpointParam) error {
+	coll, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, p.Collection)
+	if err != nil {
+		return errors.Wrap(err, "failed to get collection")
 	}
-	cmd.Flags().Int64("collection", 0, "collection id")
-	cmd.Flags().String("vchannel", "", "vchannel name")
-	cmd.Flags().String("set_to", "latest-cp", "support latest-cp(the latest checkpoint from segment checkpoint of "+
-		"corresponding collection on this physical channel) and latest-msgid(the latest msg from this physical channel)")
-	cmd.Flags().String("mq_type", "kafka", "MQ type, only support kafka(default) and pulsar")
-	cmd.Flags().String("address", "localhost:9092", "mq endpoint, default value is kafka address")
-	return cmd
+
+	switch p.SetTo {
+	case "latest-cp":
+		return setCheckPointWithLatestCheckPoint(ctx, c.client, c.basePath, coll, p.VChannel)
+	case "latest-msgid":
+		return setCheckPointWithLatestMsgID(ctx, c.client, c.basePath, coll, p.MqType, p.Address, p.VChannel)
+	default:
+		fmt.Println("Unknown set to target:", p.SetTo)
+	}
+
+	return nil
 }
 
-func setCheckPointWithLatestMsgID(cli kv.MetaKV, basePath string, coll *models.Collection, mqType, address, vchannel string) {
-	for _, ch := range coll.Channels {
+func setCheckPointWithLatestMsgID(ctx context.Context, cli kv.MetaKV, basePath string, coll *models.Collection, mqType, address, vchannel string) error {
+	for _, ch := range coll.Channels() {
 		if ch.VirtualName == vchannel {
 			pChannel := ch.PhysicalName
 			cp, err := getLatestFromPChannel(mqType, address, vchannel)
 			if err != nil {
-				fmt.Printf("vchannel:%s -> pchannel:%s, get latest msgID faile, err:%s\n", ch.VirtualName, pChannel, err.Error())
-				return
+				return errors.Wrapf(err, "vchannel:%s -> pchannel:%s, get latest msgID failed", ch.VirtualName, pChannel)
 			}
 
-			err = saveChannelCheckpoint(cli, basePath, ch.VirtualName, cp)
+			err = saveChannelCheckpoint(ctx, cli, basePath, ch.VirtualName, cp)
 			t, _ := utils.ParseTS(cp.GetTimestamp())
 			if err != nil {
-				fmt.Printf("failed to set latest msgID(ts:%v) for vchannel:%s", t, ch.VirtualName)
-				return
+				return errors.Wrapf(err, "failed to set latest msgID(ts:%v) for vchannel:%s", t, ch.VirtualName)
 			}
 			fmt.Printf("vchannel:%s set to latest msgID(ts:%v) finshed\n", vchannel, t)
-			return
+			return nil
 		}
 	}
-	fmt.Printf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.ID)
+	return errors.Newf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.GetProto().ID)
 }
 
-func setCheckPointWithLatestCheckPoint(cli kv.MetaKV, basePath string, coll *models.Collection, vchannel string) {
-	pChannelName2LatestCP, err := getLatestCheckpointFromPChannel(cli, basePath)
+func setCheckPointWithLatestCheckPoint(ctx context.Context, cli kv.MetaKV, basePath string, coll *models.Collection, vchannel string) error {
+	pChannelName2LatestCP, err := getLatestCheckpointFromPChannel(ctx, cli, basePath)
 	if err != nil {
-		fmt.Println("failed to get latest cp of all pchannel", err.Error())
-		return
+		return errors.Wrap(err, "failed to get latest cp of all pchannel")
 	}
 
 	fmt.Println("list the latest checkpoint of all physical channels:")
@@ -126,49 +84,45 @@ func setCheckPointWithLatestCheckPoint(cli kv.MetaKV, basePath string, coll *mod
 		fmt.Printf("pchannel: %s, the lastest checkpoint ts: %v\n", k, t)
 	}
 
-	for _, ch := range coll.Channels {
+	for _, ch := range coll.Channels() {
 		if ch.VirtualName == vchannel {
 			pChannel := ch.PhysicalName
 			cp, ok := pChannelName2LatestCP[pChannel]
 			if !ok {
-				fmt.Printf("vchannel:%s -> pchannel:%s, the pchannel doesn't exists\n", ch.VirtualName, pChannel)
-				return
+				return errors.Errorf("vchannel:%s -> pchannel:%s, the pchannel doesn't exists\n", ch.VirtualName, pChannel)
 			}
 
-			err := saveChannelCheckpoint(cli, basePath, ch.VirtualName, cp)
 			t, _ := utils.ParseTS(cp.GetTimestamp())
+			err := saveChannelCheckpoint(ctx, cli, basePath, ch.VirtualName, cp)
 			if err != nil {
-				fmt.Printf("failed to set latest checkpoint(ts:%v) for vchannel:%s", t, ch.VirtualName)
-				return
+				return errors.Errorf("failed to set latest checkpoint(ts:%v) for vchannel:%s", t, ch.VirtualName)
 			}
 			fmt.Printf("vchannel:%s set to latest checkpoint(ts:%v) finshed\n", vchannel, t)
-			return
+			return nil
 		}
 	}
 
-	fmt.Printf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.ID)
+	return errors.Newf("vchannel:%s doesn't exists in collection: %d\n", vchannel, coll.GetProto().ID)
 }
 
-func saveChannelCheckpoint(cli kv.MetaKV, basePath string, channelName string, pos *internalpb.MsgPosition) error {
+func saveChannelCheckpoint(ctx context.Context, cli kv.MetaKV, basePath string, channelName string, pos *msgpb.MsgPosition) error {
 	key := path.Join(basePath, "datacoord-meta", "channel-cp", channelName)
 	bs, err := proto.Marshal(pos)
 	if err != nil {
 		fmt.Println("failed to marshal segment info", err.Error())
 	}
-	err = cli.Save(context.Background(), key, string(bs))
+	err = cli.Save(ctx, key, string(bs))
 	return err
 }
 
-func getLatestCheckpointFromPChannel(cli kv.MetaKV, basePath string) (map[string]*internalpb.MsgPosition, error) {
-	segments, err := common.ListSegments(cli, basePath, func(info *datapb.SegmentInfo) bool {
-		return true
-	})
+func getLatestCheckpointFromPChannel(ctx context.Context, cli kv.MetaKV, basePath string) (map[string]*msgpb.MsgPosition, error) {
+	segments, err := common.ListSegments(ctx, cli, basePath)
 	if err != nil {
 		fmt.Printf("fail to list segment for all channel, err: %s\n", err.Error())
 		return nil, err
 	}
 
-	ret := make(map[string]*internalpb.MsgPosition)
+	ret := make(map[string]*msgpb.MsgPosition)
 	for _, segment := range segments {
 		if segment.State != commonpb.SegmentState_Flushed &&
 			segment.State != commonpb.SegmentState_Growing &&
@@ -180,7 +134,7 @@ func getLatestCheckpointFromPChannel(cli kv.MetaKV, basePath string) (map[string
 			continue
 		}
 
-		var segPos *internalpb.MsgPosition
+		var segPos *msgpb.MsgPosition
 		if segment.GetDmlPosition() != nil {
 			segPos = segment.GetDmlPosition()
 		} else {
@@ -197,7 +151,7 @@ func getLatestCheckpointFromPChannel(cli kv.MetaKV, basePath string) (map[string
 	return ret, nil
 }
 
-func getLatestFromPChannel(mqType, address, vchannel string) (*internalpb.MsgPosition, error) {
+func getLatestFromPChannel(mqType, address, vchannel string) (*msgpb.MsgPosition, error) {
 	topic := ToPhysicalChannel(vchannel)
 	consumer, err := mq.NewConsumer(mqType, address, topic, ifc.MqOption{
 		SubscriptionInitPos: ifc.SubscriptionPositionLatest,

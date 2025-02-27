@@ -11,11 +11,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
 const (
@@ -53,7 +52,9 @@ func ExplainBalanceCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 			}
 			distResponses := getAllQueryNodeDistributions(sessions)
 			distView := buildUpNodeSegmentsView(distResponses)
-			replicas, err := common.ListReplica(context.Background(), cli, basePath, collectionID)
+			replicas, err := common.ListReplicas(context.Background(), cli, basePath, func(r *models.Replica) bool {
+				return collectionID == 0 || collectionID == r.GetProto().GetCollectionID()
+			})
 			if err != nil {
 				fmt.Println("failed to list replica, cannot do balance explain", err.Error())
 				return err
@@ -62,7 +63,7 @@ func ExplainBalanceCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				fmt.Printf("no replicas available for collection %d, cannot explain balance \n", collectionID)
 				return nil
 			}
-			segmentsInfos, _ := common.ListSegmentsVersion(context.Background(), cli, basePath, etcdversion.GetVersion())
+			segmentsInfos, _ := common.ListSegments(context.Background(), cli, basePath)
 
 			// 2. explain balance
 			explainPolicy := policies[policyName]
@@ -99,8 +100,8 @@ func ExplainBalanceCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func getAllQueryNodeDistributions(queryNodes []*models.Session) []*querypbv2.GetDataDistributionResponse {
-	distributions := make([]*querypbv2.GetDataDistributionResponse, 0)
+func getAllQueryNodeDistributions(queryNodes []*models.Session) []*querypb.GetDataDistributionResponse {
+	distributions := make([]*querypb.GetDataDistributionResponse, 0)
 	for _, queryNode := range queryNodes {
 		opts := []grpc.DialOption{
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -120,9 +121,9 @@ func getAllQueryNodeDistributions(queryNodes []*models.Session) []*querypbv2.Get
 			fmt.Printf("failed to connect %s(%d), err: %s\n", queryNode.ServerName, queryNode.ServerID, err.Error())
 			continue
 		}
-		clientv2 := querypbv2.NewQueryNodeClient(conn)
-		resp, err := clientv2.GetDataDistribution(context.Background(), &querypbv2.GetDataDistributionRequest{
-			Base: &commonpbv2.MsgBase{
+		clientv2 := querypb.NewQueryNodeClient(conn)
+		resp, err := clientv2.GetDataDistribution(context.Background(), &querypb.GetDataDistributionRequest{
+			Base: &commonpb.MsgBase{
 				SourceID: -1,
 				TargetID: queryNode.ServerID,
 			},
@@ -136,19 +137,19 @@ func getAllQueryNodeDistributions(queryNodes []*models.Session) []*querypbv2.Get
 	return distributions
 }
 
-func buildUpNodeSegmentsView(distResps []*querypbv2.GetDataDistributionResponse) map[int64][]*querypbv2.SegmentVersionInfo {
-	distView := make(map[int64][]*querypbv2.SegmentVersionInfo, 0)
+func buildUpNodeSegmentsView(distResps []*querypb.GetDataDistributionResponse) map[int64][]*querypb.SegmentVersionInfo {
+	distView := make(map[int64][]*querypb.SegmentVersionInfo, 0)
 	for _, distResp := range distResps {
-		distView[distResp.GetNodeID()] = make([]*querypbv2.SegmentVersionInfo, 0)
+		distView[distResp.GetNodeID()] = make([]*querypb.SegmentVersionInfo, 0)
 		distView[distResp.GetNodeID()] = append(distView[distResp.GetNodeID()], distResp.GetSegments()...)
 	}
 	return distView
 }
 
-type segmentDistExplainFunc func(dist map[int64][]*querypbv2.SegmentVersionInfo, replicas []*models.Replica,
+type segmentDistExplainFunc func(dist map[int64][]*querypb.SegmentVersionInfo, replicas []*models.Replica,
 	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam) []string
 
-func scoreBasedBalanceExplain(dist map[int64][]*querypbv2.SegmentVersionInfo, replicas []*models.Replica,
+func scoreBasedBalanceExplain(dist map[int64][]*querypb.SegmentVersionInfo, replicas []*models.Replica,
 	segmentInfos []*models.Segment, scoreBalanceParam *ScoreBalanceParam,
 ) []string {
 	fmt.Printf("replica count:%d \n", len(replicas))
@@ -157,16 +158,16 @@ func scoreBasedBalanceExplain(dist map[int64][]*querypbv2.SegmentVersionInfo, re
 		segmentInfoMap[seg.ID] = seg
 	}
 	sort.Slice(replicas, func(i, j int) bool {
-		return (replicas)[i].ID <= (replicas)[j].ID
+		return (replicas)[i].GetProto().ID <= (replicas)[j].GetProto().ID
 	})
 	// generate explanation reports for scoreBasedBalance
 	reports := make([]string, 0)
 	for _, replica := range replicas {
 		if replica != nil {
-			if len(replica.NodeIDs) > 0 {
+			if len(replica.GetProto().Nodes) > 0 {
 				reports = append(reports, explainReplica(replica, dist, segmentInfoMap, scoreBalanceParam))
 			} else {
-				fmt.Printf("replica %d has no nodes, skip reporting \n", replica.ID)
+				fmt.Printf("replica %d has no nodes, skip reporting \n", replica.GetProto().ID)
 			}
 			fmt.Println("---------------------------------------------------------")
 		}
@@ -193,11 +194,11 @@ type ScoreBalanceParam struct {
 	ReverseUnbalanceTolerationFactor float64
 }
 
-func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.SegmentVersionInfo,
+func explainReplica(replica *models.Replica, dist map[int64][]*querypb.SegmentVersionInfo,
 	segmentInfoMap map[int64]*models.Segment, param *ScoreBalanceParam,
 ) string {
-	nodeItems := make([]*NodeItem, 0, len(replica.NodeIDs))
-	for _, nodeID := range replica.NodeIDs {
+	nodeItems := make([]*NodeItem, 0, len(replica.GetProto().Nodes))
+	for _, nodeID := range replica.GetProto().Nodes {
 		nodeSegments := dist[nodeID]
 		var nodeRowSum int64
 		var nodeCollectionRowSum int64
@@ -213,7 +214,7 @@ func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.Segment
 				return "Wrong segment dist info"
 			}
 			nodeRowSum += detailedSegmentInfo.NumOfRows
-			if segment.GetCollection() == replica.CollectionID {
+			if segment.GetCollection() == replica.GetProto().CollectionID {
 				nodeCollectionRowSum += detailedSegmentInfo.NumOfRows
 				nodeCollectionSegments = append(nodeCollectionSegments,
 					&SegmentItem{segmentID: segment.GetID(), rowNum: detailedSegmentInfo.NumOfRows})
@@ -230,7 +231,7 @@ func explainReplica(replica *models.Replica, dist map[int64][]*querypbv2.Segment
 	})
 	report := fmt.Sprintf(
 		"report_collectionID: %d, replicaID: %d, globalRowCountFactor: %f, UnbalanceTolerationFactor: %f ReverseUnbalanceTolerationFactor: %f \n",
-		replica.CollectionID, replica.ID, param.globalRowCountFactor, param.UnbalanceTolerationFactor, param.ReverseUnbalanceTolerationFactor)
+		replica.GetProto().CollectionID, replica.GetProto().ID, param.globalRowCountFactor, param.UnbalanceTolerationFactor, param.ReverseUnbalanceTolerationFactor)
 	report += fmt.Sprintln("node priorities in asc order:")
 	for _, item := range nodeItems {
 		report += fmt.Sprintf("[node: %d, priority: %d, node_row_sum: %d, node_collection_row_sum: %d]\n",

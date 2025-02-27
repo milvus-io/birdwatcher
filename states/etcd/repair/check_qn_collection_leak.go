@@ -13,12 +13,12 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/milvuspb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	rootcoordpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/rootcoordpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 func CheckQNCollectionLeak(cli kv.MetaKV, basePath string) *cobra.Command {
@@ -40,9 +40,9 @@ func CheckQNCollectionLeak(cli kv.MetaKV, basePath string) *cobra.Command {
 			}
 
 			resp1, err := rcClient.ShowCollections(context.Background(), &milvuspb.ShowCollectionsRequest{
-				Base: &commonpbv2.MsgBase{
+				Base: &commonpb.MsgBase{
 					SourceID: -1,
-					MsgType:  commonpbv2.MsgType_ShowCollections,
+					MsgType:  commonpb.MsgType_ShowCollections,
 				},
 			})
 			if err != nil {
@@ -85,7 +85,7 @@ func CheckQNCollectionLeak(cli kv.MetaKV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func getQueryCoordClient(sessions []*models.Session) (querypbv2.QueryCoordClient, error) {
+func getQueryCoordClient(sessions []*models.Session) (querypb.QueryCoordClient, error) {
 	for _, session := range sessions {
 		if strings.ToLower(session.ServerName) != "querycoord" {
 			continue
@@ -103,13 +103,13 @@ func getQueryCoordClient(sessions []*models.Session) (querypbv2.QueryCoordClient
 			continue
 		}
 
-		client := querypbv2.NewQueryCoordClient(conn)
+		client := querypb.NewQueryCoordClient(conn)
 		return client, nil
 	}
 	return nil, errors.New("querycoord session not found")
 }
 
-func getRootCoordClient(sessions []*models.Session) (rootcoordpbv2.RootCoordClient, error) {
+func getRootCoordClient(sessions []*models.Session) (rootcoordpb.RootCoordClient, error) {
 	for _, session := range sessions {
 		if strings.ToLower(session.ServerName) != "rootcoord" {
 			continue
@@ -127,7 +127,7 @@ func getRootCoordClient(sessions []*models.Session) (rootcoordpbv2.RootCoordClie
 			continue
 		}
 
-		client := rootcoordpbv2.NewRootCoordClient(conn)
+		client := rootcoordpb.NewRootCoordClient(conn)
 		return client, nil
 	}
 	return nil, errors.New("querycoord session not found")

@@ -10,7 +10,6 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
@@ -45,7 +44,7 @@ func ginHandler(cli kv.MetaKV, basePath string) http.Handler {
 		c.String(http.StatusOK, "pong")
 	})
 	r.GET("/collections", func(c *gin.Context) {
-		collections, err := common.ListCollectionsVersion(c, cli, basePath, etcdversion.GetVersion())
+		collections, err := common.ListCollections(c, cli, basePath)
 		if err != nil {
 			c.Error(err)
 			return

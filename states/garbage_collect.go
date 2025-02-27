@@ -14,10 +14,11 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/spf13/cobra"
 
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 func getGarbageCollectCmd(cli kv.MetaKV, basePath string) *cobra.Command {
@@ -66,7 +67,7 @@ const (
 )
 
 func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, minioRootPath string, bucketName string) {
-	segments, err := common.ListSegments(cli, basePath, func(*datapb.SegmentInfo) bool { return true })
+	segments, err := common.ListSegments(context.TODO(), cli, basePath, func(*models.Segment) bool { return true })
 	if err != nil {
 		fmt.Println("failed to list segments:", err.Error())
 		return
@@ -77,7 +78,8 @@ func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, m
 	deltalog := make(map[string]struct{})
 	statslog := make(map[string]struct{})
 
-	for _, segment := range segments {
+	for _, info := range segments {
+		segment := info.SegmentInfo
 		common.FillFieldsIfV2(cli, basePath, segment)
 		idSegments[segment.ID] = segment
 

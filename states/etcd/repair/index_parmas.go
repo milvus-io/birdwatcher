@@ -1,13 +1,15 @@
 package repair
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/spf13/cobra"
-
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/spf13/cobra"
 )
 
 // DiskAnnIndexParamsCommand return repair segment command.
@@ -27,7 +29,9 @@ func DiskAnnIndexParamsCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				fmt.Println(err.Error())
 				return
 			}
-			indexes, err := listIndexMetaV2(cli, basePath)
+			indexes, err := common.ListIndex(context.TODO(), cli, basePath, func(index *models.FieldIndex) bool {
+				return collID == 0 || index.GetProto().GetIndexInfo().GetCollectionID() == collID
+			})
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -77,20 +81,19 @@ func DiskAnnIndexParamsCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				"seed_ef":         {},
 				"overview_levels": {},
 			}
-			newIndexes := make([]*indexpbv2.FieldIndex, 0)
+			newIndexes := make([]*models.FieldIndex, 0)
 			unnecessaryParamsMap := make(map[int64][]string, 0)
-			for _, index := range indexes {
-				if collID != 0 && index.IndexInfo.CollectionID != collID {
-					continue
-				}
-				newIndex := &indexpbv2.FieldIndex{
-					IndexInfo: &indexpbv2.IndexInfo{
+			for _, info := range indexes {
+				index := info.GetProto()
+
+				newIndex := &indexpb.FieldIndex{
+					IndexInfo: &indexpb.IndexInfo{
 						CollectionID:         index.GetIndexInfo().GetCollectionID(),
 						FieldID:              index.GetIndexInfo().GetFieldID(),
 						IndexName:            index.GetIndexInfo().GetIndexName(),
 						IndexID:              index.GetIndexInfo().GetIndexID(),
 						TypeParams:           index.GetIndexInfo().GetTypeParams(),
-						IndexParams:          make([]*commonpbv2.KeyValuePair, 0),
+						IndexParams:          make([]*commonpb.KeyValuePair, 0),
 						IndexedRows:          index.GetIndexInfo().GetIndexedRows(),
 						TotalRows:            index.GetIndexInfo().GetTotalRows(),
 						State:                index.GetIndexInfo().GetState(),
@@ -135,7 +138,7 @@ func DiskAnnIndexParamsCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 
 				if len(unnecessaryParams) != 0 {
 					unnecessaryParamsMap[newIndex.IndexInfo.IndexID] = unnecessaryParams
-					newIndexes = append(newIndexes, newIndex)
+					newIndexes = append(newIndexes, models.NewProtoWrapper(newIndex, info.Key()))
 				}
 			}
 			if !run {
@@ -143,23 +146,23 @@ func DiskAnnIndexParamsCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				fmt.Println(unnecessaryParamsMap)
 				fmt.Println("after repair index:")
 				for _, index := range newIndexes {
-					printIndexV2(*index)
+					printIndexV2(index.GetProto())
 				}
 				return
 			}
 			for _, index := range newIndexes {
-				if err := writeRepairedIndex(cli, basePath, index); err != nil {
+				if err := writeRepairedIndex(cli, basePath, index.GetProto()); err != nil {
 					fmt.Println(err.Error())
 					return
 				}
 			}
-			afterRepairIndexes, err := listIndexMetaV2(cli, basePath)
+			afterRepairIndexes, err := common.ListIndex(context.TODO(), cli, basePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
 			for _, index := range afterRepairIndexes {
-				printIndexV2(index)
+				printIndexV2(index.GetProto())
 			}
 		},
 	}

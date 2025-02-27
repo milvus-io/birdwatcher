@@ -7,11 +7,9 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
 )
 
 type CollectionConsistencyLevelParam struct {
@@ -22,23 +20,23 @@ type CollectionConsistencyLevelParam struct {
 }
 
 func (c *ComponentSet) CollectionConsistencyLevelCommand(ctx context.Context, p *CollectionConsistencyLevelParam) error {
-	levelVal, ok := commonpbv2.ConsistencyLevel_value[p.ConsistencyLevel]
+	levelVal, ok := commonpb.ConsistencyLevel_value[p.ConsistencyLevel]
 	if !ok {
 		return errors.Newf(`consistency level string "%s" is not valid`, p.ConsistencyLevel)
 	}
 
-	consistencyLevel := commonpbv2.ConsistencyLevel(levelVal)
-	collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, etcdversion.GetVersion(), p.CollectionID)
+	consistencyLevel := commonpb.ConsistencyLevel(levelVal)
+	collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, p.CollectionID)
 	if err != nil {
 		return err
 	}
 
-	if collection.ConsistencyLevel == models.ConsistencyLevel(consistencyLevel) {
+	if collection.GetProto().ConsistencyLevel == consistencyLevel {
 		fmt.Printf("collection consistency level is already %s\n", p.ConsistencyLevel)
 		return nil
 	}
 
-	return common.UpdateCollection(ctx, c.client, collection.Key(), func(coll *etcdpbv2.CollectionInfo) {
+	return common.UpdateCollection(ctx, c.client, collection.Key(), func(coll *etcdpb.CollectionInfo) {
 		coll.ConsistencyLevel = consistencyLevel
 	}, p.Run)
 }

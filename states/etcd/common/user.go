@@ -7,8 +7,8 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/models"
-	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
 )
 
 const (
@@ -18,12 +18,12 @@ const (
 func ListUsers(ctx context.Context, cli kv.MetaKV, basePath string) ([]*models.UserInfo, error) {
 	prefix := path.Join(basePath, userPrefix)
 
-	infos, keys, err := ListJSONObjects[internalpbv2.CredentialInfo](ctx, cli, prefix)
+	infos, keys, err := ListJSONObjects[internalpb.CredentialInfo](ctx, cli, prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	return lo.Map(infos, func(info *internalpbv2.CredentialInfo, idx int) *models.UserInfo {
+	return lo.Map(infos, func(info *internalpb.CredentialInfo, idx int) *models.UserInfo {
 		return models.NewUserInfo(info, keys[idx])
 	}), nil
 }

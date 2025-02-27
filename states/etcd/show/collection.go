@@ -9,8 +9,9 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
 )
 
 // CollectionCommand returns sub command for showCmd.
@@ -30,16 +31,17 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 	// perform get by id to accelerate
 	if p.CollectionID > 0 {
 		var collection *models.Collection
-		collection, err = common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), p.CollectionID)
+		collection, err = common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, p.CollectionID)
 		if err == nil {
 			collections = append(collections, collection)
 		}
 	} else {
-		collections, err = common.ListCollectionsVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(coll *models.Collection) bool {
+		collections, err = common.ListCollections(ctx, c.client, c.metaPath, func(info *models.Collection) bool {
+			coll := info.GetProto()
 			if p.CollectionName != "" && coll.Schema.Name != p.CollectionName {
 				return false
 			}
-			if p.DatabaseID > -1 && coll.DBID != p.DatabaseID {
+			if p.DatabaseID > -1 && coll.DbId != p.DatabaseID {
 				return false
 			}
 			if p.State != "" && !strings.EqualFold(p.State, coll.State.String()) {
@@ -57,8 +59,8 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 	channels := 0
 	healthy := 0
 	for _, collection := range collections {
-		if collection.State == models.CollectionStateCollectionCreated {
-			channels += len(collection.Channels)
+		if collection.GetProto().State == etcdpb.CollectionState_CollectionCreated {
+			channels += len(collection.GetProto().GetVirtualChannelNames())
 			healthy++
 		}
 	}
@@ -97,9 +99,10 @@ func (rs *Collections) Entities() any {
 	return rs.collections
 }
 
-func printCollection(sb *strings.Builder, collection *models.Collection) {
+func printCollection(sb *strings.Builder, info *models.Collection) {
+	collection := info.GetProto()
 	fmt.Fprintln(sb, "================================================================================")
-	fmt.Fprintf(sb, "DBID: %d\n", collection.DBID)
+	fmt.Fprintf(sb, "DBID: %d\n", collection.DbId)
 	fmt.Fprintf(sb, "Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
 	t, _ := utils.ParseTS(collection.CreateTime)
 	fmt.Fprintf(sb, "Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
@@ -123,22 +126,22 @@ func printCollection(sb *strings.Builder, collection *models.Collection) {
 			fmt.Fprintf(sb, "\t - Clustering Key\n")
 		}
 		// print element type if field is array
-		if field.DataType == models.DataTypeArray {
+		if field.DataType == schemapb.DataType_Array {
 			fmt.Fprintf(sb, "\t - Element Type:  %s\n", field.ElementType.String())
 		}
 		// type params
-		for key, value := range field.Properties {
-			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", key, value)
+		for _, kv := range field.TypeParams {
+			fmt.Fprintf(sb, "\t - Type Param %s: %s\n", kv.Key, kv.Value)
 		}
 	}
 
-	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicSchema)
+	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicField)
 	fmt.Fprintf(sb, "Consistency Level: %s\n", collection.ConsistencyLevel.String())
-	for _, channel := range collection.Channels {
+	for _, channel := range info.Channels() {
 		fmt.Fprintf(sb, "Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
 	}
 	fmt.Fprintf(sb, "Collection properties(%d):\n", len(collection.Properties))
-	for k, v := range collection.Properties {
-		fmt.Fprintf(sb, "\tKey: %s: %v\n", k, v)
+	for _, kv := range collection.Properties {
+		fmt.Fprintf(sb, "\tKey: %s: %v\n", kv.GetKey(), kv.GetValue())
 	}
 }

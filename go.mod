@@ -13,9 +13,10 @@ require (
 	github.com/expr-lang/expr v1.16.9
 	github.com/fatih/color v1.7.0
 	github.com/gin-gonic/gin v1.9.1
-	github.com/golang/protobuf v1.5.4
 	github.com/gosuri/uilive v0.0.4
 	github.com/manifoldco/promptui v0.9.0
+	github.com/milvus-io/milvus-proto/go-api/v2 v2.5.5
+	github.com/milvus-io/milvus/pkg/v2 v2.5.5
 	github.com/minio/minio-go/v7 v7.0.30
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
@@ -34,7 +35,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/oauth2 v0.20.0
 	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -43,7 +44,6 @@ require (
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
 	github.com/AthenZ/athenz v1.10.39 // indirect
-	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/DataDog/zstd v1.5.0 // indirect
 	github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c // indirect
 	github.com/alibabacloud-go/debug v1.0.1 // indirect
@@ -82,6 +82,7 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/flatbuffers v2.0.5+incompatible // indirect

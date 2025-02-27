@@ -13,21 +13,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
-	commonpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
-	internalpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/internalpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/planpb"
-	querypbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/querypb"
-	schemapbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/planpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 )
 
 func GetProbeCmd(cli kv.MetaKV, basePath string) *cobra.Command {
@@ -53,7 +52,7 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			loaded, err := common.ListCollectionLoadedInfo(ctx, cli, basePath, models.GTEVersion2_2)
+			loaded, err := common.ListCollectionLoadedInfo(ctx, cli, basePath)
 			if err != nil {
 				fmt.Println("failed to list loaded collection", err.Error())
 				return
@@ -86,16 +85,17 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			for _, collection := range loaded {
+			for _, info := range loaded {
+				collection := info.GetProto()
 				fmt.Println("probing collection", collection.CollectionID)
-				req, err := getMockSearchRequest(ctx, cli, basePath, collection)
+				req, err := getMockSearchRequest(ctx, cli, basePath, info)
 				if err != nil {
 					fmt.Println("failed to generated mock request", err.Error())
 					continue
 				}
 
-				leaders, err := qc.GetShardLeaders(ctx, &querypbv2.GetShardLeadersRequest{
-					Base:         &commonpbv2.MsgBase{},
+				leaders, err := qc.GetShardLeaders(ctx, &querypb.GetShardLeadersRequest{
+					Base:         &commonpb.MsgBase{},
 					CollectionID: collection.CollectionID,
 				})
 				if err != nil {
@@ -120,7 +120,7 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 							fmt.Printf("Shard %s Leader[%d] failed to search with eventually consistency level, err: %s\n", shard.GetChannelName(), nodeID, err.Error())
 							continue
 						}
-						if resp.GetStatus().GetErrorCode() != commonpbv2.ErrorCode_Success {
+						if resp.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
 							fmt.Printf("Shard %s Leader[%d] failed to search,error code: %s reason:%s\n", shard.GetChannelName(), nodeID, resp.GetStatus().GetErrorCode().String(), resp.GetStatus().GetReason())
 							continue
 						}
@@ -153,25 +153,25 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, etcdversion.GetVersion(), collID)
+			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, collID)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
 
 			pkf, _ := coll.GetPKField()
-			var datatype schemapbv2.DataType
+			var datatype schemapb.DataType
 			var val *planpb.GenericValue
 			switch pkf.DataType {
 			case models.DataTypeVarChar:
-				datatype = schemapbv2.DataType_VarChar
+				datatype = schemapb.DataType_VarChar
 				val = &planpb.GenericValue{
 					Val: &planpb.GenericValue_StringVal{
 						StringVal: pk,
 					},
 				}
 			case models.DataTypeInt64:
-				datatype = schemapbv2.DataType_Int64
+				datatype = schemapb.DataType_Int64
 				pkv, err := strconv.ParseInt(pk, 10, 64)
 				if err != nil {
 					fmt.Println(err.Error())
@@ -186,7 +186,7 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 
 			var outputFields []int64
 			fieldIDName := make(map[int64]string)
-			for _, f := range coll.Schema.Fields {
+			for _, f := range coll.GetProto().Schema.Fields {
 				if f.FieldID >= 100 {
 					outputFields = append(outputFields, f.FieldID)
 				}
@@ -227,8 +227,8 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			resp, err := qc.GetShardLeaders(ctx, &querypbv2.GetShardLeadersRequest{
-				Base:         &commonpbv2.MsgBase{},
+			resp, err := qc.GetShardLeaders(ctx, &querypb.GetShardLeadersRequest{
+				Base:         &commonpb.MsgBase{},
 				CollectionID: collID,
 			})
 			if err != nil {
@@ -236,7 +236,7 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			if resp.GetStatus().GetErrorCode() != commonpbv2.ErrorCode_Success {
+			if resp.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
 				fmt.Println("failed to list shard leader", resp.GetStatus().GetErrorCode())
 				return
 			}
@@ -252,8 +252,8 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 			}
 
 			for nodeID, qn := range qns {
-				resp, err := qn.GetDataDistribution(ctx, &querypbv2.GetDataDistributionRequest{
-					Base: &commonpbv2.MsgBase{TargetID: nodeID},
+				resp, err := qn.GetDataDistribution(ctx, &querypb.GetDataDistributionRequest{
+					Base: &commonpb.MsgBase{TargetID: nodeID},
 				})
 				if err != nil {
 					fmt.Println("failed to get data distribution from node", nodeID, err.Error())
@@ -263,13 +263,13 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 					if segInfo.GetCollection() != collID {
 						continue
 					}
-					result, err := qn.Query(ctx, &querypbv2.QueryRequest{
+					result, err := qn.Query(ctx, &querypb.QueryRequest{
 						SegmentIDs:      []int64{segInfo.ID},
 						DmlChannels:     []string{segInfo.GetChannel()},
 						FromShardLeader: true, // query single segment
-						Scope:           querypbv2.DataScope_Historical,
-						Req: &internalpbv2.RetrieveRequest{
-							Base:               &commonpbv2.MsgBase{TargetID: nodeID, MsgID: time.Now().Unix()},
+						Scope:           querypb.DataScope_Historical,
+						Req: &internalpb.RetrieveRequest{
+							Base:               &commonpb.MsgBase{TargetID: nodeID, MsgID: time.Now().Unix()},
 							CollectionID:       segInfo.Collection,
 							PartitionIDs:       []int64{segInfo.Partition},
 							SerializedExprPlan: bs,
@@ -281,7 +281,7 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 						fmt.Println(err.Error())
 						continue
 					}
-					if result.GetStatus().GetErrorCode() != commonpbv2.ErrorCode_Success {
+					if result.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
 						fmt.Printf("failed to probe pk on segment %d, reason: %s\n", segInfo.GetID(), result.GetStatus().GetReason())
 						continue
 					}
@@ -303,16 +303,16 @@ func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func GetSizeOfIDs(data *schemapbv2.IDs) int {
+func GetSizeOfIDs(data *schemapb.IDs) int {
 	result := 0
 	if data.IdField == nil {
 		return result
 	}
 
 	switch data.GetIdField().(type) {
-	case *schemapbv2.IDs_IntId:
+	case *schemapb.IDs_IntId:
 		result = len(data.GetIntId().GetData())
-	case *schemapbv2.IDs_StrId:
+	case *schemapb.IDs_StrId:
 		result = len(data.GetStrId().GetData())
 	default:
 	}
@@ -320,7 +320,7 @@ func GetSizeOfIDs(data *schemapbv2.IDs) int {
 	return result
 }
 
-func getQueryCoordClient(sessions []*models.Session) (querypbv2.QueryCoordClient, error) {
+func getQueryCoordClient(sessions []*models.Session) (querypb.QueryCoordClient, error) {
 	for _, session := range sessions {
 		if strings.ToLower(session.ServerName) != "querycoord" {
 			continue
@@ -344,14 +344,14 @@ func getQueryCoordClient(sessions []*models.Session) (querypbv2.QueryCoordClient
 			continue
 		}
 
-		client := querypbv2.NewQueryCoordClient(conn)
+		client := querypb.NewQueryCoordClient(conn)
 		return client, nil
 	}
 	return nil, errors.New("querycoord session not found")
 }
 
-func getQueryNodeClients(sessions []*models.Session) (map[int64]querypbv2.QueryNodeClient, error) {
-	result := make(map[int64]querypbv2.QueryNodeClient)
+func getQueryNodeClients(sessions []*models.Session) (map[int64]querypb.QueryNodeClient, error) {
+	result := make(map[int64]querypb.QueryNodeClient)
 
 	for _, session := range sessions {
 		if strings.ToLower(session.ServerName) != "querynode" {
@@ -375,15 +375,16 @@ func getQueryNodeClients(sessions []*models.Session) (map[int64]querypbv2.QueryN
 			continue
 		}
 
-		client := querypbv2.NewQueryNodeClient(conn)
+		client := querypb.NewQueryNodeClient(conn)
 		result[session.ServerID] = client
 	}
 
 	return result, nil
 }
 
-func getMockSearchRequest(ctx context.Context, cli kv.MetaKV, basePath string, collection *models.CollectionLoaded) (*querypbv2.SearchRequest, error) {
-	coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, models.GTEVersion2_2, collection.CollectionID)
+func getMockSearchRequest(ctx context.Context, cli kv.MetaKV, basePath string, info *models.CollectionLoaded) (*querypb.SearchRequest, error) {
+	collection := info.GetProto()
+	coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, collection.CollectionID)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +405,7 @@ func getMockSearchRequest(ctx context.Context, cli kv.MetaKV, basePath string, c
 	indexID := collection.FieldIndexID[vectorField.FieldID]
 	fmt.Printf("Found vector field %s(%d) with dim[%d], indexID: %d\n", vectorField.Name, vectorField.FieldID, dim, indexID)
 
-	indexes, _, err := common.ListProtoObjects(ctx, cli, path.Join(basePath, "field-index"), func(index *indexpbv2.FieldIndex) bool {
+	indexes, _, err := common.ListProtoObjects(ctx, cli, path.Join(basePath, "field-index"), func(index *indexpb.FieldIndex) bool {
 		return index.GetIndexInfo().GetIndexID() == indexID
 	})
 	if err != nil {
@@ -417,15 +418,15 @@ func getMockSearchRequest(ctx context.Context, cli kv.MetaKV, basePath string, c
 	}
 	vector := genFloatVector(dim)
 
-	req := &internalpbv2.SearchRequest{
-		Base: &commonpbv2.MsgBase{
-			MsgType: commonpbv2.MsgType_Search,
+	req := &internalpb.SearchRequest{
+		Base: &commonpb.MsgBase{
+			MsgType: commonpb.MsgType_Search,
 		},
-		CollectionID:       coll.ID,
+		CollectionID:       coll.GetProto().ID,
 		PartitionIDs:       []int64{},
 		Dsl:                "",
 		PlaceholderGroup:   vector2PlaceholderGroupBytes(vector),
-		DslType:            commonpbv2.DslType_BoolExprV1,
+		DslType:            commonpb.DslType_BoolExprV1,
 		GuaranteeTimestamp: 1, // Eventually first
 		Nq:                 1,
 	}
@@ -467,7 +468,7 @@ func getMockSearchRequest(ctx context.Context, cli kv.MetaKV, basePath string, c
 
 		req.SerializedExprPlan = getSearchPlan(vectorField.DataType == models.DataTypeBinaryVector, pkField.FieldID, vectorField.FieldID, topK, metricType, string(spStr))
 
-		r := &querypbv2.SearchRequest{
+		r := &querypb.SearchRequest{
 			Req:             req,
 			FromShardLeader: false,
 			DmlChannels:     []string{},
@@ -487,7 +488,7 @@ func getMockSearchRequest(ctx context.Context, cli kv.MetaKV, basePath string, c
 		topK := int64(10)
 		spStr := genSearchDISKANNParamBytes(20)
 		req.SerializedExprPlan = getSearchPlan(vectorField.DataType == models.DataTypeBinaryVector, pkField.FieldID, vectorField.FieldID, topK, metricType, string(spStr))
-		r := &querypbv2.SearchRequest{
+		r := &querypb.SearchRequest{
 			Req:             req,
 			FromShardLeader: false,
 			DmlChannels:     []string{},
@@ -503,7 +504,8 @@ func getSearchPlan(isBinary bool, pkFieldID, vectorFieldID int64, topk int64, me
 	plan := &planpb.PlanNode{
 		Node: &planpb.PlanNode_VectorAnns{
 			VectorAnns: &planpb.VectorANNS{
-				IsBinary:   isBinary,
+				// TODO
+				VectorType: planpb.VectorType_Float16Vector,
 				Predicates: nil, // empty
 				QueryInfo: &planpb.QueryInfo{
 					Topk:         topk,
@@ -559,16 +561,16 @@ func (fv FloatVector) Serialize() []byte {
 	return data
 }
 
-func (fv FloatVector) DataType() commonpbv2.PlaceholderType {
-	return commonpbv2.PlaceholderType_FloatVector
+func (fv FloatVector) DataType() commonpb.PlaceholderType {
+	return commonpb.PlaceholderType_FloatVector
 }
 
 func vector2PlaceholderGroupBytes[T interface {
 	Serialize() []byte
-	DataType() commonpbv2.PlaceholderType
+	DataType() commonpb.PlaceholderType
 }](vector T) []byte {
-	phg := &commonpbv2.PlaceholderGroup{
-		Placeholders: []*commonpbv2.PlaceholderValue{
+	phg := &commonpb.PlaceholderGroup{
+		Placeholders: []*commonpb.PlaceholderValue{
 			vector2Placeholder(vector),
 		},
 	}
@@ -579,9 +581,9 @@ func vector2PlaceholderGroupBytes[T interface {
 
 func vector2Placeholder[T interface {
 	Serialize() []byte
-	DataType() commonpbv2.PlaceholderType
-}](vector T) *commonpbv2.PlaceholderValue {
-	ph := &commonpbv2.PlaceholderValue{
+	DataType() commonpb.PlaceholderType
+}](vector T) *commonpb.PlaceholderValue {
+	ph := &commonpb.PlaceholderValue{
 		Tag: "$0",
 	}
 

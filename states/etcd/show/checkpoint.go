@@ -10,10 +10,10 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/utils"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
 )
 
 type CheckpointParam struct {
@@ -23,13 +23,14 @@ type CheckpointParam struct {
 
 // CheckpointCommand returns show checkpoint command.
 func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) (*Checkpoints, error) {
-	coll, err := common.GetCollectionByIDVersion(context.Background(), c.client, c.metaPath, etcdversion.GetVersion(), p.CollectionID)
+	coll, err := common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, p.CollectionID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get collection")
 	}
 
-	checkpoints := make([]*Checkpoint, 0, len(coll.Channels))
-	for _, channel := range coll.Channels {
+	channels := coll.Channels()
+	checkpoints := make([]*Checkpoint, 0, len(channels))
+	for _, channel := range channels {
 		checkpoint := &Checkpoint{
 			Channel: &models.Channel{
 				PhysicalName: channel.PhysicalName,
@@ -81,9 +82,9 @@ func (rs *Checkpoints) PrintAs(format framework.Format) string {
 				fmt.Fprintf(sb, "Vchannel %s checkpoint not found, fallback to collection start pos\n", checkpoint.Channel.VirtualName)
 				continue
 			}
-			t, _ := utils.ParseTS(checkpoint.Checkpoint.GetTimestamp())
+			t, _ := utils.ParseTS(checkpoint.Checkpoint.GetProto().GetTimestamp())
 			fmt.Fprintf(sb, "vchannel %s seek to %v, cp channel: %s, Source: %s\n",
-				checkpoint.Channel.VirtualName, t, checkpoint.Checkpoint.ChannelName,
+				checkpoint.Channel.VirtualName, t, checkpoint.Checkpoint.GetProto().ChannelName,
 				checkpoint.Source)
 		}
 		return sb.String()
@@ -94,7 +95,7 @@ func (rs *Checkpoints) PrintAs(format framework.Format) string {
 
 func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*models.MsgPosition, error) {
 	prefix := path.Join(c.metaPath, "datacoord-meta", "channel-cp", channelName)
-	results, _, err := common.ListProtoObjects[internalpb.MsgPosition](ctx, c.client, prefix)
+	results, keys, err := common.ListProtoObjects[msgpb.MsgPosition](ctx, c.client, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -103,12 +104,12 @@ func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName st
 		return nil, fmt.Errorf("expected 1 position but got %d", len(results))
 	}
 
-	pos := models.NewMsgPosition(&results[0])
+	pos := models.NewProtoWrapper(results[0], keys[0])
 	return pos, nil
 }
 
 func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID int64, vchannel string) (*models.MsgPosition, int64, error) {
-	segments, err := common.ListSegmentsVersion(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(info *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, c.client, c.metaPath, func(info *models.Segment) bool {
 		return info.CollectionID == collID && info.InsertChannel == vchannel
 	})
 	if err != nil {
@@ -119,9 +120,9 @@ func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID in
 	var segmentID int64
 	var pos *models.MsgPosition
 	for _, segment := range segments {
-		if segment.State != models.SegmentStateFlushed &&
-			segment.State != models.SegmentStateGrowing &&
-			segment.State != models.SegmentStateFlushing {
+		if segment.State != commonpb.SegmentState_Flushed &&
+			segment.State != commonpb.SegmentState_Growing &&
+			segment.State != commonpb.SegmentState_Flushing {
 			continue
 		}
 		// skip all empty segment
@@ -131,12 +132,12 @@ func (c *ComponentShow) getCheckpointFromSegments(ctx context.Context, collID in
 		var segPos *models.MsgPosition
 
 		if segment.GetDmlPosition() != nil {
-			segPos = segment.GetDmlPosition()
+			segPos = models.NewProtoWrapper(segment.GetDmlPosition(), "")
 		} else {
-			segPos = segment.GetStartPosition()
+			segPos = models.NewProtoWrapper(segment.GetStartPosition(), "")
 		}
 
-		if pos == nil || segPos.GetTimestamp() < pos.GetTimestamp() {
+		if pos == nil || segPos.GetProto().GetTimestamp() < pos.GetProto().GetTimestamp() {
 			pos = segPos
 			segmentID = segment.ID
 		}

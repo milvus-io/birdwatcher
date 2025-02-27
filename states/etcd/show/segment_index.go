@@ -3,15 +3,12 @@ package show
 import (
 	"context"
 	"fmt"
-	"path"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/etcdpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/indexpb"
-	indexpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/indexpb"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/samber/lo"
 )
 
 type SegmentIndexParam struct {
@@ -23,7 +20,7 @@ type SegmentIndexParam struct {
 
 // SegmentIndexCommand returns show segment-index command.
 func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndexParam) error {
-	segments, err := common.ListSegments(c.client, c.metaPath, func(info *datapb.SegmentInfo) bool {
+	segments, err := common.ListSegments(ctx, c.client, c.metaPath, func(info *models.Segment) bool {
 		return (p.CollectionID == 0 || info.CollectionID == p.CollectionID) &&
 			(p.SegmentID == 0 || info.ID == p.SegmentID)
 	})
@@ -31,56 +28,32 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 		return err
 	}
 
-	segmentIndexes, err := common.ListSegmentIndex(ctx, c.client, c.metaPath)
-	if err != nil {
-		return err
-	}
-	segmentIndexesV2, err := c.listSegmentIndexV2(ctx)
-	if err != nil {
-		return err
-	}
-
-	indexBuildInfo, err := common.ListIndex(ctx, c.client, c.metaPath)
+	segmentIndexes, err := common.ListSegmentIndex(ctx, c.client, c.metaPath, func(segIdx *models.SegmentIndex) bool {
+		return (p.CollectionID == 0 || p.CollectionID == segIdx.GetProto().GetCollectionID()) &&
+			(p.SegmentID == 0 || p.SegmentID == segIdx.GetProto().GetSegmentID()) &&
+			(p.FieldID == 0 || p.FieldID == segIdx.GetProto().GetIndexID())
+	})
 	if err != nil {
 		return err
 	}
 
-	indexes, _, err := common.ListProtoObjects[indexpbv2.FieldIndex](ctx, c.client, path.Join(c.metaPath, "field-index"))
+	indexBuildInfo, err := common.ListIndex(ctx, c.client, c.metaPath, func(index *models.FieldIndex) bool {
+		return p.CollectionID == 0 || p.CollectionID == index.GetProto().GetIndexInfo().GetCollectionID() &&
+			(p.SegmentID == 0 || p.SegmentID == index.GetProto().GetIndexInfo().GetFieldID()) &&
+			(p.FieldID == 0 || p.FieldID == index.GetProto().GetIndexInfo().GetFieldID())
+	})
 	if err != nil {
 		return err
 	}
-	idIdx := make(map[int64]indexpbv2.FieldIndex)
-	for _, idx := range indexes {
-		idIdx[idx.IndexInfo.IndexID] = idx
-	}
 
-	seg2Idx := make(map[int64][]etcdpb.SegmentIndexInfo)
-	seg2Idxv2 := make(map[int64][]indexpbv2.SegmentIndex)
-	for _, segIdx := range segmentIndexes {
-		idxs, ok := seg2Idx[segIdx.SegmentID]
-		if !ok {
-			idxs = []etcdpb.SegmentIndexInfo{}
-		}
+	seg2Idx := lo.GroupBy(segmentIndexes, func(segIdx *models.SegmentIndex) int64 {
+		return segIdx.GetProto().GetSegmentID()
+	})
 
-		idxs = append(idxs, segIdx)
+	idIdx := lo.SliceToMap(indexBuildInfo, func(info *models.FieldIndex) (int64, *models.FieldIndex) {
+		return info.GetProto().GetIndexInfo().GetIndexID(), info
+	})
 
-		seg2Idx[segIdx.GetSegmentID()] = idxs
-	}
-	for _, segIdx := range segmentIndexesV2 {
-		idxs, ok := seg2Idxv2[segIdx.SegmentID]
-		if !ok {
-			idxs = []indexpbv2.SegmentIndex{}
-		}
-
-		idxs = append(idxs, segIdx)
-
-		seg2Idxv2[segIdx.GetSegmentID()] = idxs
-	}
-
-	buildID2Info := make(map[int64]indexpb.IndexMeta)
-	for _, info := range indexBuildInfo {
-		buildID2Info[info.IndexBuildID] = info
-	}
 	count := make(map[string]int)
 
 	for _, segment := range segments {
@@ -90,45 +63,21 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 		fmt.Printf("SegmentID: %d\t State: %s", segment.GetID(), segment.GetState().String())
 		segIdxs, ok := seg2Idx[segment.GetID()]
 		if !ok {
-			// try v2 index information
-			segIdxv2, ok := seg2Idxv2[segment.GetID()]
+			continue
+		}
+		for _, info := range segIdxs {
+			segIdx := info.GetProto()
+			index, ok := idIdx[segIdx.GetIndexID()]
 			if !ok {
-				fmt.Println("\tno segment index info")
 				continue
 			}
-			for _, segIdx := range segIdxv2 {
-				idx, ok := idIdx[segIdx.GetIndexID()]
-				if !ok {
-					continue
-				}
-				// filter with field id
-				if p.FieldID != 0 && idx.GetIndexInfo().GetFieldID() != p.FieldID {
-					continue
-				}
-				fmt.Printf("\n\tIndexV2 build ID: %d, states %s", segIdx.GetBuildID(), segIdx.GetState().String())
-				count[segIdx.GetState().String()]++
+			fmt.Printf("\n\tIndex build ID: %d, states %s", segIdx.GetBuildID(), segIdx.GetState().String())
+			count[segIdx.GetState().String()]++
 
-				fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(idx.GetIndexInfo().GetIndexParams(), "index_type"), idx.GetIndexInfo().GetFieldID())
-				fmt.Printf("\tSerialized Size: %d\n", segIdx.GetSerializeSize())
-				fmt.Printf("\tCurrent Index Version: %d\n", segIdx.GetCurrentIndexVersion())
-				fmt.Printf("\t Index Files: %v\n", segIdx.IndexFileKeys)
-			}
-		} else {
-			// use v1 info
-			for _, segIdx := range segIdxs {
-				info, ok := buildID2Info[segIdx.BuildID]
-				if !ok {
-					fmt.Printf("\tno build info found for id: %d\n", segIdx.BuildID)
-					fmt.Println(segIdx.String())
-					continue
-				}
-				if p.FieldID != 0 && p.FieldID != info.GetReq().GetFieldSchema().GetFieldID() {
-					continue
-				}
-				fmt.Printf("\n\tIndex build ID: %d, state: %s", info.IndexBuildID, info.State.String())
-				fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(info.GetReq().GetIndexParams(), "index_type"), segIdx.GetFieldID())
-				fmt.Printf("\t info.SerializeSize: %d\n", info.GetSerializeSize())
-			}
+			fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(index.GetProto().GetIndexInfo().GetIndexParams(), "index_type"), index.GetProto().GetIndexInfo().GetFieldID())
+			fmt.Printf("\tSerialized Size: %d\n", segIdx.GetSerializeSize())
+			fmt.Printf("\tCurrent Index Version: %d\n", segIdx.GetCurrentIndexVersion())
+			fmt.Printf("\t Index Files: %v\n", segIdx.IndexFileKeys)
 		}
 		fmt.Println()
 	}
@@ -138,10 +87,4 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 	}
 	fmt.Println()
 	return nil
-}
-
-func (c *ComponentShow) listSegmentIndexV2(ctx context.Context) ([]indexpbv2.SegmentIndex, error) {
-	prefix := path.Join(c.metaPath, "segment-index") + "/"
-	result, _, err := common.ListProtoObjects[indexpbv2.SegmentIndex](ctx, c.client, prefix)
-	return result, err
 }

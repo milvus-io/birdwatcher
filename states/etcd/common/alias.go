@@ -2,13 +2,9 @@ package common
 
 import (
 	"context"
-	"errors"
 	"path"
 
-	"github.com/samber/lo"
-
 	"github.com/milvus-io/birdwatcher/models"
-	etcdpbv2 "github.com/milvus-io/birdwatcher/proto/v2.2/etcdpb"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
@@ -23,34 +19,18 @@ const (
 	AliasPrefixDB = `root-coord/database/alias`
 )
 
-func ListAliasVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Alias) bool) ([]*models.Alias, error) {
+func ListAlias(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Alias) bool) ([]*models.Alias, error) {
+	var result []*models.Alias
 	prefixes := []string{
 		path.Join(basePath, AliasPrefixWithoutDB),
 		path.Join(basePath, AliasPrefixDB),
 	}
-
-	switch version {
-	case models.GTEVersion2_2:
-		var result []*models.Alias
-		for _, prefix := range prefixes {
-			infos, keys, err := ListProtoObjects[etcdpbv2.AliasInfo](ctx, cli, prefix)
-			if err != nil {
-				return nil, err
-			}
-
-			result = append(result, lo.FilterMap(infos, func(info etcdpbv2.AliasInfo, idx int) (*models.Alias, bool) {
-				value := models.NewAlias(&info, keys[idx])
-				for _, filter := range filters {
-					if !filter(value) {
-						return nil, false
-					}
-				}
-				return value, true
-			})...)
+	for _, prefix := range prefixes {
+		aliases, err := ListObj2Models(ctx, cli, prefix, models.NewAlias, filters...)
+		if err != nil {
+			return nil, err
 		}
-
-		return result, nil
-	default:
-		return nil, errors.New("not supported version")
+		result = append(result, aliases...)
 	}
+	return result, nil
 }

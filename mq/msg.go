@@ -21,13 +21,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/mq/ifc"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/datapb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/internalpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 // Timestamp is an alias of uint64
@@ -46,7 +45,7 @@ type MsgType = commonpb.MsgType
 type MarshalType = interface{}
 
 // MsgPosition is an alias for short
-type MsgPosition = internalpb.MsgPosition
+type MsgPosition = msgpb.MsgPosition
 
 // MessageID is an alias for short
 type MessageID = ifc.MessageID
@@ -125,7 +124,7 @@ func convertToByteArray(input interface{}) ([]byte, error) {
 // InsertMsg is a message pack that contains insert request
 type InsertMsg struct {
 	BaseMsg
-	internalpb.InsertRequest
+	msgpb.InsertRequest
 }
 
 // interface implementation validation
@@ -159,7 +158,7 @@ func (it *InsertMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserialize a message pack from byte array
 func (it *InsertMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	insertRequest := internalpb.InsertRequest{}
+	insertRequest := msgpb.InsertRequest{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err
@@ -187,11 +186,11 @@ func (it *InsertMsg) Unmarshal(input MarshalType) (TsMsg, error) {
 }
 
 func (it *InsertMsg) IsRowBased() bool {
-	return it.GetVersion() == internalpb.InsertDataVersion_RowBased
+	return it.GetVersion() == msgpb.InsertDataVersion_RowBased
 }
 
 func (it *InsertMsg) IsColumnBased() bool {
-	return it.GetVersion() == internalpb.InsertDataVersion_ColumnBased
+	return it.GetVersion() == msgpb.InsertDataVersion_ColumnBased
 }
 
 func (it *InsertMsg) NRows() uint64 {
@@ -229,8 +228,8 @@ func (it *InsertMsg) CheckAligned() error {
 	return nil
 }
 
-func (it *InsertMsg) rowBasedIndexRequest(index int) internalpb.InsertRequest {
-	return internalpb.InsertRequest{
+func (it *InsertMsg) rowBasedIndexRequest(index int) msgpb.InsertRequest {
+	return msgpb.InsertRequest{
 		Base: NewMsgBase(
 			WithMsgType(commonpb.MsgType_Insert),
 			WithMsgID(it.Base.MsgID),
@@ -247,15 +246,15 @@ func (it *InsertMsg) rowBasedIndexRequest(index int) internalpb.InsertRequest {
 		Timestamps:     []uint64{it.Timestamps[index]},
 		RowIDs:         []int64{it.RowIDs[index]},
 		RowData:        []*commonpb.Blob{it.RowData[index]},
-		Version:        internalpb.InsertDataVersion_RowBased,
+		Version:        msgpb.InsertDataVersion_RowBased,
 	}
 }
 
-func (it *InsertMsg) columnBasedIndexRequest(index int) internalpb.InsertRequest {
+func (it *InsertMsg) columnBasedIndexRequest(index int) msgpb.InsertRequest {
 	colNum := len(it.GetFieldsData())
 	fieldsData := make([]*schemapb.FieldData, colNum)
 	AppendFieldData(fieldsData, it.GetFieldsData(), int64(index))
-	return internalpb.InsertRequest{
+	return msgpb.InsertRequest{
 		Base: NewMsgBase(
 			WithMsgType(commonpb.MsgType_Insert),
 			WithMsgID(it.Base.MsgID),
@@ -273,11 +272,11 @@ func (it *InsertMsg) columnBasedIndexRequest(index int) internalpb.InsertRequest
 		RowIDs:         []int64{it.RowIDs[index]},
 		FieldsData:     fieldsData,
 		NumRows:        1,
-		Version:        internalpb.InsertDataVersion_ColumnBased,
+		Version:        msgpb.InsertDataVersion_ColumnBased,
 	}
 }
 
-func (it *InsertMsg) IndexRequest(index int) internalpb.InsertRequest {
+func (it *InsertMsg) IndexRequest(index int) msgpb.InsertRequest {
 	if it.IsRowBased() {
 		return it.rowBasedIndexRequest(index)
 	}
@@ -302,7 +301,7 @@ func (it *InsertMsg) IndexMsg(index int) *InsertMsg {
 // DeleteMsg is a message pack that contains delete request
 type DeleteMsg struct {
 	BaseMsg
-	internalpb.DeleteRequest
+	msgpb.DeleteRequest
 }
 
 // interface implementation validation
@@ -337,7 +336,7 @@ func (dt *DeleteMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserializing a message pack from byte array
 func (dt *DeleteMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	deleteRequest := internalpb.DeleteRequest{}
+	deleteRequest := msgpb.DeleteRequest{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err
@@ -397,7 +396,7 @@ func (dt *DeleteMsg) CheckAligned() error {
 // TimeTickMsg is a message pack that contains time tick only
 type TimeTickMsg struct {
 	BaseMsg
-	internalpb.TimeTickMsg
+	msgpb.TimeTickMsg
 }
 
 // interface implementation validation
@@ -431,7 +430,7 @@ func (tst *TimeTickMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserializing a message pack from byte array
 func (tst *TimeTickMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	timeTickMsg := internalpb.TimeTickMsg{}
+	timeTickMsg := msgpb.TimeTickMsg{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err
@@ -452,7 +451,7 @@ func (tst *TimeTickMsg) Unmarshal(input MarshalType) (TsMsg, error) {
 // CreateCollectionMsg is a message pack that contains create collection request
 type CreateCollectionMsg struct {
 	BaseMsg
-	internalpb.CreateCollectionRequest
+	msgpb.CreateCollectionRequest
 }
 
 // interface implementation validation
@@ -486,7 +485,7 @@ func (cc *CreateCollectionMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserializing a message pack from byte array
 func (cc *CreateCollectionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	createCollectionRequest := internalpb.CreateCollectionRequest{}
+	createCollectionRequest := msgpb.CreateCollectionRequest{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err
@@ -507,7 +506,7 @@ func (cc *CreateCollectionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
 // DropCollectionMsg is a message pack that contains drop collection request
 type DropCollectionMsg struct {
 	BaseMsg
-	internalpb.DropCollectionRequest
+	msgpb.DropCollectionRequest
 }
 
 // interface implementation validation
@@ -541,7 +540,7 @@ func (dc *DropCollectionMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserializing a message pack from byte array
 func (dc *DropCollectionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	dropCollectionRequest := internalpb.DropCollectionRequest{}
+	dropCollectionRequest := msgpb.DropCollectionRequest{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err
@@ -562,7 +561,7 @@ func (dc *DropCollectionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
 // CreatePartitionMsg is a message pack that contains create partition request
 type CreatePartitionMsg struct {
 	BaseMsg
-	internalpb.CreatePartitionRequest
+	msgpb.CreatePartitionRequest
 }
 
 // interface implementation validation
@@ -596,7 +595,7 @@ func (cp *CreatePartitionMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserializing a message pack from byte array
 func (cp *CreatePartitionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	createPartitionRequest := internalpb.CreatePartitionRequest{}
+	createPartitionRequest := msgpb.CreatePartitionRequest{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err
@@ -617,7 +616,7 @@ func (cp *CreatePartitionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
 // DropPartitionMsg is a message pack that contains drop partition request
 type DropPartitionMsg struct {
 	BaseMsg
-	internalpb.DropPartitionRequest
+	msgpb.DropPartitionRequest
 }
 
 // interface implementation validation
@@ -651,7 +650,7 @@ func (dp *DropPartitionMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserializing a message pack from byte array
 func (dp *DropPartitionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	dropPartitionRequest := internalpb.DropPartitionRequest{}
+	dropPartitionRequest := msgpb.DropPartitionRequest{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err
@@ -672,7 +671,7 @@ func (dp *DropPartitionMsg) Unmarshal(input MarshalType) (TsMsg, error) {
 // DataNodeTtMsg is a message pack that contains datanode time tick
 type DataNodeTtMsg struct {
 	BaseMsg
-	datapb.DataNodeTtMsg
+	msgpb.DataNodeTtMsg
 }
 
 // interface implementation validation
@@ -705,7 +704,7 @@ func (m *DataNodeTtMsg) Marshal(input TsMsg) (MarshalType, error) {
 
 // Unmarshal is used to deserializing a message pack from byte array
 func (m *DataNodeTtMsg) Unmarshal(input MarshalType) (TsMsg, error) {
-	msg := datapb.DataNodeTtMsg{}
+	msg := msgpb.DataNodeTtMsg{}
 	in, err := convertToByteArray(input)
 	if err != nil {
 		return nil, err

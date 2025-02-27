@@ -13,15 +13,15 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/golang/protobuf/proto"
 	"github.com/gosuri/uilive"
 	tikv "github.com/tikv/client-go/v2/kv"
 	"github.com/tikv/client-go/v2/txnkv"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
 
 const (
@@ -236,7 +236,7 @@ func (kv *etcdKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision 
 
 	bs, _ := json.Marshal(meta)
 	ph := models.PartHeader{
-		PartType: int32(models.EtcdBackup),
+		PartType: models.PartType_EtcdBackup,
 		PartLen:  -1, // not sure for length
 		Extra:    bs,
 	}
@@ -603,7 +603,7 @@ func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision
 
 	bs, _ := json.Marshal(meta)
 	ph := models.PartHeader{
-		PartType: int32(models.EtcdBackup),
+		PartType: models.PartType_EtcdBackup,
 		PartLen:  -1, // not sure for length
 		Extra:    bs,
 	}

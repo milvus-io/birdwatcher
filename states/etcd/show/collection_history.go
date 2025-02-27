@@ -1,18 +1,6 @@
 package show
 
-import (
-	"context"
-	"errors"
-	"fmt"
-	"strings"
-
-	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
-	"github.com/milvus-io/birdwatcher/utils"
-)
-
+/*
 type CollectionHistoryParam struct {
 	framework.ParamBase `use:"show collection-history" desc:"display collection change history"`
 	CollectionID        int64 `name:"id" default:"0" desc:"collection id to display" form:"id"`
@@ -79,3 +67,4 @@ func (rs *CollectionHistory) PrintAs(format framework.Format) string {
 func (rs *CollectionHistory) Entities() any {
 	return rs
 }
+*/

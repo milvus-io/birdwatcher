@@ -19,7 +19,11 @@ const (
 	ChannelCheckpointPrefix = `channel-cp`
 	ChannelWatchPrefix      = `channelwatch`
 	ChannelRemovalPrefix    = `channel-removal`
-	CompactionTaskPrefix    = `compaction-task`
+
+	SegmentMetaPrefix      = "s"
+	SegmentStatsMetaPrefix = "datacoord-meta/statslog"
+
+	CompactionTaskPrefix = `compaction-task`
 )
 
 const (

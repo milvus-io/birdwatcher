@@ -9,7 +9,6 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/states/storage"
 )
 
@@ -37,7 +36,7 @@ func (app *ApplicationState) StorageAnalysisCommand(ctx context.Context, p *Stor
 		return errors.New("Minio instance not connected")
 	}
 
-	segments, err := common.ListSegmentsVersion(ctx, etcd.client, etcd.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, etcd.client, etcd.basePath, func(s *models.Segment) bool {
 		return p.CollectionID == 0 || s.CollectionID == p.CollectionID
 	})
 	if err != nil {

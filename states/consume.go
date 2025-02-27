@@ -6,15 +6,15 @@ import (
 	"path"
 
 	"github.com/cockroachdb/errors"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/mq"
 	"github.com/milvus-io/birdwatcher/mq/ifc"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/commonpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/msgpb"
-	"github.com/milvus-io/birdwatcher/proto/v2.2/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type ConsumeParam struct {
@@ -121,7 +121,7 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 }
 
 func ParseMsg(msgType commonpb.MsgType, payload []byte) (interface {
-	fmt.Stringer
+	proto.Message
 	GetShardName() string
 }, error,
 ) {

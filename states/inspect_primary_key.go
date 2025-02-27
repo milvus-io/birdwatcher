@@ -15,10 +15,9 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
-	"github.com/milvus-io/birdwatcher/proto/v2.0/schemapb"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	etcdversion "github.com/milvus-io/birdwatcher/states/etcd/version"
 	"github.com/milvus-io/birdwatcher/storage"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type InspectPKParam struct {
@@ -102,7 +101,7 @@ func (s *InstanceState) inspectRemote(ctx context.Context, p *InspectPKParam) (m
 		return nil, nil, errors.New("collection id not provided")
 	}
 
-	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), p.CollectionID)
+	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, p.CollectionID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,7 +110,7 @@ func (s *InstanceState) inspectRemote(ctx context.Context, p *InspectPKParam) (m
 		return nil, nil, errors.New("pk field not found")
 	}
 
-	segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion(), func(s *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(s *models.Segment) bool {
 		return p.SegmentID == 0 || p.SegmentID == s.ID
 	})
 	if err != nil {
