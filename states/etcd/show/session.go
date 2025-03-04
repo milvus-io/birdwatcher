@@ -33,8 +33,7 @@ type Sessions struct {
 	framework.ListResultSet[*models.Session]
 }
 
-type SessionGroup struct {
-}
+type SessionGroup struct{}
 
 func (rs *Sessions) PrintAs(format framework.Format) string {
 	switch format {
