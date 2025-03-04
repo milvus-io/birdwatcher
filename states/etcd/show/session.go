@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/fatih/color"
+	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -31,15 +33,66 @@ type Sessions struct {
 	framework.ListResultSet[*models.Session]
 }
 
+type SessionGroup struct{}
+
 func (rs *Sessions) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
-		sb := &strings.Builder{}
-		for _, session := range rs.Data {
-			fmt.Fprintln(sb, session.String())
-		}
-		return sb.String()
+		return rs.printAsGroups()
+		// for _, session := range rs.Data {
+		// 	fmt.Fprintln(sb, session.String())
+		// }
+		// return sb.String()
 	default:
 	}
 	return ""
+}
+
+func (rs *Sessions) printAsGroups() string {
+	sb := &strings.Builder{}
+
+	sessionGroups := lo.GroupBy(rs.Data, func(session *models.Session) int64 {
+		return session.ServerID
+	})
+
+	componentGroups := lo.GroupBy(rs.Data, func(session *models.Session) string {
+		return session.ServerName
+	})
+
+	isMixture := func(session *models.Session) string {
+		sessions := sessionGroups[session.ServerID]
+		if len(sessions) > 1 {
+			return color.BlueString("[Mixture]")
+		}
+		return ""
+	}
+
+	for _, coord := range []string{"rootcoord", "datacoord", "querycoord", "indexcoord"} {
+		fmt.Fprintf(sb, "Cordinator %s\n", color.GreenString(coord))
+		sessions := componentGroups[coord]
+		main := lo.FindOrElse(sessions, nil, func(session *models.Session) bool {
+			return session.IsMain(coord)
+		})
+		if main != nil {
+			fmt.Fprintf(sb, "%s\tID: %d%s\tVersion: %s\tAddress: %s\n", color.GreenString("[Main]"), main.ServerID, isMixture(main), main.Version, main.Address)
+		}
+		standBys := lo.Filter(sessions, func(session *models.Session, _ int) bool {
+			return main == nil || session.ServerID != main.ServerID
+		})
+		for _, standBy := range standBys {
+			fmt.Fprintf(sb, "%s\tID: %d%s\tVersion: %s\tAddress: %s\n", color.YellowString("[Stand]"), standBy.ServerID, isMixture(standBy), standBy.Version, standBy.Address)
+		}
+		fmt.Fprintln(sb)
+	}
+
+	for _, node := range []string{"datanode", "querynode", "indexnode", "proxy", "streamingnode"} {
+		fmt.Fprintf(sb, "Node(s) %s\n", color.GreenString(node))
+		sessions := componentGroups[node]
+		for _, session := range sessions {
+			fmt.Fprintf(sb, "\tID: %d\tVersion: %s\tAddress: %s\n", session.ServerID, session.Version, session.Address)
+		}
+		fmt.Fprintln(sb)
+	}
+
+	return sb.String()
 }

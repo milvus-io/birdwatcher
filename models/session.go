@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 // Session is the json model for milvus session struct in etcd.
@@ -34,4 +35,9 @@ func (s *Session) IP() string {
 		return ""
 	}
 	return addr.IP.To4().String()
+}
+
+func (s *Session) IsMain(comp string) bool {
+	part := strings.Split(s.key, "/")
+	return part[len(part)-1] == comp
 }
