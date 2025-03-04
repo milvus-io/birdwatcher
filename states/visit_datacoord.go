@@ -50,7 +50,7 @@ func (s *dataCoordState) SetupCommands() {
 type CompactParam struct {
 	framework.ParamBase `use:"compact" desc:"manual compact with collectionID"`
 	CollectionID        int64 `name:"collectionID" default:"0" desc:"collection id to compact"`
-	CompactAll          bool  `name:"compactAll" default:"false" desc:"explictly allow compact all collections"`
+	CompactAll          bool  `name:"compactAll" default:"false" desc:"explicitly allow compact all collections"`
 }
 
 func (s *dataCoordState) CompactCommand(ctx context.Context, p *CompactParam) error {
