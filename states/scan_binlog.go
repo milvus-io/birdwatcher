@@ -215,7 +215,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 				case "count":
 					count++
 				case "locate":
-					fmt.Printf("entry found, segment %d offset %d, pk: %v\n", segment.ID, offset, pk.GetValue())
+					fmt.Printf("entry found, segment %d offset %d, pk: %v, ts: %d\n", segment.ID, offset, pk.GetValue(), ts)
 					fmt.Printf("binlog batch %d, pk binlog %s\n", idx, binlog.LogPath)
 				case "dedup":
 					_, ok := ids[pkv]
