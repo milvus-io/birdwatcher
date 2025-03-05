@@ -105,7 +105,7 @@ func (s *InstanceState) SetupCommands() {
 		etcd.DownloadCommand(cli, basePath),
 	)
 
-	// cmd.AddCommand(etcd.RawCommands(cli)...)
+	cmd.AddCommand(etcd.RawCommands(cli)...)
 	s.MergeFunctionCommands(cmd, s)
 	s.CmdState.RootCmd = cmd
 	s.SetupFn = s.SetupCommands
