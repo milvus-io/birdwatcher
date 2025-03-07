@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fatih/color"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -115,6 +117,12 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 		fmt.Fprintf(sb, " - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
 		if field.IsPrimaryKey {
 			fmt.Fprintf(sb, "\t - Primary Key: %t, AutoID: %t\n", field.IsPrimaryKey, field.AutoID)
+		}
+		if field.GetNullable() {
+			fmt.Fprintf(sb, "\t - %s\n", color.MagentaString("Nullable"))
+		}
+		if field.GetDefaultValue() != nil {
+			fmt.Fprintf(sb, "\t - %s: %v\n", color.MagentaString("DefaultValue"), field.GetDefaultValue())
 		}
 		if field.IsDynamic {
 			fmt.Fprintf(sb, "\t - Dynamic Field\n")
