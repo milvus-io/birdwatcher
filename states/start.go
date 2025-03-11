@@ -15,13 +15,13 @@ const (
 )
 
 // Start returns the first state - offline.
-func Start(config *configs.Config) framework.State {
+func Start(config *configs.Config, multiStage bool) framework.State {
 	app := &ApplicationState{
 		states: map[string]framework.State{},
 		config: config,
 	}
 
-	app.core = framework.NewCmdState("Offline")
+	app.core = framework.NewCmdState("[core]", config)
 	app.SetupCommands()
 
 	etcdversion.SetVersion(models.GTEVersion2_2)

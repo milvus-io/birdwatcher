@@ -19,7 +19,7 @@ type ApplicationState struct {
 	// current state
 	states map[string]framework.State
 
-	root *cobra.Command
+	// root *cobra.Command
 	core *framework.CmdState
 
 	// config stores configuration items
@@ -47,11 +47,11 @@ func (app *ApplicationState) Process(cmd string) (framework.State, error) {
 	app.core.Process(cmd)
 	// perform sub state transfer
 	for key, state := range app.states {
-		next := state.NextState()
+		tag, next := state.NextState()
 		if next != nil {
-			app.config.Log("[debug] set next", key, next.Label())
-			state.SetNext(nil)
-			app.states[key] = next
+			app.config.Log("[DEBUG] set next", key, next.Label())
+			state.SetNext(key, nil)
+			app.states[tag] = next
 		}
 	}
 
@@ -64,12 +64,12 @@ func (app *ApplicationState) Close() {
 	}
 }
 
-func (app *ApplicationState) SetNext(state framework.State) {
+func (app *ApplicationState) SetNext(tag string, state framework.State) {
 	app.config.Log("[WARNING] SetNext called for ApplicationState, which is not expected.")
 }
 
-func (app *ApplicationState) NextState() framework.State {
-	return app
+func (app *ApplicationState) NextState() (string, framework.State) {
+	return "core", app
 }
 
 func (app *ApplicationState) SetTagNext(tag string, state framework.State) {
@@ -92,6 +92,7 @@ func (app *ApplicationState) Suggestions(input string) map[string]string {
 // SetupCommands implments framework.State.
 // initialize or reset command after execution.
 func (app *ApplicationState) SetupCommands() {
+	app.config.Log("[INFO] app state setup commands")
 	cmd := app.core.GetCmd()
 
 	app.core.UpdateState(cmd, app, app.SetupCommands)

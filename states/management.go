@@ -18,6 +18,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/mgrpc"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
@@ -59,7 +60,7 @@ func (s *InstanceState) ListMetricsPortCommand(ctx context.Context, p *ListMetri
 		if source == nil {
 			continue
 		}
-		items, _ := getConfiguration(ctx, source, session.ServerID)
+		items, _ := mgrpc.GetConfiguration(ctx, source, session.ServerID)
 		for _, item := range items {
 			if item.GetKey() == "commonmetricsport" {
 				fmt.Println(session.ServerName, session.IP(), item.GetValue())
@@ -171,7 +172,7 @@ func (s *InstanceState) prepareListenerClients(ctx context.Context) ([]*eventlog
 			}
 
 			// fetch configuration items from source
-			items, err := getConfiguration(ctx, source, session.ServerID)
+			items, err := mgrpc.GetConfiguration(ctx, source, session.ServerID)
 			if err != nil {
 				return
 			}
@@ -222,8 +223,8 @@ func (s *InstanceState) prepareListenerClients(ctx context.Context) ([]*eventlog
 	return listeners, nil
 }
 
-func getConfigurationSource(session *models.Session, conn *grpc.ClientConn) configurationSource {
-	var client configurationSource
+func getConfigurationSource(session *models.Session, conn *grpc.ClientConn) mgrpc.ConfigurationSource {
+	var client mgrpc.ConfigurationSource
 	switch session.ServerName {
 	case "datacoord":
 		client = datapb.NewDataCoordClient(conn)

@@ -128,7 +128,7 @@ func (app *WebServerApp) parseMethod(r *gin.Engine, mt reflect.Method, name stri
 		info := &InstanceInfo{}
 		c.ShouldBind(info)
 
-		start := states.Start(app.config)
+		start := states.Start(app.config, false)
 		s, err := start.Process(fmt.Sprintf("connect --etcd=%s --rootPath=%s", info.EtcdAddr, info.RootPath))
 		if err != nil {
 			c.Error(err)

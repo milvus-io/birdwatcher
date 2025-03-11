@@ -1,9 +1,9 @@
-package states
+package mgrpc
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -22,27 +22,23 @@ type rootCoordState struct {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *rootCoordState) SetupCommands() {
-	cmd := &cobra.Command{}
-	cmd.AddCommand(
-		// metrics
-		getMetricsCmd(s.client),
-		// configuration
-		getConfigurationCmd(s.client, s.session.ServerID),
-		// back
-		getBackCmd(s, s.prevState),
-		// exit
-		getExitCmd(s),
-	)
-	s.MergeFunctionCommands(cmd, s)
-
-	s.CmdState.RootCmd = cmd
-	s.SetupFn = s.SetupCommands
+	cmd := s.GetCmd()
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
-func getRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
+type TestParam struct {
+	framework.ParamBase `use:"pr"`
+}
+
+func (s *rootCoordState) TestCommand(ctx context.Context, p *TestParam) error {
+	fmt.Println("rootcoord test")
+	return nil
+}
+
+func GetRootCoordState(client rootcoordpb.RootCoordClient, conn *grpc.ClientConn, prev *framework.CmdState, session *models.Session) framework.State {
 	state := &rootCoordState{
 		session:   session,
-		CmdState:  framework.NewCmdState(fmt.Sprintf("RootCoord-%d(%s)", session.ServerID, session.Address)),
+		CmdState:  prev.Spawn(fmt.Sprintf("RootCoord-%d(%s)", session.ServerID, session.Address)),
 		client:    client,
 		conn:      conn,
 		prevState: prev,

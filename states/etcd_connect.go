@@ -339,7 +339,7 @@ func (s *kvConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
 
 	fmt.Printf("Using meta path: %s/%s/\n", p.instanceName, p.MetaPath)
 
-	s.SetNext(getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config))
+	s.SetNext(etcdTag, getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config))
 	return nil
 }
 

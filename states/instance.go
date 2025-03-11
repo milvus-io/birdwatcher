@@ -66,7 +66,7 @@ func (s *InstanceState) SetupCommands() {
 		// kill --component [component] --id [id]
 		getEtcdKillCmd(cli, basePath),
 		// visit [component] [id]
-		getVisitCmd(s, cli, basePath),
+		getVisitCmd(s.CmdState, cli, basePath),
 		// show-log-level
 		getShowLogLevelCmd(cli, basePath),
 		// update-log-level log_level_name component serverId
@@ -97,10 +97,6 @@ func (s *InstanceState) SetupCommands() {
 
 	// cmd.AddCommand(etcd.RawCommands(cli)...)
 
-	s.MergeFunctionCommands(cmd, s)
-	s.CmdState.RootCmd = cmd
-	s.SetupFn = s.SetupCommands
-
 	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
@@ -110,7 +106,7 @@ type DryModeParam struct {
 
 // DryModeCommand implement `dry-mode` command to enter etcd "dry mode".
 func (s *InstanceState) DryModeCommand(ctx context.Context, p *DryModeParam) {
-	s.SetNext(s.etcdState)
+	s.SetNext(etcdTag, s.etcdState)
 }
 
 func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config) framework.State {

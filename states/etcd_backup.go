@@ -21,6 +21,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/birdwatcher/states/mgrpc"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
@@ -227,7 +228,7 @@ func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 			continue
 		}
 
-		var client metricsSource
+		var client mgrpc.MetricsSource
 		switch strings.ToLower(session.ServerName) {
 		case "rootcoord":
 			client = rootcoordpb.NewRootCoordClient(conn)
@@ -247,7 +248,7 @@ func backupAppMetrics(cli kv.MetaKV, basePath string, w *bufio.Writer) error {
 		if client == nil {
 			continue
 		}
-		data, err := getMetrics(context.Background(), client)
+		data, err := mgrpc.GetMetrics(context.Background(), client)
 		if err != nil {
 			continue
 		}
@@ -296,7 +297,7 @@ func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error 
 			continue
 		}
 
-		var client configurationSource
+		var client mgrpc.ConfigurationSource
 		switch strings.ToLower(session.ServerName) {
 		case "rootcoord":
 			client = rootcoordpb.NewRootCoordClient(conn)
@@ -316,7 +317,7 @@ func backupConfiguration(cli kv.MetaKV, basePath string, w *bufio.Writer) error 
 		if client == nil {
 			continue
 		}
-		configurations, err := getConfiguration(context.Background(), client, session.ServerID)
+		configurations, err := mgrpc.GetConfiguration(context.Background(), client, session.ServerID)
 		if err != nil {
 			continue
 		}

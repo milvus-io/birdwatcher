@@ -1,4 +1,4 @@
-package states
+package mgrpc
 
 import (
 	"context"
@@ -26,27 +26,24 @@ type indexCoordState struct {
 func (s *indexCoordState) SetupCommands() {
 	cmd := &cobra.Command{}
 	cmd.AddCommand(
-		// metrics
-		getMetricsCmd(s.client),
-		// configuration
-		getConfigurationCmd(s.client, s.session.ServerID),
+		// 	// metrics
+		// 	getMetricsCmd(s.client),
+		// 	// configuration
+		// 	getConfigurationCmd(s.client, s.session.ServerID),
 		// build index progress
 		getDescribeIndex(s.client, s.session.ServerID),
-		// back
-		getBackCmd(s, s.prevState),
-		// exit
-		getExitCmd(s),
 	)
 
-	s.MergeFunctionCommands(cmd, s)
+	// s.MergeFunctionCommands(cmd, s)
 
-	s.CmdState.RootCmd = cmd
-	s.SetupFn = s.SetupCommands
+	// s.CmdState.RootCmd = cmd
+	// s.SetupFn = s.SetupCommands
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
-func getIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
+func GetIndexCoordState(client indexpb.IndexCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
 	state := &indexCoordState{
-		CmdState:  framework.NewCmdState(fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address)),
+		CmdState:  framework.NewCmdState(fmt.Sprintf("IndexCoord-%d(%s)", session.ServerID, session.Address), nil),
 		session:   session,
 		client:    client,
 		conn:      conn,

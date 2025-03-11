@@ -170,7 +170,7 @@ func getEmbedEtcdInstance(server *embed.Etcd, cli kv.MetaKV, instanceName string
 	basePath := path.Join(instanceName, metaPath)
 
 	state := &embedEtcdMockState{
-		CmdState:        framework.NewCmdState(fmt.Sprintf("Backup(%s)", instanceName)),
+		CmdState:        framework.NewCmdState(fmt.Sprintf("Backup(%s)", instanceName), config),
 		ComponentShow:   show.NewComponent(cli, config, instanceName, metaPath),
 		ComponentRemove: remove.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
