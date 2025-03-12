@@ -33,6 +33,6 @@ const (
 )
 
 const (
-	IndexPrefix        = `indexes`
+	IndexPrefix        = `field-index`
 	SegmentIndexPrefix = `segment-index`
 )
