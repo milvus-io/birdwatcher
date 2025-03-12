@@ -1,4 +1,4 @@
-package states
+package mgrpc
 
 import (
 	"context"
@@ -28,21 +28,9 @@ type queryCoordState struct {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *queryCoordState) SetupCommands() {
-	cmd := &cobra.Command{}
-	cmd.AddCommand(
-		// metrics
-		getMetricsCmd(s.client),
-		// configuration
-		getConfigurationCmd(s.client, s.session.ServerID),
-		// back
-		getBackCmd(s, s.prevState),
-		// exit
-		getExitCmd(s),
-	)
-	s.MergeFunctionCommands(cmd, s)
+	cmd := s.GetCmd()
 
-	s.CmdState.RootCmd = cmd
-	s.SetupFn = s.SetupCommands
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
 type BalanceSegmentParam struct {
@@ -103,9 +91,9 @@ func (s *queryCoordState) ShowCollectionCmd() *cobra.Command {
 	return cmd
 }*/
 
-func getQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
+func GetQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, prev *framework.CmdState, session *models.Session) framework.State {
 	state := &queryCoordState{
-		CmdState:  framework.NewCmdState(fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address)),
+		CmdState:  prev.Spawn(fmt.Sprintf("QueryCoord-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
 		conn:      conn,

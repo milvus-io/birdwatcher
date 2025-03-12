@@ -20,6 +20,7 @@ var (
 	restServer     = flag.Bool("rest", false, "rest server address")
 	webPort        = flag.Int("port", 8002, "listening port for web server")
 	printVersion   = flag.Bool("version", false, "print version")
+	multiState     = flag.Bool("multiState", false, "use multi state feature, default false")
 )
 
 func main() {
@@ -47,10 +48,10 @@ func main() {
 		}
 		defer file.Close()
 
-		logger := log.New(file, "Custom Log", log.LstdFlags)
+		logger := log.New(file, "[Custom Log]", log.LstdFlags)
 
 		appFactory = func(config *configs.Config) bapps.BApp {
-			return bapps.NewPromptApp(config, bapps.WithLogger(logger))
+			return bapps.NewPromptApp(config, bapps.WithLogger(logger), bapps.WithMultiStage(*multiState))
 		}
 	}
 
@@ -60,7 +61,7 @@ func main() {
 		fmt.Println("[WARN] load config file failed, running in default setting", err.Error())
 	}
 
-	start := states.Start(config)
+	start := states.Start(config, *multiState)
 
 	app := appFactory(config)
 	app.Run(start)

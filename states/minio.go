@@ -14,6 +14,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/mgrpc"
 	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
@@ -61,7 +62,7 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss
 	}
 	source := rootcoordpb.NewRootCoordClient(conn)
 
-	configurations, err := getConfiguration(ctx, source, session.ServerID)
+	configurations, err := mgrpc.GetConfiguration(ctx, source, session.ServerID)
 	if err != nil {
 		return nil, "", "", err
 	}

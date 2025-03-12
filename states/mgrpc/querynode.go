@@ -1,4 +1,4 @@
-package states
+package mgrpc
 
 import (
 	"context"
@@ -25,33 +25,26 @@ type queryNodeState struct {
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *queryNodeState) SetupCommands() {
-	cmd := &cobra.Command{}
+	cmd := s.GetCmd()
 	cmd.AddCommand(
 		// GetSegmentInfo collection_id
 		getQNGetSegmentsCmd(s.client),
-		// metrics
-		getMetricsCmd(s.client),
-		// configuration
-		getConfigurationCmd(s.client, s.session.ServerID),
+		// // metrics
+		// getMetricsCmd(s.client),
+		// // configuration
+		// getConfigurationCmd(s.client, s.session.ServerID),
 		// distribution
 		getQNGetDataDistributionCmd(s.client, s.session.ServerID),
 		// segment-analysis --collection collection --segment
 		getQNGetSegmentInfoCmd(s.client, s.session.ServerID),
-		// back
-		getBackCmd(s, s.prevState),
-		// exit
-		getExitCmd(s),
 	)
 
-	s.MergeFunctionCommands(cmd, s)
-
-	s.CmdState.RootCmd = cmd
-	s.SetupFn = s.SetupCommands
+	s.UpdateState(cmd, s, s.SetupCommands)
 }
 
-func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev framework.State, session *models.Session) framework.State {
+func GetQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, prev *framework.CmdState, session *models.Session) framework.State {
 	state := &queryNodeState{
-		CmdState:  framework.NewCmdState(fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address)),
+		CmdState:  prev.Spawn(fmt.Sprintf("QueryNode-%d(%s)", session.ServerID, session.Address)),
 		session:   session,
 		client:    client,
 		conn:      conn,
@@ -61,15 +54,6 @@ func getQueryNodeState(client querypb.QueryNodeClient, conn *grpc.ClientConn, pr
 	state.SetupCommands()
 
 	return state
-}
-
-func getBackCmd(state, prev framework.State) *cobra.Command {
-	return &cobra.Command{
-		Use: "back",
-		Run: func(cmd *cobra.Command, args []string) {
-			state.SetNext(prev)
-		},
-	}
 }
 
 func getQNGetSegmentsCmd(client querypb.QueryNodeClient) *cobra.Command {

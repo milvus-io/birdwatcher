@@ -19,7 +19,7 @@ func getExitCmd(state framework.State) *cobra.Command {
 		Short:   "Closes the cli",
 		Aliases: []string{"quit"},
 		RunE: func(*cobra.Command, []string) error {
-			state.SetNext(&exitState{})
+			state.SetNext("", &exitState{})
 			// cannot return ExitErr here to avoid print help message
 			return nil
 		},

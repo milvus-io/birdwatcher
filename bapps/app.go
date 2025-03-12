@@ -15,12 +15,19 @@ type BApp interface {
 type AppOption func(*appOption)
 
 type appOption struct {
-	logger *log.Logger
+	logger     *log.Logger
+	multiState bool
 }
 
 // WithLogger returns AppOption to setup application logger.
 func WithLogger(logger *log.Logger) AppOption {
 	return func(opt *appOption) {
 		opt.logger = logger
+	}
+}
+
+func WithMultiStage(multiStage bool) AppOption {
+	return func(opt *appOption) {
+		opt.multiState = multiStage
 	}
 }

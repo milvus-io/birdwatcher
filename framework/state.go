@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/milvus-io/birdwatcher/common"
+	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states/autocomplete"
 )
 
@@ -20,8 +21,8 @@ type State interface {
 	Label() string
 	Process(cmd string) (State, error)
 	Close()
-	SetNext(state State)
-	NextState() State
+	SetNext(tag string, state State)
+	NextState() (string, State)
 	Suggestions(input string) map[string]string
 	SetupCommands()
 	IsEnding() bool
@@ -36,15 +37,24 @@ type CmdState struct {
 	label     string
 	RootCmd   *cobra.Command
 	nextState State
+	tag       string
 	signal    <-chan os.Signal
 
 	SetupFn func()
+	config  *configs.Config
 }
 
 // NewCmdState returns a CmdState with provided label.
-func NewCmdState(label string) *CmdState {
+func NewCmdState(label string, config *configs.Config) *CmdState {
 	return &CmdState{
-		label: label,
+		label:  label,
+		config: config,
+	}
+}
+
+func (s *CmdState) Log(v ...any) {
+	if s.config != nil {
+		s.config.Log(v...)
 	}
 }
 
@@ -142,6 +152,7 @@ func (s *CmdState) Suggestions(input string) map[string]string {
 
 // Process is the main entry for processing command.
 func (s *CmdState) Process(cmd string) (State, error) {
+	s.Log(s.label, "processing command:", cmd)
 	args := strings.Split(cmd, " ")
 
 	target, _, err := s.RootCmd.Find(args)
@@ -174,12 +185,16 @@ func (s *CmdState) Process(cmd string) (State, error) {
 }
 
 // SetNext simple method to set next state.
-func (s *CmdState) SetNext(state State) {
+func (s *CmdState) SetNext(tag string, state State) {
+	if state != nil {
+		s.Log(s.label, " set next state to ", state.Label())
+	}
+	s.tag = tag
 	s.nextState = state
 }
 
-func (s *CmdState) NextState() State {
-	return s.nextState
+func (s *CmdState) NextState() (string, State) {
+	return s.tag, s.nextState
 }
 
 // Close empty method to implement State.

@@ -13,6 +13,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/mgrpc"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
@@ -55,7 +56,7 @@ func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfi
 			continue
 		}
 
-		var client configurationSource
+		var client mgrpc.ConfigurationSource
 		switch strings.ToLower(session.ServerName) {
 		case "rootcoord":
 			client = rootcoordpb.NewRootCoordClient(conn)
@@ -77,7 +78,7 @@ func (s *InstanceState) GetConfigurationCommand(ctx context.Context, p *GetConfi
 			continue
 		}
 
-		configurations, err := getConfiguration(ctx, client, session.ServerID)
+		configurations, err := mgrpc.GetConfiguration(ctx, client, session.ServerID)
 		if err != nil {
 			continue
 		}

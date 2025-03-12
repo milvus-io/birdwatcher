@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -16,11 +14,9 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
-	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
+	"github.com/milvus-io/birdwatcher/states/mgrpc"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
-	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
@@ -37,7 +33,7 @@ func getSessionTypes() []string {
 	}
 }
 
-func getVisitCmd(state framework.State, cli kv.MetaKV, basePath string) *cobra.Command {
+func getVisitCmd(state *framework.CmdState, cli kv.MetaKV, basePath string) *cobra.Command {
 	callCmd := &cobra.Command{
 		Use:   "visit",
 		Short: "enter state that could visit some service of component",
@@ -50,30 +46,29 @@ func getVisitCmd(state framework.State, cli kv.MetaKV, basePath string) *cobra.C
 	return callCmd
 }
 
-func setNextState(sessionType string, conn *grpc.ClientConn, state framework.State, session *models.Session) {
+func setNextState(sessionType string, conn *grpc.ClientConn, state *framework.CmdState, session *models.Session) {
 	switch sessionType {
 	case "datacoord":
 		client := datapb.NewDataCoordClient(conn)
-		state.SetNext(getDataCoordState(client, conn, state, session))
+		state.SetNext("dc", mgrpc.GetDataCoordState(client, conn, state, session))
 	case "datanode":
 		client := datapb.NewDataNodeClient(conn)
-		state.SetNext(getDataNodeState(client, conn, state, session))
+		state.SetNext("dn", mgrpc.GetDataNodeState(client, conn, state, session))
 	case "indexcoord":
 		client := indexpb.NewIndexCoordClient(conn)
-		state.SetNext(getIndexCoordState(client, conn, state, session))
-	// case "indexnode":
-	// indexpb.New
-	// client := indexpb.NewIndexNodeClient(conn)
-	// state.SetNext(getIndexNodeState(client, conn, state, session))
+		state.SetNext("ic", mgrpc.GetIndexCoordState(client, conn, state, session))
+	case "indexnode":
+		// client := indexpb.NewIndexNodeClient(conn)
+		// state.SetNext("in", getIndexNodeState(client, conn, state, session))
 	case "querycoord":
 		client := querypb.NewQueryCoordClient(conn)
-		state.SetNext(getQueryCoordState(client, conn, state, session))
+		state.SetNext("qc", mgrpc.GetQueryCoordState(client, conn, state, session))
 	case "querynode":
 		client := querypb.NewQueryNodeClient(conn)
-		state.SetNext(getQueryNodeState(client, conn, state, session))
+		state.SetNext("qn", mgrpc.GetQueryNodeState(client, conn, state, session))
 	case "rootcoord":
 		client := rootcoordpb.NewRootCoordClient(conn)
-		state.SetNext(getRootCoordState(client, conn, state, session))
+		state.SetNext("rc", mgrpc.GetRootCoordState(client, conn, state, session))
 	}
 }
 
@@ -105,7 +100,7 @@ func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType str
 	return nil, nil, errors.New("invalid id")
 }
 
-func getVisitSessionCmds(state framework.State, cli kv.MetaKV, basePath string) []*cobra.Command {
+func getVisitSessionCmds(state *framework.CmdState, cli kv.MetaKV, basePath string) []*cobra.Command {
 	sessionCmds := make([]*cobra.Command, 0, len(getSessionTypes()))
 	sessionTypes := getSessionTypes()
 
@@ -165,117 +160,4 @@ func getVisitSessionCmds(state framework.State, cli kv.MetaKV, basePath string) 
 		sessionCmds = append(sessionCmds, callCmd)
 	}
 	return sessionCmds
-}
-
-type configurationSource interface {
-	ShowConfigurations(context.Context, *internalpb.ShowConfigurationsRequest, ...grpc.CallOption) (*internalpb.ShowConfigurationsResponse, error)
-}
-
-type metricsSource interface {
-	GetMetrics(context.Context, *milvuspb.GetMetricsRequest, ...grpc.CallOption) (*milvuspb.GetMetricsResponse, error)
-}
-
-func getMetrics(ctx context.Context, client metricsSource) (string, error) {
-	req := &milvuspb.GetMetricsRequest{
-		Base:    &commonpb.MsgBase{},
-		Request: `{"metric_type": "system_info"}`,
-	}
-	resp, err := client.GetMetrics(ctx, req)
-	return resp.GetResponse(), err
-}
-
-func getConfiguration(ctx context.Context, client configurationSource, id int64) ([]*commonpb.KeyValuePair, error) {
-	resp, err := client.ShowConfigurations(ctx, &internalpb.ShowConfigurationsRequest{
-		Base: &commonpb.MsgBase{
-			SourceID: -1,
-			TargetID: id,
-		},
-	})
-	return resp.GetConfiguations(), err
-}
-
-func compactCmd(client datapb.DataCoordClient) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "compact",
-		Short:   "manual compact with collectionID",
-		Aliases: []string{"manualCompact"},
-		Run: func(cmd *cobra.Command, args []string) {
-			collectionID, err := cmd.Flags().GetInt64("collectionID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-			defer cancel()
-			resp, err := client.ManualCompaction(ctx, &milvuspb.ManualCompactionRequest{
-				CollectionID: collectionID,
-			})
-			if err != nil {
-				fmt.Printf("manual compact fail with collectionID:%d, error: %s", collectionID, err.Error())
-				return
-			}
-			fmt.Printf("manual compact done, collectionID:%d, compactionID:%d, rpc status:%v",
-				collectionID, resp.GetCompactionID(), resp.GetStatus())
-		},
-	}
-
-	cmd.Flags().Int64("collectionID", -1, "compact with collectionID")
-	return cmd
-}
-
-func getMetricsCmd(client metricsSource) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "metrics",
-		Short:   "show the metrics provided by current server",
-		Aliases: []string{"GetMetrics"},
-		Run: func(cmd *cobra.Command, args []string) {
-			resp, err := client.GetMetrics(context.Background(), &milvuspb.GetMetricsRequest{
-				Base:    &commonpb.MsgBase{},
-				Request: `{"metric_type": "system_info"}`,
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			fmt.Printf("Metrics: %#v\n", resp.Response)
-		},
-	}
-
-	return cmd
-}
-
-func getConfigurationCmd(client configurationSource, id int64) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "configuration",
-		Short:   "call ShowConfigurations for config inspection",
-		Aliases: []string{"GetConfigurations", "configurations"},
-		Run: func(cmd *cobra.Command, args []string) {
-			prefix, err := cmd.Flags().GetString("prefix")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			resp, err := client.ShowConfigurations(context.Background(), &internalpb.ShowConfigurationsRequest{
-				Base: &commonpb.MsgBase{
-					SourceID: -1,
-					TargetID: id,
-				},
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			prefix = strings.ToLower(prefix)
-			for _, item := range resp.GetConfiguations() {
-				if strings.HasPrefix(item.GetKey(), prefix) {
-					fmt.Printf("Key: %s, Value: %s\n", item.Key, item.Value)
-				}
-			}
-		},
-	}
-
-	cmd.Flags().String("prefix", "", "the configuration prefix to show")
-
-	return cmd
 }
