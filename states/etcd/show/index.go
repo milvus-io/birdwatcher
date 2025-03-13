@@ -41,9 +41,15 @@ func printIndex(info *models.FieldIndex) {
 		common.GetKVPair(indexParams, "index_type"),
 		common.GetKVPair(indexParams, "metric_type"),
 	)
-	fmt.Printf("Index Params: %s\n", common.GetKVPair(index.GetIndexInfo().GetUserIndexParams(), "params"))
-	for _, v := range indexParams {
-		fmt.Printf("%s:%s\n", v.GetKey(), v.GetValue())
+	fmt.Printf("ParamsJSON : %s\n", common.GetKVPair(index.GetIndexInfo().GetUserIndexParams(), "params"))
+	// print detail param in meta
+	fmt.Println("Index.IndexParams:")
+	for _, kv := range indexParams {
+		fmt.Printf("\t%s: %s\n", kv.GetKey(), kv.GetValue())
+	}
+	fmt.Println("Index.UserParams")
+	for _, kv := range index.GetIndexInfo().GetUserIndexParams() {
+		fmt.Printf("\t%s: %s\n", kv.GetKey(), kv.GetValue())
 	}
 	fmt.Println("==================================================================")
 }
