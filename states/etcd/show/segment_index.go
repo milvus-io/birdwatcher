@@ -17,6 +17,7 @@ type SegmentIndexParam struct {
 	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
 	SegmentID           int64 `name:"segment" default:"0" desc:"segment id to filter with"`
 	FieldID             int64 `name:"field" default:"0" desc:"field id to filter with"`
+	IndexID             int64 `name:"indexID" default:"0" desc:"index id to filter with"`
 }
 
 // SegmentIndexCommand returns show segment-index command.
@@ -32,7 +33,8 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 	segmentIndexes, err := common.ListSegmentIndex(ctx, c.client, c.metaPath, func(segIdx *models.SegmentIndex) bool {
 		return (p.CollectionID == 0 || p.CollectionID == segIdx.GetProto().GetCollectionID()) &&
 			(p.SegmentID == 0 || p.SegmentID == segIdx.GetProto().GetSegmentID()) &&
-			(p.FieldID == 0 || p.FieldID == segIdx.GetProto().GetIndexID())
+			// (p.FieldID == 0 || p.FieldID == segIdx.GetProto().GetF()) &&
+			(p.IndexID == 0 || p.IndexID == segIdx.GetProto().GetIndexID())
 	})
 	if err != nil {
 		return err
@@ -41,7 +43,8 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 	indexBuildInfo, err := common.ListIndex(ctx, c.client, c.metaPath, func(index *models.FieldIndex) bool {
 		return p.CollectionID == 0 || p.CollectionID == index.GetProto().GetIndexInfo().GetCollectionID() &&
 			(p.SegmentID == 0 || p.SegmentID == index.GetProto().GetIndexInfo().GetFieldID()) &&
-			(p.FieldID == 0 || p.FieldID == index.GetProto().GetIndexInfo().GetFieldID())
+			(p.FieldID == 0 || p.FieldID == index.GetProto().GetIndexInfo().GetFieldID()) &&
+			(p.IndexID == 0 || p.IndexID == index.GetProto().GetIndexInfo().GetIndexID())
 	})
 	if err != nil {
 		return err
@@ -61,7 +64,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 		if segment.State != commonpb.SegmentState_Flushed && segment.GetState() != commonpb.SegmentState_Flushing {
 			continue
 		}
-		fmt.Printf("SegmentID: %d\t State: %s", segment.GetID(), segment.GetState().String())
+		fmt.Printf("SegmentID: %d\t State: %s\n", segment.GetID(), segment.GetState().String())
 		segIdxs, ok := seg2Idx[segment.GetID()]
 		if !ok {
 			continue
@@ -72,7 +75,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 			if !ok {
 				continue
 			}
-			fmt.Printf("\n\tIndex build ID: %d, states %s", segIdx.GetBuildID(), segIdx.GetState().String())
+			fmt.Printf("\tIndexID: %d\tIndex build ID: %d, states %s", segIdx.GetIndexID(), segIdx.GetBuildID(), segIdx.GetState().String())
 			count[segIdx.GetState().String()]++
 
 			fmt.Printf("\t Index Type:%v on Field ID: %d", common.GetKVPair(index.GetProto().GetIndexInfo().GetIndexParams(), "index_type"), index.GetProto().GetIndexInfo().GetFieldID())
