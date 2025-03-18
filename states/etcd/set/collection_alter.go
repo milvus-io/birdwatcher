@@ -8,7 +8,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	schemapbv2 "github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 // FieldAlterCommand returns `set collection-alter` command.
@@ -56,7 +56,7 @@ func FieldAlterCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 				return
 			}
 
-			alterClusterKey := func(field *schemapbv2.FieldSchema) {
+			alterClusterKey := func(field *schemapb.FieldSchema) {
 				if field.FieldID != fieldID {
 					return
 				}

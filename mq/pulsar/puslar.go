@@ -2,10 +2,10 @@ package pulsar
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/apache/pulsar-client-go/pulsar"
+	"github.com/cockroachdb/errors"
 
 	"github.com/milvus-io/birdwatcher/mq/ifc"
 )
@@ -88,7 +88,7 @@ func (p *pulsarConsumer) GetLastMessage() (ifc.Message, error) {
 		return &pulsarMessage{msg: msg}, nil
 	}
 
-	return nil, errors.New("not found latest message, topic:" + p.topic)
+	return nil, errors.Newf("not found latest message, topic: %s", p.topic)
 }
 
 func (p *pulsarConsumer) Close() error {

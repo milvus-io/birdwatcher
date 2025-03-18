@@ -73,7 +73,7 @@ func (k *Consumer) GetLastMessageID() (ifc.MessageID, error) {
 	}
 
 	if high > 0 {
-		high = high - 1
+		high--
 	}
 	fmt.Printf("get latest msgID, low offset:%d, high offset:%d\n", low, high)
 	return &kafkaID{messageID: high}, nil

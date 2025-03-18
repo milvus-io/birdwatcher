@@ -172,9 +172,13 @@ func ValidateMsg(msgType commonpb.MsgType, payload []byte) error {
 					return errors.Newf("Field %d(%s) len = %d, datatype %v mismatch num rows: %d", fieldData.GetFieldId(), fieldData.GetFieldName(), l, msgType, msg.GetNumRows())
 				}
 			default:
-				fmt.Println("skip unhanlded data type", fieldData.GetType())
+				fmt.Println("skip unhandled data type", fieldData.GetType())
 			}
 		}
+	case commonpb.MsgType_Delete:
+		// TODO maybe process delete as well?
+	default:
+		fmt.Printf("not supported message type: %s", msgType.String())
 	}
 	return nil
 }

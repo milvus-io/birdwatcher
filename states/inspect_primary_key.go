@@ -137,7 +137,7 @@ func (s *InstanceState) inspectRemote(ctx context.Context, p *InspectPKParam) (m
 			}
 
 			for _, binlog := range fieldBinlog.Binlogs {
-				logPath := strings.Replace(binlog.LogPath, "ROOT_PATH", rootPath, -1)
+				logPath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
 				log.Println("start to scan pk binlog: ", logPath)
 				obj, err := minioClient.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
 				if err != nil {

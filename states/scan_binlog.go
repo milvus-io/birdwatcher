@@ -95,7 +95,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	dedupResult := make(map[any]int64)
 
 	getObject := func(binlogPath string) (*minio.Object, error) {
-		logPath := strings.Replace(binlogPath, "ROOT_PATH", rootPath, -1)
+		logPath := strings.ReplaceAll(binlogPath, "ROOT_PATH", rootPath)
 		return minioClient.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
 	}
 

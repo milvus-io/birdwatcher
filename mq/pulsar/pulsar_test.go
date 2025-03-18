@@ -39,7 +39,8 @@ func TestConsumer(t *testing.T) {
 		if msgID, err := producer.Send(ctx, &pulsar.ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
 		}); err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			t.FailNow()
 		} else {
 			log.Println("Published message: ", msgID)
 		}

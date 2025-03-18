@@ -64,7 +64,8 @@ func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 								errResp := minio.ToErrorResponse(err)
 								fmt.Println("failed to check ", l.LogPath, err, errResp.Code)
 								if errResp.Code == "NoSuchKey" {
-									if item.tag == "binlog" {
+									switch item.tag {
+									case "binlog":
 										fmt.Println("path", l.LogPath, fix)
 										splits := strings.Split(l.LogPath, "/")
 										logID, err := strconv.ParseInt(splits[len(splits)-1], 10, 64)
@@ -98,7 +99,7 @@ func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 												fmt.Println("failed to remove segment insert path")
 											}
 										}
-									} else if item.tag == "statslog" {
+									case "statslog":
 										splits := strings.Split(l.LogPath, "/")
 										logID, err := strconv.ParseInt(splits[len(splits)-1], 10, 64)
 										if err != nil {
@@ -131,7 +132,7 @@ func getVerifySegmentCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 												fmt.Println("failed to remove segment insert path")
 											}
 										}
-									} else if item.tag == "deltalog" {
+									case "deltalog":
 										splits := strings.Split(l.LogPath, "/")
 										logID, err := strconv.ParseInt(splits[len(splits)-1], 10, 64)
 										if err != nil {

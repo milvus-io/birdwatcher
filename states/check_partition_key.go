@@ -309,7 +309,7 @@ func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Cli
 	data := storage.NewDeltaData(pkField.DataType, 0)
 	for _, delFieldBinlog := range segment.GetDeltalogs() {
 		for _, binlog := range delFieldBinlog.Binlogs {
-			filePath := strings.Replace(binlog.LogPath, "ROOT_PATH", rootPath, -1)
+			filePath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
 			result, err := client.GetObject(ctx, bucket, filePath, minio.GetObjectOptions{})
 			if err != nil {
 				fmt.Println(err.Error())
