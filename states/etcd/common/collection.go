@@ -22,7 +22,7 @@ var (
 	// CollectionMetaPrefix is prefix for rootcoord collection meta.
 	CollectionMetaPrefix = path.Join(RCPrefix, CollectionPrefix)
 	// DBCollectionMetaPrefix is prefix for rootcoord database collection meta
-	DBCollectionMetaPrefix = path.Join(RCPrefix, DBPrefix, CollectionInfoPrefix) //`root-coord/database/collection-info`
+	DBCollectionMetaPrefix = path.Join(RCPrefix, DBPrefix, CollectionInfoPrefix) // `root-coord/database/collection-info`
 	// FieldMetaPrefix is prefix for rootcoord collection fields meta
 	FieldMetaPrefix = `root-coord/fields`
 	// CollectionLoadPrefix is prefix for querycoord collection loaded in milvus v2.1.x
@@ -309,7 +309,7 @@ func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collection
 		return err
 	}
 
-	if len(keys) <= 0 {
+	if len(keys) == 0 {
 		return fmt.Errorf("wrong path %s", prefix)
 	}
 

@@ -292,7 +292,7 @@ func sprinterr(m dsl.Matcher) {
 }
 
 // disable this check, because it can not apply to generic type
-//func largeloopcopy(m dsl.Matcher) {
+// func largeloopcopy(m dsl.Matcher) {
 //	m.Match(
 //		`for $_, $v := range $_ { $*_ }`,
 //	).

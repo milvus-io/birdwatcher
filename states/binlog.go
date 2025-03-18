@@ -156,7 +156,7 @@ func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Clie
 				continue
 			}
 			binlog := fieldBinlog.Binlogs[idx]
-			filePath := strings.Replace(binlog.LogPath, "ROOT_PATH", rootPath, -1)
+			filePath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
 			object, err := minioClient.GetObject(ctx, bucketName, filePath, minio.GetObjectOptions{})
 			if err != nil {
 				fmt.Println(err.Error())

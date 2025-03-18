@@ -86,7 +86,7 @@ func (s *InstanceState) downloadPKs(ctx context.Context, cli *minio.Client, buck
 			}
 
 			for _, binlog := range fieldBinlog.Binlogs {
-				logPath := strings.Replace(binlog.LogPath, "ROOT_PATH", rootPath, -1)
+				logPath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
 				obj, err := cli.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
 				if err != nil {
 					fmt.Println("failed to download file", bucketName, logPath)

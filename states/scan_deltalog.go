@@ -107,7 +107,7 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 	}
 
 	getObject := func(binlogPath string) (*minio.Object, error) {
-		logPath := strings.Replace(binlogPath, "ROOT_PATH", rootPath, -1)
+		logPath := strings.ReplaceAll(binlogPath, "ROOT_PATH", rootPath)
 		return minioClient.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
 	}
 	for _, segment := range segments {

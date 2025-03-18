@@ -41,14 +41,16 @@ func main() {
 		appFactory = func(config *configs.Config) bapps.BApp { return bapps.NewWebServerApp(*webPort, config) }
 	default:
 		defer handleExit()
+
+		var logger *log.Logger
 		// open file and create if non-existent
 		file, err := os.OpenFile("bw_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+		} else {
+			defer file.Close()
+			logger = log.New(file, "[Custom Log]", log.LstdFlags)
 		}
-		defer file.Close()
-
-		logger := log.New(file, "[Custom Log]", log.LstdFlags)
 
 		appFactory = func(config *configs.Config) bapps.BApp {
 			return bapps.NewPromptApp(config, bapps.WithLogger(logger), bapps.WithMultiStage(*multiState))

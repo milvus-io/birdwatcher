@@ -114,7 +114,7 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	_, _, err = net.SplitHostPort(cp.EtcdAddr)
 	if err != nil {
 		if strings.Contains(err.Error(), "missing port in address") {
-			cp.EtcdAddr = cp.EtcdAddr + ":2379"
+			cp.EtcdAddr += ":2379"
 		} else {
 			return errors.Wrap(err, "invalid etcd address")
 		}
@@ -144,11 +144,12 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 		if err != nil {
 			return err
 		}
-		if len(candidates) == 1 {
+		switch {
+		case len(candidates) == 1:
 			cp.RootPath = candidates[0]
-		} else if len(candidates) > 1 {
+		case len(candidates) > 1:
 			fmt.Println("multiple possible rootPath find, cannot use auto mode")
-		} else {
+		default:
 			fmt.Println("failed to find rootPath candidate")
 			return nil
 		}
