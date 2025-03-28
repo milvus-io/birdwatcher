@@ -13,11 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
@@ -39,7 +41,7 @@ func GetProbeCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 		// probe query
 		getProbeQueryCmd(cli, basePath),
 		// probe pk
-		getProbePKCmd(cli, basePath),
+		// getProbePKCmd(cli, basePath),
 	)
 
 	return probeCmd
@@ -134,173 +136,166 @@ func getProbeQueryCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	return cmd
 }
 
-func getProbePKCmd(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "pk",
-		Short: "probe pk in segment",
-		Run: func(cmd *cobra.Command, args []string) {
-			collID, err := cmd.Flags().GetInt64("collection")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			pk, err := cmd.Flags().GetString("pk")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+type ProbePKParam struct {
+	framework.ParamBase `use:"probe pk" desc:"probe pk in segment"`
+	CollectionID        int64    `name:"collection" default:"0" desc:"collection id to probe"`
+	PK                  string   `name:"pk" default:"" desc:"pk value to probe"`
+	OutputFields        []string `name:"outputField" default:"" desc:"output fields list"`
+}
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+func (s *InstanceState) ProbePKCommand(ctx context.Context, p *ProbePKParam) error {
+	coll, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, p.CollectionID)
+	if err != nil {
+		return err
+	}
 
-			coll, err := common.GetCollectionByIDVersion(ctx, cli, basePath, collID)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+	pkf, _ := coll.GetPKField()
+	var datatype schemapb.DataType
+	var val *planpb.GenericValue
+	switch pkf.DataType {
+	case models.DataTypeVarChar:
+		datatype = schemapb.DataType_VarChar
+		val = &planpb.GenericValue{
+			Val: &planpb.GenericValue_StringVal{
+				StringVal: p.PK,
+			},
+		}
+	case models.DataTypeInt64:
+		datatype = schemapb.DataType_Int64
+		pkv, err := strconv.ParseInt(p.PK, 10, 64)
+		if err != nil {
+			return err
+		}
+		val = &planpb.GenericValue{
+			Val: &planpb.GenericValue_Int64Val{
+				Int64Val: pkv,
+			},
+		}
+	}
 
-			pkf, _ := coll.GetPKField()
-			var datatype schemapb.DataType
-			var val *planpb.GenericValue
-			switch pkf.DataType {
-			case models.DataTypeVarChar:
-				datatype = schemapb.DataType_VarChar
-				val = &planpb.GenericValue{
-					Val: &planpb.GenericValue_StringVal{
-						StringVal: pk,
-					},
-				}
-			case models.DataTypeInt64:
-				datatype = schemapb.DataType_Int64
-				pkv, err := strconv.ParseInt(pk, 10, 64)
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				val = &planpb.GenericValue{
-					Val: &planpb.GenericValue_Int64Val{
-						Int64Val: pkv,
-					},
-				}
-			}
-
-			var outputFields []int64
-			fieldIDName := make(map[int64]string)
-			for _, f := range coll.GetProto().Schema.Fields {
-				if f.FieldID >= 100 {
-					outputFields = append(outputFields, f.FieldID)
-				}
-				fieldIDName[f.FieldID] = f.Name
-			}
-			plan := &planpb.PlanNode{
-				Node: &planpb.PlanNode_Predicates{
-					Predicates: &planpb.Expr{
-						Expr: &planpb.Expr_TermExpr{
-							TermExpr: &planpb.TermExpr{
-								ColumnInfo: &planpb.ColumnInfo{
-									FieldId:      pkf.FieldID,
-									DataType:     datatype,
-									IsAutoID:     pkf.AutoID,
-									IsPrimaryKey: pkf.IsPrimaryKey,
-								},
-								Values: []*planpb.GenericValue{
-									val,
-								},
-							},
+	var outputFields []int64
+	fieldIDName := make(map[int64]string)
+	outputSet := lo.SliceToMap(p.OutputFields, func(output string) (string, struct{}) {
+		return output, struct{}{}
+	})
+	for _, f := range coll.GetProto().Schema.Fields {
+		_, has := outputSet[f.Name]
+		if (f.FieldID >= 100 && has) || f.IsPrimaryKey {
+			outputFields = append(outputFields, f.FieldID)
+		}
+		fieldIDName[f.FieldID] = f.Name
+	}
+	if _, has := outputSet["$ts"]; has {
+		outputFields = append(outputFields, 1)
+	}
+	plan := &planpb.PlanNode{
+		Node: &planpb.PlanNode_Predicates{
+			Predicates: &planpb.Expr{
+				Expr: &planpb.Expr_TermExpr{
+					TermExpr: &planpb.TermExpr{
+						ColumnInfo: &planpb.ColumnInfo{
+							FieldId:      pkf.FieldID,
+							DataType:     datatype,
+							IsAutoID:     pkf.AutoID,
+							IsPrimaryKey: pkf.IsPrimaryKey,
 						},
+						Values: []*planpb.GenericValue{
+							val,
+						},
+						IsInField: true,
 					},
 				},
-				OutputFieldIds: outputFields,
+			},
+		},
+		OutputFieldIds: outputFields,
+	}
+
+	bs, _ := proto.Marshal(plan)
+
+	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
+	if err != nil {
+		fmt.Println("failed to list online sessions", err.Error())
+		return err
+	}
+
+	qc, err := getQueryCoordClient(sessions)
+	if err != nil {
+		fmt.Println("failed to connect querycoord", err.Error())
+		return err
+	}
+
+	resp, err := qc.GetShardLeaders(ctx, &querypb.GetShardLeadersRequest{
+		Base:         &commonpb.MsgBase{},
+		CollectionID: p.CollectionID,
+	})
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	if resp.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
+		fmt.Println("failed to list shard leader", resp.GetStatus().GetErrorCode())
+		return err
+	}
+
+	qns, err := getQueryNodeClients(sessions)
+	if err != nil {
+		fmt.Println("failed to connect querynodes", err.Error())
+		return err
+	}
+	if len(qns) == 0 {
+		fmt.Println("no querynode online")
+		return nil
+	}
+
+	for nodeID, qn := range qns {
+		resp, err := qn.GetDataDistribution(ctx, &querypb.GetDataDistributionRequest{
+			Base: &commonpb.MsgBase{TargetID: nodeID},
+		})
+		if err != nil {
+			fmt.Println("failed to get data distribution from node", nodeID, err.Error())
+			continue
+		}
+		for _, segInfo := range resp.GetSegments() {
+			if segInfo.GetCollection() != p.CollectionID {
+				continue
 			}
-
-			bs, _ := proto.Marshal(plan)
-
-			sessions, err := common.ListSessions(ctx, cli, basePath)
-			if err != nil {
-				fmt.Println("failed to list online sessions", err.Error())
-				return
-			}
-
-			qc, err := getQueryCoordClient(sessions)
-			if err != nil {
-				fmt.Println("failed to connect querycoord", err.Error())
-				return
-			}
-
-			resp, err := qc.GetShardLeaders(ctx, &querypb.GetShardLeadersRequest{
-				Base:         &commonpb.MsgBase{},
-				CollectionID: collID,
+			result, err := qn.QuerySegments(ctx, &querypb.QueryRequest{
+				SegmentIDs:      []int64{segInfo.ID},
+				DmlChannels:     []string{segInfo.GetChannel()},
+				FromShardLeader: true, // query single segment
+				Scope:           querypb.DataScope_Historical,
+				Req: &internalpb.RetrieveRequest{
+					Base:               &commonpb.MsgBase{TargetID: nodeID, MsgID: time.Now().Unix()},
+					CollectionID:       segInfo.Collection,
+					PartitionIDs:       []int64{segInfo.Partition},
+					SerializedExprPlan: bs,
+					OutputFieldsId:     outputFields,
+					Limit:              -1, // unlimited
+					MvccTimestamp:      ComposeTS(time.Now().UnixMilli(), 0),
+				},
 			})
 			if err != nil {
 				fmt.Println(err.Error())
-				return
+				continue
+			}
+			if result.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
+				fmt.Printf("failed to probe pk on segment %d, reason: %s\n", segInfo.GetID(), result.GetStatus().GetReason())
+				continue
 			}
 
-			if resp.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
-				fmt.Println("failed to list shard leader", resp.GetStatus().GetErrorCode())
-				return
+			if GetSizeOfIDs(result.GetIds()) == 0 {
+				continue
 			}
-
-			qns, err := getQueryNodeClients(sessions)
-			if err != nil {
-				fmt.Println("failed to connect querynodes", err.Error())
-				return
+			fmt.Printf("PK %s found on segment %d\n", p.PK, segInfo.GetID())
+			for _, fd := range result.GetFieldsData() {
+				fmt.Printf("Field %s, value: %v\n", fieldIDName[fd.GetFieldId()], fd.GetField())
 			}
-			if len(qns) == 0 {
-				fmt.Println("no querynode online")
-				return
-			}
-
-			for nodeID, qn := range qns {
-				resp, err := qn.GetDataDistribution(ctx, &querypb.GetDataDistributionRequest{
-					Base: &commonpb.MsgBase{TargetID: nodeID},
-				})
-				if err != nil {
-					fmt.Println("failed to get data distribution from node", nodeID, err.Error())
-					continue
-				}
-				for _, segInfo := range resp.GetSegments() {
-					if segInfo.GetCollection() != collID {
-						continue
-					}
-					result, err := qn.Query(ctx, &querypb.QueryRequest{
-						SegmentIDs:      []int64{segInfo.ID},
-						DmlChannels:     []string{segInfo.GetChannel()},
-						FromShardLeader: true, // query single segment
-						Scope:           querypb.DataScope_Historical,
-						Req: &internalpb.RetrieveRequest{
-							Base:               &commonpb.MsgBase{TargetID: nodeID, MsgID: time.Now().Unix()},
-							CollectionID:       segInfo.Collection,
-							PartitionIDs:       []int64{segInfo.Partition},
-							SerializedExprPlan: bs,
-							OutputFieldsId:     outputFields,
-							Limit:              -1, // unlimited
-						},
-					})
-					if err != nil {
-						fmt.Println(err.Error())
-						continue
-					}
-					if result.GetStatus().GetErrorCode() != commonpb.ErrorCode_Success {
-						fmt.Printf("failed to probe pk on segment %d, reason: %s\n", segInfo.GetID(), result.GetStatus().GetReason())
-						continue
-					}
-					if GetSizeOfIDs(result.GetIds()) == 0 {
-						continue
-					}
-					fmt.Printf("PK %s found on segment %d\n", pk, segInfo.GetID())
-					for _, fd := range result.GetFieldsData() {
-						fmt.Printf("Field %s, value: %v\n", fieldIDName[fd.GetFieldId()], fd.GetField())
-					}
-				}
-			}
-		},
+		}
 	}
 
-	cmd.Flags().Int64("collection", 0, "collection id for probe")
-	cmd.Flags().String("pk", "", "pk value to probe")
-
-	return cmd
+	return nil
 }
 
 func GetSizeOfIDs(data *schemapb.IDs) int {
