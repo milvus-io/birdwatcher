@@ -81,6 +81,11 @@ func ParseTS(ts uint64) (time.Time, uint64) {
 	return physicalTime, logical
 }
 
+// ComposeTS returns a timestamp composed of physical part and logical part
+func ComposeTS(physical, logical int64) uint64 {
+	return uint64((physical << logicalBits) + logical)
+}
+
 // listSessions returns all session
 func listSessionsByPrefix(cli kv.MetaKV, prefix string) ([]*models.Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
