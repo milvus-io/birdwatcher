@@ -228,7 +228,6 @@ func (s *InstanceState) ProbePKCommand(ctx context.Context, p *ProbePKParam) err
 		Base:         &commonpb.MsgBase{},
 		CollectionID: p.CollectionID,
 	})
-
 	if err != nil {
 		fmt.Println(err.Error())
 		return err
