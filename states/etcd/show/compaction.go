@@ -26,6 +26,7 @@ type CompactionTaskParam struct {
 	PlanID              int64  ` name:"planID" default:"0" desc:"PlanID  to filter"`
 	SegmentID           int64  ` name:"segmentID" default:"0" desc:"SegmentID  to filter"`
 	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing input/result segmentIDs"`
+	IgnoreDone          bool   `name:"ignoreDone" default:"true" desc:"ignore finished compaction tasks"`
 }
 
 func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) (*CompactionTasks, error) {
@@ -56,6 +57,10 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 		if p.SegmentID > 0 && !lo.Contains(task.GetInputSegments(), p.SegmentID) {
 			return false
 		}
+		if p.IgnoreDone &&
+			(strings.EqualFold(task.GetState().String(), "cleaned") || strings.EqualFold(task.GetState().String(), "completed")) {
+			return false
+		}
 		if p.State != "" && !strings.EqualFold(p.State, task.GetState().String()) {
 			return false
 		}
@@ -64,6 +69,7 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("ignoreDone flag set to true, set `--ignoreDone=false` to show all tasks")
 	sort.Slice(compactionTasks, func(i, j int) bool {
 		return compactionTasks[i].GetPlanID() < compactionTasks[j].GetPlanID()
 	})
