@@ -25,6 +25,7 @@ import (
 	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/planpb"
@@ -258,6 +259,9 @@ func (s *InstanceState) ProbePKCommand(ctx context.Context, p *ProbePKParam) err
 		}
 		for _, segInfo := range resp.GetSegments() {
 			if segInfo.GetCollection() != p.CollectionID {
+				continue
+			}
+			if segInfo.GetLevel() == datapb.SegmentLevel_L0 {
 				continue
 			}
 			result, err := qn.QuerySegments(ctx, &querypb.QueryRequest{
