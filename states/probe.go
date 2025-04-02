@@ -41,8 +41,6 @@ func GetProbeCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 	probeCmd.AddCommand(
 		// probe query
 		getProbeQueryCmd(cli, basePath),
-		// probe pk
-		// getProbePKCmd(cli, basePath),
 	)
 
 	return probeCmd
@@ -142,6 +140,7 @@ type ProbePKParam struct {
 	CollectionID        int64    `name:"collection" default:"0" desc:"collection id to probe"`
 	PK                  string   `name:"pk" default:"" desc:"pk value to probe"`
 	OutputFields        []string `name:"outputField" default:"" desc:"output fields list"`
+	MvccTimestamp       int64    `name:"mvccTimestamp" default:"0" desc:"mvcc timestamp to probe"`
 }
 
 func (s *InstanceState) ProbePKCommand(ctx context.Context, p *ProbePKParam) error {
@@ -249,6 +248,11 @@ func (s *InstanceState) ProbePKCommand(ctx context.Context, p *ProbePKParam) err
 		return nil
 	}
 
+	// use current ts when mvccTimestamp not specified
+	if p.MvccTimestamp == 0 {
+		p.MvccTimestamp = int64(ComposeTS(time.Now().UnixMilli(), 0))
+	}
+
 	for nodeID, qn := range qns {
 		resp, err := qn.GetDataDistribution(ctx, &querypb.GetDataDistributionRequest{
 			Base: &commonpb.MsgBase{TargetID: nodeID},
@@ -276,7 +280,7 @@ func (s *InstanceState) ProbePKCommand(ctx context.Context, p *ProbePKParam) err
 					SerializedExprPlan: bs,
 					OutputFieldsId:     outputFields,
 					Limit:              -1, // unlimited
-					MvccTimestamp:      ComposeTS(time.Now().UnixMilli(), 0),
+					MvccTimestamp:      uint64(p.MvccTimestamp),
 				},
 			})
 			if err != nil {
