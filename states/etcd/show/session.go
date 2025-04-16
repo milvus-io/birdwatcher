@@ -67,7 +67,13 @@ func (rs *Sessions) printAsGroups() string {
 		return ""
 	}
 
-	for _, coord := range []string{"rootcoord", "datacoord", "querycoord", "indexcoord"} {
+	coords := []string{"rootcoord", "datacoord", "querycoord", "indexcoord"}
+	if _, ok := componentGroups["mixcoord"]; ok {
+		// after 2.6, all coordinators are merged into one mixcoord session
+		coords = []string{"mixcoord"}
+	}
+
+	for _, coord := range coords {
 		fmt.Fprintf(sb, "Cordinator %s\n", color.GreenString(coord))
 		sessions := componentGroups[coord]
 		main := lo.FindOrElse(sessions, nil, func(session *models.Session) bool {
