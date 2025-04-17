@@ -43,7 +43,7 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss
 	}
 
 	session, found := lo.Find(sessions, func(session *models.Session) bool {
-		return session.ServerName == "rootcoord"
+		return session.ServerName == "rootcoord" || session.ServerName == "mixcoord"
 	})
 
 	if !found {
