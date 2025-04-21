@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -60,16 +59,15 @@ type CollectionHistory struct {
 func (rs *CollectionHistory) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
-		sb := &strings.Builder{}
-		printCollection(sb, rs.Collection)
+		printCollection(rs.Collection)
 		for _, item := range rs.HistoryItems {
 			t, _ := utils.ParseTS(item.Ts)
-			fmt.Fprintln(sb, "Snapshot at", t.Format("2006-01-02 15:04:05"))
+			fmt.Printf( "Snapshot at", t.Format("2006-01-02 15:04:05"))
 			if item.Dropped {
-				fmt.Fprintln(sb, "Collection Dropped")
+				fmt.Printf( "Collection Dropped")
 				continue
 			}
-			printCollection(sb, &item.Collection)
+			printCollection(&item.Collection)
 		}
 	default:
 	}
