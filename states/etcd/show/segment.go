@@ -100,8 +100,8 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			case "table":
 				PrintSegmentInfo(info, p.Detail)
 			case "line":
-				fmt.Printf("SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  PartitionStatsVersion:%d, IsSorted: %v \n",
-					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.PartitionStatsVersion, info.IsSorted)
+				fmt.Printf("SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  StorageVersion:%d, IsSorted: %v \n",
+					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.StorageVersion, info.IsSorted)
 			case "statistics":
 				if info.State != commonpb.SegmentState_Dropped {
 					for _, binlog := range info.GetBinlogs() {
@@ -200,6 +200,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 		fmt.Printf("\tDropped Time: %s", dropTime.Format(tsPrintFormat))
 	}
 	fmt.Printf("\tSegment Level: %s", info.Level.String())
+	fmt.Printf("\tStorage Version: %d", info.GetStorageVersion())
 	fmt.Println()
 	fmt.Printf("Collection ID: %d\t\tPartitionID: %d\n", info.CollectionID, info.PartitionID)
 	fmt.Printf("Insert Channel:%s\n", info.InsertChannel)
