@@ -55,8 +55,10 @@ func GetDataCoordState(client datapb.DataCoordClient, conn *grpc.ClientConn, pre
 
 type CompactParam struct {
 	framework.ParamBase `use:"compact" desc:"manual compact with collectionID"`
-	CollectionID        int64 `name:"collectionID" default:"0" desc:"collection id to compact"`
-	CompactAll          bool  `name:"compactAll" default:"false" desc:"explicitly allow compact all collections"`
+	CollectionID        int64   `name:"collectionID" default:"0" desc:"collection id to compact"`
+	CompactAll          bool    `name:"compactAll" default:"false" desc:"explicitly allow compact all collections"`
+	ChannelName         string  `name:"channelName" default:"" desc:"channel name to compact"`
+	SegmentIDs          []int64 `name:"segmentID" default:"" desc:"segment ids to compact"`
 }
 
 func (s *dataCoordState) CompactCommand(ctx context.Context, p *CompactParam) error {
@@ -65,6 +67,8 @@ func (s *dataCoordState) CompactCommand(ctx context.Context, p *CompactParam) er
 	}
 	resp, err := s.client.ManualCompaction(ctx, &milvuspb.ManualCompactionRequest{
 		CollectionID: p.CollectionID,
+		Channel:      p.ChannelName,
+		SegmentIds:   p.SegmentIDs,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "manual compact fail with collectionID:%d", p.CollectionID)
