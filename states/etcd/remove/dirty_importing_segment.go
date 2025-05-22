@@ -33,6 +33,7 @@ func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *D
 		return segment.CollectionID
 	})
 
+	cnt := 0
 	for collectionID, segments := range groups {
 		for _, segment := range segments {
 			if segment.State == commonpb.SegmentState_Importing {
@@ -41,12 +42,15 @@ func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *D
 					segmentTs = segment.GetStartPosition().GetTimestamp()
 				}
 				if segment.NumOfRows == 0 && segmentTs < uint64(p.Ts) {
-					fmt.Printf("collection %d, segment %d is dirty importing with 0 rows, remove it\n", collectionID, segment.ID)
+					cnt++
 					if p.Run {
 						err := common.RemoveSegmentByID(ctx, c.client, c.basePath, segment.CollectionID, segment.PartitionID, segment.ID)
 						if err != nil {
 							fmt.Printf("failed to remove segment %d, err: %s\n", segment.ID, err.Error())
 						}
+						fmt.Printf("collection %d, segment %d is dirty importing with 0 rows, remove done\n", collectionID, segment.ID)
+					} else {
+						fmt.Printf("collection %d, segment %d is dirty importing with 0 rows\n", collectionID, segment.ID)
 					}
 				} else {
 					fmt.Printf("collection %d, segment %d is dirty importing with %d rows, ts=%d, skip it\n", collectionID, segment.ID, segment.NumOfRows, segmentTs)
@@ -55,6 +59,10 @@ func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *D
 		}
 	}
 
-	fmt.Println("finish to remove dirty importing segment")
+	if p.Run {
+		fmt.Printf("finish to remove '%d' dirty importing segments\n", cnt)
+	} else {
+		fmt.Printf("found '%d' dirty importing segments\n", cnt)
+	}
 	return nil
 }
