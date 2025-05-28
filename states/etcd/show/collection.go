@@ -106,8 +106,10 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 	fmt.Fprintln(sb, "================================================================================")
 	fmt.Fprintf(sb, "DBID: %d\n", collection.DbId)
 	fmt.Fprintf(sb, "Collection ID: %d\tCollection Name: %s\n", collection.ID, collection.Schema.Name)
-	t, _ := utils.ParseTS(collection.CreateTime)
-	fmt.Fprintf(sb, "Collection State: %s\tCreate Time: %s\n", collection.State.String(), t.Format("2006-01-02 15:04:05"))
+	createTime, _ := utils.ParseTS(collection.CreateTime)
+	updateTime, _ := utils.ParseTS(collection.UpdateTimestamp)
+	fmt.Fprintf(sb, "Collection State: %s\tCreate Time: %s\n", collection.State.String(), createTime.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(sb, "Update Time: %s\tUpdate timestamp: %d\n", updateTime.Format("2006-01-02 15:04:05"), collection.UpdateTimestamp)
 	fmt.Fprintf(sb, "Fields:\n")
 	fields := collection.Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
@@ -144,6 +146,10 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 	}
 
 	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", collection.Schema.EnableDynamicField)
+	for _, function := range info.Functions {
+		fp := function.GetProto()
+		fmt.Fprintf(sb, "Function Name: %s, Type: %s, Input: %v, Output: %v\n", fp.GetName(), fp.GetType().String(), fp.GetInputFieldNames(), fp.GetOutputFieldNames())
+	}
 	fmt.Fprintf(sb, "Consistency Level: %s\n", collection.ConsistencyLevel.String())
 	for _, channel := range info.Channels() {
 		fmt.Fprintf(sb, "Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)

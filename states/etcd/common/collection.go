@@ -25,6 +25,8 @@ var (
 	DBCollectionMetaPrefix = path.Join(RCPrefix, DBPrefix, CollectionInfoPrefix) // `root-coord/database/collection-info`
 	// FieldMetaPrefix is prefix for rootcoord collection fields meta
 	FieldMetaPrefix = `root-coord/fields`
+	// FunctionMetaPrefix is prefix for rootcoord function meta
+	FunctionMetaPrefix = `root-coord/functions`
 	// CollectionLoadPrefix is prefix for querycoord collection loaded in milvus v2.1.x
 	CollectionLoadPrefix = "queryCoord-collectionMeta"
 	// CollectionLoadPrefixV2 is prefix for querycoord collection loaded in milvus v2.2.x
@@ -59,81 +61,12 @@ func ListCollections(ctx context.Context, cli kv.MetaKV, basePath string, filter
 
 	results = lo.Map(results, func(collection *models.Collection, _ int) *models.Collection {
 		collection.GetProto().GetSchema().Fields, _ = getCollectionFields(ctx, cli, basePath, collection.GetProto().GetID())
+		collection.Functions, _ = ListCollectionFunctions(ctx, cli, basePath, collection.GetProto().GetID())
 		return collection
 	})
 
 	return results, nil
 }
-
-// ListCollections returns collection information.
-// the field info might not include.
-// func ListCollections(cli kv.MetaKV, basePath string, filter func(*etcdpb.CollectionInfo) bool) ([]etcdpb.CollectionInfo, error) {
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-// 	defer cancel()
-
-// 	colls, _, err := ListProtoObjectsAdv(ctx, cli, path.Join(basePath, CollectionMetaPrefix), func(_ string, value []byte) bool {
-// 		return !bytes.Equal(value, CollectionTombstone)
-// 	}, filter)
-// 	return colls, err
-// }
-
-// ListCollectionsVersion returns collection information as provided version.
-// func ListCollectionsVersion(ctx context.Context, cli kv.MetaKV, basePath string, version string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
-// 	prefixes := []string{
-// 		path.Join(basePath, CollectionMetaPrefix),
-// 		path.Join(basePath, DBCollectionMetaPrefix),
-// 	}
-// 	var result []*models.Collection
-// 	switch version {
-// 	case models.LTEVersion2_1:
-// 		for _, prefix := range prefixes {
-// 			collections, keys, err := ListProtoObjectsAdv[etcdpb.CollectionInfo](ctx, cli, prefix, func(_ string, value []byte) bool {
-// 				// TODO maybe add dropped collection info in result?
-// 				return !bytes.Equal(value, CollectionTombstone)
-// 			})
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			result = append(result, lo.FilterMap(collections, func(collection etcdpb.CollectionInfo, idx int) (*models.Collection, bool) {
-// 				c := models.NewCollectionFromV2_1(&collection, keys[idx])
-// 				for _, filter := range filters {
-// 					if !filter(c) {
-// 						return nil, false
-// 					}
-// 				}
-// 				return c, true
-// 			})...)
-// 		}
-
-// 		return result, nil
-// 	case models.GTEVersion2_2:
-// 		for _, prefix := range prefixes {
-// 			collections, keys, err := ListProtoObjectsAdv[etcdpbv2.CollectionInfo](ctx, cli, prefix, func(_ string, value []byte) bool {
-// 				return !bytes.Equal(value, CollectionTombstone)
-// 			})
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			result = append(result, lo.FilterMap(collections, func(collection etcdpbv2.CollectionInfo, idx int) (*models.Collection, bool) {
-// 				fields, err := getCollectionFields(ctx, cli, basePath, collection.ID)
-// 				if err != nil {
-// 					fmt.Println(err.Error())
-// 					return nil, false
-// 				}
-// 				c := models.NewCollectionFromV2_2(&collection, keys[idx], fields)
-// 				for _, filter := range filters {
-// 					if !filter(c) {
-// 						return nil, false
-// 					}
-// 				}
-// 				return c, true
-// 			})...)
-// 		}
-// 		return result, nil
-// 	default:
-// 		return nil, fmt.Errorf("undefined version: %s", version)
-// 	}
-// }
 
 // GetCollectionByIDVersion retruns collection info from etcd with provided version & id.
 func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) (*models.Collection, error) {
@@ -149,69 +82,6 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 	}
 
 	return colls[0], nil
-	// var ck string
-	// var cv []byte
-	// found := false
-
-	// prefix := path.Join(basePath, CollectionMetaPrefix, strconv.FormatInt(collID, 10))
-	// val, err := cli.Load(ctx, prefix)
-	// if err != nil {
-	// 	fmt.Println("get error", err.Error())
-	// 	return nil, err
-	// }
-	// if len(val) > 0 {
-	// 	found = true
-	// 	ck = prefix
-	// 	cv = []byte(val)
-	// }
-
-	// // with database, dbID unknown here
-	// prefix = path.Join(basePath, DBCollectionMetaPrefix)
-	// keys, _, _ := cli.LoadWithPrefix(ctx, prefix)
-	// suffix := strconv.FormatInt(collID, 10)
-	// for _, key := range keys {
-	// 	if strings.HasSuffix(key, suffix) {
-	// 		if found {
-	// 			return nil, fmt.Errorf("multiple key found for collection %d: %s, %s", collID, ck, key)
-	// 		}
-	// 		found = true
-	// 		ck = prefix
-	// 		cv = []byte(val)
-	// 	}
-	// }
-	// if !found {
-	// 	return nil, fmt.Errorf("collection %d not found in etcd %w", collID, ErrCollectionNotFound)
-	// }
-
-	// if bytes.Equal(cv, CollectionTombstone) {
-	// 	return nil, fmt.Errorf("%w, collection id: %d", ErrCollectionDropped, collID)
-	// }
-
-	// switch version {
-	// case models.LTEVersion2_1:
-	// 	info := &etcdpb.CollectionInfo{}
-	// 	err := proto.Unmarshal(cv, info)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	c := models.NewCollectionFromV2_1(info, ck)
-	// 	return c, nil
-
-	// case models.GTEVersion2_2:
-	// 	info := &etcdpbv2.CollectionInfo{}
-	// 	err := proto.Unmarshal(cv, info)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	fields, err := getCollectionFields(ctx, cli, basePath, info.ID)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	c := models.NewCollectionFromV2_2(info, ck, fields)
-	// 	return c, nil
-	// default:
-	// 	return nil, errors.New("not supported version")
-	// }
 }
 
 func getCollectionFields(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) ([]*schemapb.FieldSchema, error) {
@@ -377,4 +247,9 @@ func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collection
 	}
 	fmt.Printf("alter field schema cache :%s\n", info.String())
 	return nil
+}
+
+func ListCollectionFunctions(ctx context.Context, cli kv.MetaKV, basePath string, collectionID int64) ([]*models.Function, error) {
+	prefix := path.Join(basePath, FunctionMetaPrefix, strconv.FormatInt(collectionID, 10)) + "/"
+	return ListObj2Models(ctx, cli, prefix, models.NewFunction)
 }
