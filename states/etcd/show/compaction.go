@@ -69,7 +69,9 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("ignoreDone flag set to true, set `--ignoreDone=false` to show all tasks")
+	if p.IgnoreDone {
+		fmt.Println("ignoreDone flag set to true, set `--ignoreDone=false` to show all tasks")
+	}
 	sort.Slice(compactionTasks, func(i, j int) bool {
 		return compactionTasks[i].GetPlanID() < compactionTasks[j].GetPlanID()
 	})
@@ -98,7 +100,7 @@ func (rs *CompactionTasks) PrintAs(format framework.Format) string {
 			}
 		}
 		fmt.Fprintln(sb, "================================================================================")
-		fmt.Printf("--- Total compactions:  %d\t Matched compactions:  %d\n", rs.total, len(rs.tasks))
+		fmt.Fprintf(sb, "--- Total compactions:  %d\t Matched compactions:  %d\n", rs.total, len(rs.tasks))
 		return sb.String()
 	}
 	return ""
@@ -109,38 +111,38 @@ func (rs *CompactionTasks) Entities() any {
 }
 
 func printCompactionTaskSimple(sb *strings.Builder, task *models.CompactionTask) {
-	fmt.Printf("JobID: %d\tTaskID: %d\t Type:%s\t State:%s\t StartTime: %d\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String(), task.GetStartTime())
+	fmt.Fprintf(sb, "JobID: %d\tTaskID: %d\t Type:%s\t State:%s\t StartTime: %d\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String(), task.GetStartTime())
 }
 
 func printCompactionTask(sb *strings.Builder, task *models.CompactionTask, detailSegmentIDs bool) {
-	fmt.Println("================================================================================")
+	fmt.Fprintln(sb, "================================================================================")
 	if task.GetPartitionID() != 0 {
-		fmt.Printf("Collection ID: %d\tCollection Name: %s\t PartitionID:%d\t Channel:%s\t StartTime: %d\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetPartitionID(), task.GetChannel(), task.GetStartTime())
+		fmt.Fprintf(sb, "Collection ID: %d\tCollection Name: %s\t PartitionID:%d\t Channel:%s\t StartTime: %d\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetPartitionID(), task.GetChannel(), task.GetStartTime())
 	} else {
-		fmt.Printf("Collection ID: %d\tCollection Name: %s\t Channel:%s\t StartTime: %d\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetChannel(), task.GetStartTime())
+		fmt.Fprintf(sb, "Collection ID: %d\tCollection Name: %s\t Channel:%s\t StartTime: %d\n", task.GetCollectionID(), task.GetSchema().GetName(), task.GetChannel(), task.GetStartTime())
 	}
-	fmt.Printf("JobID: %d\tTaskID: %d\t Type:%s\t State:%s\t StartTime: %d\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String(), task.GetStartTime())
+	fmt.Fprintf(sb, "JobID: %d\tTaskID: %d\t Type:%s\t State:%s\t StartTime: %d\n", task.GetTriggerID(), task.GetPlanID(), task.GetType().String(), task.GetState().String(), task.GetStartTime())
 
 	t := time.Unix(task.GetStartTime(), 0)
-	fmt.Printf("Start Time: %s\n", t.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(sb, "Start Time: %s\n", t.Format("2006-01-02 15:04:05"))
 	if task.GetEndTime() > 0 {
 		endT := time.Unix(task.GetEndTime(), 0)
-		fmt.Printf("End Time: %s\n", endT.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(sb, "End Time: %s\n", endT.Format("2006-01-02 15:04:05"))
 	}
 
 	if task.GetClusteringKeyField() != nil {
-		fmt.Printf("ClusterField Name:%s\t DataType:%s\n", task.GetClusteringKeyField().GetName(), task.GetClusteringKeyField().GetDataType().String())
+		fmt.Fprintf(sb, "ClusterField Name:%s\t DataType:%s\n", task.GetClusteringKeyField().GetName(), task.GetClusteringKeyField().GetDataType().String())
 	}
 
 	if task.GetNodeID() > 0 {
-		fmt.Printf("WorkerID :%d\n", task.GetNodeID())
+		fmt.Fprintf(sb, "WorkerID :%d\n", task.GetNodeID())
 	}
 	if task.GetTotalRows() > 0 {
-		fmt.Printf("Total Rows :%d\n", task.GetTotalRows())
+		fmt.Fprintf(sb, "Total Rows :%d\n", task.GetTotalRows())
 	}
 
 	if detailSegmentIDs {
-		fmt.Printf("Input Segments:%v\n", task.GetInputSegments())
-		fmt.Printf("Target Segments:%v\n", task.GetResultSegments())
+		fmt.Fprintf(sb, "Input Segments:%v\n", task.GetInputSegments())
+		fmt.Fprintf(sb, "Target Segments:%v\n", task.GetResultSegments())
 	}
 }
