@@ -12,12 +12,14 @@ import (
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states"
+	"github.com/milvus-io/birdwatcher/webui"
 )
 
 var (
 	oneLineCommand = flag.String("olc", "", "one line command execution mode")
 	simple         = flag.Bool("simple", false, "use simple ui without suggestion and history")
 	restServer     = flag.Bool("rest", false, "rest server address")
+	startWeb       = flag.Bool("startweb", false, "start web UI server")
 	webPort        = flag.Int("port", 8002, "listening port for web server")
 	printVersion   = flag.Bool("version", false, "print version")
 	multiState     = flag.Bool("multiState", false, "use multi state feature, default false")
@@ -26,12 +28,27 @@ var (
 func main() {
 	flag.Parse()
 
+	// Load configuration early
+	config, err := configs.NewConfig(".bw_config")
+	if err != nil {
+		// run by default, just printing warning.
+		fmt.Println("[WARN] load config file failed, running in default setting", err.Error())
+	}
+
 	var appFactory func(config *configs.Config) bapps.BApp
 
 	switch {
 	// Print current birdwatcher version
 	case *printVersion:
 		fmt.Println("Birdwatcher Version", common.Version)
+		return
+	// Start web UI server
+	case *startWeb:
+		fmt.Printf("Starting Birdwatcher Web UI on port %d...\n", *webPort)
+		if err := webui.StartWebUI(config, *webPort); err != nil {
+			fmt.Printf("Failed to start web UI: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	case *simple:
 		appFactory = func(*configs.Config) bapps.BApp { return bapps.NewSimpleApp() }
@@ -55,12 +72,6 @@ func main() {
 		appFactory = func(config *configs.Config) bapps.BApp {
 			return bapps.NewPromptApp(config, bapps.WithLogger(logger), bapps.WithMultiStage(*multiState))
 		}
-	}
-
-	config, err := configs.NewConfig(".bw_config")
-	if err != nil {
-		// run by default, just printing warning.
-		fmt.Println("[WARN] load config file failed, running in default setting", err.Error())
 	}
 
 	start := states.Start(config, *multiState)
