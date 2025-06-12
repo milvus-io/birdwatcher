@@ -7,25 +7,9 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
-	"github.com/spf13/cobra"
 
 	"github.com/milvus-io/birdwatcher/framework"
 )
-
-// getExitCmd returns exit command for input state.
-func getExitCmd(state framework.State) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "exit",
-		Short:   "Closes the cli",
-		Aliases: []string{"quit"},
-		RunE: func(*cobra.Command, []string) error {
-			state.SetNext("", &exitState{})
-			// cannot return ExitErr here to avoid print help message
-			return nil
-		},
-	}
-	return cmd
-}
 
 // exitState simple exit state.
 type exitState struct {
@@ -72,6 +56,11 @@ func (p *DisconnectParam) ParseArgs(args []string) error {
 
 // DisconnectCommand implements disconnect sub state logic.
 func (app *ApplicationState) DisconnectCommand(ctx context.Context, p *DisconnectParam) error {
+	if len(p.components) == 0 {
+		fmt.Println("component not provided, disconnect shall provided state tag after v1.1.0")
+		fmt.Println("state type(s) connected now: ", app.listStates())
+		return nil
+	}
 	for _, comp := range p.components {
 		state, ok := app.states[comp]
 		if !ok {
