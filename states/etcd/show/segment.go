@@ -223,6 +223,13 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	fmt.Printf("Binlog Nums %d\tStatsLog Nums: %d\tDeltaLog Nums:%d\n",
 		countBinlogNum(info.GetBinlogs()), countBinlogNum(info.GetStatslogs()), countBinlogNum(info.GetDeltalogs()))
 
+	if info.JsonKeyStats != nil {
+		fmt.Println("Json Key Stats:")
+		for _, keyStats := range info.JsonKeyStats {
+			fmt.Printf("  Stats info: %v\n", keyStats)
+		}
+	}
+
 	if detailBinlog {
 		var binlogSize int64
 		var insertmemSize int64
