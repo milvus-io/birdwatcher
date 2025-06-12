@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -82,7 +83,7 @@ func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType str
 	}
 
 	for _, session := range sessions {
-		if id == session.ServerID && session.ServerName == sessionType {
+		if id == session.ServerID && sessionMatch(session, sessionType) {
 			opts := []grpc.DialOption{
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithBlock(),
@@ -98,6 +99,17 @@ func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType str
 
 	fmt.Printf("%s id:%d not found\n", sessionType, id)
 	return nil, nil, errors.New("invalid id")
+}
+
+// sessionMatch is the util func handles mixcoord & XXXXcoord match logic
+func sessionMatch(session *models.Session, sessionType string) bool {
+	if session.ServerName == sessionType {
+		return true
+	}
+	if strings.HasSuffix(sessionType, "coord") {
+		return session.ServerName == "mixcoord"
+	}
+	return false
 }
 
 func getVisitSessionCmds(state *framework.CmdState, cli kv.MetaKV, basePath string) []*cobra.Command {
