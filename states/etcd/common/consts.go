@@ -36,3 +36,7 @@ const (
 	IndexPrefix        = `field-index`
 	SegmentIndexPrefix = `segment-index`
 )
+
+const (
+	StatsTaskPrefix = `stats-task`
+)

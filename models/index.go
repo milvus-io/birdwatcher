@@ -7,3 +7,5 @@ import (
 type FieldIndex = ProtoWrapper[*indexpb.FieldIndex]
 
 type SegmentIndex = ProtoWrapper[*indexpb.SegmentIndex]
+
+type StatsTask = ProtoWrapper[*indexpb.StatsTask]
