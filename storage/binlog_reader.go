@@ -6,11 +6,10 @@ import (
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
-	"github.com/samber/lo"
+	"github.com/cockroachdb/errors"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/storage/binlog"
-	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
 	"github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
@@ -18,8 +17,9 @@ import (
 type SegmentBinlogRecordReader struct {
 	common.LogBatchIterator
 
-	outputFields []int64
-	index        map[int64]int
+	storageVersion int64
+	outputFields   []int64
+	// index          map[int64]int
 
 	currentBatch *common.BatchInfo
 	brs          []binlog.BinlogReader
@@ -49,22 +49,23 @@ func (crr *SegmentBinlogRecordReader) iterateNextBatch(ctx context.Context) erro
 
 	crr.currentBatch = batchInfo
 
-	crr.rrs = make([]array.RecordReader, len(crr.outputFields))
-	crr.brs = make([]binlog.BinlogReader, len(crr.outputFields))
+	crr.rrs = make([]array.RecordReader, len(batchInfo.Output))
+	crr.brs = make([]binlog.BinlogReader, len(batchInfo.Output))
 
-	for fieldID, readSeeker := range batchInfo.Output {
-		reader, err := binlogv1.NewBinlogReader(readSeeker)
+	var i int
+	for _, readSeeker := range batchInfo.Output {
+		reader, err := binlog.NewBinlogReader(crr.storageVersion, readSeeker)
 		if err != nil {
 			return err
 		}
 
-		i := crr.index[fieldID]
 		rr, err := reader.NextRecordReader(ctx)
 		if err != nil {
 			return err
 		}
 		crr.rrs[i] = rr
 		crr.brs[i] = reader
+		i++
 	}
 	return nil
 }
@@ -79,15 +80,26 @@ func (crr *SegmentBinlogRecordReader) Next(ctx context.Context) (common.RecordBa
 	composeRecord := func() (common.RecordBatch, error) {
 		recs := make([]arrow.Array, len(crr.outputFields))
 
-		for i := range crr.outputFields {
-			if crr.rrs[i] != nil {
-				if ok := crr.rrs[i].Next(); !ok {
-					return nil, io.EOF
+		index := make(map[int64]int)
+		for i, br := range crr.brs {
+			mapping := br.GetMapping()
+			rr := crr.rrs[i]
+
+			if !rr.Next() {
+				return nil, io.EOF
+			}
+
+			rec := rr.Record()
+			for fieldID, idx := range mapping {
+				for i, output := range crr.outputFields {
+					if fieldID == output {
+						recs[i] = rec.Column(idx)
+						index[fieldID] = i
+					}
 				}
-				recs[i] = crr.rrs[i].Record().Column(0)
 			}
 		}
-		return common.NewCompositeRecordBatch(crr.index, recs), nil
+		return common.NewCompositeRecordBatch(index, recs), nil
 	}
 
 	// Try compose records
@@ -124,22 +136,24 @@ func (crr *SegmentBinlogRecordReader) Close() error {
 }
 
 func NewSegmentReader(segment *models.Segment, selectedFields []int64, translator func(binlog string) (common.ReadSeeker, error)) (*SegmentBinlogRecordReader, error) {
-	// TODO adapt storage v2
-	logIterator, err := common.NewSegmentBatchIterator(segment, selectedFields, translator)
+	var binlogSelector common.BinlogSelector
+	switch segment.StorageVersion {
+	case 0, 1:
+		binlogSelector = common.NewFieldIDSelector(selectedFields)
+	case 2:
+		binlogSelector = common.NewAllSelector()
+	default:
+		return nil, errors.Newf("unsupported storage version: %d", segment.StorageVersion)
+	}
+	logIterator, err := common.NewSegmentBatchIterator(segment, binlogSelector, translator)
 	if err != nil {
 		return nil, err
 	}
 
-	idx := 0
-	index := lo.SliceToMap(selectedFields, func(fieldID int64) (int64, int) {
-		idx++
-		return fieldID, idx - 1
-	})
-
 	return &SegmentBinlogRecordReader{
 		LogBatchIterator: logIterator,
 		outputFields:     selectedFields,
-		index:            index,
+		storageVersion:   segment.StorageVersion,
 	}, nil
 }
 
