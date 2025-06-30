@@ -1,4 +1,4 @@
-package storage
+package binlogv1
 
 import (
 	"encoding/binary"
@@ -9,7 +9,7 @@ import (
 // EventReader binlog event reader from Milvus
 type EventReader struct{}
 
-func (reader *EventReader) readHeader(in io.Reader) (*eventHeader, error) {
+func (reader *EventReader) ReadHeader(in io.Reader) (*eventHeader, error) {
 	header, err := readEventHeader(in)
 	if err != nil {
 		return nil, err
@@ -17,7 +17,7 @@ func (reader *EventReader) readHeader(in io.Reader) (*eventHeader, error) {
 	return header, nil
 }
 
-func (reader *EventReader) readData(in io.Reader, eventType EventTypeCode) error {
+func (reader *EventReader) ReadData(in io.Reader, eventType EventTypeCode) error {
 	switch eventType {
 	case InsertEventType:
 		_, err := readInsertEventDataFixPart(in)
@@ -36,7 +36,7 @@ func readInsertEventData(buffer io.Reader) (insertEventData, error) {
 	return data, nil
 }
 
-func readIndexFileEventData(buffer io.Reader) (indexFileEventData, error) {
+func ReadIndexFileEventData(buffer io.Reader) (indexFileEventData, error) {
 	data := indexFileEventData{}
 	if err := binary.Read(buffer, commonEndian, &data); err != nil {
 		return data, err
@@ -44,6 +44,6 @@ func readIndexFileEventData(buffer io.Reader) (indexFileEventData, error) {
 	return data, nil
 }
 
-func newEventReader() *EventReader {
+func NewEventReader() *EventReader {
 	return &EventReader{}
 }

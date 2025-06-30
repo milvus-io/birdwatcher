@@ -1,4 +1,4 @@
-package storage
+package binlogv1
 
 import (
 	"encoding/binary"
@@ -435,7 +435,7 @@ func readDropPartitionEventDataFixPart(buffer io.Reader) (*dropPartitionEventDat
 	return data, nil
 }
 
-func readIndexFileEventDataFixPart(buffer io.Reader) (*indexFileEventData, error) {
+func ReadIndexFileEventDataFixPart(buffer io.Reader) (*indexFileEventData, error) {
 	data := &indexFileEventData{}
 	if err := binary.Read(buffer, commonEndian, data); err != nil {
 		return nil, err

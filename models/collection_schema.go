@@ -3,12 +3,20 @@ package models
 import (
 	"errors"
 	"strconv"
+
+	"github.com/samber/lo"
 )
 
 type CollectionSchema struct {
 	Name                string
 	Fields              []FieldSchema
 	EnableDynamicSchema bool
+}
+
+func (cs *CollectionSchema) GetPKField() (FieldSchema, bool) {
+	return lo.Find(cs.Fields, func(fs FieldSchema) bool {
+		return fs.IsPrimaryKey
+	})
 }
 
 type FieldSchema struct {
@@ -36,14 +44,6 @@ func (fs *FieldSchema) GetDim() (int64, error) {
 
 	dim, err := strconv.ParseInt(raw, 10, 64)
 	return dim, err
-}
-
-func newSchemaFromBase[schemaBase interface {
-	GetName() string
-}](schema schemaBase) CollectionSchema {
-	return CollectionSchema{
-		Name: schema.GetName(),
-	}
 }
 
 func NewFieldSchemaFromBase[fieldSchemaBase interface {

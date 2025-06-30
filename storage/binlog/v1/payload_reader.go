@@ -1,12 +1,12 @@
-package storage
+package binlogv1
 
 import (
 	"bytes"
 	"errors"
 
-	"github.com/apache/arrow/go/v8/arrow"
-	"github.com/apache/arrow/go/v8/parquet"
-	"github.com/apache/arrow/go/v8/parquet/file"
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/parquet"
+	"github.com/apache/arrow/go/v17/parquet/file"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
@@ -126,10 +126,15 @@ func readPayloadAll[T any, Reader interface {
 		rowGroup := r.RowGroup(i)
 		groupCount := rowGroup.NumRows()
 
-		reader, ok := rowGroup.Column(colIdx).(Reader)
+		ccReader, err := rowGroup.Column(colIdx)
+		if err != nil {
+			return nil, err // errors.New("column chunk reader conversion failed")
+		}
+		reader, ok := ccReader.(Reader)
 		if !ok {
 			return nil, errors.New("column chunk reader conversion failed")
 		}
+
 		total, read, err := reader.ReadBatch(groupCount, result[offset:rowCount], nil, nil)
 		if err != nil {
 			return nil, err

@@ -15,6 +15,7 @@ import (
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/storage"
+	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
@@ -90,16 +91,16 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 	var count int64
 	// locate do nothing
 
-	var process func(pk storage.PrimaryKey, ts uint64, segment *models.Segment, logPath string, offset int64) bool
+	var process func(pk storagecommon.PrimaryKey, ts uint64, segment *models.Segment, logPath string, offset int64) bool
 
 	switch p.Action {
 	case "count":
-		process = func(pk storage.PrimaryKey, ts uint64, segment *models.Segment, logPath string, offset int64) bool {
+		process = func(pk storagecommon.PrimaryKey, ts uint64, segment *models.Segment, logPath string, offset int64) bool {
 			count++
 			return true
 		}
 	case "locate":
-		process = func(pk storage.PrimaryKey, ts uint64, segment *models.Segment, logPath string, offset int64) bool {
+		process = func(pk storagecommon.PrimaryKey, ts uint64, segment *models.Segment, logPath string, offset int64) bool {
 			log.Printf("Entry found in segment %d, level = %s, log file = %s, offset = %d, pk = %v, ts = %d\n", segment.ID, segment.Level.String(), logPath, offset, pk.GetValue(), ts)
 			count++
 			return p.Limit <= 0 || count < p.Limit
@@ -126,7 +127,7 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 					return err
 				}
 				offset := int64(0)
-				deltaData.Range(func(pk storage.PrimaryKey, ts uint64) bool {
+				deltaData.Range(func(pk storagecommon.PrimaryKey, ts uint64) bool {
 					defer func() {
 						offset++
 					}()

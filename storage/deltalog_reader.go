@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 
+	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
+	"github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
@@ -11,18 +13,18 @@ type DeltalogReader struct {
 	reader io.Reader
 }
 
-func NewDeltalogReader(f ReadSeeker) (*DeltalogReader, error) {
+func NewDeltalogReader(f common.ReadSeeker) (*DeltalogReader, error) {
 	reader := &DeltalogReader{}
 
 	// var de descriptorEvent
 	var err error
 
-	_, err = readMagicNumber(f)
+	_, err = binlogv1.ReadMagicNumber(f)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = ReadDescriptorEvent(f)
+	_, err = binlogv1.ReadDescriptorEvent(f)
 	if err != nil {
 		return nil, err
 	}
@@ -31,9 +33,9 @@ func NewDeltalogReader(f ReadSeeker) (*DeltalogReader, error) {
 }
 
 type DeleteLog struct {
-	Pk     PrimaryKey `json:"pk"`
-	Ts     uint64     `json:"ts"`
-	PkType int64      `json:"pkType"`
+	Pk     common.PrimaryKey `json:"pk"`
+	Ts     uint64            `json:"ts"`
+	PkType int64             `json:"pkType"`
 }
 
 func (dl *DeleteLog) UnmarshalJSON(data []byte) error {
@@ -50,9 +52,9 @@ func (dl *DeleteLog) UnmarshalJSON(data []byte) error {
 
 	switch schemapb.DataType(dl.PkType) {
 	case schemapb.DataType_Int64:
-		dl.Pk = &Int64PrimaryKey{}
+		dl.Pk = &common.Int64PrimaryKey{}
 	case schemapb.DataType_VarChar:
-		dl.Pk = &VarCharPrimaryKey{}
+		dl.Pk = &common.VarCharPrimaryKey{}
 	}
 
 	err = json.Unmarshal(*messageMap["pk"], dl.Pk)
@@ -69,12 +71,14 @@ func (dl *DeleteLog) UnmarshalJSON(data []byte) error {
 }
 
 func (dr *DeltalogReader) NextEventReader(dataType schemapb.DataType) (*DeltaData, error) {
-	eventReader := newEventReader()
-	header, err := eventReader.readHeader(dr.reader)
+	// TODO, improve logic for deltalog
+
+	eventReader := binlogv1.NewEventReader()
+	header, err := eventReader.ReadHeader(dr.reader)
 	if err != nil {
 		return nil, err
 	}
-	ifed, err := readIndexFileEventData(dr.reader)
+	ifed, err := binlogv1.ReadIndexFileEventData(dr.reader)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +90,7 @@ func (dr *DeltalogReader) NextEventReader(dataType schemapb.DataType) (*DeltaDat
 		return nil, err
 	}
 
-	pr, err := NewParquetPayloadReader(schemapb.DataType_String, data)
+	pr, err := binlogv1.NewParquetPayloadReader(schemapb.DataType_String, data)
 	if err != nil {
 		return nil, err
 	}

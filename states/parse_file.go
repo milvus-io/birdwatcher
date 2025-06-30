@@ -17,7 +17,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/storage"
+	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
 )
 
 type ParseIndexParam struct {
@@ -41,7 +41,7 @@ func (app *ApplicationState) ParseIndexParamCommand(ctx context.Context, p *Pars
 	}
 	defer f.Close()
 
-	r, evt, err := storage.NewIndexReader(f)
+	r, evt, err := binlogv1.NewIndexReader(f)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func readIndexFile(file string, validKey func(key string) bool) ([]byte, error) 
 	}
 	defer f.Close()
 
-	r, evt, err := storage.NewIndexReader(f)
+	r, evt, err := binlogv1.NewIndexReader(f)
 	if err != nil {
 		return nil, err
 	}
