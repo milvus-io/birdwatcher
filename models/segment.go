@@ -34,6 +34,7 @@ func NewSegment(segment *datapb.SegmentInfo, key string,
 ) *Segment {
 	s := &Segment{
 		SegmentInfo: segment,
+		key:         key,
 	}
 
 	s.lazyLoad = func(s *Segment) {
@@ -126,6 +127,10 @@ func (s *Segment) GetDmlPosition() *msgpb.MsgPosition {
 		return nil
 	}
 	return s.DmlPosition
+}
+
+func (s *Segment) GetKey() string {
+	return s.key
 }
 
 // type MsgPosition struct {

@@ -1,4 +1,4 @@
-package storage
+package binlogv1
 
 import (
 	"encoding/binary"

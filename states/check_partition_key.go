@@ -19,6 +19,8 @@ import (
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/storage"
+	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
+	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
@@ -35,6 +37,8 @@ type CheckPartitionKeyParam struct {
 }
 
 var errQuickExit = errors.New("quick exit")
+
+// TODO refactor this command using new scan API
 
 func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPartitionKeyParam) error {
 	collections, err := common.ListCollections(ctx, s.client, s.basePath, func(collection *models.Collection) bool {
@@ -153,7 +157,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 			var errCnt int
 			err := func() error {
 				var f *os.File
-				var pqWriter *storage.ParquetWriter
+				var pqWriter *binlogv1.ParquetWriter
 				selector := func(_ int64) bool { return true }
 				switch p.OutputFormat {
 				case "stdout":
@@ -171,14 +175,14 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 					if err != nil {
 						return err
 					}
-					pqWriter = storage.NewParquetWriter(susCol.collection)
+					pqWriter = binlogv1.NewParquetWriter(susCol.collection)
 				}
 				deltalog, err := s.DownloadDeltalogs(ctx, minioClient, bucketName, rootPath, susCol.collection, segment)
 				if err != nil {
 					return err
 				}
 
-				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, susCol.collection, segment, selector, func(readers map[int64]*storage.BinlogReader) {
+				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, susCol.collection, segment, selector, func(readers map[int64]*binlogv1.BinlogReader) {
 					targetIndex := partIdx[segment.PartitionID]
 					iter, err := NewBinlogIterator(susCol.collection, readers)
 					if err != nil {
@@ -186,9 +190,9 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 						return
 					}
 
-					err = iter.Range(func(rowID, ts int64, pk storage.PrimaryKey, data map[int64]any) error {
+					err = iter.Range(func(rowID, ts int64, pk storagecommon.PrimaryKey, data map[int64]any) error {
 						deleted := false
-						deltalog.Range(func(delPk storage.PrimaryKey, delTs uint64) bool {
+						deltalog.Range(func(delPk storagecommon.PrimaryKey, delTs uint64) bool {
 							if delPk.EQ(pk) && ts < int64(delTs) {
 								deleted = true
 								return false
@@ -278,26 +282,6 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 	}
 	return nil
 }
-
-// type TestDownloadDeltalogParam struct {
-// 	framework.ParamBase `use:"test download-deltalogs"`
-// 	RootPath            string `name:"rootPath" default:"files"`
-// }
-
-// func (s *InstanceState) TestDownloadDeltalogCommand(ctx context.Context, p *TestDownloadDeltalogParam) error {
-// 	// client, bucketName, _, err := s.GetMinioClientFromCfg(ctx) //getMinioAccess()
-// 	// if err != nil {
-// 	// 	return err
-// 	// }
-// 	// segments, err := common.ListSegmentsVersion(ctx, s.client, s.basePath, etcdversion.GetVersion())
-// 	// if err != nil {
-// 	// 	return err
-// 	// }
-// 	// for _, segment := range segments {
-// 	// 	// s.DownloadDeltalogs(ctx, client, bucketName, p.RootPath, collection, segment)
-// 	// }
-// 	return nil
-// }
 
 func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Client, bucket, rootPath string, collection *models.Collection, segment *models.Segment) (*storage.DeltaData, error) {
 	pkField, has := lo.Find(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) bool {

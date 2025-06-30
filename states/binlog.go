@@ -2,138 +2,22 @@ package states
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/minio/minio-go/v7"
 	"github.com/samber/lo"
 
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/birdwatcher/oss"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/birdwatcher/storage"
+	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
+	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
-type ScanBinlogsParam struct {
-	framework.ParamBase `use:"test scan-binlogs"`
-	CollectionID        int64  `name:"collectionID"`
-	MinioAddress        string `name:"minioAddr" default:"" desc:"the minio address to override, leave empty to use milvus.yaml value"`
-	OutputFormat        string `name:"outputFmt" default:"stdout"`
-}
-
-func (s *InstanceState) TestScanBinlogsCommand(ctx context.Context, p *ScanBinlogsParam) error {
-	params := []oss.MinioConnectParam{}
-	if p.MinioAddress != "" {
-		params = append(params, oss.WithMinioAddr(p.MinioAddress))
-	}
-
-	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, params...)
-	if err != nil {
-		return err
-	}
-
-	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, p.CollectionID)
-	if err != nil {
-		return err
-	}
-	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(segment *models.Segment) bool {
-		return segment.CollectionID == collection.GetProto().ID
-	})
-	if err != nil {
-		return err
-	}
-	pkField, ok := collection.GetPKField()
-	if !ok {
-		return errors.New("collection does not has pk")
-	}
-	idField := lo.SliceToMap(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) (int64, models.FieldSchema) {
-		return field.FieldID, models.NewFieldSchemaFromBase(field)
-	})
-	var f *os.File
-	var pqWriter *storage.ParquetWriter
-	selector := func(_ int64) bool { return true }
-	switch p.OutputFormat {
-	case "stdout":
-		selector = func(_ int64) bool { return false }
-	case "json":
-		f, err = os.Create(fmt.Sprintf("%d.json", collection.GetProto().ID))
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-	case "parquet":
-		f, err = os.Create(fmt.Sprintf("%d.parquet", collection.GetProto().ID))
-		if err != nil {
-			return err
-		}
-		pqWriter = storage.NewParquetWriter(collection)
-		defer pqWriter.Flush(f)
-	}
-	for _, segment := range segments {
-		deltalog, err := s.DownloadDeltalogs(ctx, minioClient, bucketName, rootPath, collection, segment)
-		if err != nil {
-			return err
-		}
-
-		s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, collection, segment, selector, func(readers map[int64]*storage.BinlogReader) {
-			iter, err := NewBinlogIterator(collection, readers)
-			if err != nil {
-				fmt.Println("failed to create iterator", err.Error())
-				return
-			}
-
-			err = iter.Range(func(rowID, ts int64, pk storage.PrimaryKey, data map[int64]any) error {
-				deleted := false
-				deltalog.Range(func(delPk storage.PrimaryKey, delTs uint64) bool {
-					if delPk.EQ(pk) && ts < int64(delTs) {
-						deleted = true
-						return false
-					}
-					return true
-				})
-				if deleted {
-					return nil
-				}
-				output := lo.MapKeys(data, func(v any, k int64) string {
-					return idField[k].Name
-				})
-				output[pkField.Name] = pk.GetValue()
-				switch p.OutputFormat {
-				case "stdout":
-					fmt.Println(output)
-				case "json":
-					bs, err := json.Marshal(output)
-					if err != nil {
-						fmt.Println(err.Error())
-						return err
-					}
-					f.Write(bs)
-					f.Write([]byte("\n"))
-				case "parquet":
-					data[0] = rowID
-					data[1] = ts
-					data[pkField.FieldID] = pk.GetValue()
-					writeParquetData(collection, pqWriter, rowID, ts, pk, output)
-				}
-				return nil
-			})
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-		})
-	}
-
-	return nil
-}
-
 // ScanBinlogs scans provided segment with delete record excluded.
 func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Client, bucketName string, rootPath string, collection *models.Collection, segment *models.Segment,
-	selectField func(fieldID int64) bool, fn func(map[int64]*storage.BinlogReader),
+	selectField func(fieldID int64) bool, fn func(map[int64]*binlogv1.BinlogReader),
 ) {
 	pkField, has := lo.Find(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) bool {
 		return field.IsPrimaryKey
@@ -150,7 +34,7 @@ func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Clie
 	}
 
 	for idx := range pkFieldData.Binlogs {
-		field2Binlog := make(map[int64]*storage.BinlogReader)
+		field2Binlog := make(map[int64]*binlogv1.BinlogReader)
 		for _, fieldBinlog := range segment.GetBinlogs() {
 			if fieldBinlog.FieldID != 0 && fieldBinlog.FieldID != 1 && fieldBinlog.FieldID != pkField.FieldID && !selectField(fieldBinlog.FieldID) {
 				continue
@@ -163,7 +47,7 @@ func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Clie
 				return
 			}
 
-			reader, _, err := storage.NewBinlogReader(object)
+			reader, err := binlogv1.NewBinlogReader(object)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
@@ -178,18 +62,18 @@ func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Clie
 
 type BinlogIterator struct {
 	schema  *schemapb.CollectionSchema
-	readers map[int64]*storage.BinlogReader
+	readers map[int64]*binlogv1.BinlogReader
 
 	rowIDs     []int64
 	timestamps []int64
 
-	pks  storage.PrimaryKeys
+	pks  storagecommon.PrimaryKeys
 	data map[int64][]any
 
 	rows int
 }
 
-func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage.BinlogReader) (*BinlogIterator, error) {
+func NewBinlogIterator(collection *models.Collection, readers map[int64]*binlogv1.BinlogReader) (*BinlogIterator, error) {
 	rowIDReader := readers[0]
 	rowIDs, err := rowIDReader.NextInt64EventReader()
 	if err != nil {
@@ -202,7 +86,7 @@ func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage
 		return nil, err
 	}
 
-	var pks storage.PrimaryKeys
+	var pks storagecommon.PrimaryKeys
 	pkField, _ := collection.GetPKField()
 	pkReader := readers[pkField.FieldID]
 	switch pkField.DataType {
@@ -211,7 +95,7 @@ func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage
 		if err != nil {
 			return nil, err
 		}
-		iPks := storage.NewInt64PrimaryKeys(len(rowIDs))
+		iPks := storagecommon.NewInt64PrimaryKeys(len(rowIDs))
 		iPks.AppendRaw(intPks...)
 		pks = iPks
 	case models.DataTypeVarChar:
@@ -219,7 +103,7 @@ func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage
 		if err != nil {
 			return nil, err
 		}
-		sPks := storage.NewVarcharPrimaryKeys(len(rowIDs))
+		sPks := storagecommon.NewVarcharPrimaryKeys(len(rowIDs))
 		sPks.AppendRaw(strPks...)
 		pks = sPks
 	}
@@ -254,7 +138,7 @@ func NewBinlogIterator(collection *models.Collection, readers map[int64]*storage
 	}, nil
 }
 
-func (iter *BinlogIterator) Range(fn func(rowID int64, ts int64, pk storage.PrimaryKey, data map[int64]any) error) error {
+func (iter *BinlogIterator) Range(fn func(rowID int64, ts int64, pk storagecommon.PrimaryKey, data map[int64]any) error) error {
 	for i := 0; i < iter.rows; i++ {
 		row := make(map[int64]any)
 		for field, columns := range iter.data {
@@ -271,7 +155,7 @@ func (iter *BinlogIterator) Range(fn func(rowID int64, ts int64, pk storage.Prim
 
 func toAny[T any](v T, _ int) any { return v }
 
-func readerToSlice(reader *storage.BinlogReader, field models.FieldSchema) ([]any, error) {
+func readerToSlice(reader *binlogv1.BinlogReader, field models.FieldSchema) ([]any, error) {
 	switch field.DataType {
 	case models.DataTypeBool:
 		val, err := reader.NextBoolEventReader()
@@ -311,7 +195,7 @@ func readerToSlice(reader *storage.BinlogReader, field models.FieldSchema) ([]an
 	}
 }
 
-func writeParquetData(collection *models.Collection, pqWriter *storage.ParquetWriter, rowID, ts int64, pk storage.PrimaryKey, output map[string]any) error {
+func writeParquetData(collection *models.Collection, pqWriter *binlogv1.ParquetWriter, rowID, ts int64, pk storagecommon.PrimaryKey, output map[string]any) error {
 	pkField, _ := collection.GetPKField()
 	for _, field := range collection.GetProto().Schema.Fields {
 		var err error
@@ -337,7 +221,7 @@ func writeParquetData(collection *models.Collection, pqWriter *storage.ParquetWr
 	return nil
 }
 
-func writeParquetField(pqWriter *storage.ParquetWriter, field models.FieldSchema, v any) error {
+func writeParquetField(pqWriter *binlogv1.ParquetWriter, field models.FieldSchema, v any) error {
 	var err error
 	switch field.DataType {
 	case models.DataTypeBool:

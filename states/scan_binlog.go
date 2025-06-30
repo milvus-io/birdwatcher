@@ -3,11 +3,11 @@ package states
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 
 	"github.com/cockroachdb/errors"
-	"github.com/expr-lang/expr"
 	"github.com/minio/minio-go/v7"
 	"github.com/samber/lo"
 	"go.uber.org/atomic"
@@ -17,6 +17,8 @@ import (
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/storage"
+	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
+	"github.com/milvus-io/birdwatcher/storage/tasks"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
@@ -34,6 +36,7 @@ type ScanBinlogParams struct {
 	IgnoreDelete        bool     `name:"ignoreDelete" default:"false" desc:"ignore delete logic"`
 	IncludeUnhealthy    bool     `name:"includeUnhealthy" default:"false" desc:"also check dropped segments"`
 	WorkerNum           int64    `name:"workerNum" default:"4" desc:"worker num"`
+	OutputLimit         int64    `name:"outputLimit" default:"10" desc:"output limit"`
 }
 
 func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogParams) error {
@@ -53,17 +56,22 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 		fieldsMap[field] = struct{}{}
 	}
 
-	fields := make(map[int64]models.FieldSchema) // make([]models.FieldSchema, 0, len(p.Fields))
+	fields := make(map[int64]*schemapb.FieldSchema)
 
 	for _, fieldSchema := range collection.GetProto().Schema.Fields {
 		// timestamp field id
 		if fieldSchema.FieldID == 1 {
-			fields[fieldSchema.FieldID] = models.NewFieldSchemaFromBase(fieldSchema)
+			fields[fieldSchema.FieldID] = fieldSchema
+			continue
+		}
+		if fieldSchema.IsPrimaryKey {
+			fmt.Printf("Output PK Field %s field id %d\n", fieldSchema.Name, fieldSchema.FieldID)
+			fields[fieldSchema.FieldID] = fieldSchema
 			continue
 		}
 		if _, ok := fieldsMap[fieldSchema.Name]; ok {
 			fmt.Printf("Output Field %s field id %d\n", fieldSchema.Name, fieldSchema.FieldID)
-			fields[fieldSchema.FieldID] = models.NewFieldSchemaFromBase(fieldSchema)
+			fields[fieldSchema.FieldID] = fieldSchema
 		}
 	}
 
@@ -90,15 +98,27 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	fmt.Printf("=== start to execute \"%s\" task with filter expresion: \"%s\" ===\n", p.Action, p.Expr)
 	fmt.Printf("=== worker num: %d, skip delete: %t ===\n", p.WorkerNum, p.IgnoreDelete)
 
-	// prepare action dataset
-	// count
-	var count atomic.Int64
-	// locate do nothing
-	// dedup
-	ids := sync.Map{}         // pk set
-	dedupResult := sync.Map{} // id => duplicated count
+	var scanTask tasks.ScanTask
+	switch strings.ToLower(p.Action) {
+	case "count":
+		scanTask = tasks.NewCountTask()
+	case "locate":
+		scanTask = tasks.NewLocateTask(p.OutputLimit, pkField)
+	case "dedup":
+		scanTask = tasks.NewDedupTask(p.OutputLimit, pkField)
+	default:
+		return errors.Newf("unknown action: %s", p.Action)
+	}
 
-	getObject := func(binlogPath string) (*minio.Object, error) {
+	var exprFilter *storage.ExprFilter
+	if p.Expr != "" {
+		exprFilter, err = storage.NewExprFilter(fields, p.Expr)
+		if err != nil {
+			return err
+		}
+	}
+
+	getObject := func(binlogPath string) (storagecommon.ReadSeeker, error) {
 		logPath := strings.ReplaceAll(binlogPath, "ROOT_PATH", rootPath)
 		return minioClient.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
 	}
@@ -127,7 +147,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 				if err != nil {
 					return err
 				}
-				deltaData.Range(func(pk storage.PrimaryKey, ts uint64) bool {
+				deltaData.Range(func(pk storagecommon.PrimaryKey, ts uint64) bool {
 					if old, ok := recordMap[ts]; !ok || ts > old {
 						recordMap[pk.GetValue()] = ts
 					}
@@ -141,101 +161,26 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	for _, segment := range l0Segments {
 		addDeltaRecords(segment, l0DeleteRecords)
 	}
+	loEntryFilter := storage.NewDeltalogFilter(l0DeleteRecords)
 
 	workFn := func(segment *models.Segment) error {
 		deletedRecords := make(map[any]uint64) // pk => ts
 		addDeltaRecords(segment, deletedRecords)
+		deltalogFilter := storage.NewDeltalogFilter(deletedRecords)
 
-		var pkBinlog *models.FieldBinlog
-		targetFieldBinlogs := []*models.FieldBinlog{}
-		for _, fieldBinlog := range segment.GetBinlogs() {
-			_, inTarget := fields[fieldBinlog.FieldID]
-			if inTarget {
-				targetFieldBinlogs = append(targetFieldBinlogs, fieldBinlog)
-			}
-			if fieldBinlog.FieldID == pkField.FieldID {
-				pkBinlog = fieldBinlog
-			}
+		filters := []storage.EntryFilter{loEntryFilter, deltalogFilter}
+		if exprFilter != nil {
+			filters = append(filters, exprFilter)
 		}
 
-		if pkBinlog == nil {
-			fmt.Printf("PK Binlog not found, segment %d\n", segment.ID)
-			return nil
-		}
+		iter := storage.NewSegmentIterator(segment,
+			collection.GetProto().GetSchema(),
+			filters,
+			fields,
+			getObject,
+			scanTask)
 
-		for idx, binlog := range pkBinlog.Binlogs {
-			pkObject, err := getObject(binlog.LogPath)
-			if err != nil {
-				return err
-			}
-			fieldObjects := make(map[int64]storage.ReadSeeker)
-			for _, fieldBinlog := range targetFieldBinlogs {
-				binlog := fieldBinlog.Binlogs[idx]
-				targetObject, err := getObject(binlog.LogPath)
-				if err != nil {
-					return err
-				}
-				fieldObjects[fieldBinlog.FieldID] = targetObject
-			}
-
-			err = s.scanBinlogs(pkObject, fieldObjects, func(pk storage.PrimaryKey, offset int, values map[int64]any) error {
-				pkv := pk.GetValue()
-				ts := values[1].(int64)
-				if !p.IgnoreDelete {
-					if deletedRecords[pkv] > uint64(ts) {
-						return nil
-					}
-					if l0DeleteRecords[pkv] > uint64(ts) {
-						return nil
-					}
-				}
-				if len(p.Expr) != 0 {
-					env := lo.MapKeys(values, func(_ any, fid int64) string {
-						return fields[fid].Name
-					})
-					env["$pk"] = pkv
-					env["$timestamp"] = ts
-					program, err := expr.Compile(p.Expr, expr.Env(env))
-					if err != nil {
-						return err
-					}
-
-					output, err := expr.Run(program, env)
-					if err != nil {
-						fmt.Println("failed to run expression, err: ", err.Error())
-					}
-
-					match, ok := output.(bool)
-					if !ok {
-						return errors.Newf("filter expression result not bool but %T", output)
-					}
-
-					if !match {
-						return nil
-					}
-				}
-
-				switch strings.ToLower(p.Action) {
-				case "count":
-					count.Inc()
-				case "locate":
-					fmt.Printf("entry found, segment %d offset %d, pk: %v, ts: %d\n", segment.ID, offset, pk.GetValue(), ts)
-					fmt.Printf("binlog batch %d, pk binlog %s\n", idx, binlog.LogPath)
-				case "dedup":
-					_, ok := ids.LoadOrStore(pkv, struct{}{})
-					if ok {
-						count.Inc()
-						v, _ := dedupResult.LoadOrStore(pkv, atomic.NewInt64(0))
-						v.(*atomic.Int64).Inc()
-					}
-				}
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-		return err
+		return iter.Range(ctx)
 	}
 
 	var wg sync.WaitGroup
@@ -253,10 +198,10 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 					return
 				}
 				err := workFn(segment)
-				if err != nil {
+				if err != nil && !errors.Is(err, io.EOF) {
 					fmt.Println(err)
 				}
-				fmt.Printf("%d/%d done, current counter: %d\n", num.Inc(), len(normalSegments), count.Load())
+				fmt.Printf("%d/%d done, current counter: %d\n", num.Inc(), len(normalSegments), scanTask.Counter())
 			}
 		}()
 	}
@@ -267,110 +212,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	close(taskCh)
 	wg.Wait()
 
-	switch strings.ToLower(p.Action) {
-	case "count":
-		fmt.Printf("Total %d entries found\n", count.Load())
-	case "dedup":
-		total := count.Load()
-		fmt.Printf("%d duplicated entries found\n", total)
-		var i int64
-		dedupResult.Range(func(pk, cnt any) bool {
-			if i > 10 {
-				return false
-			}
-			fmt.Printf("PK[%s] %v duplicated %d times\n", pkField.Name, pk, cnt.(*atomic.Int64).Load()+1)
-			i++
-			return true
-		})
-	default:
-	}
-
-	return nil
-}
-
-func (s *InstanceState) scanBinlogs(pk storage.ReadSeeker, fields map[int64]storage.ReadSeeker, scanner func(pk storage.PrimaryKey, offset int, values map[int64]any) error) error {
-	pkReader, desc, err := storage.NewBinlogReader(pk)
-	if err != nil {
-		return err
-	}
-
-	fieldDesc := make(map[int64]storage.DescriptorEvent)
-	fieldData := make(map[int64]any)
-
-	var readerErr error
-
-	lo.MapValues(fields, func(r storage.ReadSeeker, k int64) *storage.BinlogReader {
-		reader, desc, err := storage.NewBinlogReader(r)
-		if err != nil {
-			readerErr = err
-			return nil
-		}
-		fieldDesc[k] = desc
-
-		var data any
-		switch desc.PayloadDataType {
-		case schemapb.DataType_Int64:
-			data, err = reader.NextInt64EventReader()
-		case schemapb.DataType_VarChar:
-			data, err = reader.NextVarcharEventReader()
-		case schemapb.DataType_Float:
-			data, err = reader.NextFloat32EventReader()
-		case schemapb.DataType_Double:
-			data, err = reader.NextFloat64EventReader()
-		}
-		if err != nil {
-			readerErr = err
-			return nil
-		}
-		fieldData[k] = data
-		return reader
-	})
-
-	if readerErr != nil {
-		return readerErr
-	}
-
-	var pks []storage.PrimaryKey
-
-	switch desc.PayloadDataType {
-	case schemapb.DataType_Int64:
-		values, err := pkReader.NextInt64EventReader()
-		if err != nil {
-			return err
-		}
-		pks = lo.Map(values, func(id int64, _ int) storage.PrimaryKey { return storage.NewInt64PrimaryKey(id) })
-	case schemapb.DataType_VarChar:
-		values, err := pkReader.NextVarcharEventReader()
-		if err != nil {
-			return err
-		}
-		pks = lo.Map(values, func(id string, _ int) storage.PrimaryKey { return storage.NewVarCharPrimaryKey(id) })
-	}
-
-	for idx, pk := range pks {
-		fields := make(map[int64]any)
-		for fid, data := range fieldData {
-			switch fieldDesc[fid].PayloadDataType {
-			case schemapb.DataType_Int64:
-				values := data.([]int64)
-				fields[fid] = values[idx]
-			case schemapb.DataType_VarChar:
-				values := data.([]string)
-				fields[fid] = values[idx]
-			case schemapb.DataType_Float:
-				values := data.([]float32)
-				fields[fid] = values[idx]
-			case schemapb.DataType_Double:
-				values := data.([]float64)
-				fields[fid] = values[idx]
-			}
-		}
-		err = scanner(pk, idx, fields)
-		if err != nil {
-			fmt.Println("scan err", err.Error())
-			return err
-		}
-	}
+	scanTask.Summary()
 
 	return nil
 }

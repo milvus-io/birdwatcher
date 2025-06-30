@@ -1,4 +1,4 @@
-package storage
+package binlogv1
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ func NewIndexReader(f *os.File) (*IndexReader, DescriptorEvent, error) {
 	var de DescriptorEvent
 	var err error
 
-	_, err = readMagicNumber(f)
+	_, err = ReadMagicNumber(f)
 	if err != nil {
 		return nil, de, err
 	}
@@ -31,12 +31,12 @@ func NewIndexReader(f *os.File) (*IndexReader, DescriptorEvent, error) {
 }
 
 func (reader *IndexReader) NextEventReader(f *os.File, dataType schemapb.DataType) ([][]byte, error) {
-	eventReader := newEventReader()
-	header, err := eventReader.readHeader(f)
+	eventReader := NewEventReader()
+	header, err := eventReader.ReadHeader(f)
 	if err != nil {
 		return nil, err
 	}
-	ifed, err := readIndexFileEventData(f)
+	ifed, err := ReadIndexFileEventData(f)
 	if err != nil {
 		return nil, err
 	}

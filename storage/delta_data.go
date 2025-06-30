@@ -4,11 +4,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 type DeltaData struct {
-	pks      PrimaryKeys
+	pks      common.PrimaryKeys
 	tss      []uint64
 	dataType schemapb.DataType
 
@@ -18,12 +19,12 @@ type DeltaData struct {
 }
 
 func NewDeltaData(dataType schemapb.DataType, cap int) *DeltaData {
-	var pks PrimaryKeys
+	var pks common.PrimaryKeys
 	switch dataType {
 	case schemapb.DataType_Int64:
-		pks = NewInt64PrimaryKeys(cap)
+		pks = common.NewInt64PrimaryKeys(cap)
 	case schemapb.DataType_VarChar:
-		pks = NewVarcharPrimaryKeys(cap)
+		pks = common.NewVarcharPrimaryKeys(cap)
 	default:
 		fmt.Println("data type", dataType.String(), "not supported")
 	}
@@ -34,13 +35,13 @@ func NewDeltaData(dataType schemapb.DataType, cap int) *DeltaData {
 	}
 }
 
-func (dd *DeltaData) Append(pk PrimaryKey, ts uint64) {
+func (dd *DeltaData) Append(pk common.PrimaryKey, ts uint64) {
 	dd.pks.MustAppend(pk)
 	dd.tss = append(dd.tss, ts)
 	dd.delRowCount++
 }
 
-func (dd *DeltaData) Range(f func(pk PrimaryKey, ts uint64) bool) {
+func (dd *DeltaData) Range(f func(pk common.PrimaryKey, ts uint64) bool) {
 	for i := 0; i < int(dd.delRowCount); i++ {
 		if !f(dd.pks.Get(i), dd.tss[i]) {
 			return
