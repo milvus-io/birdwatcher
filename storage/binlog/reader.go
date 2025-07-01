@@ -7,11 +7,13 @@ import (
 	"github.com/cockroachdb/errors"
 
 	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
+	binlogv2 "github.com/milvus-io/birdwatcher/storage/binlog/v2"
 	"github.com/milvus-io/birdwatcher/storage/common"
 )
 
 type BinlogReader interface {
 	NextRecordReader(context.Context) (pqarrow.RecordReader, error)
+	GetMapping() map[int64]int
 	Close()
 }
 
@@ -20,8 +22,7 @@ func NewBinlogReader(storageVersion int64, f common.ReadSeeker) (BinlogReader, e
 	case 0, 1:
 		return binlogv1.NewBinlogReader(f)
 	case 2:
-		// TODO handle storage v2
-		return nil, errors.Newf("unsupported storage version %d", storageVersion)
+		return binlogv2.NewBinlogReader(f)
 	}
 	return nil, errors.Newf("unsupported storage version %d", storageVersion)
 }

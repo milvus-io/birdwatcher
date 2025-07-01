@@ -167,6 +167,10 @@ func (reader *BinlogReader) NextRecordReader(ctx context.Context) (pqarrow.Recor
 	return arrowReader.GetRecordReader(ctx, nil, nil)
 }
 
+func (reader *BinlogReader) GetMapping() map[int64]int {
+	return map[int64]int{reader.DescriptorEvent.FieldID: 0}
+}
+
 func (reader *BinlogReader) readMagicNumber(f common.ReadSeeker) (int32, error) {
 	var err error
 	var magicNumber int32

@@ -1,10 +1,6 @@
 package common
 
 import (
-	"io"
-
-	"github.com/samber/lo"
-
 	"github.com/milvus-io/birdwatcher/models"
 )
 
@@ -19,8 +15,8 @@ type BatchInfo struct {
 }
 
 type SegmentBatchIterator struct {
-	segment      *models.Segment
-	targetFields map[int64]*models.FieldBinlog
+	segment        *models.Segment
+	binlogSelector BinlogSelector
 
 	translator func(binlog string) (ReadSeeker, error)
 
@@ -30,17 +26,19 @@ type SegmentBatchIterator struct {
 func (sbi *SegmentBatchIterator) NextBatch() (batchInfo *BatchInfo, err error) {
 	output := make(map[int64]ReadSeeker)
 	targetBinlogs := make(map[int64]string)
-	for fieldID, fieldBinlog := range sbi.targetFields {
-		if sbi.currentBatch >= len(fieldBinlog.Binlogs) {
-			return nil, io.EOF
-		}
-		rs, err := sbi.translator(fieldBinlog.Binlogs[sbi.currentBatch].LogPath)
+
+	targetFields, err := sbi.binlogSelector.SelectBinlogs(sbi.segment.GetBinlogs(), sbi.currentBatch)
+	if err != nil {
+		return nil, err
+	}
+	for fieldID, binlogPath := range targetFields {
+		rs, err := sbi.translator(binlogPath)
 		if err != nil {
 			return nil, err
 		}
 
 		output[fieldID] = rs
-		targetBinlogs[fieldID] = fieldBinlog.Binlogs[sbi.currentBatch].LogPath
+		targetBinlogs[fieldID] = binlogPath
 	}
 
 	info := &BatchInfo{
@@ -53,20 +51,10 @@ func (sbi *SegmentBatchIterator) NextBatch() (batchInfo *BatchInfo, err error) {
 	return info, nil
 }
 
-func NewSegmentBatchIterator(segment *models.Segment, selectedFields []int64, translator func(binlog string) (ReadSeeker, error)) (*SegmentBatchIterator, error) {
-	targets := lo.SliceToMap(selectedFields, func(fieldID int64) (int64, *models.FieldBinlog) {
-		field, ok := lo.Find(segment.GetBinlogs(), func(f *models.FieldBinlog) bool {
-			return f.FieldID == fieldID
-		})
-		if !ok {
-			return fieldID, nil
-		}
-		return fieldID, field
-	})
-
+func NewSegmentBatchIterator(segment *models.Segment, selector BinlogSelector, translator func(binlog string) (ReadSeeker, error)) (*SegmentBatchIterator, error) {
 	return &SegmentBatchIterator{
-		segment:      segment,
-		targetFields: targets,
+		segment:        segment,
+		binlogSelector: selector,
 
 		translator: translator,
 	}, nil
