@@ -71,6 +71,9 @@ func (crr *SegmentBinlogRecordReader) iterateNextBatch(ctx context.Context) erro
 			continue
 		}
 
+		// select columns if possible
+		reader.SelectFields(crr.outputFields)
+
 		rr, err := reader.NextRecordReader(ctx)
 		if err != nil {
 			return err
