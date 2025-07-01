@@ -49,23 +49,34 @@ func (crr *SegmentBinlogRecordReader) iterateNextBatch(ctx context.Context) erro
 
 	crr.currentBatch = batchInfo
 
-	crr.rrs = make([]array.RecordReader, len(batchInfo.Output))
-	crr.brs = make([]binlog.BinlogReader, len(batchInfo.Output))
+	crr.rrs = make([]array.RecordReader, 0, len(batchInfo.Output))
+	crr.brs = make([]binlog.BinlogReader, 0, len(batchInfo.Output))
 
-	var i int
 	for _, readSeeker := range batchInfo.Output {
 		reader, err := binlog.NewBinlogReader(crr.storageVersion, readSeeker)
 		if err != nil {
 			return err
 		}
 
+		mapping := reader.GetMapping()
+		hit := false
+		for _, outputField := range crr.outputFields {
+			if _, ok := mapping[outputField]; ok {
+				hit = true
+				break
+			}
+		}
+		// all fields are filtered, ignore this binlog
+		if !hit {
+			continue
+		}
+
 		rr, err := reader.NextRecordReader(ctx)
 		if err != nil {
 			return err
 		}
-		crr.rrs[i] = rr
-		crr.brs[i] = reader
-		i++
+		crr.rrs = append(crr.rrs, rr)
+		crr.brs = append(crr.brs, reader)
 	}
 	return nil
 }
@@ -141,7 +152,7 @@ func NewSegmentReader(segment *models.Segment, selectedFields []int64, translato
 	case 0, 1:
 		binlogSelector = common.NewFieldIDSelector(selectedFields)
 	case 2:
-		binlogSelector = common.NewAllSelector()
+		binlogSelector = common.NewMatchingWideColumnSelector(selectedFields)
 	default:
 		return nil, errors.Newf("unsupported storage version: %d", segment.StorageVersion)
 	}
