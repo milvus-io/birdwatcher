@@ -171,6 +171,8 @@ func (reader *BinlogReader) GetMapping() map[int64]int {
 	return map[int64]int{reader.DescriptorEvent.FieldID: 0}
 }
 
+func (reader *BinlogReader) SelectFields(_ []int64) {}
+
 func (reader *BinlogReader) readMagicNumber(f common.ReadSeeker) (int32, error) {
 	var err error
 	var magicNumber int32

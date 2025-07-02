@@ -14,6 +14,7 @@ import (
 type BinlogReader interface {
 	NextRecordReader(context.Context) (pqarrow.RecordReader, error)
 	GetMapping() map[int64]int
+	SelectFields([]int64)
 	Close()
 }
 
