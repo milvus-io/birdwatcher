@@ -43,7 +43,6 @@ func (crr *SegmentBinlogRecordReader) nextRecordReader(ctx context.Context) erro
 }
 
 func (crr *SegmentBinlogRecordReader) iterateNext(ctx context.Context) error {
-
 	// try to get next record reader from current batch
 	err := crr.nextRecordReader(ctx)
 	if err == nil {
