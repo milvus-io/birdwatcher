@@ -26,7 +26,35 @@ type SegmentBinlogRecordReader struct {
 	rrs          []array.RecordReader
 }
 
-func (crr *SegmentBinlogRecordReader) iterateNextBatch(ctx context.Context) error {
+func (crr *SegmentBinlogRecordReader) nextRecordReader(ctx context.Context) error {
+	if len(crr.brs) == 0 {
+		return io.EOF
+	}
+
+	for i, br := range crr.brs {
+		cr, err := br.NextRecordReader(ctx)
+		if err != nil {
+			return err
+		}
+
+		crr.rrs[i] = cr
+	}
+	return nil
+}
+
+func (crr *SegmentBinlogRecordReader) iterateNext(ctx context.Context) error {
+	// try to get next record reader from current batch
+	err := crr.nextRecordReader(ctx)
+	if err == nil {
+		return nil
+	}
+
+	// not EOF error, return it
+	if !errors.Is(err, io.EOF) {
+		return err
+	}
+
+	// EOF, iterator to next batch
 	if crr.brs != nil {
 		for _, er := range crr.brs {
 			if er != nil {
@@ -86,7 +114,7 @@ func (crr *SegmentBinlogRecordReader) iterateNextBatch(ctx context.Context) erro
 
 func (crr *SegmentBinlogRecordReader) Next(ctx context.Context) (common.RecordBatch, *common.BatchInfo, error) {
 	if crr.rrs == nil {
-		if err := crr.iterateNextBatch(ctx); err != nil {
+		if err := crr.iterateNext(ctx); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -120,7 +148,7 @@ func (crr *SegmentBinlogRecordReader) Next(ctx context.Context) (common.RecordBa
 	r, err := composeRecord()
 	if err == io.EOF {
 		// if EOF, try iterate next batch (blob)
-		if err := crr.iterateNextBatch(ctx); err != nil {
+		if err := crr.iterateNext(ctx); err != nil {
 			return nil, nil, err
 		}
 		r, err = composeRecord() // try compose again
