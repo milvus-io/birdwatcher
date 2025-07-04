@@ -1,6 +1,10 @@
 package common
 
-import "github.com/apache/arrow/go/v17/arrow"
+import (
+	"fmt"
+
+	"github.com/apache/arrow/go/v17/arrow"
+)
 
 var _ RecordBatch = (*compositeRecordBatch)(nil)
 
@@ -20,6 +24,10 @@ func (r *compositeRecordBatch) Column(i int64) arrow.Array {
 }
 
 func (r *compositeRecordBatch) Len() int {
+	if len(r.recs) == 0 {
+		fmt.Println("empty record batch found")
+		return 0
+	}
 	return r.recs[0].Len()
 }
 
@@ -59,6 +67,10 @@ func (sr *simpleArrowRecord) Column(i int64) arrow.Array {
 }
 
 func (sr *simpleArrowRecord) Len() int {
+	if sr.r == nil {
+		fmt.Println("empty record batch found")
+		return 0
+	}
 	return int(sr.r.NumRows())
 }
 
