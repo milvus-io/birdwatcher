@@ -18,6 +18,9 @@ type FieldIDSelector struct {
 }
 
 func (s *FieldIDSelector) SelectBinlogs(binlogs []*models.FieldBinlog, batchIdx int) (map[int64]string, error) {
+	if len(binlogs) == 0 {
+		return nil, io.EOF
+	}
 	result := make(map[int64]string)
 	for _, binlog := range binlogs {
 		if batchIdx >= len(binlog.Binlogs) {
@@ -66,6 +69,9 @@ type MatchingWideColumnSelector struct {
 }
 
 func (s *MatchingWideColumnSelector) SelectBinlogs(binlogs []*models.FieldBinlog, batchIdx int) (map[int64]string, error) {
+	if len(binlogs) == 0 {
+		return nil, io.EOF
+	}
 	result := make(map[int64]string)
 	for _, binlog := range binlogs {
 		if batchIdx >= len(binlog.Binlogs) {
