@@ -78,7 +78,11 @@ func (si *SegmentIterator) Range(ctx context.Context) error {
 
 func (si *SegmentIterator) scan(_ context.Context, pk common.PrimaryKey, batchInfo *common.BatchInfo, offset int, values map[int64]any) error {
 	for _, filter := range si.filters {
-		if !filter.Match(pk, values[1].(int64), values) {
+		match, err := filter.Match(pk, values[1].(int64), values)
+		if err != nil {
+			return err
+		}
+		if !match {
 			return nil
 		}
 	}
