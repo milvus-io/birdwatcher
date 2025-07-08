@@ -186,6 +186,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	var wg sync.WaitGroup
 	wg.Add(int(p.WorkerNum))
 	taskCh := make(chan *models.Segment)
+	errCh := make(chan error, 1)
 
 	num := atomic.NewInt64(0)
 
@@ -199,7 +200,11 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 				}
 				err := workFn(segment)
 				if err != nil && !errors.Is(err, io.EOF) {
-					fmt.Println(err)
+					select {
+					case errCh <- err:
+					default:
+					}
+					return
 				}
 				fmt.Printf("%d/%d done, current counter: %d\n", num.Inc(), len(normalSegments), scanTask.Counter())
 			}
@@ -207,10 +212,20 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	}
 
 	for _, segment := range normalSegments {
-		taskCh <- segment
+		select {
+		case taskCh <- segment:
+		case err = <-errCh:
+		}
+		if err != nil {
+			break
+		}
 	}
 	close(taskCh)
 	wg.Wait()
+
+	if err != nil {
+		return err
+	}
 
 	scanTask.Summary()
 

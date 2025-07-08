@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 
+	"github.com/cockroachdb/errors"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 	"github.com/samber/lo"
@@ -12,15 +13,17 @@ import (
 )
 
 type EntryFilter interface {
-	Match(pk common.PrimaryKey, ts int64, values map[int64]any) bool
+	Match(pk common.PrimaryKey, ts int64, values map[int64]any) (bool, error)
 }
+
+var _ EntryFilter = (*DeltalogFilter)(nil)
 
 type DeltalogFilter struct {
 	deleteEntries map[any]uint64
 }
 
-func (f *DeltalogFilter) Match(pk common.PrimaryKey, ts int64, values map[int64]any) bool {
-	return f.deleteEntries[pk.GetValue()] <= uint64(ts)
+func (f *DeltalogFilter) Match(pk common.PrimaryKey, ts int64, values map[int64]any) (bool, error) {
+	return f.deleteEntries[pk.GetValue()] <= uint64(ts), nil
 }
 
 func NewDeltalogFilter(entries map[any]uint64) *DeltalogFilter {
@@ -29,37 +32,34 @@ func NewDeltalogFilter(entries map[any]uint64) *DeltalogFilter {
 	}
 }
 
+var _ EntryFilter = (*ExprFilter)(nil)
+
 type ExprFilter struct {
 	id2Schema map[int64]*schemapb.FieldSchema
 	expr      string
 	program   *vm.Program
 }
 
-func (f *ExprFilter) Match(pk common.PrimaryKey, ts int64, values map[int64]any) bool {
+func (f *ExprFilter) Match(pk common.PrimaryKey, ts int64, values map[int64]any) (bool, error) {
 	pkv := pk.GetValue()
 	env := lo.MapKeys(values, func(_ any, fid int64) string {
 		return f.id2Schema[fid].Name
 	})
 	env["$pk"] = pkv
 	env["$timestamp"] = ts
-	// program, err := expr.Compile(f.expr)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// 	return false
-	// }
 
 	output, err := expr.Run(f.program, env)
 	if err != nil {
-		fmt.Println("failed to run expression, err: ", err.Error())
+		return false, err
 	}
 
 	match, ok := output.(bool)
 	if !ok {
 		fmt.Printf("filter expression result not bool but %T\n", output)
-		return false
+		return false, errors.Newf("filter expression result not bool, actual result: %v", output)
 	}
 
-	return match
+	return match, nil
 }
 
 func NewExprFilter(id2Schema map[int64]*schemapb.FieldSchema, iexpr string) (*ExprFilter, error) {
