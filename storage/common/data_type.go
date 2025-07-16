@@ -6,6 +6,7 @@ import (
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
+	"github.com/x448/float16"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
@@ -352,14 +353,32 @@ var SerdeMap = func() map[schemapb.DataType]SerdeEntry {
 		func(i int) arrow.DataType {
 			return &arrow.FixedSizeBinaryType{ByteWidth: i * 2}
 		},
-		fixedSizeDeserializer,
+		func(a arrow.Array, i int) (any, bool) {
+			if a.IsNull(i) {
+				return nil, true
+			}
+			if arr, ok := a.(*array.FixedSizeBinary); ok && i < arr.Len() {
+				raw := arr.Value(i)
+				return Bytes2Float16(raw), true
+			}
+			return nil, false
+		},
 		fixedSizeSerializer,
 	}
 	m[schemapb.DataType_BFloat16Vector] = SerdeEntry{
 		func(i int) arrow.DataType {
 			return &arrow.FixedSizeBinaryType{ByteWidth: i * 2}
 		},
-		fixedSizeDeserializer,
+		func(a arrow.Array, i int) (any, bool) {
+			if a.IsNull(i) {
+				return nil, true
+			}
+			if arr, ok := a.(*array.FixedSizeBinary); ok && i < arr.Len() {
+				raw := arr.Value(i)
+				return BFloat16Bytes2Float32(raw), true
+			}
+			return nil, false
+		},
 		fixedSizeSerializer,
 	}
 	// m[schemapb.DataType_Int8Vector] = SerdeEntry{
@@ -435,3 +454,25 @@ var SerdeMap = func() map[schemapb.DataType]SerdeEntry {
 	m[schemapb.DataType_SparseFloatVector] = byteEntry
 	return m
 }()
+
+func Float16BytesToFloat32(b []byte) float32 {
+	return float16.Frombits(binary.LittleEndian.Uint16(b)).Float32()
+}
+
+func Bytes2Float16(b []byte) []float16.Float16 {
+	dim := len(b) / 2
+	vec := make([]float16.Float16, 0, dim)
+	for j := 0; j < dim; j++ {
+		vec = append(vec, float16.Frombits(binary.LittleEndian.Uint16(b[j*2:])))
+	}
+	return vec
+}
+
+func BFloat16Bytes2Float32(b []byte) []float32 {
+	dim := len(b) / 2
+	vec := make([]float32, 0, dim)
+	for j := 0; j < dim; j++ {
+		vec = append(vec, math.Float32frombits(uint32(binary.LittleEndian.Uint16(b[j*2:]))<<16))
+	}
+	return vec
+}

@@ -2,11 +2,14 @@ package storage
 
 import (
 	"fmt"
+	"math"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 	"github.com/samber/lo"
+	"github.com/x448/float16"
 
 	"github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
@@ -38,6 +41,7 @@ type ExprFilter struct {
 	id2Schema map[int64]*schemapb.FieldSchema
 	expr      string
 	program   *vm.Program
+	extra     map[string]any
 }
 
 func (f *ExprFilter) Match(pk common.PrimaryKey, ts int64, values map[int64]any) (bool, error) {
@@ -47,6 +51,10 @@ func (f *ExprFilter) Match(pk common.PrimaryKey, ts int64, values map[int64]any)
 	})
 	env["$pk"] = pkv
 	env["$timestamp"] = ts
+
+	for key, value := range f.extra {
+		env[key] = value
+	}
 
 	output, err := expr.Run(f.program, env)
 	if err != nil {
@@ -67,9 +75,34 @@ func NewExprFilter(id2Schema map[int64]*schemapb.FieldSchema, iexpr string) (*Ex
 	if err != nil {
 		return nil, err
 	}
-	return &ExprFilter{
+	exprFilter := &ExprFilter{
 		id2Schema: id2Schema,
 		expr:      iexpr,
 		program:   program,
-	}, nil
+		extra:     make(map[string]any),
+	}
+
+	if strings.Contains(iexpr, "AbnormalFloat") {
+		exprFilter.extra["AbnormalFloat"] = AbnormalFloat
+	}
+
+	return exprFilter, nil
+}
+
+func AbnormalFloat(values any) bool {
+	switch values := values.(type) {
+	case []float16.Float16:
+		for _, v := range values {
+			if v.IsNaN() || v.IsInf(0) {
+				return true
+			}
+		}
+	case []float32:
+		for _, v := range values {
+			if math.IsInf(float64(v), 0) || math.IsNaN(float64(v)) {
+				return true
+			}
+		}
+	}
+	return false
 }

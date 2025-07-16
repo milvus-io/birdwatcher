@@ -298,6 +298,7 @@ func (s *InstanceState) ProbePKCommand(ctx context.Context, p *ProbePKParam) err
 			fmt.Printf("PK %s found on segment %d\n", p.PK, segInfo.GetID())
 			for _, fd := range result.GetFieldsData() {
 				fmt.Printf("Field %s, value: %v\n", fieldIDName[fd.GetFieldId()], fd.GetField())
+				fmt.Printf("Field %s, valid data: %v\n", fieldIDName[fd.GetFieldId()], fd.GetValidData())
 			}
 		}
 	}
@@ -324,7 +325,7 @@ func GetSizeOfIDs(data *schemapb.IDs) int {
 
 func getQueryCoordClient(sessions []*models.Session) (querypb.QueryCoordClient, error) {
 	for _, session := range sessions {
-		if strings.ToLower(session.ServerName) != "querycoord" {
+		if strings.ToLower(session.ServerName) != "querycoord" && strings.ToLower(session.ServerName) != "mixcoord" {
 			continue
 		}
 

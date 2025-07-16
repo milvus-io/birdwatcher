@@ -20,6 +20,9 @@ func (t *LocateTask) Scan(pk common.PrimaryKey, batchInfo *common.BatchInfo, off
 		return io.EOF
 	}
 	fmt.Printf("entry found, segment %d offset %d, pk: %v, ts: %v\n", batchInfo.SegmentID, offset, pk.GetValue(), values[1])
+	for fieldID, value := range values {
+		fmt.Printf("field %d: %v\n", fieldID, value)
+	}
 	fmt.Printf("binlog batch %d, pk binlog %s\n", batchInfo.BatchIdx, batchInfo.TargetBinlogs[t.pkField.FieldID])
 
 	return nil
