@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/birdwatcher/states/mgrpc"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
-	"github.com/pkg/errors"
-	"github.com/samber/lo"
 )
 
 type iss43407 struct {

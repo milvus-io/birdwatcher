@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cockroachdb/errors"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/healthz"
 )
@@ -15,7 +16,6 @@ type HealthzCheckParam struct {
 }
 
 func (c *InstanceState) HealthzCheckCommand(ctx context.Context, p *HealthzCheckParam) (*framework.PresetResultSet, error) {
-
 	var items []healthz.HealthzCheckItem
 	if len(p.Items) == 0 {
 		items = healthz.DefaultCheckItems()

@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/samber/lo"
 )
 
 var (
