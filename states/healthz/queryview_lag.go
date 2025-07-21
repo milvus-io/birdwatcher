@@ -30,7 +30,7 @@ are garbage collected.`,
 	}
 }
 
-func (*QueryViewLag) Check(ctx context.Context, client metakv.MetaKV, basePath string) ([]*HealthzCheckReport, error) {
+func (i *QueryViewLag) Check(ctx context.Context, client metakv.MetaKV, basePath string) ([]*HealthzCheckReport, error) {
 	segments, err := common.ListSegments(ctx, client, basePath)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,8 @@ func (*QueryViewLag) Check(ctx context.Context, client metakv.MetaKV, basePath s
 		for _, segment := range resp.GetSegments() {
 			if _, ok := validIDs[segment.GetID()]; !ok {
 				results = append(results, &HealthzCheckReport{
-					Msg: fmt.Sprintf("Sealed segment %d still loaded while meta gc-ed", segment.GetID()),
+					Item: i.Name(),
+					Msg:  fmt.Sprintf("Sealed segment %d still loaded while meta gc-ed", segment.GetID()),
 					Extra: map[string]any{
 						"segment_id":    segment.GetID(),
 						"segment_state": "sealed",
@@ -74,7 +75,8 @@ func (*QueryViewLag) Check(ctx context.Context, client metakv.MetaKV, basePath s
 			for _, segmentID := range growings {
 				if _, ok := validIDs[segmentID]; !ok {
 					results = append(results, &HealthzCheckReport{
-						Msg: fmt.Sprintf("Sealed segment %d still loaded while meta gc-ed", segmentID),
+						Item: i.Name(),
+						Msg:  fmt.Sprintf("Sealed segment %d still loaded while meta gc-ed", segmentID),
 						Extra: map[string]any{
 							"segment_id":    segmentID,
 							"segment_state": "growing",

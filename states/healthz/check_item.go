@@ -46,6 +46,7 @@ func GetHealthzCheckItem(name string) (HealthzCheckItem, bool) {
 }
 
 type HealthzCheckReport struct {
+	Item  string
 	Msg   string
 	Extra map[string]any
 }
@@ -59,13 +60,19 @@ func (rs *HealthzCheckReports) PrintAs(format framework.Format) string {
 	case framework.FormatDefault, framework.FormatPlain:
 		sb := &strings.Builder{}
 		for _, report := range rs.Data {
+			fmt.Fprintf(sb, "Item: [%s]\n", report.Item)
 			fmt.Fprintln(sb, report.Msg)
+			for k, v := range report.Extra {
+				fmt.Fprintf(sb, "%s: %v\n", k, v)
+			}
 		}
 		return sb.String()
 	case framework.FormatJSON:
 		sb := &strings.Builder{}
 		for _, report := range rs.Data {
 			output := report.Extra
+			output["item"] = report.Item
+			output["msg"] = report.Msg
 			bs, err := json.Marshal(output)
 			if err != nil {
 				fmt.Println(err.Error())

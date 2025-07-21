@@ -33,7 +33,7 @@ See also: https://github.com/milvus-io/milvus/issues/43407`,
 	}
 }
 
-func (c iss43407) Check(ctx context.Context, client metakv.MetaKV, basePath string) ([]*HealthzCheckReport, error) {
+func (i iss43407) Check(ctx context.Context, client metakv.MetaKV, basePath string) ([]*HealthzCheckReport, error) {
 	collections, err := common.ListCollectionWithoutFields(ctx, client, basePath)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,8 @@ func (c iss43407) Check(ctx context.Context, client metakv.MetaKV, basePath stri
 		for idx, id := range resp.GetCollectionIds() {
 			if _, ok := inMeta[id]; !ok {
 				results = append(results, &HealthzCheckReport{
-					Msg: fmt.Sprintf("Collection %d not found in meta but returned from rootcoord", id),
+					Item: i.Name(),
+					Msg:  fmt.Sprintf("Collection %d not found in meta but returned from rootcoord", id),
 					Extra: map[string]any{
 						"collection_id":   id,
 						"collection_name": resp.GetCollectionNames()[idx],
