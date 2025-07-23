@@ -4,8 +4,7 @@ import "os"
 
 var _ ConfigSource = (*envConfigSource)(nil)
 
-type envConfigSource struct {
-}
+type envConfigSource struct{}
 
 func (e *envConfigSource) Name() string {
 	return "env"

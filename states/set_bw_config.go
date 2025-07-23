@@ -8,9 +8,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 )
 
-var (
-	validator map[string]func(string, string) error
-)
+var validator map[string]func(string, string) error
 
 func init() {
 	validator = make(map[string]func(string, string) error)
