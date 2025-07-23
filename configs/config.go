@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -19,6 +20,9 @@ const (
 var (
 	errConfigPathNotExist = errors.New("config path not exist")
 	errConfigPathIsFile   = errors.New("config path is file")
+
+	ErrConfigNotFound       = errors.New("config not found")
+	ErrConfigSourceNotFound = errors.New("config source not found")
 )
 
 // Config stores birdwatcher config items.
@@ -30,6 +34,8 @@ type Config struct {
 	WorkspacePath string `yaml:"WorkspacePath"`
 
 	logger *log.Logger
+
+	sources map[string]ConfigSource
 }
 
 func (c *Config) SetLogger(logger *log.Logger) {
@@ -40,6 +46,22 @@ func (c *Config) Log(v ...any) {
 	if c.logger != nil {
 		c.logger.Println(v...)
 	}
+}
+
+func (c *Config) SetConfig(source, key, value string) error {
+	cs, ok := c.sources[strings.ToLower(source)]
+	if !ok {
+		return ErrConfigSourceNotFound
+	}
+	return cs.Set(key, value)
+}
+
+func (c *Config) GetConfig(source, key string) (string, error) {
+	cs, ok := c.sources[strings.ToLower(source)]
+	if !ok {
+		return "", ErrConfigSourceNotFound
+	}
+	return cs.Get(key)
 }
 
 func (c *Config) load() error {
@@ -116,6 +138,13 @@ func (c *Config) setupWorkspaceFolder() {
 	}
 }
 
+func (c *Config) setupConfigSources() {
+	c.sources = make(map[string]ConfigSource)
+
+	// add env config source
+	c.sources["env"] = &envConfigSource{}
+}
+
 func NewConfig(configPath string) (*Config, error) {
 	config := &Config{
 		ConfigPath: configPath,
@@ -127,6 +156,8 @@ func NewConfig(configPath string) (*Config, error) {
 	}
 
 	config.setupWorkspaceFolder()
+
+	config.setupConfigSources()
 
 	return config, err
 }

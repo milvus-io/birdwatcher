@@ -86,8 +86,8 @@ func (a *PromptApp) Run(start framework.State) {
 func (a *PromptApp) promptExecute(in string) {
 	in = strings.TrimSpace(in)
 
-	// try to get $PAGER env
-	pager := os.Getenv("PAGER")
+	// try to get $PAGER config
+	pager, _ := a.config.GetConfig("env", "PAGER")
 
 	pagerSig := make(chan struct{})
 	stdout := os.Stdout
