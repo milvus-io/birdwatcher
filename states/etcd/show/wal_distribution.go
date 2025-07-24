@@ -7,16 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/olekukonko/tablewriter"
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/milvus/pkg/v2/proto/streamingpb"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/types"
-)
-
-const (
-	walDistributionPrefix = "streamingcoord-meta/pchannel/"
 )
 
 type WALDistributionParam struct {
@@ -31,17 +27,19 @@ func (c *ComponentShow) WalDistributionCommand(ctx context.Context, p *WALDistri
 		return err
 	}
 
-	table := tablewriter.NewTable(os.Stdout)
-	header := []string{"Channel", "StreamingNode", "State", "LastAssignTime"}
+	t := table.NewWriter()
+	t.SetTitle("WAL Distribution At Coordinator")
+	t.SetOutputMirror(os.Stdout)
+	header := table.Row{"Channel", "StreamingNode", "State", "LastAssignTime"}
 	if p.WithHistory {
 		header = append(header, "History")
 	}
-	table.Header(header)
+	t.AppendHeader(header)
 	for _, meta := range metas {
 		channelInfo := types.NewPChannelInfoFromProto(meta.Channel)
 		assignedTo := types.NewStreamingNodeInfoFromProto(meta.Node)
 		lastAssignTimestamp := time.Unix(int64(meta.LastAssignTimestampSeconds), 0)
-		row := []any{
+		row := table.Row{
 			channelInfo,
 			assignedTo,
 			strings.TrimPrefix(meta.State.String(), "PCHANNEL_META_STATE_"),
@@ -50,9 +48,9 @@ func (c *ComponentShow) WalDistributionCommand(ctx context.Context, p *WALDistri
 		if p.WithHistory {
 			row = append(row, c.formatHistory(meta.Histories))
 		}
-		table.Append(row)
+		t.AppendRow(row)
 	}
-	table.Render()
+	t.Render()
 	return nil
 }
 
