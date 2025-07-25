@@ -382,6 +382,186 @@
                 transform: translate(-50%, -50%) scale(0.8);
             }
         }
+        
+        /* Timestamp tooltip styles */
+        .timestamp-tooltip {
+            position: absolute;
+            background: rgba(17, 24, 39, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(-50%);
+            bottom: 100%;
+            left: 50%;
+            margin-bottom: 8px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .timestamp-tooltip.show {
+            opacity: 1;
+        }
+        
+        .timestamp-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(17, 24, 39, 0.95) transparent transparent transparent;
+        }
+        
+        .timestamp-tooltip div {
+            margin: 2px 0;
+        }
+        
+        .timestamp-tooltip .utc-time {
+            color: #60a5fa;
+        }
+        
+        .timestamp-tooltip .local-time {
+            color: #86efac;
+        }
+        
+        .timestamp-tooltip .relative-time {
+            color: #fbbf24;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .timestamp-tooltip .milvus-info {
+            color: #c084fc;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 11px;
+        }
+        
+        .word-clickable.timestamp-value {
+            cursor: help;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Category toggle animation */
+        .category-toggle {
+            transition: transform 0.2s ease;
+        }
+        
+        .category-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        
+        /* Search highlight */
+        .command-item.search-hidden {
+            display: none !important;
+        }
+        
+        .category-section.search-active {
+            border-left-color: transparent !important;
+        }
+        
+        .category-section.search-active > h3 {
+            display: none;
+        }
+        
+        .search-highlight {
+            background-color: #fef3c7;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+        
+        /* Enum selector styles */
+        .enum-selector {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            align-items: center;
+        }
+        
+        .enum-option {
+            padding: 0.125rem 0.5rem;
+            font-size: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .enum-option:hover {
+            background-color: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        
+        .enum-option.selected {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .enum-option.selected:hover {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+        
+        /* Autocomplete styles */
+        .autocomplete-container {
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .autocomplete-container.show {
+            display: block;
+        }
+        
+        .autocomplete-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.875rem;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #eff6ff;
+        }
+        
+        .autocomplete-item .command-part {
+            color: #1f2937;
+            font-weight: 500;
+        }
+        
+        .autocomplete-item .argument-part {
+            color: #6b7280;
+            margin-left: 0.25rem;
+        }
+        
+        .autocomplete-item .description-part {
+            color: #9ca3af;
+            font-size: 0.75rem;
+            display: block;
+            margin-top: 0.125rem;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -513,12 +693,22 @@
                             <h2 class="text-lg font-semibold text-gray-800">
                                 <i class="fas fa-list mr-2"></i>Commands
                             </h2>
+                            <!-- Search box -->
+                            <div class="mt-3">
+                                <div class="relative">
+                                    <input type="text" id="command-search" placeholder="搜索命令..." 
+                                           class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                           oninput="filterCommands()">
+                                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="sidebar p-4">
                             <!-- Show Commands -->
-                            <div class="category-section show">
-                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                            <div class="category-section show" data-category="show">
+                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors" onclick="toggleCategory('show')">
+                                    <i class="fas fa-chevron-down mr-2 text-sm transition-transform category-toggle" id="show-toggle"></i>
                                     <i class="fas fa-eye text-green-600 mr-2"></i>Show Commands
                                 </h3>
                                 <div class="space-y-2" id="show-commands">
@@ -527,8 +717,9 @@
                             </div>
 
                             <!-- Management Commands -->
-                            <div class="category-section management">
-                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                            <div class="category-section management" data-category="management">
+                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors" onclick="toggleCategory('management')">
+                                    <i class="fas fa-chevron-down mr-2 text-sm transition-transform category-toggle" id="management-toggle"></i>
                                     <i class="fas fa-cogs text-orange-600 mr-2"></i>Management Commands
                                 </h3>
                                 <div class="space-y-2" id="management-commands">
@@ -537,8 +728,9 @@
                             </div>
 
                             <!-- Analysis Commands -->
-                            <div class="category-section analysis">
-                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                            <div class="category-section analysis" data-category="analysis">
+                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors" onclick="toggleCategory('analysis')">
+                                    <i class="fas fa-chevron-down mr-2 text-sm transition-transform category-toggle" id="analysis-toggle"></i>
                                     <i class="fas fa-chart-line text-purple-600 mr-2"></i>Analysis Commands
                                 </h3>
                                 <div class="space-y-2" id="analysis-commands">
@@ -546,28 +738,6 @@
                                 </div>
                             </div>
 
-                            <!-- Custom Command -->
-                            <div class="category-section custom-command-section">
-                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
-                                    <i class="fas fa-terminal text-red-600 mr-2"></i>Custom Command
-                                </h3>
-                                <div class="space-y-3">
-                                    <div class="relative">
-                                        <input type="text" id="custom-command" placeholder="Enter birdwatcher command..." 
-                                               class="w-full pl-3 pr-9 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                               onkeypress="if(event.key==='Enter') executeCustomCommand()">
-                                        <button id="custom-command-paste" onclick="pasteToInput('custom-command')" 
-                                                class="paste-btn-inner" 
-                                                title="Paste from clipboard">
-                                            <i class="fas fa-paste text-sm"></i>
-                                        </button>
-                                    </div>
-                                    <button onclick="executeCustomCommand()" 
-                                            class="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm">
-                                        <i class="fas fa-play mr-2"></i>Execute
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -577,6 +747,31 @@
 
                 <!-- Right Column - Results -->
                 <div class="right-panel" id="right-panel" style="width: 70%;">
+                    <!-- Custom Command -->
+                    <div class="bg-white rounded-lg shadow-md mb-4">
+                        <div class="px-4 py-3 flex items-center space-x-3">
+                            <h3 class="text-sm font-semibold text-gray-800 flex items-center whitespace-nowrap">
+                                <i class="fas fa-terminal text-red-600 mr-2"></i>Custom Command
+                            </h3>
+                            <div class="relative flex-1">
+                                <input type="text" id="custom-command" placeholder="Enter birdwatcher command..." 
+                                       class="w-full pl-3 pr-9 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                       autocomplete="off">
+                                <button id="custom-command-paste" onclick="pasteToInput('custom-command')" 
+                                        class="paste-btn-inner" 
+                                        title="Paste from clipboard">
+                                    <i class="fas fa-paste text-sm"></i>
+                                </button>
+                                <!-- Autocomplete container -->
+                                <div id="autocomplete-container" class="autocomplete-container"></div>
+                            </div>
+                            <button onclick="executeCustomCommand()" 
+                                    class="bg-red-600 text-white px-4 py-1.5 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm whitespace-nowrap">
+                                <i class="fas fa-play mr-2"></i>Execute
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div class="bg-white rounded-lg shadow-md results-panel">
                         <div class="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                             <h2 class="text-lg font-semibold text-gray-800 flex items-center">
