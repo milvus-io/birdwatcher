@@ -101,7 +101,8 @@ func FormatWALCheckpoint(walName string, checkpoint *streamingpb.WALCheckpoint) 
 // GetMessageIDString get the message id string.
 func GetMessageIDString(walName string, id string) string {
 	if walName == "" {
-		return GuessWALName(id)
+		_, id = GuessWALName(id)
+		return id
 	}
 
 	messageIDString, err := walNameUnmarshaler[walName](id)
@@ -112,15 +113,26 @@ func GetMessageIDString(walName string, id string) string {
 }
 
 // GuessWALName guess the wal name from the message id.
-func GuessWALName(id string) string {
+func GuessWALName(id string) (string, string) {
 	for _, walName := range []string{"pulsar", "kafka", "rmq", "wp"} {
 		messageIDString, err := walNameUnmarshaler[walName](id)
 		if err != nil {
 			continue
 		}
-		return messageIDString
+		if walName == "kafka" {
+			id, err := strconv.ParseUint(messageIDString, 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			if id > 400000000000000000 {
+				// kafka message id is a small number at most case,
+				// rocksmq is a large number of timetick, so we can use the range to guess the wal name
+				continue
+			}
+		}
+		return walName, messageIDString
 	}
-	return fmt.Sprintf("%s[unknown]", id)
+	return "", fmt.Sprintf("%s[unknown]", id)
 }
 
 // ListWALRecoveryStorage list the wal recovery storage meta data
