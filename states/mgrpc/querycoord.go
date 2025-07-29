@@ -231,3 +231,290 @@ func checkerListCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command 
 	}
 	return cmd
 }
+
+// ===== New Ops Commands =====
+
+// QueryNode Management commands
+type ListQueryNodeParam struct {
+	framework.ParamBase `use:"list-querynodes" desc:"List all QueryNode instances"`
+}
+
+func (s *queryCoordState) ListQueryNodeCommand(ctx context.Context, p *ListQueryNodeParam) error {
+	req := &querypb.ListQueryNodeRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+	}
+
+	resp, err := s.client.ListQueryNode(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to list query nodes: %w", err)
+	}
+	if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("list query nodes failed: %s", resp.Status.Reason)
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Node ID\tAddress\tState")
+	fmt.Fprintln(w, "---\t---\t---")
+	for _, node := range resp.NodeInfos {
+		fmt.Fprintf(w, "%d\t%s\t%s\n", node.ID, node.Address, node.State)
+	}
+	w.Flush()
+
+	fmt.Printf("\nTotal nodes: %d\n", len(resp.NodeInfos))
+	return nil
+}
+
+type GetQueryNodeDistributionParam struct {
+	framework.ParamBase `use:"get-querynode-distribution" desc:"Get data distribution for a specific QueryNode"`
+	NodeID              int64 `name:"nodeID" desc:"QueryNode ID to query"`
+}
+
+func (s *queryCoordState) GetQueryNodeDistributionCommand(ctx context.Context, p *GetQueryNodeDistributionParam) error {
+	req := &querypb.GetQueryNodeDistributionRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+		NodeID: p.NodeID,
+	}
+
+	resp, err := s.client.GetQueryNodeDistribution(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to get query node distribution: %w", err)
+	}
+	if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("get query node distribution failed: %s", resp.Status.Reason)
+	}
+
+	fmt.Printf("QueryNode %d Distribution:\n", p.NodeID)
+	fmt.Printf("Channels (%d): %v\n", len(resp.ChannelNames), resp.ChannelNames)
+	fmt.Printf("Sealed Segments (%d): %v\n", len(resp.SealedSegmentIDs), resp.SealedSegmentIDs)
+	return nil
+}
+
+type SuspendNodeParam struct {
+	framework.ParamBase `use:"suspend-node" desc:"Suspend a QueryNode from resource operations"`
+	NodeID              int64 `name:"nodeID" desc:"QueryNode ID to suspend"`
+}
+
+func (s *queryCoordState) SuspendNodeCommand(ctx context.Context, p *SuspendNodeParam) error {
+	req := &querypb.SuspendNodeRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+		NodeID: p.NodeID,
+	}
+
+	resp, err := s.client.SuspendNode(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to suspend node %d: %w", p.NodeID, err)
+	}
+	if resp.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("suspend node %d failed: %s", p.NodeID, resp.Reason)
+	}
+
+	fmt.Printf("⏸️  Node %d suspended successfully\n", p.NodeID)
+	return nil
+}
+
+type ResumeNodeParam struct {
+	framework.ParamBase `use:"resume-node" desc:"Resume a QueryNode for resource operations"`
+	NodeID              int64 `name:"nodeID" desc:"QueryNode ID to resume"`
+}
+
+func (s *queryCoordState) ResumeNodeCommand(ctx context.Context, p *ResumeNodeParam) error {
+	req := &querypb.ResumeNodeRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+		NodeID: p.NodeID,
+	}
+
+	resp, err := s.client.ResumeNode(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to resume node %d: %w", p.NodeID, err)
+	}
+	if resp.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("resume node %d failed: %s", p.NodeID, resp.Reason)
+	}
+
+	fmt.Printf("✅ Node %d resumed successfully\n", p.NodeID)
+	return nil
+}
+
+// Balance Management commands
+type SuspendBalanceParam struct {
+	framework.ParamBase `use:"suspend-balance" desc:"Suspend automatic load balancing"`
+}
+
+func (s *queryCoordState) SuspendBalanceCommand(ctx context.Context, p *SuspendBalanceParam) error {
+	req := &querypb.SuspendBalanceRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+	}
+
+	resp, err := s.client.SuspendBalance(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to suspend balance: %w", err)
+	}
+	if resp.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("suspend balance failed: %s", resp.Reason)
+	}
+
+	fmt.Printf("⏸️  Balance suspended successfully\n")
+	return nil
+}
+
+type ResumeBalanceParam struct {
+	framework.ParamBase `use:"resume-balance" desc:"Resume automatic load balancing"`
+}
+
+func (s *queryCoordState) ResumeBalanceCommand(ctx context.Context, p *ResumeBalanceParam) error {
+	req := &querypb.ResumeBalanceRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+	}
+
+	resp, err := s.client.ResumeBalance(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to resume balance: %w", err)
+	}
+	if resp.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("resume balance failed: %s", resp.Reason)
+	}
+
+	fmt.Printf("✅ Balance resumed successfully\n")
+	return nil
+}
+
+type CheckBalanceStatusParam struct {
+	framework.ParamBase `use:"check-balance-status" desc:"Check current balance status"`
+}
+
+func (s *queryCoordState) CheckBalanceStatusCommand(ctx context.Context, p *CheckBalanceStatusParam) error {
+	req := &querypb.CheckBalanceStatusRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+	}
+
+	resp, err := s.client.CheckBalanceStatus(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to check balance status: %w", err)
+	}
+	if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("check balance status failed: %s", resp.Status.Reason)
+	}
+
+	status := "Suspended ⏸️"
+	if resp.IsActive {
+		status = "Active ✅"
+	}
+	fmt.Printf("Balance Status: %s\n", status)
+	return nil
+}
+
+// Data Transfer commands
+type TransferSegmentParam struct {
+	framework.ParamBase `use:"transfer-segment" desc:"Transfer segment(s) between QueryNodes"`
+	SourceNodeID        int64 `name:"sourceNode" desc:"Source QueryNode ID"`
+	TargetNodeID        int64 `name:"targetNode" desc:"Target QueryNode ID (0 for all nodes)"`
+	SegmentID           int64 `name:"segmentID" desc:"Specific segment ID (0 for all segments)"`
+	TransferAll         bool  `name:"transferAll" default:"false" desc:"Transfer all segments from source node"`
+	ToAllNodes          bool  `name:"toAllNodes" default:"false" desc:"Transfer to all available nodes"`
+	CopyMode            bool  `name:"copyMode" default:"false" desc:"Copy mode (keep original)"`
+}
+
+func (s *queryCoordState) TransferSegmentCommand(ctx context.Context, p *TransferSegmentParam) error {
+	req := &querypb.TransferSegmentRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+		SourceNodeID: p.SourceNodeID,
+		TargetNodeID: p.TargetNodeID,
+		SegmentID:    p.SegmentID,
+		TransferAll:  p.TransferAll,
+		ToAllNodes:   p.ToAllNodes,
+		CopyMode:     p.CopyMode,
+	}
+
+	resp, err := s.client.TransferSegment(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to transfer segment: %w", err)
+	}
+	if resp.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("transfer segment failed: %s", resp.Reason)
+	}
+
+	fmt.Printf("✅ Segment transfer initiated successfully\n")
+	fmt.Printf("   Source Node: %d\n", p.SourceNodeID)
+	if p.ToAllNodes {
+		fmt.Printf("   Target: All available nodes\n")
+	} else if p.TargetNodeID > 0 {
+		fmt.Printf("   Target Node: %d\n", p.TargetNodeID)
+	}
+	if p.TransferAll {
+		fmt.Printf("   Segments: All segments\n")
+	} else if p.SegmentID > 0 {
+		fmt.Printf("   Segment: %d\n", p.SegmentID)
+	}
+	return nil
+}
+
+type TransferChannelParam struct {
+	framework.ParamBase `use:"transfer-channel" desc:"Transfer channel(s) between QueryNodes"`
+	SourceNodeID        int64  `name:"sourceNode" desc:"Source QueryNode ID"`
+	TargetNodeID        int64  `name:"targetNode" desc:"Target QueryNode ID (0 for all nodes)"`
+	ChannelName         string `name:"channelName" desc:"Specific channel name (empty for all channels)"`
+	TransferAll         bool   `name:"transferAll" default:"false" desc:"Transfer all channels from source node"`
+	ToAllNodes          bool   `name:"toAllNodes" default:"false" desc:"Transfer to all available nodes"`
+	CopyMode            bool   `name:"copyMode" default:"false" desc:"Copy mode (keep original)"`
+}
+
+func (s *queryCoordState) TransferChannelCommand(ctx context.Context, p *TransferChannelParam) error {
+	req := &querypb.TransferChannelRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+		SourceNodeID: p.SourceNodeID,
+		TargetNodeID: p.TargetNodeID,
+		ChannelName:  p.ChannelName,
+		TransferAll:  p.TransferAll,
+		ToAllNodes:   p.ToAllNodes,
+		CopyMode:     p.CopyMode,
+	}
+
+	resp, err := s.client.TransferChannel(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to transfer channel: %w", err)
+	}
+	if resp.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("transfer channel failed: %s", resp.Reason)
+	}
+
+	fmt.Printf("✅ Channel transfer initiated successfully\n")
+	fmt.Printf("   Source Node: %d\n", p.SourceNodeID)
+	if p.ToAllNodes {
+		fmt.Printf("   Target: All available nodes\n")
+	} else if p.TargetNodeID > 0 {
+		fmt.Printf("   Target Node: %d\n", p.TargetNodeID)
+	}
+	if p.TransferAll {
+		fmt.Printf("   Channels: All channels\n")
+	} else if p.ChannelName != "" {
+		fmt.Printf("   Channel: %s\n", p.ChannelName)
+	}
+	return nil
+}
