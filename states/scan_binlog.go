@@ -27,6 +27,7 @@ import (
 type ScanBinlogParams struct {
 	framework.ParamBase `use:"scan-binlog" desc:"scan binlog to check data"`
 	CollectionID        int64    `name:"collection" default:"0"`
+	PartitionID         int64    `name:"partition" default:"0"`
 	SegmentID           int64    `name:"segment" default:"0"`
 	Fields              []string `name:"fields"`
 	Expr                string   `name:"expr"`
@@ -78,6 +79,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(s *models.Segment) bool {
 		return (p.SegmentID == 0 || p.SegmentID == s.ID) &&
 			p.CollectionID == s.CollectionID &&
+			(p.PartitionID == 0 || p.PartitionID == s.PartitionID) &&
 			(p.IncludeUnhealthy || s.State != commonpb.SegmentState_Dropped)
 	})
 	if err != nil {
