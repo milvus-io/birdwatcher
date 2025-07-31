@@ -97,11 +97,11 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 	}
 	setupFlags(cp, cmd.Flags())
 	cmd.Short = short
-	cmd.Run = func(cmd *cobra.Command, args []string) {
+	cmd.RunE = func(cmd *cobra.Command, args []string) (err error) {
 		cp := reflect.New(paramType.Elem()).Interface().(CmdParam)
 
 		cp.ParseArgs(args)
-		if err := parseFlags(cp, cmd.Flags()); err != nil {
+		if err = parseFlags(cp, cmd.Flags()); err != nil {
 			fmt.Println(err.Error())
 			return
 		}
@@ -122,7 +122,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 				if result.IsNil() {
 					continue
 				}
-				err := result.Interface().(error)
+				err = result.Interface().(error)
 				fmt.Println(err.Error())
 				return
 			case result.Type().Implements(reflect.TypeOf((*ResultSet)(nil)).Elem()):
@@ -137,6 +137,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 				fmt.Println(rs.PrintAs(FormatDefault))
 			}
 		}
+		return nil
 	}
 	return cmd, uses, true
 }
