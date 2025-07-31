@@ -44,6 +44,10 @@ func (si *SegmentIterator) Range(ctx context.Context) error {
 		return errors.Newf("unssupported primary key type %s", pkSchema.DataType.String())
 	}
 
+	// offset is the index of item in current batch
+	offset := 0
+	// batchIdx is the index of file batch
+	batchIdx := -1
 	for {
 		recordBatch, batchInfo, err := reader.Next(ctx)
 		if err != nil {
@@ -51,6 +55,12 @@ func (si *SegmentIterator) Range(ctx context.Context) error {
 				return nil
 			}
 			return err
+		}
+
+		// reset offset if batch index changed
+		if batchInfo.BatchIdx != batchIdx {
+			batchIdx = batchInfo.BatchIdx
+			offset = 0
 		}
 
 		for i := range recordBatch.Len() {
@@ -69,9 +79,10 @@ func (si *SegmentIterator) Range(ctx context.Context) error {
 				}
 			}
 
-			if err := si.scan(ctx, pk, batchInfo, i, values); err != nil {
+			if err := si.scan(ctx, pk, batchInfo, offset, values); err != nil {
 				return err
 			}
+			offset++
 		}
 	}
 }
