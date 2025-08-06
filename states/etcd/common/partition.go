@@ -15,3 +15,9 @@ func ListCollectionPartitions(ctx context.Context, cli kv.MetaKV, basePath strin
 
 	return ListObj2Models(ctx, cli, prefix, models.NewPartition)
 }
+
+// ListPartitions returns all partition info which meets the filters.
+func ListPartitions(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Partition) bool) ([]*models.Partition, error) {
+	prefix := path.Join(basePath, RCPrefix, PartitionPrefix) + "/"
+	return ListObj2Models(ctx, cli, prefix, models.NewPartition, filters...)
+}

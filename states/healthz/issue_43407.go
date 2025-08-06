@@ -23,7 +23,7 @@ func newIss43407() HealthzCheckItem {
 	return &iss43407{
 		checkItemBase: checkItemBase{
 			name: "ISS43407",
-			description: `Checks whether some collection meta is mssing.
+			description: `Checks whether some collection meta is missing.
 In v2.5.14, collection meta may be lost if "RenameCollection" is executed.
 This check item try to detect this issue by list all collection from meta
 and compare with the list returned from rootcoord.
@@ -84,6 +84,62 @@ func (i iss43407) Check(ctx context.Context, client metakv.MetaKV, basePath stri
 					},
 				})
 			}
+		}
+	}
+	return results, nil
+}
+
+type issue43407PostRestart struct {
+	checkItemBase
+}
+
+func newIss43407PostRestart() HealthzCheckItem {
+	return &iss43407{
+		checkItemBase: checkItemBase{
+			name: "ISS43407PostRestart",
+			description: `Checks whether some collection meta is missing.
+In v2.5.14, collection meta may be lost if "RenameCollection" is executed.
+This check item try to detect this issue by list all collection from meta
+and compare with the list returned from rootcoord.
+This check succeeds *AFTER* cluster got restarted.
+See also: https://github.com/milvus-io/milvus/issues/43407`,
+		},
+	}
+}
+
+func (i issue43407PostRestart) Check(ctx context.Context, client metakv.MetaKV, basePath string) ([]*HealthzCheckReport, error) {
+	collections, err := common.ListCollectionWithoutFields(ctx, client, basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	partitions, err := common.ListCollectionPartitions(ctx, client, basePath, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*HealthzCheckReport
+
+	collectionIDs := lo.SliceToMap(collections, func(collection *models.Collection) (int64, struct{}) {
+		return collection.GetProto().GetID(), struct{}{}
+	})
+
+	groups := lo.GroupBy(partitions, func(partition *models.Partition) int64 {
+		return partition.GetProto().GetCollectionId()
+	})
+
+	for collectionID := range groups {
+		if _, ok := collectionIDs[collectionID]; !ok {
+			results = append(results, &HealthzCheckReport{
+				Item: i.Name(),
+				Msg:  fmt.Sprintf("Collection %d not found in meta but referenced by partition", collectionID),
+				Extra: map[string]any{
+					"collection_id": collectionID,
+					// "collection_name": groups[collectionID][0].GetProto().GetCollectionName(),
+					// "database_id":     groups[collectionID][0].GetProto().GetDbId(),
+					// "database_name":   groups[collectionID][0].GetProto().GetDbName(),
+				},
+			})
 		}
 	}
 	return results, nil
