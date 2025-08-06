@@ -144,7 +144,7 @@ func (c *ComponentRepair) CollectionInfoCommand(ctx context.Context, p *Collecti
 		Schema: &schemapb.CollectionSchema{
 			Name:               collectionInfo.CollectionName,
 			DbName:             dbInfo.GetProto().GetName(),
-			EnableDynamicField: p.EnableDynamic,
+			EnableDynamicField: p.EnableDynamic || hasDynamicFields,
 		},
 		ConsistencyLevel: commonpb.ConsistencyLevel(collectionInfo.ConsitencyLevel),
 		DbId:             dbInfo.GetProto().GetId(),
@@ -194,35 +194,33 @@ func (c *ComponentRepair) CollectionInfoCommand(ctx context.Context, p *Collecti
 	return nil
 }
 
-// 解析字符串格式 {prefix}_{entityID}v{version}
+// ParseEntity parses string format {prefix}_{entityID}v{version}
 func ParseEntity(str string) (prefix string, entityID int, version int, err error) {
-	// 查找最后一个下划线的位置
+	// find last "_"
 	lastUnderscoreIndex := strings.LastIndex(str, "_")
 	if lastUnderscoreIndex == -1 {
 		return "", 0, 0, errors.New("format error: missing underscore")
 	}
 
-	// 分割出prefix和后半部分
+	// split parts before and after last underscore
 	prefix = str[:lastUnderscoreIndex]
 	suffix := str[lastUnderscoreIndex+1:]
 
-	// 查找版本分隔符 'v'
+	// find version splitter "v"
 	vIndex := strings.LastIndex(suffix, "v")
 	if vIndex == -1 {
 		return "", 0, 0, errors.New("format error: missing 'v' separator")
 	}
 
-	// 提取entityID部分和version部分
+	// fetch raw string of entityID and version
 	entityIDStr := suffix[:vIndex]
 	versionStr := suffix[vIndex+1:]
 
-	// 转换entityID
 	entityID, err = strconv.Atoi(entityIDStr)
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("invalid entityID: %w", err)
 	}
 
-	// 转换version
 	version, err = strconv.Atoi(versionStr)
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("invalid version: %w", err)

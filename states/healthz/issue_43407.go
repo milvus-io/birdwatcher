@@ -135,9 +135,6 @@ func (i issue43407PostRestart) Check(ctx context.Context, client metakv.MetaKV, 
 				Msg:  fmt.Sprintf("Collection %d not found in meta but referenced by partition", collectionID),
 				Extra: map[string]any{
 					"collection_id": collectionID,
-					// "collection_name": groups[collectionID][0].GetProto().GetCollectionName(),
-					// "database_id":     groups[collectionID][0].GetProto().GetDbId(),
-					// "database_name":   groups[collectionID][0].GetProto().GetDbName(),
 				},
 			})
 		}
