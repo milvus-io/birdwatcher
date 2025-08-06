@@ -21,10 +21,13 @@ func init() {
 	allCheckItems = make(map[string]HealthzCheckItem)
 
 	allCheckItems["ISS43407"] = newIss43407()
+	allCheckItems["ISS43407PostRestart"] = newIss43407PostRestart()
 	allCheckItems["QUERYVIEW_LAG"] = newQueryViewLag()
+	allCheckItems["DYNAMIC_ATTR_MISMATCH"] = newDynamicAttrMismatch()
 
 	defaultList = []string{
 		"ISS43407",
+		"ISS43407PostRestart",
 	}
 }
 

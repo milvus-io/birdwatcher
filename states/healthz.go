@@ -43,7 +43,7 @@ func (c *InstanceState) HealthzCheckCommand(ctx context.Context, p *HealthzCheck
 }
 
 type ListHealthzCheckParam struct {
-	framework.ParamBase `use:"show healthz-cheks" desc:"list available healthz check items"`
+	framework.ParamBase `use:"show healthz-checks" desc:"list available healthz check items"`
 }
 
 func (c *InstanceState) ListHealthzCheckCommand(ctx context.Context, p *ListHealthzCheckParam) error {
