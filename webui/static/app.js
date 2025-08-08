@@ -13,10 +13,72 @@ let categoryStates = {
     analysis: false
 };
 
+// Command history management
+let commandHistory = [];
+let maxHistorySize = 100;
+let suggestionMode = 'server'; // 'server' or 'history'
+
+// Load command history from localStorage
+function loadCommandHistory() {
+    try {
+        const stored = localStorage.getItem('birdwatcher_command_history');
+        if (stored) {
+            commandHistory = JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error('Failed to load command history:', e);
+        commandHistory = [];
+    }
+}
+
+// Save command to history
+function saveToHistory(command) {
+    if (!command || command.trim() === '') return;
+    
+    // Remove duplicates
+    commandHistory = commandHistory.filter(cmd => cmd !== command);
+    
+    // Add to beginning
+    commandHistory.unshift(command);
+    
+    // Limit size
+    if (commandHistory.length > maxHistorySize) {
+        commandHistory = commandHistory.slice(0, maxHistorySize);
+    }
+    
+    // Save to localStorage
+    try {
+        localStorage.setItem('birdwatcher_command_history', JSON.stringify(commandHistory));
+    } catch (e) {
+        console.error('Failed to save command history:', e);
+    }
+}
+
+// Get history suggestions based on input
+function getHistorySuggestions(input) {
+    if (!input) return commandHistory.slice(0, 10);
+    
+    const lowerInput = input.toLowerCase();
+    return commandHistory
+        .filter(cmd => cmd.toLowerCase().includes(lowerInput))
+        .slice(0, 20);
+}
+
+// Toggle suggestion mode
+function toggleSuggestionMode() {
+    suggestionMode = suggestionMode === 'server' ? 'history' : 'server';
+    const input = document.getElementById('custom-command');
+    if (input) {
+        // Trigger autocomplete update
+        input.dispatchEvent(new Event('input'));
+    }
+}
+
 // Root path management state
 let rootPathState = {
+    mode: 'auto', // 'manual', 'auto', or 'find-milvus'
     userValue: 'by-dev', // Store user's custom value
-    isFirstAutoUncheck: true // Track if it's the first time unchecking auto
+    selectedCandidate: null // Store selected candidate from find-milvus
 };
 
 // Check clipboard availability
@@ -89,6 +151,9 @@ async function pasteToInput(inputId) {
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
+    // Load command history
+    loadCommandHistory();
+    
     // Check clipboard availability
     checkClipboardAvailability();
     
@@ -135,6 +200,25 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     window.addEventListener('beforeunload', beforeUnloadHandler);
     addCleanupHandler(() => window.removeEventListener('beforeunload', beforeUnloadHandler));
+    
+    // Global click handler to clean up orphaned tooltips
+    document.addEventListener('click', function(event) {
+        // If clicking outside tooltip and timestamp elements, hide tooltip
+        if (!event.target.closest('.timestamp-tooltip') && 
+            !event.target.classList.contains('timestamp-value')) {
+            hideTimestampTooltip(true);
+        }
+    });
+    
+    // Clean up any orphaned tooltips periodically
+    setInterval(() => {
+        const orphanedTooltips = document.querySelectorAll('.timestamp-tooltip');
+        orphanedTooltips.forEach(tooltip => {
+            if (tooltip !== currentTooltip) {
+                tooltip.remove();
+            }
+        });
+    }, 5000);
 });
 
 // Setup Enter key handlers for connect screen
@@ -169,9 +253,27 @@ async function checkConnectionStatus() {
         const status = await response.json();
         
         if (status.connected) {
+            // Update connection state
+            connectionState.connected = true;
+            connectionState.etcdAddr = status.etcdAddr || '';
+            connectionState.rootPath = status.rootPath || '';
+            
+            // Update connected info display
+            let displayInfo = status.etcdAddr || 'unknown';
+            if (status.rootPath) {
+                if (status.rootPath === 'auto') {
+                    displayInfo += ' (auto mode)';
+                } else {
+                    displayInfo += ` (${status.rootPath})`;
+                }
+            }
+            document.getElementById('connected-info').textContent = displayInfo;
+            
             // Already connected, show main screen
             showMainScreen();
             loadCommands();
+            // Update component status on initialization
+            updateComponentStatus();
         } else {
             // Not connected, show connect screen
             showConnectScreen();
@@ -200,61 +302,217 @@ function showMainScreen() {
     }, 100);
 }
 
-// Toggle root path auto mode
-function toggleRootPathAuto() {
-    const autoCheckbox = document.getElementById('root-path-auto');
-    const rootPathInput = document.getElementById('connect-root-path');
-    const rootPathPasteBtn = document.getElementById('root-path-paste');
+// Handle root path mode change
+function handleRootPathModeChange(mode) {
+    rootPathState.mode = mode;
     
-    if (autoCheckbox.checked) {
-        // Save the current value if it's not --auto
-        if (rootPathInput.value !== '--auto') {
-            rootPathState.userValue = rootPathInput.value;
-        }
-        
-        // Show --auto when auto is enabled
-        rootPathInput.value = '--auto';
-        rootPathInput.disabled = true;
-        rootPathPasteBtn.disabled = true;
-    } else {
-        // Restore user value when auto is disabled
-        if (rootPathState.isFirstAutoUncheck) {
-            rootPathInput.value = 'by-dev';
-            rootPathState.isFirstAutoUncheck = false;
-        } else {
+    // Hide all sections first
+    document.getElementById('root-path-manual-section').classList.add('hidden');
+    document.getElementById('root-path-auto-section').classList.add('hidden');
+    document.getElementById('root-path-find-section').classList.add('hidden');
+    
+    // Show the appropriate section
+    switch(mode) {
+        case 'manual':
+            document.getElementById('root-path-manual-section').classList.remove('hidden');
+            const rootPathInput = document.getElementById('connect-root-path');
             rootPathInput.value = rootPathState.userValue;
-        }
-        
-        rootPathInput.disabled = false;
-        rootPathPasteBtn.disabled = false;
-        rootPathInput.focus();
-        
-        // Add listener to save user input
-        rootPathInput.oninput = function() {
-            rootPathState.userValue = this.value;
-        };
+            rootPathInput.focus();
+            // Add listener to save user input
+            rootPathInput.oninput = function() {
+                rootPathState.userValue = this.value;
+            };
+            break;
+            
+        case 'auto':
+            document.getElementById('root-path-auto-section').classList.remove('hidden');
+            break;
+            
+        case 'find-milvus':
+            document.getElementById('root-path-find-section').classList.remove('hidden');
+            // Clear previous candidates
+            document.getElementById('milvus-candidates').classList.add('hidden');
+            document.getElementById('candidates-list').innerHTML = '';
+            rootPathState.selectedCandidate = null;
+            break;
     }
 }
 
-// Connect to etcd from connect screen
-async function connectToEtcd() {
+// Search for Milvus instances
+async function searchMilvusInstances() {
     const etcdHost = document.getElementById('connect-etcd-host').value.trim();
     const etcdPort = document.getElementById('connect-etcd-port').value.trim();
-    const rootPathInput = document.getElementById('connect-root-path');
-    const autoCheckbox = document.getElementById('root-path-auto');
     
     if (!etcdHost || !etcdPort) {
         showConnectError('Please enter host and port');
         return;
     }
     
-    // Check if auto mode is enabled
-    const isAutoMode = autoCheckbox.checked;
-    const rootPath = isAutoMode ? '' : rootPathInput.value.trim();
-    
-    if (!isAutoMode && !rootPath) {
-        showConnectError('Please enter root path or enable Auto mode');
+    // Validate port number
+    const portNum = parseInt(etcdPort);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+        showConnectError('Please enter a valid port number (1-65535)');
         return;
+    }
+    
+    const etcdAddr = `${etcdHost}:${etcdPort}`;
+    
+    // Show loading state
+    const searchBtn = document.getElementById('find-milvus-search-btn');
+    const searchIcon = document.getElementById('find-search-icon');
+    const searchText = document.getElementById('find-search-text');
+    const searchSpinner = document.getElementById('find-search-spinner');
+    
+    searchBtn.disabled = true;
+    searchIcon.classList.add('hidden');
+    searchSpinner.classList.remove('hidden');
+    searchSpinner.classList.add('loading');
+    searchText.textContent = 'Searching...';
+    
+    hideConnectError();
+    
+    try {
+        // First connect in dry mode
+        const connectResponse = await fetch('/api/connect', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                etcd_addr: etcdAddr,
+                root_path: '__dry__' // Special flag for dry mode
+            })
+        });
+        
+        const connectResult = await connectResponse.json();
+        
+        if (!connectResult.connected) {
+            showConnectError('Failed to connect to etcd: ' + (connectResult.error || 'Connection failed'));
+            return;
+        }
+        
+        // Execute find-milvus command
+        const cmdResponse = await fetch('/api/command', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                command: 'find-milvus'
+            })
+        });
+        
+        const cmdResult = await cmdResponse.json();
+        
+        if (cmdResult.success && cmdResult.output) {
+            // Parse the output to extract root paths
+            const lines = cmdResult.output.split('\n');
+            const rootPaths = [];
+            
+            lines.forEach(line => {
+                line = line.trim();
+                if (line && !line.includes('candidates found') && !line.startsWith('MetaStore')) {
+                    rootPaths.push(line);
+                }
+            });
+            
+            if (rootPaths.length > 0) {
+                // Display candidates
+                displayMilvusCandidates(rootPaths);
+            } else {
+                showConnectError('No Milvus instances found', 'warning');
+            }
+        } else {
+            showConnectError('Failed to find Milvus instances: ' + (cmdResult.error || 'Unknown error'));
+        }
+        
+        // Disconnect from dry mode
+        await fetch('/api/disconnect', { method: 'POST' });
+        
+    } catch (error) {
+        showConnectError('Failed to search: ' + error.message);
+    } finally {
+        // Reset search button state
+        searchBtn.disabled = false;
+        searchIcon.classList.remove('hidden');
+        searchSpinner.classList.add('hidden');
+        searchSpinner.classList.remove('loading');
+        searchText.textContent = 'Search for Milvus Instances';
+    }
+}
+
+// Display Milvus candidates
+function displayMilvusCandidates(candidates) {
+    const candidatesSection = document.getElementById('milvus-candidates');
+    const candidatesList = document.getElementById('candidates-list');
+    
+    candidatesList.innerHTML = '';
+    rootPathState.selectedCandidate = null;
+    
+    candidates.forEach((candidate, index) => {
+        const candidateDiv = document.createElement('div');
+        candidateDiv.className = 'flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors';
+        candidateDiv.innerHTML = `
+            <input type="radio" name="milvus-candidate" value="${candidate}" 
+                   id="candidate-${index}"
+                   onchange="selectMilvusCandidate('${candidate}')"
+                   class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+            <label for="candidate-${index}" class="ml-3 flex-1 cursor-pointer">
+                <span class="text-sm font-medium text-gray-900">${candidate}</span>
+            </label>
+        `;
+        candidatesList.appendChild(candidateDiv);
+    });
+    
+    // Select first candidate by default
+    if (candidates.length > 0) {
+        document.getElementById('candidate-0').checked = true;
+        selectMilvusCandidate(candidates[0]);
+    }
+    
+    candidatesSection.classList.remove('hidden');
+}
+
+// Select a Milvus candidate
+function selectMilvusCandidate(candidate) {
+    rootPathState.selectedCandidate = candidate;
+}
+
+
+// Connect to etcd from connect screen
+async function connectToEtcd() {
+    const etcdHost = document.getElementById('connect-etcd-host').value.trim();
+    const etcdPort = document.getElementById('connect-etcd-port').value.trim();
+    
+    if (!etcdHost || !etcdPort) {
+        showConnectError('Please enter host and port');
+        return;
+    }
+    
+    // Determine root path based on mode
+    let rootPath = '';
+    let isAutoMode = false;
+    
+    switch(rootPathState.mode) {
+        case 'manual':
+            rootPath = document.getElementById('connect-root-path').value.trim();
+            if (!rootPath) {
+                showConnectError('Please enter root path');
+                return;
+            }
+            break;
+            
+        case 'auto':
+            isAutoMode = true;
+            break;
+            
+        case 'find-milvus':
+            if (!rootPathState.selectedCandidate) {
+                showConnectError('Please search and select a Milvus instance');
+                return;
+            }
+            rootPath = rootPathState.selectedCandidate;
+            break;
     }
     
     // Validate port number
@@ -309,6 +567,9 @@ async function connectToEtcd() {
             showMainScreen();
             loadCommands();
             
+            // Update component status after connection
+            updateComponentStatus();
+            
             // Create a connection success box
             startCommandOutput('connect');
             const successMsg = isAutoMode ? 
@@ -331,12 +592,63 @@ async function connectToEtcd() {
     }
 }
 
+// Update component status display
+async function updateComponentStatus() {
+    try {
+        const response = await fetch('/api/command', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ command: 'list states' })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.output) {
+            // Process the output to extract component info
+            const lines = result.output.trim().split('\n');
+            const components = [];
+            
+            for (const line of lines) {
+                if (line.trim() && !line.includes('Using meta path:')) {
+                    // Clean up the line and extract meaningful parts
+                    const parts = line.trim().split('\t');
+                    if (parts.length > 0) {
+                        components.push(parts.join(' '));
+                    }
+                }
+            }
+            
+            // Join components and limit to 100 characters
+            let statusText = components.join(', ');
+            if (statusText.length > 100) {
+                statusText = statusText.substring(0, 97) + '...';
+            }
+            
+            // Update the display
+            const statusElement = document.getElementById('component-status');
+            if (statusElement && statusText) {
+                statusElement.textContent = `[${statusText}]`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to update component status:', error);
+    }
+}
+
 // Disconnect and return to connect screen
 async function disconnect() {
     try {
         await fetch('/api/disconnect', { method: 'POST' });
     } catch (error) {
         console.error('Failed to notify server on disconnect:', error);
+    }
+    
+    // Clear component status
+    const statusElement = document.getElementById('component-status');
+    if (statusElement) {
+        statusElement.textContent = '';
     }
     
     connectionState = {
@@ -354,10 +666,23 @@ async function disconnect() {
 }
 
 // Show/hide connect error
-function showConnectError(message) {
+function showConnectError(message, type = 'error') {
     const errorDiv = document.getElementById('connect-error');
     const errorMessage = document.getElementById('connect-error-message');
+    
+    // Update message
     errorMessage.textContent = message;
+    
+    // Update styling based on type
+    errorDiv.className = 'border px-4 py-3 rounded-lg';
+    if (type === 'success') {
+        errorDiv.className += ' bg-green-50 border-green-200 text-green-700';
+    } else if (type === 'warning') {
+        errorDiv.className += ' bg-yellow-50 border-yellow-200 text-yellow-700';
+    } else {
+        errorDiv.className += ' bg-red-50 border-red-200 text-red-700';
+    }
+    
     errorDiv.classList.remove('hidden');
 }
 
@@ -466,6 +791,32 @@ function populateCommands(containerId, commands, category) {
                     });
                     inputHTML += `<input type="hidden" id="${argId}-value" class="argument-input" data-arg="${arg.name}" data-type="${arg.type}" ${arg.default ? `value="${arg.default}"` : 'value=""'}>`;
                     inputHTML += `</div>`;
+                } else if (cmd.name === 'load-backup' && arg.name === 'file') {
+                    // Special handling for load-backup file parameter with dropdown
+                    inputHTML = `<div class="relative">
+                        <select id="${argId}" class="argument-input w-full pr-2 pl-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" data-arg="${arg.name}" data-type="${arg.type}" onchange="this.nextElementSibling && this.nextElementSibling.value === '' ? this.nextElementSibling.value = this.value : null">
+                            <option value="">Select a backup file...</option>
+                        </select>
+                        <div class="mt-2 text-xs text-gray-600">Or enter custom path:</div>
+                        <input type="text" id="${argId}-custom" class="argument-input w-full ${clipboardAvailable ? 'pr-8' : 'pr-2'} pl-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 mt-1" data-arg="${arg.name}" data-type="${arg.type}" placeholder="Enter file path" title="${arg.description}">
+                        ${clipboardAvailable ? `<button onclick="pasteToInput('${argId}-custom')" class="paste-button" style="position: absolute; right: 0.375rem; bottom: 0; transform: translateY(-50%); background: transparent; color: #9ca3af; padding: 0.125rem 0.25rem; border-radius: 0.25rem; transition: all 0.2s;" onmouseover="this.style.backgroundColor='rgba(156, 163, 175, 0.1)'; this.style.color='#6b7280';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#9ca3af';" title="Paste from clipboard">
+                            <i class="fas fa-paste" style="font-size: 0.625rem;"></i>
+                        </button>` : ''}
+                    </div>`;
+                    
+                    // Fetch and populate backup files when the section is expanded
+                    setTimeout(async () => {
+                        const select = document.getElementById(argId);
+                        if (select && select.options.length === 1) {
+                            const files = await fetchBackupFiles();
+                            files.forEach(file => {
+                                const option = document.createElement('option');
+                                option.value = file;
+                                option.textContent = file;
+                                select.appendChild(option);
+                            });
+                        }
+                    }, 100);
                 } else {
                     inputHTML = `<div class="relative">
                         <input type="${arg.type === 'int' ? 'number' : 'text'}" id="${argId}" class="argument-input w-full ${clipboardAvailable ? 'pr-8' : 'pr-2'} pl-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" data-arg="${arg.name}" data-type="${arg.type}" ${arg.default ? `data-default="${arg.default}"` : ''} placeholder="${arg.description}" title="${arg.description}" ${arg.default && arg.type !== 'flag' ? `value="${arg.default}"` : ''}>
@@ -554,6 +905,40 @@ async function executeCommandWithArgs(commandName) {
     let command = commandName;
     let args = [];
     
+    // Handle special case for load-backup file parameter
+    if (commandName === 'load-backup') {
+        const selectInput = argsSection.querySelector('select.argument-input[data-arg="file"]');
+        const customInput = argsSection.querySelector('input[id$="-custom"][data-arg="file"]');
+        
+        if (selectInput && customInput) {
+            // Use custom input if it has value, otherwise use select
+            const fileValue = customInput.value.trim() || selectInput.value;
+            if (fileValue) {
+                args.push(fileValue);
+            }
+            
+            // Process other arguments (skip the file inputs we just handled)
+            inputs.forEach(input => {
+                if (input !== selectInput && input !== customInput) {
+                    const argName = input.getAttribute('data-arg');
+                    const argType = input.getAttribute('data-type');
+                    const defaultValue = input.getAttribute('data-default');
+                    
+                    if (argType === 'flag' && input.checked) {
+                        args.push(argName);
+                    }
+                }
+            });
+            
+            if (args.length > 0) {
+                command += ' ' + args.join(' ');
+            }
+            
+            await executeCommand(command);
+            return;
+        }
+    }
+    
     inputs.forEach(input => {
         const argName = input.getAttribute('data-arg');
         const argType = input.getAttribute('data-type');
@@ -618,6 +1003,15 @@ async function executeCommand(command) {
         return;
     }
     
+    // Save to history (for commands executed via buttons)
+    saveToHistory(command);
+    
+    // Handle list-backups command specially
+    if (command === 'list-backups') {
+        await handleListBackups();
+        return;
+    }
+    
     showLoading(true, 'Executing command...');
     
     // Start a new command output box
@@ -642,7 +1036,78 @@ async function executeCommand(command) {
             if (result.output) {
                 outputContent += result.output;
             }
-            if (result.data && typeof result.data === 'object') {
+            
+            // Check if this is a command with download URL
+            if (result.data && result.data.download_url) {
+                const downloadUrl = result.data.download_url;
+                const filename = result.data.filename;
+                const autoDownload = result.data.auto_download === 'true';
+                
+                if (autoDownload) {
+                    // Auto-download the file (for pprof)
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    outputContent += `\n📥 File download started: ${filename}\n`;
+                } else {
+                    // For backup, modify the output to include inline buttons
+                    if (outputContent) {
+                        // Find the last line with the filename
+                        const lines = outputContent.split('\n');
+                        let lastLineIndex = -1;
+                        
+                        for (let i = lines.length - 1; i >= 0; i--) {
+                            if (lines[i].includes('stored in file:')) {
+                                lastLineIndex = i;
+                                break;
+                            }
+                        }
+                        
+                        if (lastLineIndex >= 0) {
+                            // Append the text before the line with the filename
+                            if (lastLineIndex > 0) {
+                                const beforeLastLine = lines.slice(0, lastLineIndex).join('\n');
+                                appendToCommandOutput(beforeLastLine + '\n', 'success');
+                            }
+                            
+                            // Create the line with filename and inline buttons
+                            const filenameLineWithButtons = `${lines[lastLineIndex]} <span style="display: inline-block; margin-left: 8px;">
+                                <button onclick="downloadFile('${downloadUrl}', '${filename}')" 
+                                        style="display: inline-flex; align-items: center; justify-content: center; background: #2563eb; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; border: none; font-family: inherit; line-height: 1;"
+                                        onmouseover="this.style.background='#1d4ed8'" 
+                                        onmouseout="this.style.background='#2563eb'"
+                                        title="Download">
+                                    <i class="fas fa-download" style="margin-right: 4px;"></i>
+                                    Download
+                                </button>
+                                <button onclick="deleteFile('${filename}')" 
+                                        style="display: inline-flex; align-items: center; justify-content: center; background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 6px; border: none; font-family: inherit; line-height: 1;"
+                                        onmouseover="this.style.background='#b91c1c'" 
+                                        onmouseout="this.style.background='#dc2626'"
+                                        title="Delete">
+                                    <i class="fas fa-trash" style="margin-right: 4px;"></i>
+                                    Delete
+                                </button>
+                            </span>`;
+                            appendToCommandOutput(filenameLineWithButtons, 'success', true);
+                            
+                            // Add any remaining lines
+                            const remainingLines = lines.slice(lastLineIndex + 1).join('\n');
+                            if (remainingLines.trim()) {
+                                appendToCommandOutput('\n' + remainingLines, 'success');
+                            }
+                        } else {
+                            // Fallback if we can't find the filename line
+                            appendToCommandOutput(outputContent, 'success');
+                        }
+                    }
+                    return; // Exit early since we've already handled the output
+                }
+            } else if (result.data && typeof result.data === 'object') {
                 outputContent += JSON.stringify(result.data, null, 2) + '\n';
             } else if (result.data) {
                 outputContent += result.data + '\n';
@@ -654,6 +1119,13 @@ async function executeCommand(command) {
             }
             
             appendToCommandOutput(outputContent, 'success');
+            
+            // Check if this was a visit command and update component status
+            if (command.toLowerCase().startsWith('visit')) {
+                setTimeout(() => {
+                    updateComponentStatus();
+                }, 500);
+            }
         } else {
             let errorContent = `❌ Error: ${result.error}\n`;
             if (result.output) {
@@ -688,6 +1160,9 @@ async function executeCustomCommand() {
         showError('Please enter a command');
         return;
     }
+    
+    // Save to history
+    saveToHistory(command);
     
     // Clear the input
     commandInput.value = '';
@@ -804,15 +1279,15 @@ function startCommandOutput(command) {
 }
 
 // Append content to current command output box
-function appendToCommandOutput(text, type = 'normal') {
+function appendToCommandOutput(text, type = 'normal', isRawHtml = false) {
     if (!currentCommandBox) {
         // Fallback to regular append if no command box is active
         appendOutput(text);
         return;
     }
     
-    // Process the text to make words clickable
-    const processedText = makeWordsClickable(text);
+    // Process the text to make words clickable (unless it's raw HTML)
+    const processedText = isRawHtml ? text : makeWordsClickable(text);
     
     // Create a temporary div to hold the processed HTML
     const tempDiv = document.createElement('div');
@@ -1345,62 +1820,89 @@ function initializeResizer() {
     let isResizing = false;
     let startX = 0;
     let startLeftWidth = 0;
-    let startRightWidth = 0;
+    let containerWidth = 0;
+    let animationFrame = null;
     
     resizer.addEventListener('mousedown', function(e) {
         isResizing = true;
         startX = e.clientX;
         
-        // Get current widths
+        // Cache values at start
         const leftRect = leftPanel.getBoundingClientRect();
-        const rightRect = rightPanel.getBoundingClientRect();
+        containerWidth = contentGrid.getBoundingClientRect().width - 6; // Subtract resizer width
         startLeftWidth = leftRect.width;
-        startRightWidth = rightRect.width;
+        
+        // Add classes for performance
+        document.body.classList.add('resizing');
+        leftPanel.style.pointerEvents = 'none';
+        rightPanel.style.pointerEvents = 'none';
         
         // Prevent text selection during resize
         document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
         document.body.style.cursor = 'col-resize';
         
         e.preventDefault();
     });
     
-    document.addEventListener('mousemove', function(e) {
-        if (!isResizing) return;
-        
-        const deltaX = e.clientX - startX;
-        const containerWidth = contentGrid.getBoundingClientRect().width - 6; // Subtract resizer width
+    function performResize(clientX) {
+        const deltaX = clientX - startX;
         
         // Calculate new widths
         let newLeftWidth = startLeftWidth + deltaX;
-        let newRightWidth = startRightWidth - deltaX;
         
-        // Set minimum widths (20% and 20%)
+        // Set minimum widths (20% and 80%)
         const minWidth = containerWidth * 0.2;
         const maxLeftWidth = containerWidth * 0.8;
         
         if (newLeftWidth < minWidth) {
             newLeftWidth = minWidth;
-            newRightWidth = containerWidth - newLeftWidth;
         } else if (newLeftWidth > maxLeftWidth) {
             newLeftWidth = maxLeftWidth;
-            newRightWidth = containerWidth - newLeftWidth;
         }
         
-        // Convert to percentages
+        // Calculate percentages
         const leftPercent = (newLeftWidth / containerWidth) * 100;
-        const rightPercent = (newRightWidth / containerWidth) * 100;
+        const rightPercent = 100 - leftPercent - (600 / containerWidth); // Account for resizer
         
-        // Apply new widths
+        // Use transform for smoother performance
         leftPanel.style.width = leftPercent + '%';
         rightPanel.style.width = rightPercent + '%';
+    }
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
         
         e.preventDefault();
+        
+        // Cancel previous animation frame
+        if (animationFrame) {
+            cancelAnimationFrame(animationFrame);
+        }
+        
+        // Use requestAnimationFrame for smoother updates
+        animationFrame = requestAnimationFrame(() => {
+            performResize(e.clientX);
+        });
     });
     
     document.addEventListener('mouseup', function() {
         if (isResizing) {
             isResizing = false;
+            
+            // Cancel any pending animation frame
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+            
+            // Remove classes
+            document.body.classList.remove('resizing');
+            leftPanel.style.pointerEvents = '';
+            rightPanel.style.pointerEvents = '';
+            
             document.body.style.userSelect = '';
+            document.body.style.webkitUserSelect = '';
             document.body.style.cursor = '';
         }
     });
@@ -1414,9 +1916,22 @@ function initializeResizer() {
 
 // Global variable to track current tooltip
 let currentTooltip = null;
+let currentTooltipElement = null;
+let tooltipHideTimer = null;
 
 // Show timestamp tooltip
 function showTimestampTooltip(element) {
+    // Clear any pending hide timer
+    if (tooltipHideTimer) {
+        clearTimeout(tooltipHideTimer);
+        tooltipHideTimer = null;
+    }
+    
+    // If we're already showing a tooltip for this element, don't recreate it
+    if (currentTooltipElement === element && currentTooltip && currentTooltip.parentNode) {
+        return;
+    }
+    
     const timestampStr = element.getAttribute('data-word');
     
     let timestampMs;
@@ -1471,7 +1986,7 @@ function showTimestampTooltip(element) {
     }
     
     // Remove existing tooltip if any
-    hideTimestampTooltip();
+    hideTimestampTooltip(true);
     
     // Create tooltip element
     const tooltip = document.createElement('div');
@@ -1483,16 +1998,50 @@ function showTimestampTooltip(element) {
         ${relativeTimeHtml}
     `;
     
-    // Position relative to the element
-    element.style.position = 'relative';
-    element.appendChild(tooltip);
+    // Position relative to the viewport, not the element
+    document.body.appendChild(tooltip);
     
-    // Store reference
+    // Add event listeners to tooltip itself
+    tooltip.addEventListener('mouseenter', () => {
+        if (tooltipHideTimer) {
+            clearTimeout(tooltipHideTimer);
+            tooltipHideTimer = null;
+        }
+    });
+    
+    tooltip.addEventListener('mouseleave', () => {
+        hideTimestampTooltip();
+    });
+    
+    // Position the tooltip
+    const rect = element.getBoundingClientRect();
+    const tooltipHeight = 120; // Approximate height
+    
+    // Position above element by default
+    tooltip.style.position = 'fixed';
+    tooltip.style.left = `${rect.left + rect.width / 2}px`;
+    tooltip.style.transform = 'translateX(-50%)';
+    
+    // Check if tooltip would go above viewport
+    if (rect.top - tooltipHeight - 8 < 0) {
+        // Position below element
+        tooltip.style.top = `${rect.bottom + 8}px`;
+        tooltip.style.bottom = 'auto';
+    } else {
+        // Position above element
+        tooltip.style.bottom = `${window.innerHeight - rect.top + 8}px`;
+        tooltip.style.top = 'auto';
+    }
+    
+    // Store references
     currentTooltip = tooltip;
+    currentTooltipElement = element;
     
     // Show tooltip with animation
     setTimeout(() => {
-        tooltip.classList.add('show');
+        if (tooltip.parentNode) {
+            tooltip.classList.add('show');
+        }
     }, 10);
 }
 
@@ -1548,15 +2097,34 @@ function formatRelativeTime(date, now) {
 }
 
 // Hide timestamp tooltip
-function hideTimestampTooltip() {
-    if (currentTooltip && currentTooltip.parentNode) {
-        currentTooltip.classList.remove('show');
-        setTimeout(() => {
+function hideTimestampTooltip(immediate = false) {
+    if (tooltipHideTimer) {
+        clearTimeout(tooltipHideTimer);
+        tooltipHideTimer = null;
+    }
+    
+    if (immediate) {
+        // Immediate hide
+        if (currentTooltip && currentTooltip.parentNode) {
+            currentTooltip.parentNode.removeChild(currentTooltip);
+        }
+        currentTooltip = null;
+        currentTooltipElement = null;
+    } else {
+        // Delayed hide with timer
+        tooltipHideTimer = setTimeout(() => {
             if (currentTooltip && currentTooltip.parentNode) {
-                currentTooltip.parentNode.removeChild(currentTooltip);
+                currentTooltip.classList.remove('show');
+                setTimeout(() => {
+                    if (currentTooltip && currentTooltip.parentNode) {
+                        currentTooltip.parentNode.removeChild(currentTooltip);
+                    }
+                    currentTooltip = null;
+                    currentTooltipElement = null;
+                }, 200);
             }
-            currentTooltip = null;
-        }, 200);
+            tooltipHideTimer = null;
+        }, 100); // Small delay to prevent flickering
     }
 }
 
@@ -1654,7 +2222,10 @@ let autocompleteState = {
     suggestions: [],
     selectedIndex: -1,
     container: null,
-    input: null
+    input: null,
+    backupFiles: null,
+    backupFilesFetchTime: 0,
+    debounceTimer: null
 };
 
 // Initialize autocomplete
@@ -1675,19 +2246,62 @@ function initializeAutocomplete() {
 
 // Handle input changes for autocomplete
 function handleAutocompleteInput(event) {
-    const input = event.target.value.trim();
+    // Don't trim the input here - we need to preserve trailing spaces
+    const input = event.target.value;
     
-    if (!input) {
+    // Clear existing debounce timer
+    if (autocompleteState.debounceTimer) {
+        clearTimeout(autocompleteState.debounceTimer);
+    }
+    
+    // Only hide if the input is truly empty (not just whitespace)
+    if (input === '') {
         hideAutocomplete();
         return;
     }
     
-    const suggestions = generateSuggestions(input);
-    if (suggestions.length > 0) {
-        showAutocomplete(suggestions);
-    } else {
-        hideAutocomplete();
-    }
+    // Debounce the request
+    autocompleteState.debounceTimer = setTimeout(async () => {
+        let suggestions = [];
+        
+        if (suggestionMode === 'history') {
+            // Use history suggestions
+            const historySuggestions = getHistorySuggestions(input);
+            suggestions = historySuggestions.map(cmd => ({
+                type: 'history',
+                text: cmd,
+                description: 'From history'
+            }));
+        } else {
+            // Fetch suggestions from server
+            try {
+                const response = await fetch(`/api/suggestions?input=${encodeURIComponent(input)}`);
+                const data = await response.json();
+                
+                if (data.suggestions && Object.keys(data.suggestions).length > 0) {
+                    // Convert server suggestions to our format
+                    suggestions = Object.entries(data.suggestions).map(([text, description]) => ({
+                        type: 'command',
+                        text: text,
+                        description: description
+                    }));
+                }
+            } catch (error) {
+                console.error('Failed to fetch suggestions:', error);
+            }
+            
+            // Fall back to local suggestions if server suggestions fail or return empty
+            if (suggestions.length === 0) {
+                suggestions = generateSuggestions(input);
+            }
+        }
+        
+        if (suggestions.length > 0) {
+            showAutocomplete(suggestions);
+        } else {
+            hideAutocomplete();
+        }
+    }, 150); // 150ms debounce delay
 }
 
 // Generate suggestions based on input
@@ -1696,8 +2310,109 @@ function generateSuggestions(input) {
     const parts = input.split(/\s+/);
     const lastPart = parts[parts.length - 1];
     
-    // If input ends with space and has arguments, suggest arguments
-    if (input.endsWith(' ') && parts.length >= 1) {
+    // Special handling for enum values when after --argument
+    // Look backwards through the input to find the last argument
+    let lastArgMatch = null;
+    let lastArgIndex = -1;
+    
+    // Use regex to find all --arguments in the input
+    const argRegex = /--\w+/g;
+    let match;
+    while ((match = argRegex.exec(input)) !== null) {
+        lastArgMatch = match[0];
+        lastArgIndex = match.index;
+    }
+    
+    if (lastArgMatch && lastArgIndex >= 0) {
+        // Check if we're at or after this argument
+        const afterArgPosition = lastArgIndex + lastArgMatch.length;
+        const afterArgText = input.substring(afterArgPosition);
+        
+        // Only process if we're at the argument or have typed after it
+        if (input.length >= afterArgPosition) {
+            // Find the command by checking the text before the argument
+            const beforeArg = input.substring(0, lastArgIndex).trim();
+            let commandName = '';
+            
+            // Try to match command from the beginning
+            const words = beforeArg.split(/\s+/);
+            for (let i = 1; i <= words.length; i++) {
+                const possibleCommand = words.slice(0, i).join(' ');
+                if (findExactCommand(possibleCommand)) {
+                    commandName = possibleCommand;
+                    break;
+                }
+            }
+            
+            if (commandName) {
+                const command = findExactCommand(commandName);
+                if (command && command.arguments) {
+                    const arg = command.arguments.find(a => a.name === lastArgMatch);
+                    if (arg && arg.type === 'enum' && arg.options) {
+                        // Get the value part after the argument
+                        const valuePart = afterArgText.trim();
+                        const searchTerm = valuePart.toLowerCase();
+                        
+                        // Suggest enum options
+                        const options = arg.options.split(',');
+                        options.forEach(option => {
+                            if (!searchTerm || option.toLowerCase().startsWith(searchTerm)) {
+                                suggestions.push({
+                                    type: 'enum-value',
+                                    command: commandName,
+                                    argument: arg.name,
+                                    text: option,
+                                    description: `Value for ${arg.name}`,
+                                    display: input.substring(0, afterArgPosition) + (afterArgText.startsWith(' ') ? ' ' : ' ') + option
+                                });
+                            }
+                        });
+                        
+                        if (suggestions.length > 0) {
+                            return suggestions.slice(0, 10);
+                        }
+                    } else if (commandName === 'load-backup' && lastArgMatch === '--file') {
+                        // Special handling for load-backup --file to show backup files
+                        const valuePart = afterArgText.trim();
+                        const searchTerm = valuePart.toLowerCase();
+                        
+                        // Get cached backup files or fetch new ones
+                        if (!autocompleteState.backupFiles || Date.now() - autocompleteState.backupFilesFetchTime > 60000) {
+                            // Fetch backup files asynchronously
+                            fetchBackupFiles().then(files => {
+                                autocompleteState.backupFiles = files;
+                                autocompleteState.backupFilesFetchTime = Date.now();
+                                // Re-trigger autocomplete with the new data
+                                handleAutocompleteInput({ target: autocompleteState.input });
+                            });
+                        }
+                        
+                        if (autocompleteState.backupFiles) {
+                            autocompleteState.backupFiles.forEach(file => {
+                                if (!searchTerm || file.toLowerCase().includes(searchTerm)) {
+                                    suggestions.push({
+                                        type: 'file-value',
+                                        command: commandName,
+                                        argument: arg.name,
+                                        text: file,
+                                        description: 'Backup file',
+                                        display: input.substring(0, afterArgPosition) + (afterArgText.startsWith(' ') ? ' ' : ' ') + file
+                                    });
+                                }
+                            });
+                        }
+                        
+                        if (suggestions.length > 0) {
+                            return suggestions.slice(0, 10);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // If input ends with space, suggest arguments or next commands
+    if (input.endsWith(' ')) {
         const commandPart = parts.slice(0, -1).join(' ');
         const command = findExactCommand(commandPart);
         
@@ -1736,12 +2451,12 @@ function generateSuggestions(input) {
             });
         }
     } else {
-        // Suggest commands
-        const commandPrefix = input.toLowerCase();
+        // Suggest commands - handle partial input anywhere in the command
+        const searchTerm = input.toLowerCase();
         
         Object.entries(allCommandsData).forEach(([category, commands]) => {
             commands.forEach(cmd => {
-                if (cmd.name.toLowerCase().startsWith(commandPrefix)) {
+                if (cmd.name.toLowerCase().startsWith(searchTerm)) {
                     suggestions.push({
                         type: 'command',
                         category: category,
@@ -1777,12 +2492,31 @@ function showAutocomplete(suggestions) {
     // Clear container
     autocompleteState.container.innerHTML = '';
     
+    // Add mode indicator as first item
+    const modeIndicator = document.createElement('div');
+    modeIndicator.className = 'autocomplete-mode-indicator';
+    modeIndicator.innerHTML = `
+        <span>${suggestionMode === 'history' ? '📜 Command History' : '🔍 Command Suggestions'}</span>
+        <span class="mode-hint">Press Ctrl+H to toggle</span>
+    `;
+    autocompleteState.container.appendChild(modeIndicator);
+    
     // Add suggestions
     suggestions.forEach((suggestion, index) => {
         const item = document.createElement('div');
         item.className = 'autocomplete-item';
         
-        if (suggestion.type === 'command') {
+        if (suggestion.type === 'history') {
+            item.innerHTML = `
+                <span class="command-part">${escapeHtml(suggestion.text)}</span>
+                <span class="description-part">📜 ${escapeHtml(suggestion.description)}</span>
+            `;
+        } else if (suggestion.type === 'command') {
+            item.innerHTML = `
+                <span class="command-part">${escapeHtml(suggestion.text)}</span>
+                <span class="description-part">${escapeHtml(suggestion.description)}</span>
+            `;
+        } else if (suggestion.type === 'enum-value') {
             item.innerHTML = `
                 <span class="command-part">${escapeHtml(suggestion.text)}</span>
                 <span class="description-part">${escapeHtml(suggestion.description)}</span>
@@ -1828,6 +2562,13 @@ function hideAutocomplete() {
 
 // Handle keyboard navigation
 function handleAutocompleteKeydown(event) {
+    // Check for Ctrl+H to toggle suggestion mode
+    if (event.ctrlKey && event.key === 'h') {
+        event.preventDefault();
+        toggleSuggestionMode();
+        return;
+    }
+    
     if (!autocompleteState.isActive) {
         // Special handling for Enter key when no autocomplete
         if (event.key === 'Enter') {
@@ -1905,13 +2646,84 @@ function selectAutocompleteSuggestion(index) {
     const input = autocompleteState.input;
     const currentValue = input.value.trim();
     
-    if (suggestion.type === 'command') {
-        input.value = suggestion.text + ' ';
-    } else if (suggestion.type === 'argument') {
-        const parts = currentValue.split(/\s+/);
-        if (currentValue.endsWith(' ')) {
-            input.value = currentValue + suggestion.text + ' ';
+    if (suggestion.type === 'history') {
+        // For history suggestions, replace the entire input
+        input.value = suggestion.text;
+    } else if (suggestion.type === 'command') {
+        // Check if the suggestion is a partial completion (like "--state" for "show segment --s")
+        // If the suggestion starts with -- or -, it's likely a parameter, not a full command
+        if (suggestion.text.startsWith('--') || suggestion.text.startsWith('-')) {
+            // This is a parameter suggestion, we need to preserve the command prefix
+            // Find where the parameter part starts
+            const lastSpaceIndex = currentValue.lastIndexOf(' ');
+            if (lastSpaceIndex !== -1) {
+                // Keep everything before the last space, append the suggestion
+                const prefix = currentValue.substring(0, lastSpaceIndex);
+                input.value = prefix + ' ' + suggestion.text + ' ';
+            } else {
+                // No space found, just use the suggestion (shouldn't happen in practice)
+                input.value = suggestion.text + ' ';
+            }
         } else {
+            // This is a command completion (like "segment" for "show s")
+            // We need to figure out if we should append or replace
+            const parts = currentValue.split(' ');
+            if (parts.length > 1) {
+                // Multi-part command, replace the last part
+                parts[parts.length - 1] = suggestion.text;
+                input.value = parts.join(' ') + ' ';
+            } else {
+                // Single word, replace entirely
+                input.value = suggestion.text + ' ';
+            }
+        }
+    } else if (suggestion.type === 'enum-value') {
+        // Handle enum value selection properly
+        // Check if the last part is a flag (starts with --)
+        const parts = currentValue.split(/\s+/);
+        const lastPart = parts[parts.length - 1];
+        
+        if (lastPart.startsWith('--')) {
+            // If the last part is a flag, append the value after it
+            input.value = currentValue + ' ' + suggestion.text + ' ';
+        } else {
+            // Otherwise replace the last part with the selected value
+            parts[parts.length - 1] = suggestion.text;
+            input.value = parts.join(' ') + ' ';
+        }
+    } else if (suggestion.type === 'argument') {
+        // For argument suggestions, we need to be careful about how we append them
+        // The suggestion.text might be just the argument name like "--state"
+        // We need to preserve the command prefix
+        
+        const parts = currentValue.split(/\s+/);
+        const lastPart = parts[parts.length - 1] || '';
+        
+        if (currentValue.endsWith(' ')) {
+            // If there's already a space, just append the argument
+            input.value = currentValue + suggestion.text + ' ';
+        } else if (lastPart === '--' || lastPart === '-') {
+            // If user typed "--" or "-", replace it with the full argument
+            parts[parts.length - 1] = suggestion.text;
+            input.value = parts.join(' ') + ' ';
+        } else if (lastPart.startsWith('--') || lastPart.startsWith('-')) {
+            // If user is typing a partial argument, replace it
+            parts[parts.length - 1] = suggestion.text;
+            input.value = parts.join(' ') + ' ';
+        } else {
+            // Otherwise, append with a space
+            input.value = currentValue + ' ' + suggestion.text + ' ';
+        }
+    } else if (suggestion.type === 'file-value') {
+        // Handle file value selection properly
+        const parts = currentValue.split(/\s+/);
+        const lastPart = parts[parts.length - 1];
+        
+        if (lastPart.startsWith('--')) {
+            // If the last part is a flag, append the value after it
+            input.value = currentValue + ' ' + suggestion.text + ' ';
+        } else {
+            // Otherwise replace the last part with the selected value
             parts[parts.length - 1] = suggestion.text;
             input.value = parts.join(' ') + ' ';
         }
@@ -1946,4 +2758,139 @@ function toggleEnumOption(selectorId, value) {
         option.classList.add('selected');
         hiddenInput.value = value;
     }
+}
+
+// Download file function
+function downloadFile(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Delete file function
+async function deleteFile(filename) {
+    if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/file/${filename}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update the output to show file was deleted
+            const buttons = document.querySelectorAll(`button[onclick*="${filename}"]`);
+            buttons.forEach(button => {
+                const parent = button.parentElement;
+                if (parent) {
+                    parent.innerHTML = `<span class="text-green-600"><i class="fas fa-check-circle mr-2"></i>File ${filename} has been deleted</span>`;
+                }
+            });
+        } else {
+            alert(`Failed to delete file: ${result.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        alert(`Failed to delete file: ${error.message}`);
+    }
+}
+
+// Handle list-backups command
+async function handleListBackups() {
+    showLoading(true, 'Fetching backup files...');
+    
+    // Start a new command output box
+    startCommandOutput('list-backups');
+    
+    try {
+        const response = await fetch('/api/backup-files');
+        const result = await response.json();
+        
+        if (result.success && result.files) {
+            if (result.files.length === 0) {
+                appendToCommandOutput('📁 Available backup files:\n\nNo backup files found in current directory.\n', 'success');
+            } else {
+                // Create a compact table-like layout
+                let outputText = '📁 Available backup files:\n\n';
+                
+                // Create HTML table
+                let htmlContent = `<table style="width: 100%; font-size: 12px; line-height: 1.2;">`;
+                
+                result.files.forEach((file, index) => {
+                    const size = formatFileSize(file.size);
+                    const date = new Date(file.modified);
+                    const dateStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    
+                    htmlContent += `
+                        <tr style="${index > 0 ? 'border-top: 1px solid #374151;' : ''}">
+                            <td style="padding: 2px 4px 2px 0; color: #93c5fd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;">
+                                ${file.filename}
+                            </td>
+                            <td style="padding: 2px 4px; color: #9ca3af; white-space: nowrap; text-align: right;">
+                                ${size}
+                            </td>
+                            <td style="padding: 2px 4px; color: #9ca3af; white-space: nowrap;">
+                                ${dateStr}
+                            </td>
+                            <td style="padding: 2px 0 2px 4px; white-space: nowrap; text-align: right;">
+                                <button onclick="downloadFile('/api/download/${file.filename}', '${file.filename}')" 
+                                        style="background: #2563eb; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; border: none; cursor: pointer;"
+                                        onmouseover="this.style.background='#1d4ed8'" 
+                                        onmouseout="this.style.background='#2563eb'">
+                                    <i class="fas fa-download" style="margin-right: 3px; font-size: 10px;"></i>
+                                    Download
+                                </button>
+                                <button onclick="deleteFile('${file.filename}')" 
+                                        style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; border: none; cursor: pointer; margin-left: 4px;"
+                                        onmouseover="this.style.background='#b91c1c'" 
+                                        onmouseout="this.style.background='#dc2626'">
+                                    <i class="fas fa-trash" style="margin-right: 3px; font-size: 10px;"></i>
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>`;
+                });
+                
+                htmlContent += `</table>`;
+                
+                // Append text first, then HTML
+                appendToCommandOutput(outputText, 'success');
+                appendToCommandOutput(htmlContent, 'success', true);
+            }
+        } else {
+            appendToCommandOutput(`❌ Error: ${result.error || 'Failed to fetch backup files'}\n`, 'error');
+        }
+    } catch (error) {
+        appendToCommandOutput(`❌ Error: ${error.message}\n`, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Format file size for display
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Fetch backup files
+async function fetchBackupFiles() {
+    try {
+        const response = await fetch('/api/backup-files');
+        const result = await response.json();
+        if (result.success && result.files) {
+            return result.files.map(f => f.filename);
+        }
+    } catch (error) {
+        console.error('Failed to fetch backup files:', error);
+    }
+    return [];
 } 

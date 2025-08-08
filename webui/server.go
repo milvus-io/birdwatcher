@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,14 @@ import (
 var staticFiles embed.FS
 
 const sessionTimeout = 30 * time.Minute
+
+// ansiRegex matches ANSI escape sequences
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// stripANSI removes ANSI escape sequences from a string
+func stripANSI(str string) string {
+	return ansiRegex.ReplaceAllString(str, "")
+}
 
 type Session struct {
 	id         string
@@ -139,6 +148,10 @@ func StartWebUI(config *configs.Config, port int) error {
 		api.GET("/status", app.handleStatus)
 		api.GET("/commands", app.handleGetCommands)
 		api.POST("/disconnect", app.handleDisconnect)
+		api.GET("/download/:filename", app.handleDownload)
+		api.DELETE("/file/:filename", app.handleDeleteFile)
+		api.GET("/backup-files", app.handleListBackupFiles)
+		api.GET("/suggestions", app.handleGetSuggestions)
 	}
 
 	fmt.Printf("Birdwatcher Web UI starting on :%d\n", port)
@@ -226,6 +239,9 @@ func (app *WebApp) handleConnect(c *gin.Context) {
 	if req.RootPath == "__auto__" {
 		// Use auto mode
 		connectCmd = fmt.Sprintf("connect --etcd=%s --auto", req.EtcdAddr)
+	} else if req.RootPath == "__dry__" {
+		// Use dry mode for find-milvus
+		connectCmd = fmt.Sprintf("connect --etcd=%s --dry", req.EtcdAddr)
 	} else {
 		connectCmd = fmt.Sprintf("connect --etcd=%s --rootPath=%s", req.EtcdAddr, req.RootPath)
 	}
@@ -281,6 +297,98 @@ func (app *WebApp) handleCommand(c *gin.Context) {
 			Error:   "Not connected to etcd. Please connect first.",
 		})
 		return
+	}
+
+	// Check if this is a pprof command
+	if strings.HasPrefix(req.Command, "pprof") {
+		app.execMu.Lock()
+		defer app.execMu.Unlock()
+		
+		// Execute pprof command
+		capturedOutput, err := app.executeCommandWithCapture(context.Background(), session, req.Command)
+		
+		if err != nil {
+			c.JSON(http.StatusOK, CommandResponse{
+				Success: false,
+				Error:   err.Error(),
+				Output:  capturedOutput,
+			})
+			return
+		}
+		
+		// Extract filename from output
+		// Looking for pattern: "pprof metrics fetch done, write to archive file bw_pprof_*.tar.gz"
+		lines := strings.Split(capturedOutput, "\n")
+		var filename string
+		for _, line := range lines {
+			if strings.Contains(line, "write to archive file") {
+				parts := strings.Split(line, "write to archive file ")
+				if len(parts) > 1 {
+					filename = strings.TrimSpace(parts[1])
+					break
+				}
+			}
+		}
+		
+		if filename != "" {
+			// Return download URL
+			c.JSON(http.StatusOK, CommandResponse{
+				Success: true,
+				Output:  capturedOutput,
+				Data: map[string]string{
+					"download_url": fmt.Sprintf("/api/download/%s", filename),
+					"filename":     filename,
+					"auto_download": "true",
+				},
+			})
+			return
+		}
+	}
+	
+	// Check if this is a backup command
+	if strings.HasPrefix(req.Command, "backup") {
+		app.execMu.Lock()
+		defer app.execMu.Unlock()
+		
+		// Execute backup command
+		capturedOutput, err := app.executeCommandWithCapture(context.Background(), session, req.Command)
+		
+		if err != nil {
+			c.JSON(http.StatusOK, CommandResponse{
+				Success: false,
+				Error:   err.Error(),
+				Output:  capturedOutput,
+			})
+			return
+		}
+		
+		// Extract filename from output
+		// Looking for pattern: "backup for prefix done, stored in file: bw_etcd_*.bak.gz"
+		lines := strings.Split(capturedOutput, "\n")
+		var filename string
+		for _, line := range lines {
+			if strings.Contains(line, "stored in file:") {
+				parts := strings.Split(line, "stored in file: ")
+				if len(parts) > 1 {
+					filename = strings.TrimSpace(parts[1])
+					break
+				}
+			}
+		}
+		
+		if filename != "" {
+			// Return download URL without auto download
+			c.JSON(http.StatusOK, CommandResponse{
+				Success: true,
+				Output:  capturedOutput,
+				Data: map[string]string{
+					"download_url": fmt.Sprintf("/api/download/%s", filename),
+					"filename":     filename,
+					"auto_download": "false",
+				},
+			})
+			return
+		}
 	}
 
 	// Execute the command using birdwatcher framework
@@ -389,6 +497,11 @@ func (app *WebApp) executeCommandWithCapture(ctx context.Context, session *Sessi
 		return combinedOutput, err
 	}
 	
+	// Strip ANSI color codes from show session output
+	if strings.HasPrefix(strings.TrimSpace(command), "show session") {
+		combinedOutput = stripANSI(combinedOutput)
+	}
+	
 	// Return the captured output as the result
 	return combinedOutput, nil
 }
@@ -413,7 +526,26 @@ func (app *WebApp) handleStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":    "running",
 		"connected": actuallyConnected,
+		"etcdAddr":  session.etcdAddr,
+		"rootPath":  session.rootPath,
 		"time":      time.Now().Format(time.RFC3339),
+	})
+}
+
+func (app *WebApp) handleGetSuggestions(c *gin.Context) {
+	session := c.MustGet("session").(*Session)
+	input := c.Query("input")
+	
+	if !session.connected || session.state == nil {
+		c.JSON(http.StatusOK, gin.H{
+			"suggestions": map[string]string{},
+		})
+		return
+	}
+	
+	suggestions := session.state.Suggestions(input)
+	c.JSON(http.StatusOK, gin.H{
+		"suggestions": suggestions,
 	})
 }
 
@@ -429,6 +561,21 @@ func (app *WebApp) handleGetCommands(c *gin.Context) {
 					{"name": "--id", "type": "int", "description": "collection id to display"},
 					{"name": "--name", "type": "string", "description": "collection name to display"},
 					{"name": "--state", "type": "enum", "description": "collection state to filter", "options": "CollectionCreated,CollectionCreating,CollectionDropping,CollectionDropped"},
+				},
+			},
+			{
+				"name": "show healthz-checks",
+				"description": "List available healthz check items",
+				"usage": "show healthz-checks",
+				"arguments": []map[string]string{},
+			},
+			{
+				"name": "show session",
+				"description": "List online milvus components",
+				"usage": "show session",
+				"arguments": []map[string]string{
+					{"name": "--collection", "type": "int", "description": "collection id to filter"},
+					{"name": "--format", "type": "enum", "description": "output format", "default": "line", "options": "line,table,json"},
 				},
 			},
 			{
@@ -584,6 +731,12 @@ func (app *WebApp) handleGetCommands(c *gin.Context) {
 				"arguments": []map[string]string{},
 			},
 			{
+				"name": "show-log-level",
+				"description": "Show log level of milvus roles",
+				"usage": "show-log-level",
+				"arguments": []map[string]string{},
+			},
+			{
 				"name": "show partition",
 				"description": "List partitions of provided collection",
 				"usage": "show partition",
@@ -670,6 +823,18 @@ func (app *WebApp) handleGetCommands(c *gin.Context) {
 				},
 			},
 			{
+				"name": "list-backups",
+				"description": "List all backup files in current directory",
+				"usage": "list-backups",
+				"arguments": []map[string]string{},
+			},
+			{
+				"name": "list states",
+				"description": "List current connected states",
+				"usage": "list states",
+				"arguments": []map[string]string{},
+			},
+			{
 				"name": "load-backup",
 				"description": "Load etcd backup file",
 				"usage": "load-backup [file]",
@@ -688,21 +853,27 @@ func (app *WebApp) handleGetCommands(c *gin.Context) {
 					{"name": "--id", "type": "int", "description": "Server ID to kill"},
 				},
 			},
-			{
-				"name": "connect",
-				"description": "Connect to etcd",
-				"usage": "connect",
-				"arguments": []map[string]string{
-					{"name": "--etcd", "type": "string", "description": "etcd address"},
-					{"name": "--rootPath", "type": "string", "description": "root path"},
-				},
-			},
+			// {
+			// 	"name": "connect",
+			// 	"description": "Connect to etcd",
+			// 	"usage": "connect",
+			// 	"arguments": []map[string]string{
+			// 		{"name": "--etcd", "type": "string", "description": "etcd address"},
+			// 		{"name": "--rootPath", "type": "string", "description": "root path"},
+			// 	},
+			// },
 			{
 				"name": "disconnect",
 				"description": "Disconnect from etcd",
 				"usage": "disconnect",
 				"arguments": []map[string]string{},
 			},
+			// {
+			// 	"name": "find-milvus",
+			// 	"description": "Find available Milvus instances",
+			// 	"usage": "find-milvus",
+			// 	"arguments": []map[string]string{},
+			// },
 			{
 				"name": "force-release",
 				"description": "Force release collection from QueryCoord",
@@ -717,7 +888,129 @@ func (app *WebApp) handleGetCommands(c *gin.Context) {
 				"description": "Perform healthz check for connect instance",
 				"usage": "healthz-check",
 				"arguments": []map[string]string{
-					{"name": "--items", "type": "strings", "description": "healthz check items"},
+					{"name": "--items", "type": "enum", "description": "healthz check items (available: ISS43407, QUERYVIEW_LAG)", "options": "ISS43407,QUERYVIEW_LAG"},
+				},
+			},
+			{
+				"name": "pprof",
+				"description": "Get pprof from online components",
+				"usage": "pprof",
+				"arguments": []map[string]string{
+					{"name": "--type", "type": "enum", "description": "pprof metric type to fetch", "default": "goroutine", "options": "goroutine,heap,profile,allocs,block,mutex"},
+					{"name": "--port", "type": "int", "description": "metrics port milvus component is using", "default": "9091"},
+				},
+			},
+			{
+				"name": "visit datacoord",
+				"description": "Visit datacoord component",
+				"usage": "visit datacoord {serverId}",
+				"arguments": []map[string]string{
+					{"name": "serverId", "type": "int", "description": "server ID to visit", "required": "true"},
+					{"name": "--addr", "type": "string", "description": "manual specified grpc addr"},
+					{"name": "--sessionType", "type": "string", "description": "session type"},
+				},
+			},
+			{
+				"name": "visit datanode",
+				"description": "Visit datanode component",
+				"usage": "visit datanode {serverId}",
+				"arguments": []map[string]string{
+					{"name": "serverId", "type": "int", "description": "server ID to visit", "required": "true"},
+					{"name": "--addr", "type": "string", "description": "manual specified grpc addr"},
+					{"name": "--sessionType", "type": "string", "description": "session type"},
+				},
+			},
+			{
+				"name": "visit indexcoord",
+				"description": "Visit indexcoord component",
+				"usage": "visit indexcoord {serverId}",
+				"arguments": []map[string]string{
+					{"name": "serverId", "type": "int", "description": "server ID to visit", "required": "true"},
+					{"name": "--addr", "type": "string", "description": "manual specified grpc addr"},
+					{"name": "--sessionType", "type": "string", "description": "session type"},
+				},
+			},
+			{
+				"name": "visit indexnode",
+				"description": "Visit indexnode component",
+				"usage": "visit indexnode {serverId}",
+				"arguments": []map[string]string{
+					{"name": "serverId", "type": "int", "description": "server ID to visit", "required": "true"},
+					{"name": "--addr", "type": "string", "description": "manual specified grpc addr"},
+					{"name": "--sessionType", "type": "string", "description": "session type"},
+				},
+			},
+			{
+				"name": "visit querycoord",
+				"description": "Visit querycoord component",
+				"usage": "visit querycoord {serverId}",
+				"arguments": []map[string]string{
+					{"name": "serverId", "type": "int", "description": "server ID to visit", "required": "true"},
+					{"name": "--addr", "type": "string", "description": "manual specified grpc addr"},
+					{"name": "--sessionType", "type": "string", "description": "session type"},
+				},
+			},
+			{
+				"name": "visit querynode",
+				"description": "Visit querynode component",
+				"usage": "visit querynode {serverId}",
+				"arguments": []map[string]string{
+					{"name": "serverId", "type": "int", "description": "server ID to visit", "required": "true"},
+					{"name": "--addr", "type": "string", "description": "manual specified grpc addr"},
+					{"name": "--sessionType", "type": "string", "description": "session type"},
+				},
+			},
+			{
+				"name": "visit rootcoord",
+				"description": "Visit rootcoord component",
+				"usage": "visit rootcoord {serverId}",
+				"arguments": []map[string]string{
+					{"name": "serverId", "type": "int", "description": "server ID to visit", "required": "true"},
+					{"name": "--addr", "type": "string", "description": "manual specified grpc addr"},
+					{"name": "--sessionType", "type": "string", "description": "session type"},
+				},
+			},
+			{
+				"name": "exit",
+				"description": "Exit from current state",
+				"usage": "exit",
+				"arguments": []map[string]string{},
+			},
+			{
+				"name": "release-dropped-collection",
+				"description": "Clean loaded collections meta if it's dropped from QueryCoord",
+				"usage": "release-dropped-collection",
+				"arguments": []map[string]string{
+					{"name": "--run", "type": "flag", "description": "flags indicating whether to remove load collection info from meta"},
+				},
+			},
+			{
+				"name": "set config-etcd",
+				"description": "Set configurations in etcd",
+				"usage": "set config-etcd",
+				"arguments": []map[string]string{
+					{"name": "--key", "type": "string", "description": "etcd config key"},
+					{"name": "--value", "type": "string", "description": "etcd config value"},
+				},
+			},
+			{
+				"name": "set consistency-level",
+				"description": "Set collection default consistency level",
+				"usage": "set consistency-level",
+				"arguments": []map[string]string{
+					{"name": "--collection", "type": "int", "description": "collection id to update"},
+					{"name": "--consistency-level", "type": "string", "description": "Consistency Level to set"},
+					{"name": "--run", "type": "flag", "description": "execute the change"},
+				},
+			},
+			{
+				"name": "update-log-level",
+				"description": "Update log level of milvus role",
+				"usage": "update-log-level {log_level} {component} {serverId}",
+				"arguments": []map[string]string{
+					{"name": "log_level", "type": "string", "description": "log level to set (debug, info, warn, error)", "required": "true"},
+					{"name": "component", "type": "string", "description": "component type (optional)"},
+					{"name": "serverId", "type": "int", "description": "server ID (optional)"},
 				},
 			},
 		},
@@ -768,6 +1061,23 @@ func (app *WebApp) handleGetCommands(c *gin.Context) {
 					{"name": "--segment", "type": "int", "description": "segment id"},
 					{"name": "--skipBucketCheck", "type": "flag", "description": "skip bucket exist check due to permission issue"},
 				},
+			},
+			{
+				"name": "probe pk",
+				"description": "Probe primary key in segment",
+				"usage": "probe pk",
+				"arguments": []map[string]string{
+					{"name": "--collection", "type": "int", "description": "collection id to probe"},
+					{"name": "--pk", "type": "string", "description": "pk value to probe"},
+					{"name": "--mvccTimestamp", "type": "int", "description": "mvcc timestamp to probe"},
+					{"name": "--outputField", "type": "strings", "description": "output fields list"},
+				},
+			},
+			{
+				"name": "probe query",
+				"description": "Probe query service",
+				"usage": "probe query",
+				"arguments": []map[string]string{},
 			},
 			{
 				"name": "storage-analysis",
@@ -1058,6 +1368,97 @@ func (app *WebApp) handleDisconnect(c *gin.Context) {
 	c.SetCookie("session_id", "", -1, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func (app *WebApp) handleDownload(c *gin.Context) {
+	filename := c.Param("filename")
+	
+	// Security check: ensure filename doesn't contain path traversal
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
+		return
+	}
+	
+	// Check if file exists
+	if _, err := os.Stat(filename); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+	
+	// Set headers for file download
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Transfer-Encoding", "binary")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Header("Content-Type", "application/octet-stream")
+	
+	// Send file
+	c.File(filename)
+	
+	// For pprof files, delete after download
+	if strings.Contains(filename, "bw_pprof_") {
+		go func() {
+			// Wait a bit to ensure download completes
+			time.Sleep(5 * time.Second)
+			os.Remove(filename)
+			fmt.Printf("Deleted pprof file: %s\n", filename)
+		}()
+	}
+}
+
+func (app *WebApp) handleDeleteFile(c *gin.Context) {
+	filename := c.Param("filename")
+	
+	// Security check: ensure filename doesn't contain path traversal
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
+		return
+	}
+	
+	// Check if file exists
+	if _, err := os.Stat(filename); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+	
+	// Delete the file
+	if err := os.Remove(filename); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file"})
+		return
+	}
+	
+	fmt.Printf("Deleted file: %s\n", filename)
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "File deleted successfully"})
+}
+
+func (app *WebApp) handleListBackupFiles(c *gin.Context) {
+	// List all .bak.gz files in current directory
+	files, err := os.ReadDir(".")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read directory"})
+		return
+	}
+	
+	backupFiles := []map[string]interface{}{}
+	
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".bak.gz") && strings.HasPrefix(file.Name(), "bw_etcd_") {
+			info, err := file.Info()
+			if err != nil {
+				continue
+			}
+			
+			backupFiles = append(backupFiles, map[string]interface{}{
+				"filename": file.Name(),
+				"size": info.Size(),
+				"modified": info.ModTime().Format(time.RFC3339),
+			})
+		}
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"files": backupFiles,
+	})
 }
 
  

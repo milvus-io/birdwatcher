@@ -19,6 +19,7 @@
         }
         input[type="number"] {
             -moz-appearance: textfield;
+            appearance: textfield;
         }
         /* Ensure hidden class works */
         .hidden {
@@ -128,11 +129,16 @@
         .content-section {
             flex: 1;
             min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
         .content-grid {
-            height: 100%;
+            flex: 1;
             display: flex;
             width: 100%;
+            min-height: 0;
+            overflow: hidden;
         }
         .resizer {
             width: 6px;
@@ -158,6 +164,21 @@
         .resizer:hover::after {
             background: #374151;
         }
+        /* Optimize performance during resizing */
+        body.resizing {
+            cursor: col-resize !important;
+        }
+        body.resizing * {
+            cursor: col-resize !important;
+            user-select: none !important;
+        }
+        body.resizing .left-panel,
+        body.resizing .right-panel {
+            transition: none !important;
+        }
+        body.resizing iframe {
+            pointer-events: none !important;
+        }
         @media (max-width: 1024px) {
             .content-grid {
                 flex-direction: column;
@@ -182,6 +203,8 @@
             display: flex;
             flex-direction: column;
             min-height: 0;
+            height: 100%;
+            overflow: hidden;
         }
         .sidebar {
             flex: 1;
@@ -189,9 +212,11 @@
             min-height: 0;
         }
         .results-panel {
-            height: 100%;
+            flex: 1;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
         }
         .results-content {
             flex: 1;
@@ -385,20 +410,16 @@
         
         /* Timestamp tooltip styles */
         .timestamp-tooltip {
-            position: absolute;
+            position: fixed;
             background: rgba(17, 24, 39, 0.95);
             color: white;
             padding: 8px 12px;
             border-radius: 6px;
             font-size: 12px;
             white-space: nowrap;
-            z-index: 1000;
-            pointer-events: none;
+            z-index: 10000;
+            pointer-events: auto;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transform: translateX(-50%);
-            bottom: 100%;
-            left: 50%;
-            margin-bottom: 8px;
             opacity: 0;
             transition: opacity 0.2s ease;
         }
@@ -410,12 +431,23 @@
         .timestamp-tooltip::after {
             content: '';
             position: absolute;
-            top: 100%;
             left: 50%;
             margin-left: -5px;
             border-width: 5px;
             border-style: solid;
+        }
+        
+        /* Arrow pointing down when tooltip is above element */
+        .timestamp-tooltip:not([style*="top:"]) .timestamp-tooltip::after,
+        .timestamp-tooltip[style*="bottom:"]::after {
+            top: 100%;
             border-color: rgba(17, 24, 39, 0.95) transparent transparent transparent;
+        }
+        
+        /* Arrow pointing up when tooltip is below element */
+        .timestamp-tooltip[style*="top:"]::after {
+            bottom: 100%;
+            border-color: transparent transparent rgba(17, 24, 39, 0.95) transparent;
         }
         
         .timestamp-tooltip div {
@@ -521,7 +553,7 @@
             border: 1px solid #e5e7eb;
             border-radius: 0.375rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            max-height: 200px;
+            max-height: 400px;
             overflow-y: auto;
             display: none;
         }
@@ -561,6 +593,35 @@
             font-size: 0.75rem;
             display: block;
             margin-top: 0.125rem;
+        }
+        
+        .autocomplete-item .enum-value-part {
+            color: #059669;
+            font-weight: 500;
+        }
+        
+        /* Autocomplete mode indicator */
+        .autocomplete-mode-indicator {
+            padding: 0.375rem 0.75rem;
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+            font-size: 0.75rem;
+            color: #6b7280;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: default;
+            user-select: none;
+        }
+        
+        .autocomplete-mode-indicator span:first-child {
+            font-weight: 500;
+        }
+        
+        .mode-hint {
+            font-size: 0.625rem;
+            color: #9ca3af;
+            font-style: italic;
         }
     </style>
 </head>
@@ -610,25 +671,69 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             <i class="fas fa-folder mr-2"></i>Root Path
                         </label>
-                        <div class="flex items-center gap-2">
-                            <div class="relative flex-1">
-                                <input type="text" id="connect-root-path" value="--auto" 
-                                       disabled
-                                       class="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500">
+                        
+                        <!-- Root Path Mode Selection -->
+                        <div class="mb-3">
+                            <div class="flex gap-3">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="root-path-mode" value="manual" 
+                                           onchange="handleRootPathModeChange('manual')"
+                                           class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Manual</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="root-path-mode" value="auto" checked
+                                           onchange="handleRootPathModeChange('auto')"
+                                           class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Auto</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="root-path-mode" value="find-milvus"
+                                           onchange="handleRootPathModeChange('find-milvus')"
+                                           class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Find Milvus</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Manual Input -->
+                        <div id="root-path-manual-section" class="hidden">
+                            <div class="relative">
+                                <input type="text" id="connect-root-path" value="by-dev" 
+                                       class="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <button onclick="pasteToInput('connect-root-path')" 
                                         id="root-path-paste"
-                                        disabled
-                                        class="paste-btn-inner disabled:opacity-50 disabled:cursor-not-allowed" 
+                                        class="paste-btn-inner" 
                                         title="Paste from clipboard">
                                     <i class="fas fa-paste text-sm"></i>
                                 </button>
                             </div>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="root-path-auto" checked
-                                       onchange="toggleRootPathAuto()"
-                                       class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                <span class="text-sm font-medium text-gray-700">Auto</span>
-                            </label>
+                        </div>
+                        
+                        <!-- Auto Mode Display -->
+                        <div id="root-path-auto-section" class="">
+                            <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Auto mode will automatically detect the root path
+                            </div>
+                        </div>
+                        
+                        <!-- Find Milvus Section -->
+                        <div id="root-path-find-section" class="hidden">
+                            <button id="find-milvus-search-btn" onclick="searchMilvusInstances()" 
+                                    class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-200 flex items-center justify-center mb-3">
+                                <i class="fas fa-search mr-2" id="find-search-icon"></i>
+                                <span id="find-search-text">Search for Milvus Instances</span>
+                                <i class="fas fa-spinner ml-2 hidden" id="find-search-spinner"></i>
+                            </button>
+                            
+                            <!-- Candidates List -->
+                            <div id="milvus-candidates" class="hidden">
+                                <div class="text-sm font-medium text-gray-700 mb-2">Found instances:</div>
+                                <div id="candidates-list" class="space-y-2 max-h-40 overflow-y-auto">
+                                    <!-- Candidates will be populated here -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -666,7 +771,10 @@
                         <i class="fas fa-binoculars text-blue-600 text-3xl mr-3"></i>
                         <div>
                             <h1 class="text-2xl font-bold text-gray-800">Birdwatcher Web UI</h1>
-                            <p class="text-sm text-gray-600">Connected to <span id="connected-info"></span></p>
+                            <p class="text-sm text-gray-600">
+                                <span id="connected-info"></span>
+                                <span id="component-status" class="ml-2 text-xs text-gray-500"></span>
+                            </p>
                         </div>
                     </div>
                     <div class="flex items-center space-x-4">
@@ -684,7 +792,7 @@
         </div>
 
         <!-- Main Content - 2 Column Layout -->
-        <div class="content-section px-6 py-6">
+        <div class="content-section p-6">
             <div class="content-grid" id="content-grid">
                 <!-- Left Column - Command Selection -->
                 <div class="left-panel" id="left-panel" style="width: 30%;">
@@ -748,7 +856,7 @@
                 <!-- Right Column - Results -->
                 <div class="right-panel" id="right-panel" style="width: 70%;">
                     <!-- Custom Command -->
-                    <div class="bg-white rounded-lg shadow-md mb-4">
+                    <div class="bg-white rounded-lg shadow-md mb-4 flex-shrink-0">
                         <div class="px-4 py-3 flex items-center space-x-3">
                             <h3 class="text-sm font-semibold text-gray-800 flex items-center whitespace-nowrap">
                                 <i class="fas fa-terminal text-red-600 mr-2"></i>Custom Command
