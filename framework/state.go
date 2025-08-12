@@ -3,6 +3,7 @@ package framework
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -173,6 +174,7 @@ func (s *CmdState) Process(cmd string) (State, error) {
 		return s.nextState, common.ExitErr
 	}
 	if err != nil {
+		fmt.Printf("err 5: %v\n", err)
 		return s, err
 	}
 	if s.nextState != nil {

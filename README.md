@@ -25,6 +25,28 @@ tips: [As JimB notice in comments](https://stackoverflow.com/questions/69807151/
 
 ## How to use
 
+### Web UI (Recommended)
+
+Birdwatcher now includes a modern web interface for easier debugging:
+
+```shell
+# Start the web UI on default port (8002)
+./birdwatcher -startweb
+
+# Start the web UI on custom port
+./birdwatcher -startweb -port 8080
+```
+
+Then open your browser and navigate to `http://localhost:8002` (or your custom port). The web UI provides:
+
+- Clean connection interface for etcd
+- Organized command categories (Show, Management, Analysis)
+- Click-to-execute commands with real-time output
+- Custom command input for advanced usage
+- Modern, responsive design
+
+### Command Line Interface
+
 ### connect to etcd 
 
 <img alt="connect to etcd" src="./docs/images/connect.gif" width="600" />

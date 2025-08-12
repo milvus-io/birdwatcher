@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birdwatcher Web UI</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        /* Hide number input spinners */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        /* Ensure hidden class works */
+        .hidden {
+            display: none !important;
+        }
+        /* Ensure paste buttons are properly centered */
+        .paste-btn-inner {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            color: #9ca3af;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+        .paste-btn-inner:hover {
+            background: rgba(156, 163, 175, 0.1);
+            color: #6b7280;
+        }
+        .paste-btn-inner:focus {
+            outline: none;
+            background: rgba(156, 163, 175, 0.15);
+        }
+        .terminal-output {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* Command output box styling */
+        .command-output-box {
+            background-color: #1a202c;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            margin: 8px 0;
+            padding: 12px;
+            position: relative;
+        }
+        
+        .command-output-box:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #4299e1, #3182ce);
+            border-radius: 3px 0 0 3px;
+        }
+        
+        .command-header {
+            color: #90cdf4;
+            font-weight: bold;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #4a5568;
+            font-size: 0.9em;
+        }
+        
+        .command-content {
+            color: #e2e8f0;
+            line-height: 1.4;
+        }
+        
+        .success-output {
+            color: #68d391;
+        }
+        
+        .error-output {
+            color: #fc8181;
+        }
+        
+        .info-output {
+            color: #90cdf4;
+        }
+        .command-card:hover {
+            transform: translateY(-2px);
+            transition: transform 0.2s ease-in-out;
+        }
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .screen {
+            display: none;
+            height: 100vh;
+        }
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+        .main-layout {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header-section {
+            flex-shrink: 0;
+        }
+        .content-section {
+            flex: 1;
+            min-height: 0;
+        }
+        .content-grid {
+            height: 100%;
+            display: flex;
+            width: 100%;
+        }
+        .resizer {
+            width: 6px;
+            background: #e5e7eb;
+            cursor: col-resize;
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+        .resizer:hover {
+            background: #9ca3af;
+        }
+        .resizer::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 40px;
+            background: #6b7280;
+            border-radius: 1px;
+        }
+        .resizer:hover::after {
+            background: #374151;
+        }
+        @media (max-width: 1024px) {
+            .content-grid {
+                flex-direction: column;
+            }
+            .resizer {
+                display: none;
+            }
+            .left-panel {
+                max-height: 40vh;
+                width: 100% !important;
+            }
+            .right-panel {
+                width: 100% !important;
+            }
+        }
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .sidebar {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .results-panel {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .results-content {
+            flex: 1;
+            min-height: 0;
+        }
+        .terminal-container {
+            height: 100%;
+            overflow-y: auto;
+        }
+        .command-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .command-button:hover {
+            background-color: #f3f4f6;
+            border-color: #3b82f6;
+            transform: translateX(4px);
+        }
+        .command-button.active {
+            background-color: #dbeafe;
+            border-color: #3b82f6;
+            border-width: 2px;
+        }
+        .category-section {
+            border-left: 4px solid transparent;
+            padding-left: 12px;
+            margin-bottom: 24px;
+        }
+        .category-section.show { border-left-color: #10b981; }
+        .category-section.management { border-left-color: #f59e0b; }
+        .category-section.analysis { border-left-color: #8b5cf6; }
+        .custom-command-section { border-left-color: #ef4444; }
+        
+        /* Scrollbar styling */
+        .sidebar::-webkit-scrollbar,
+        .terminal-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track,
+        .terminal-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb,
+        .terminal-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover,
+        .terminal-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* Expandable command styles */
+        .command-item {
+            border-radius: 6px;
+        }
+        
+        .arguments-section {
+            animation: slideDown 0.2s ease-out;
+        }
+        
+        .arguments-section.hidden {
+            animation: slideUp 0.2s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                max-height: 500px;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                max-height: 500px;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                max-height: 0;
+                transform: translateY(-10px);
+            }
+        }
+        
+        .expand-icon {
+            transition: transform 0.2s ease;
+        }
+        
+        .rotate-90 {
+            transform: rotate(90deg);
+        }
+        
+        /* Tooltip styles for argument descriptions */
+        .argument-input[title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        /* Word interaction styles for console output */
+        .word-clickable {
+            cursor: pointer;
+            border-radius: 2px;
+            transition: background-color 0.15s ease, text-decoration 0.15s ease;
+            padding: 1px 2px;
+            margin: -1px -2px;
+        }
+        
+        .word-clickable:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+            text-decoration: underline;
+        }
+        
+        /* Selection states for shift-click functionality */
+        .word-clickable.selection-start {
+            background-color: rgba(34, 197, 94, 0.3);
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.6);
+        }
+        
+        .word-clickable.selection-preview {
+            background-color: rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+        }
+        
+        .word-clickable.selection-range {
+            background-color: rgba(34, 197, 94, 0.2);
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
+        }
+        
+        /* Copy notification styles */
+        .copy-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(34, 197, 94, 0.95);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: copyNotificationShow 0.3s ease-out;
+            pointer-events: none;
+        }
+        
+        .copy-notification.hide {
+            animation: copyNotificationHide 0.3s ease-out forwards;
+        }
+        
+        @keyframes copyNotificationShow {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+        
+        @keyframes copyNotificationHide {
+            from {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+        }
+        
+        /* Timestamp tooltip styles */
+        .timestamp-tooltip {
+            position: absolute;
+            background: rgba(17, 24, 39, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(-50%);
+            bottom: 100%;
+            left: 50%;
+            margin-bottom: 8px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .timestamp-tooltip.show {
+            opacity: 1;
+        }
+        
+        .timestamp-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(17, 24, 39, 0.95) transparent transparent transparent;
+        }
+        
+        .timestamp-tooltip div {
+            margin: 2px 0;
+        }
+        
+        .timestamp-tooltip .utc-time {
+            color: #60a5fa;
+        }
+        
+        .timestamp-tooltip .local-time {
+            color: #86efac;
+        }
+        
+        .timestamp-tooltip .relative-time {
+            color: #fbbf24;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .timestamp-tooltip .milvus-info {
+            color: #c084fc;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 11px;
+        }
+        
+        .word-clickable.timestamp-value {
+            cursor: help;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Category toggle animation */
+        .category-toggle {
+            transition: transform 0.2s ease;
+        }
+        
+        .category-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        
+        /* Search highlight */
+        .command-item.search-hidden {
+            display: none !important;
+        }
+        
+        .category-section.search-active {
+            border-left-color: transparent !important;
+        }
+        
+        .category-section.search-active > h3 {
+            display: none;
+        }
+        
+        .search-highlight {
+            background-color: #fef3c7;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+        
+        /* Enum selector styles */
+        .enum-selector {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            align-items: center;
+        }
+        
+        .enum-option {
+            padding: 0.125rem 0.5rem;
+            font-size: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .enum-option:hover {
+            background-color: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        
+        .enum-option.selected {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .enum-option.selected:hover {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+        
+        /* Autocomplete styles */
+        .autocomplete-container {
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .autocomplete-container.show {
+            display: block;
+        }
+        
+        .autocomplete-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.875rem;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #eff6ff;
+        }
+        
+        .autocomplete-item .command-part {
+            color: #1f2937;
+            font-weight: 500;
+        }
+        
+        .autocomplete-item .argument-part {
+            color: #6b7280;
+            margin-left: 0.25rem;
+        }
+        
+        .autocomplete-item .description-part {
+            color: #9ca3af;
+            font-size: 0.75rem;
+            display: block;
+            margin-top: 0.125rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Connect Screen -->
+    <div id="connect-screen" class="screen active">
+        <div class="flex items-center justify-center h-full">
+            <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+                <div class="text-center mb-8">
+                    <i class="fas fa-binoculars text-blue-600 text-6xl mb-4"></i>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Birdwatcher</h1>
+                    <p class="text-gray-600">Debug tool for Milvus 2.0+</p>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-server mr-2"></i>etcd Connection
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <input type="text" id="connect-etcd-host" value="localhost" 
+                                       placeholder="Host"
+                                       class="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <button onclick="pasteToInput('connect-etcd-host')" 
+                                        class="paste-btn-inner" 
+                                        title="Paste host">
+                                    <i class="fas fa-paste text-sm"></i>
+                                </button>
+                            </div>
+                            <div class="text-gray-500 font-medium px-1">:</div>
+                            <div class="relative w-24">
+                                <input type="number" id="connect-etcd-port" value="2379" 
+                                       placeholder="Port"
+                                       min="1" max="65535"
+                                       class="w-full pl-3 pr-8 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <button onclick="pasteToInput('connect-etcd-port')" 
+                                        class="paste-btn-inner" 
+                                        title="Paste port">
+                                    <i class="fas fa-paste text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-folder mr-2"></i>Root Path
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <input type="text" id="connect-root-path" value="--auto" 
+                                       disabled
+                                       class="w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500">
+                                <button onclick="pasteToInput('connect-root-path')" 
+                                        id="root-path-paste"
+                                        disabled
+                                        class="paste-btn-inner disabled:opacity-50 disabled:cursor-not-allowed" 
+                                        title="Paste from clipboard">
+                                    <i class="fas fa-paste text-sm"></i>
+                                </button>
+                            </div>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="root-path-auto" checked
+                                       onchange="toggleRootPathAuto()"
+                                       class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <span class="text-sm font-medium text-gray-700">Auto</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button id="connect-button" onclick="connectToEtcd()" 
+                            class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 flex items-center justify-center">
+                        <i class="fas fa-link mr-2" id="connect-icon"></i>
+                        <span id="connect-text">Connect to Birdwatcher</span>
+                        <i class="fas fa-spinner ml-2 hidden" id="connect-spinner"></i>
+                    </button>
+                    
+                    <div id="connect-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span id="connect-error-message"></span>
+                    </div>
+                </div>
+                
+                <div class="mt-8 text-center text-sm text-gray-500">
+                    <p>Enter your etcd connection details to start debugging your Milvus deployment</p>
+                    <div id="clipboard-notice" class="hidden mt-4 text-xs text-amber-600">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Paste buttons are hidden. For clipboard support, access via https://localhost or use Ctrl+V to paste.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Screen -->
+    <div id="main-screen" class="screen main-layout">
+        <!-- Header -->
+        <div class="header-section bg-white shadow-md">
+            <div class="container mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-binoculars text-blue-600 text-3xl mr-3"></i>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-800">Birdwatcher Web UI</h1>
+                            <p class="text-sm text-gray-600">Connected to <span id="connected-info"></span></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                            <span class="text-sm text-gray-600">Connected</span>
+                        </div>
+                        <button onclick="disconnect()" 
+                                class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Disconnect
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content - 2 Column Layout -->
+        <div class="content-section px-6 py-6">
+            <div class="content-grid" id="content-grid">
+                <!-- Left Column - Command Selection -->
+                <div class="left-panel" id="left-panel" style="width: 30%;">
+                    <div class="bg-white rounded-lg shadow-md h-full flex flex-col">
+                        <div class="p-4 border-b border-gray-200 flex-shrink-0">
+                            <h2 class="text-lg font-semibold text-gray-800">
+                                <i class="fas fa-list mr-2"></i>Commands
+                            </h2>
+                            <!-- Search box -->
+                            <div class="mt-3">
+                                <div class="relative">
+                                    <input type="text" id="command-search" placeholder="搜索命令..." 
+                                           class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                           oninput="filterCommands()">
+                                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="sidebar p-4">
+                            <!-- Show Commands -->
+                            <div class="category-section show" data-category="show">
+                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors" onclick="toggleCategory('show')">
+                                    <i class="fas fa-chevron-down mr-2 text-sm transition-transform category-toggle" id="show-toggle"></i>
+                                    <i class="fas fa-eye text-green-600 mr-2"></i>Show Commands
+                                </h3>
+                                <div class="space-y-2" id="show-commands">
+                                    <!-- Commands will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                            <!-- Management Commands -->
+                            <div class="category-section management" data-category="management">
+                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors" onclick="toggleCategory('management')">
+                                    <i class="fas fa-chevron-down mr-2 text-sm transition-transform category-toggle" id="management-toggle"></i>
+                                    <i class="fas fa-cogs text-orange-600 mr-2"></i>Management Commands
+                                </h3>
+                                <div class="space-y-2" id="management-commands">
+                                    <!-- Commands will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                            <!-- Analysis Commands -->
+                            <div class="category-section analysis" data-category="analysis">
+                                <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors" onclick="toggleCategory('analysis')">
+                                    <i class="fas fa-chevron-down mr-2 text-sm transition-transform category-toggle" id="analysis-toggle"></i>
+                                    <i class="fas fa-chart-line text-purple-600 mr-2"></i>Analysis Commands
+                                </h3>
+                                <div class="space-y-2" id="analysis-commands">
+                                    <!-- Commands will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resizer -->
+                <div class="resizer" id="resizer"></div>
+
+                <!-- Right Column - Results -->
+                <div class="right-panel" id="right-panel" style="width: 70%;">
+                    <!-- Custom Command -->
+                    <div class="bg-white rounded-lg shadow-md mb-4">
+                        <div class="px-4 py-3 flex items-center space-x-3">
+                            <h3 class="text-sm font-semibold text-gray-800 flex items-center whitespace-nowrap">
+                                <i class="fas fa-terminal text-red-600 mr-2"></i>Custom Command
+                            </h3>
+                            <div class="relative flex-1">
+                                <input type="text" id="custom-command" placeholder="Enter birdwatcher command..." 
+                                       class="w-full pl-3 pr-9 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                       autocomplete="off">
+                                <button id="custom-command-paste" onclick="pasteToInput('custom-command')" 
+                                        class="paste-btn-inner" 
+                                        title="Paste from clipboard">
+                                    <i class="fas fa-paste text-sm"></i>
+                                </button>
+                                <!-- Autocomplete container -->
+                                <div id="autocomplete-container" class="autocomplete-container"></div>
+                            </div>
+                            <button onclick="executeCustomCommand()" 
+                                    class="bg-red-600 text-white px-4 py-1.5 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm whitespace-nowrap">
+                                <i class="fas fa-play mr-2"></i>Execute
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-md results-panel">
+                        <div class="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                            <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                                <i class="fas fa-code mr-2"></i>Results
+                                <span id="loading-indicator" class="hidden ml-3 flex items-center text-sm text-blue-600">
+                                    <i class="fas fa-spinner loading mr-2"></i>
+                                    <span id="loading-text">Executing...</span>
+                                </span>
+                            </h2>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="clearOutput()" 
+                                        class="text-sm bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600">
+                                    <i class="fas fa-trash mr-1"></i>Clear
+                                </button>
+                                <button onclick="copyOutput()" 
+                                        class="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
+                                    <i class="fas fa-copy mr-1"></i>Copy
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="results-content p-4">
+                            <div id="output" class="terminal-output terminal-container p-4 rounded-md">
+Welcome to Birdwatcher Web UI!
+You are now connected to your Milvus deployment.
+Select a command from the left panel or enter a custom command to start debugging.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="app.js"></script>
+</body>
+</html> 
