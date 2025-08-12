@@ -94,7 +94,7 @@ type issue43407PostRestart struct {
 }
 
 func newIss43407PostRestart() HealthzCheckItem {
-	return &iss43407{
+	return &issue43407PostRestart{
 		checkItemBase: checkItemBase{
 			name: "ISS43407PostRestart",
 			description: `Checks whether some collection meta is missing.
@@ -113,7 +113,7 @@ func (i issue43407PostRestart) Check(ctx context.Context, client metakv.MetaKV, 
 		return nil, err
 	}
 
-	partitions, err := common.ListCollectionPartitions(ctx, client, basePath, 0)
+	partitions, err := common.ListPartitions(ctx, client, basePath)
 	if err != nil {
 		return nil, err
 	}
