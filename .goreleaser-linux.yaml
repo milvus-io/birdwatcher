@@ -1,5 +1,7 @@
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
+version: 2
+
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -17,7 +19,6 @@ builds:
     goarch:
       - amd64
       - arm64
-      - arm
     overrides:
       - goos: linux
         goarch: amd64
@@ -25,10 +26,6 @@ builds:
           - CC=gcc
       - goos: linux
         goarch: arm64
-        env:
-          - CGO_ENABLED=0
-      - goos: linux
-        goarch: arm
         env:
           - CGO_ENABLED=0
     ldflags:
