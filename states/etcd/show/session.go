@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -16,17 +17,18 @@ import (
 
 type SessionParam struct {
 	framework.ParamBase `use:"show session" desc:"list online milvus components" alias:"sessions"`
+	Format              string `name:"format" default:"line" desc:"output format"`
 }
 
 // SessionCommand returns show session command.
 // usage: show session
-func (c *ComponentShow) SessionCommand(ctx context.Context, p *SessionParam) (*Sessions, error) {
+func (c *ComponentShow) SessionCommand(ctx context.Context, p *SessionParam) (*framework.PresetResultSet, error) {
 	sessions, err := common.ListSessions(ctx, c.client, c.metaPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list sessions")
 	}
 
-	return framework.NewListResult[Sessions](sessions), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Sessions](sessions), framework.NameFormat(p.Format)), nil
 }
 
 type Sessions struct {
@@ -39,13 +41,19 @@ func (rs *Sessions) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
 		return rs.printAsGroups()
-		// for _, session := range rs.Data {
-		// 	fmt.Fprintln(sb, session.String())
-		// }
-		// return sb.String()
+	case framework.FormatJSON:
+		return rs.PrintAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Sessions) PrintAsJSON() string {
+	bs, err := json.Marshal(rs.Data)
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }
 
 func (rs *Sessions) printAsGroups() string {
