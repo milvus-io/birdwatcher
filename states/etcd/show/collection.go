@@ -135,6 +135,9 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 		if field.IsClusteringKey {
 			fmt.Fprintf(sb, "\t - Clustering Key\n")
 		}
+		if field.IsFunctionOutput {
+			fmt.Fprintf(sb, "\t - Function Output\n")
+		}
 		// print element type if field is array
 		if field.DataType == schemapb.DataType_Array {
 			fmt.Fprintf(sb, "\t - Element Type:  %s\n", field.ElementType.String())
