@@ -73,7 +73,6 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 		}
 
 		for _, info := range segs {
-			// if info.State != models.SegmentStateDropped {
 			if info.State != commonpb.SegmentState_Dropped {
 				totalRC += info.NumOfRows
 				healthy++
@@ -292,6 +291,21 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 		}
 		fmt.Println("=== Segment Total Deltalog Size: ", hrSize(deltaLogSize))
 		fmt.Println("=== Segment Total Deltalog Mem Size: ", hrSize(memSize))
+
+		fmt.Println("**************************************")
+		fmt.Println("Text stats:")
+		var textStatsSize int64
+		var textStatsMemSize int64
+		for field, textLogInfo := range info.GetTextStatsLogs() {
+			fmt.Printf("Field %d\tLogSize: %d\tMemSize: %d\n", field, textLogInfo.GetLogSize(), textLogInfo.GetMemorySize())
+			textStatsSize += textLogInfo.GetLogSize()
+			textStatsMemSize += textLogInfo.GetMemorySize()
+			for _, logFile := range textLogInfo.GetFiles() {
+				fmt.Println("\t", logFile)
+			}
+		}
+		fmt.Println("=== Segment Total Textlog Size: ", hrSize(deltaLogSize))
+		fmt.Println("=== Segment Total Textlog Mem Size: ", hrSize(memSize))
 	}
 
 	fmt.Println("================================================================================")
