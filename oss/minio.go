@@ -62,7 +62,12 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 		Secure:       p.UseSSL,
 		BucketLookup: minio.BucketLookupAuto,
 	}
-	endpoint := fmt.Sprintf("%s:%s", p.Addr, p.Port)
+	// Build endpoint safely. If Addr already includes a port (contains ':'),
+	// or Port is empty, use Addr as-is; otherwise append ":Port".
+	endpoint := p.Addr
+	if p.Port != "" && !strings.Contains(p.Addr, ":") {
+		endpoint = fmt.Sprintf("%s:%s", p.Addr, p.Port)
+	}
 
 	var err error
 	switch p.CloudProvider {
