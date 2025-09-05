@@ -46,7 +46,7 @@ func ExplainBalanceCommand(cli kv.MetaKV, basePath string) *cobra.Command {
 			}
 
 			// 1. set up segment distribution view, replicas and segmentInfos
-			sessions, err := ListServers(ctx, cli, basePath, queryNode)
+			sessions, err := common.ListServers(ctx, cli, basePath, queryNode)
 			if err != nil {
 				return err
 			}

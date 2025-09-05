@@ -29,7 +29,6 @@ import (
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	stateCommon "github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
@@ -215,18 +214,4 @@ func pathPart(p string, idx int) (string, error) {
 		return "", errors.New("out of index")
 	}
 	return parts[idx], nil
-}
-
-func ListServers(ctx context.Context, cli kv.MetaKV, basePath string, serverName string) ([]*models.Session, error) {
-	sessions, err := stateCommon.ListSessions(ctx, cli, basePath)
-	if err != nil {
-		return nil, err
-	}
-	targetSessions := make([]*models.Session, 0)
-	for _, session := range sessions {
-		if session.ServerName == serverName {
-			targetSessions = append(targetSessions, session)
-		}
-	}
-	return targetSessions, nil
 }

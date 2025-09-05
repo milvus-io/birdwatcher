@@ -84,7 +84,7 @@ type RecoveryStorageMeta struct {
 
 // FormatSegmentAssignmentMeta format the segment assignment meta.
 func FormatSegmentAssignmentMeta(segment *streamingpb.SegmentAssignmentMeta) string {
-	return fmt.Sprintf("%d@%d[%d,%d]", segment.SegmentId, segment.CheckpointTimeTick, segment.Stat.InsertedRows, segment.Stat.InsertedBinarySize)
+	return fmt.Sprintf("%d@%d[%d,%d]", segment.SegmentId, segment.CheckpointTimeTick, segment.Stat.ModifiedRows, segment.Stat.ModifiedBinarySize)
 }
 
 // FormatSchema format the schema.
