@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus/pkg/v2/log"
 	"github.com/milvus-io/milvus/pkg/v2/proto/streamingpb"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
@@ -95,7 +96,18 @@ func FormatSchema(schema *streamingpb.CollectionSchemaOfVChannel) string {
 // FormatWALCheckpoint format the wal checkpoint.
 func FormatWALCheckpoint(walName string, checkpoint *streamingpb.WALCheckpoint) string {
 	id := GetMessageIDString(walName, checkpoint.MessageId.Id)
-	return fmt.Sprintf("%s@%d", id, checkpoint.TimeTick)
+	if checkpoint.ReplicateCheckpoint == nil {
+		return fmt.Sprintf("%s@%d", id, checkpoint.TimeTick)
+	}
+	return fmt.Sprintf("%s@%d,%s", id, checkpoint.TimeTick, FormatReplicateWALCheckpoint(walName, checkpoint.ReplicateCheckpoint))
+}
+
+func FormatReplicateWALCheckpoint(walName string, checkpoint *commonpb.ReplicateCheckpoint) string {
+	id := "none"
+	if checkpoint.MessageId != nil {
+		id = GetMessageIDString(walName, checkpoint.MessageId.Id)
+	}
+	return fmt.Sprintf("%s@%d:%s", id, checkpoint.TimeTick, checkpoint.ClusterId)
 }
 
 // GetMessageIDString get the message id string.

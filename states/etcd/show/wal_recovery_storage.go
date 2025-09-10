@@ -35,10 +35,11 @@ func (c *ComponentShow) WalRecoveryStorageCommand(ctx context.Context, p *WALRec
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.SetTitle(fmt.Sprintf("WAL Recovery Storage: %s, At StreamingNode: %s",
+	t.SetTitle(fmt.Sprintf("WAL Recovery Storage: %s, At StreamingNode: %s, Checkpoints: %s",
 		types.NewPChannelInfoFromProto(metas.Channel.Channel).String(),
-		types.NewStreamingNodeInfoFromProto(metas.Channel.Node).String()))
-	t.AppendHeader(table.Row{"Channel", "Partition Count", "Segment Count", "Segments", "SchemaVersion", "Checkpoints"})
+		types.NewStreamingNodeInfoFromProto(metas.Channel.Node).String(),
+		common.FormatWALCheckpoint(p.WALName, metas.Checkpoints)))
+	t.AppendHeader(table.Row{"Channel", "Partition Count", "Segment Count", "Segments", "SchemaVersion"})
 	for _, meta := range metas.VChannels {
 		if !strings.HasPrefix(meta.Vchannel, p.Channel) {
 			continue
@@ -57,7 +58,6 @@ func (c *ComponentShow) WalRecoveryStorageCommand(ctx context.Context, p *WALRec
 			fmt.Sprintf("%d", len(metas.Segments[meta.Vchannel])),
 			strings.Join(segments, "\n"),
 			strings.Join(schemas, "\n"),
-			common.FormatWALCheckpoint(p.WALName, metas.Checkpoints),
 		})
 	}
 	t.Render()

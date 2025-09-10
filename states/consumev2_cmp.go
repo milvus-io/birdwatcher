@@ -172,10 +172,10 @@ func (s *InstanceState) compareCurrentMessages(
 		pchannelName := pchannelNames[i]
 		pchannelMsg := currentMessages[pchannelName]
 
-		if referenceMsg.MessageType() == message.MessageTypePutReplicateConfig {
-			// only validate message type for PutReplicateConfigMsg, because the
-			// secondary milvus may append PutReplicateConfigMsg itself.
-			if pchannelMsg.MessageType() != message.MessageTypePutReplicateConfig {
+		if referenceMsg.MessageType() == message.MessageTypeAlterReplicateConfig {
+			// only validate message type for AlterReplicateConfigMsg, because the
+			// secondary milvus may append AlterReplicateConfigMsg itself.
+			if pchannelMsg.MessageType() != message.MessageTypeAlterReplicateConfig {
 				return false
 			}
 		} else {
