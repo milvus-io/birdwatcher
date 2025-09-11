@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 
+	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/apache/arrow/go/v17/parquet/file"
+	"github.com/apache/arrow/go/v17/parquet/pqarrow"
 	"github.com/minio/minio-go/v7"
-	pqlocal "github.com/xitongsys/parquet-go-source/local"
-	pqreader "github.com/xitongsys/parquet-go/reader"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -198,55 +197,42 @@ func readParquetFooterSummary(ctx context.Context, client *minio.Client, bucket,
 }
 
 func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key string, p *JSONStatsParam) {
-	// download object to a temp file for parquet-go reader
-	tmpDir := os.TempDir()
-	tmpPath := filepath.Join(tmpDir, strings.ReplaceAll(key, "/", "_"))
 	obj, err := client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
 	if err != nil {
 		fmt.Printf("      [parquet] get object failed: %s, key=%s\n", err.Error(), key)
 		return
 	}
-	defer obj.Close()
-	out, err := os.Create(tmpPath)
+	pqReader, err := file.NewParquetReader(obj)
 	if err != nil {
-		fmt.Printf("      [parquet] create temp file failed: %s\n", err.Error())
+		fmt.Printf("      [parquet] open Parquet reader failed: %s, key=%s\n", err.Error(), key)
 		return
 	}
-	_, _ = io.Copy(out, obj)
-	out.Close()
-	defer os.Remove(tmpPath)
 
-	fr, err := pqlocal.NewLocalFileReader(tmpPath)
+	arrReader, err := pqarrow.NewFileReader(pqReader, pqarrow.ArrowReadProperties{BatchSize: 1024}, memory.DefaultAllocator)
 	if err != nil {
-		fmt.Printf("      [parquet] open temp file failed: %s\n", err.Error())
+		fmt.Printf("      [parquet] open pq	 file reader failed: %s, key=%s\n", err.Error(), key)
 		return
 	}
-	defer fr.Close()
 
-	pr, err := pqreader.NewParquetReader(fr, nil, 1)
-	if err != nil {
-		fmt.Printf("      [parquet] NewParquetReader failed: %s\n", err.Error())
-		return
-	}
-	defer pr.ReadStop()
-
-	footer := pr.Footer
 	// Print schema elements
 	if p.ShowSchema {
-		if se := pr.SchemaHandler.SchemaElements; len(se) > 0 {
+		schema, err := arrReader.Schema()
+		if err != nil {
+			fmt.Printf("      [parquet] get parquet schema failed: %s, key=%s\n", err.Error(), key)
+			return
+		}
+		if se := schema.Fields(); len(se) > 0 {
 			fmt.Printf("      [parquet] schema elements: %d\n", len(se))
 			for i, col := range se {
-				fmt.Printf("        [%d] name=%s type=%v repetition=%v\n", i, col.GetName(), col.Type, col.RepetitionType)
+				fmt.Printf("        [%d] name=%s type=%v\n", i, col.Name, col.Type)
 			}
 		}
 	}
+
 	// Key-Value properties
-	if footer != nil && footer.KeyValueMetadata != nil {
-		for _, kv := range footer.KeyValueMetadata {
-			if kv.GetKey() == "key_layout_type_map" {
-				fmt.Printf("        kv: %s=%s\n", kv.GetKey(), kv.GetValue())
-				continue
-			}
-		}
+	kvMetaData := pqReader.MetaData().KeyValueMetadata()
+	v := kvMetaData.FindValue("key_layout_type_map")
+	if v != nil {
+		fmt.Printf("        kv: %s=%s\n", "key_layout_type_map", *v)
 	}
 }
