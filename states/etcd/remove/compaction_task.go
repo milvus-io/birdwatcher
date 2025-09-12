@@ -3,7 +3,6 @@ package remove
 import (
 	"context"
 	"fmt"
-	"path"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -24,7 +23,7 @@ type CompactionTaskParam struct {
 // RemoveCompactionTaskCommand is the command function to remove compaction task.
 func (c *ComponentRemove) RemoveCompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) error {
 	compactionTasks, err := common.ListCompactionTask(ctx, c.client, c.basePath, func(task *models.CompactionTask) bool {
-		if p.CompactionType != task.GetType().String() {
+		if p.CompactionType != "" && p.CompactionType != task.GetType().String() {
 			return false
 		}
 		if p.JobID != "" && fmt.Sprint(task.GetTriggerID()) != p.JobID {
@@ -61,12 +60,12 @@ func (c *ComponentRemove) RemoveCompactionTaskCommand(ctx context.Context, p *Co
 	}
 
 	for _, task := range compactionTasks {
-		key := path.Join(c.basePath, common.CompactionTaskPrefix, task.GetType().String(), fmt.Sprint(task.GetTriggerID()), fmt.Sprint(task.GetPlanID()))
-		err = c.client.RemoveWithPrefix(ctx, key)
+		// key := path.Join(c.basePath, common.DCPrefix, common.CompactionTaskPrefix, task.GetType().String(), fmt.Sprint(task.GetTriggerID()), fmt.Sprint(task.GetPlanID()))
+		err = c.client.RemoveWithPrefix(ctx, task.Key())
 		if err != nil {
 			return err
 		}
-		fmt.Printf("clean compaction task done, prefix: %s\n", key)
+		fmt.Printf("clean compaction task done, prefix: %s\n", task.Key())
 	}
 	return nil
 }

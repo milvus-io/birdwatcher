@@ -22,6 +22,7 @@ type CompactionTaskParam struct {
 	State               string `name:"state" default:"" desc:"compaction state to filter"`
 	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
 	PartitionID         int64  `name:"partitionID" default:"0" desc:"partitionID id to filter"`
+	CompactionType      string `name:"type" default:"" desc:"compaction type to filter"`
 	TriggerID           int64  `name:"triggerID" default:"0" desc:"TriggerID to filter"`
 	PlanID              int64  ` name:"planID" default:"0" desc:"PlanID  to filter"`
 	SegmentID           int64  ` name:"segmentID" default:"0" desc:"SegmentID  to filter"`
@@ -39,6 +40,9 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 	compactionTasks, err = common.ListCompactionTask(ctx, c.client, c.metaPath, func(task *models.CompactionTask) bool {
 		total++
 		if p.CollectionName != "" && task.GetSchema().GetName() != p.CollectionName {
+			return false
+		}
+		if p.CompactionType != "" && p.CompactionType != task.GetType().String() {
 			return false
 		}
 		if p.CollectionID > 0 && task.GetCollectionID() != p.CollectionID {
