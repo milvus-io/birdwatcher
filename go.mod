@@ -19,7 +19,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.6.7
 	github.com/manifoldco/promptui v0.9.0
 	github.com/milvus-io/milvus-proto/go-api/v2 v2.6.1
-	github.com/milvus-io/milvus/pkg/v2 v2.6.2-0.20250904074556-4662aff36e3c
+	github.com/milvus-io/milvus/pkg/v2 v2.6.2-0.20250911061356-16e6b6aa8a93
 	github.com/minio/minio-go/v7 v7.0.73
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1

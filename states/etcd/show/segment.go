@@ -240,6 +240,9 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 		for _, log := range info.GetBinlogs() {
 			var fieldLogSize int64
 			fmt.Printf("Field %d:\n", log.FieldID)
+			if info.GetStorageVersion() != 0 {
+				fmt.Printf("[stv2]Child Fields: %v\n", log.ChildFields)
+			}
 			for _, binlog := range log.Binlogs {
 				fmt.Printf("Path: %s\n", binlog.LogPath)
 				tf, _ := utils.ParseTS(binlog.TimestampFrom)

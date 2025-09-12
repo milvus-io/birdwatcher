@@ -590,8 +590,8 @@ github.com/microcosm-cc/bluemonday v1.0.2/go.mod h1:iVP4YcDBq+n/5fb23BhYFvIMq/le
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/milvus-io/milvus-proto/go-api/v2 v2.6.1 h1:NLoSWXvlJD8t91G3CUsooXqYnm5nfsBngztQYYT58V0=
 github.com/milvus-io/milvus-proto/go-api/v2 v2.6.1/go.mod h1:/6UT4zZl6awVeXLeE7UGDWZvXj3IWkRsh3mqsn0DiAs=
-github.com/milvus-io/milvus/pkg/v2 v2.6.2-0.20250904074556-4662aff36e3c h1:N5O/sx5i9QRbpHv5ZTtClLHbOCOmwe2WlYm7fPSTE4Y=
-github.com/milvus-io/milvus/pkg/v2 v2.6.2-0.20250904074556-4662aff36e3c/go.mod h1:fy8s73mdiYq/IIgghuKpsYKGGpDQBToNFBO5/CC+868=
+github.com/milvus-io/milvus/pkg/v2 v2.6.2-0.20250911061356-16e6b6aa8a93 h1:OVC1TfmvjCBi/Q5NyjMTUXUzSg6szBtA+qM4zRblXYI=
+github.com/milvus-io/milvus/pkg/v2 v2.6.2-0.20250911061356-16e6b6aa8a93/go.mod h1:fy8s73mdiYq/IIgghuKpsYKGGpDQBToNFBO5/CC+868=
 github.com/milvus-io/pulsar-client-go v0.6.8 h1:fZdZH73aPRszu2fazyeeahQEz34tyn1Pt9EkqJmV100=
 github.com/milvus-io/pulsar-client-go v0.6.8/go.mod h1:oFIlYIk23tamkSLttw849qphmMIpHY8ztEBWDWJW+sc=
 github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 h1:AMFGa4R4MiIpspGNG7Z948v4n35fFGB3RR3G/ry4FWs=
