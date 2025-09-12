@@ -44,6 +44,7 @@ func NewSegment(segment *datapb.SegmentInfo, key string,
 				Binlogs: lo.Map(fbl.GetBinlogs(), func(binlog *datapb.Binlog, _ int) *Binlog {
 					return newBinlogV2(binlog)
 				}),
+				ChildFields: fbl.GetChildFields(),
 			}
 			return r
 		}
@@ -171,8 +172,9 @@ func (s *Segment) GetKey() string {
 // }
 
 type FieldBinlog struct {
-	FieldID int64
-	Binlogs []*Binlog
+	FieldID     int64
+	Binlogs     []*Binlog
+	ChildFields []int64
 }
 
 type Binlog struct {
