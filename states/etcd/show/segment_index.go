@@ -60,6 +60,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 
 	count := make(map[string]int)
 
+	var totalSize uint64
 	for _, segment := range segments {
 		if segment.State != commonpb.SegmentState_Flushed && segment.GetState() != commonpb.SegmentState_Flushing {
 			continue
@@ -82,6 +83,8 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 			fmt.Printf("\tSerialized Size: %d\n", segIdx.GetSerializeSize())
 			fmt.Printf("\tCurrent Index Version: %d\n", segIdx.GetCurrentIndexVersion())
 			fmt.Printf("\t Index Files: %v\n", segIdx.IndexFileKeys)
+
+			totalSize += segIdx.GetSerializeSize()
 		}
 		fmt.Println()
 	}
@@ -89,6 +92,7 @@ func (c *ComponentShow) SegmentIndexCommand(ctx context.Context, p *SegmentIndex
 	for idxSta, cnt := range count {
 		fmt.Printf("[%s]: %d\t", idxSta, cnt)
 	}
+	fmt.Println("Total Serialized size:", totalSize)
 	fmt.Println()
 	return nil
 }
