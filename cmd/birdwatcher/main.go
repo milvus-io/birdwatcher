@@ -12,6 +12,9 @@ import (
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states"
+	log2 "github.com/milvus-io/milvus/pkg/v2/log"
+	"github.com/milvus-io/milvus/pkg/v2/util/logutil"
+	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 )
 
 var (
@@ -22,6 +25,14 @@ var (
 	printVersion   = flag.Bool("version", false, "print version")
 	multiState     = flag.Bool("multiState", false, "use multi state feature, default false")
 )
+
+func init() {
+	logutil.SetupLogger(&log2.Config{
+		Level:  "error",
+		Stdout: true,
+	})
+	paramtable.Get().Init(paramtable.NewBaseTableFromYamlOnly("../configs/milvus.yaml"))
+}
 
 func main() {
 	flag.Parse()
