@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -80,16 +79,12 @@ func (s *InstanceState) comparePChannelsMessage(
 	}
 
 	// Process messages and perform comparison
-	idx := 0
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-sigChan:
 			return nil
-		case <-time.After(200 * time.Millisecond):
-			ShowSpinner(idx)
-			idx++
 		default:
 			// Try to read one message from each pchannel that's not ready
 			allReady := true
@@ -135,9 +130,6 @@ func (s *InstanceState) comparePChannelsMessage(
 
 			// Perform comparison when all pchannels are ready
 			if allReady {
-				// Clear the current line
-				fmt.Print("\033[K")
-
 				// Compare the current messages from all pchannels
 				if !s.compareCurrentMessages(currentMessages, pchannelNames) {
 					fmt.Printf("❌ INCONSISTENCY DETECTED!\n")

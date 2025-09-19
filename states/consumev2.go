@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -37,7 +36,6 @@ func (s *InstanceState) ConsumeV2Command(ctx context.Context, p *ConsumeV2Param)
 	}
 	defer scanner.Scanner.Close()
 
-	idx := 0
 	limit := 0
 	if p.Limit == "-1" {
 		limit = math.MaxInt
@@ -54,9 +52,6 @@ func (s *InstanceState) ConsumeV2Command(ctx context.Context, p *ConsumeV2Param)
 			return ctx.Err()
 		case <-sigChan:
 			return nil
-		case <-time.After(200 * time.Millisecond):
-			ShowSpinner(idx)
-			idx++
 		case msg, ok := <-scanner.MessageChan:
 			if !ok {
 				return errors.New("scanner closed")
@@ -64,8 +59,6 @@ func (s *InstanceState) ConsumeV2Command(ctx context.Context, p *ConsumeV2Param)
 			if msg.MessageType().IsSelfControlled() {
 				continue
 			}
-			// Clear the spinner line
-			fmt.Print("\033[K")
 			fmt.Printf("📥%s\n", FormatMessageInfo(msg))
 			count++
 			if count >= limit {
