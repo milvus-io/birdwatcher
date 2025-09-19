@@ -18,7 +18,7 @@ localStorage:
   # Local path to where vector data are stored during a search or a query to avoid repetitve access to MinIO or S3 service.
   # Caution: Changing this parameter after using Milvus for a period of time will affect your access to old data.
   # It is recommended to change this parameter before starting Milvus for the first time.
-  path: /var/lib/milvus/data/
+  path: /tmp/milvus/data/
 
 
 # Related configuration of woodpecker, used to manage Milvus logs of recent mutation operations, output streaming log, and provide embedded log sequential read and write.
