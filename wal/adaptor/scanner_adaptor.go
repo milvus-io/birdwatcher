@@ -226,8 +226,6 @@ func (s *scannerAdaptorImpl) handleUpstream(msg message.ImmutableMessage) {
 	}
 	// otherwise add message into reorder buffer directly.
 	if err := s.reorderBuffer.Push(msg); err != nil {
-		if errors.Is(err, utility.ErrTimeTickVoilation) {
-		}
 		s.logger.Warn("failed to push message into reorder buffer",
 			log.FieldMessage(msg),
 			zap.Bool("tailing", isTailing),

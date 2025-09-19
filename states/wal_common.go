@@ -40,7 +40,6 @@ func NewWALScanner(ctx context.Context, walName, topic string, mqAddr string) (*
 	walNameEnum := message.WALNamePulsar
 	switch walName {
 	case commonpb.WALName_Pulsar.String():
-		walNameEnum = message.WALNamePulsar
 		if mqIP != "" {
 			paramtable.Get().Save(paramtable.Get().PulsarCfg.Address.Key, mqIP)
 			defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Address.Key)
