@@ -18,6 +18,7 @@ type ConsumeV2Param struct {
 	PChannel            string `name:"pchannel" desc:"the pchannel to consume"`
 	Limit               string `name:"limit" default:"-1" desc:"limit the number of messages to consume"`
 	MQAddr              string `name:"mq_addr" default:"" desc:"mq address for consume mode (single address)"`
+	// TODO: sheep, support consume by messageID
 }
 
 func (s *InstanceState) ConsumeV2Command(ctx context.Context, p *ConsumeV2Param) error {
@@ -63,7 +64,8 @@ func (s *InstanceState) ConsumeV2Command(ctx context.Context, p *ConsumeV2Param)
 			if msg.MessageType().IsSelfControlled() {
 				continue
 			}
-			fmt.Print("\r\033[K")
+			// Clear the spinner line
+			fmt.Print("\033[K")
 			fmt.Printf("📥%s\n", FormatMessageInfo(msg))
 			count++
 			if count >= limit {

@@ -135,7 +135,8 @@ func (s *InstanceState) comparePChannelsMessage(
 
 			// Perform comparison when all pchannels are ready
 			if allReady {
-				fmt.Print("\r\033[K")
+				// Clear the current line
+				fmt.Print("\033[K")
 
 				// Compare the current messages from all pchannels
 				if !s.compareCurrentMessages(currentMessages, pchannelNames) {

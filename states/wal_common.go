@@ -128,5 +128,5 @@ func CleanupSignalHandling(sigChan chan os.Signal) {
 // ShowSpinner displays a spinner while waiting for messages
 func ShowSpinner(idx int) {
 	spinner := []rune{'|', '/', '-', '\\'}
-	fmt.Printf("\rWaiting for message... %c", spinner[idx%len(spinner)])
+	fmt.Printf("\r\033[KWaiting for message... %c", spinner[idx%len(spinner)])
 }
