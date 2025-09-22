@@ -121,6 +121,8 @@ github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+Ce
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
+github.com/bigsheeper/milvus/pkg/v2 v2.0.0-20250922120106-7b7c4885f631 h1:XNgxKs2/IeBJuBS0GezrqA7t3o7PFbcLz9CVNffsdhw=
+github.com/bigsheeper/milvus/pkg/v2 v2.0.0-20250922120106-7b7c4885f631/go.mod h1:3+FAhWGNNWxYrPKA+EQFqcNaYLXtG4h4AV224SaRThU=
 github.com/bits-and-blooms/bitset v1.4.0 h1:+YZ8ePm+He2pU3dZlIZiOeAKfrBkXi1lSrXJ/Xzgbu8=
 github.com/bits-and-blooms/bitset v1.4.0/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
 github.com/bketelsen/crypt v0.0.3-0.20200106085610-5cbc8cc4026c/go.mod h1:MKsuJmJgSg28kpZDP6UIiPt0e0Oz0kqKNGyRaWEPv84=
@@ -601,8 +603,6 @@ github.com/microcosm-cc/bluemonday v1.0.2/go.mod h1:iVP4YcDBq+n/5fb23BhYFvIMq/le
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/milvus-io/milvus-proto/go-api/v2 v2.6.2-0.20250911093549-4cc2bace3f8c h1:B7zmZ30lWHE4wNjT/g2NPe3q0gcUtw7cA5shMtWAmDc=
 github.com/milvus-io/milvus-proto/go-api/v2 v2.6.2-0.20250911093549-4cc2bace3f8c/go.mod h1:/6UT4zZl6awVeXLeE7UGDWZvXj3IWkRsh3mqsn0DiAs=
-github.com/milvus-io/milvus/pkg/v2 v2.6.3-0.20250922024202-3715ddcc81c7 h1:3W/YSDqch2TlxOA2f+ufsUqSJG0umR3nH85Nm5EeJX8=
-github.com/milvus-io/milvus/pkg/v2 v2.6.3-0.20250922024202-3715ddcc81c7/go.mod h1:3+FAhWGNNWxYrPKA+EQFqcNaYLXtG4h4AV224SaRThU=
 github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 h1:AMFGa4R4MiIpspGNG7Z948v4n35fFGB3RR3G/ry4FWs=
 github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8/go.mod h1:mC1jAcsrzbxHt8iiaC+zU4b1ylILSosueou12R++wfY=
 github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 h1:+n/aFZefKZp7spd8DFdX7uMikMLXX4oubIzJF4kv/wI=

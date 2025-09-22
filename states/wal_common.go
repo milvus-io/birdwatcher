@@ -23,7 +23,10 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/util/tsoutil"
 )
 
-const messageCipherHeader = "_ch"
+const (
+	messageCipherHeader = "_ch"
+	defaultPulsarAddr   = "127.0.0.1:6650"
+)
 
 // WALScanner represents a scanner for a single pchannel
 type WALScanner struct {
@@ -44,14 +47,13 @@ func NewWALScanner(ctx context.Context, walName, topic string, mqAddr string) (*
 	walNameEnum := message.WALNamePulsar
 	switch walName {
 	case commonpb.WALName_Pulsar.String():
-		if mqIP != "" {
-			paramtable.Get().Save(paramtable.Get().PulsarCfg.Address.Key, mqIP)
-			defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Address.Key)
+		if mqIP == "" {
+			mqIP, mqPort, _ = net.SplitHostPort(defaultPulsarAddr)
 		}
-		if mqPort != "" {
-			paramtable.Get().Save(paramtable.Get().PulsarCfg.Port.Key, mqPort)
-			defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Port.Key)
-		}
+		paramtable.Get().Save(paramtable.Get().PulsarCfg.Address.Key, mqIP)
+		defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Address.Key)
+		paramtable.Get().Save(paramtable.Get().PulsarCfg.Port.Key, mqPort)
+		defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Port.Key)
 	case commonpb.WALName_Kafka.String():
 		return nil, errors.Newf("kafka is not supported yet")
 	case commonpb.WALName_RocksMQ.String():
@@ -102,7 +104,10 @@ func FormatMessageInfo(msg message.ImmutableMessage) string {
 	}
 
 	if msg.ReplicateHeader() != nil {
-		parts = append(parts, fmt.Sprintf("[ReplicateMessageID=%s]", msg.ReplicateHeader().MessageID.String()))
+		parts = append(parts, fmt.Sprintf("[rVChannel=%s]", msg.ReplicateHeader().VChannel))
+		parts = append(parts, fmt.Sprintf("[rTimeTick=%d]", msg.ReplicateHeader().TimeTick))
+		parts = append(parts, fmt.Sprintf("[rTime=%v]", tsoutil.PhysicalTime(msg.ReplicateHeader().TimeTick)))
+		parts = append(parts, fmt.Sprintf("[rMessageID=%s]", msg.ReplicateHeader().MessageID.String()))
 	}
 
 	parts = append(parts, fmt.Sprintf("[Size=%d]", msg.EstimateSize()))
