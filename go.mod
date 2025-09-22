@@ -18,8 +18,8 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/jedib0t/go-pretty/v6 v6.6.7
 	github.com/manifoldco/promptui v0.9.0
-	github.com/milvus-io/milvus-proto/go-api/v2 v2.6.2-0.20250903080546-f1a74984d9e4
-	github.com/milvus-io/milvus/pkg/v2 v2.6.2-0.20250917033600-1e3ec42e548a
+	github.com/milvus-io/milvus-proto/go-api/v2 v2.6.2-0.20250911093549-4cc2bace3f8c
+	github.com/milvus-io/milvus/pkg/v2 v2.6.3-0.20250922024202-3715ddcc81c7
 	github.com/minio/minio-go/v7 v7.0.73
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
@@ -204,7 +204,7 @@ require (
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
-	github.com/zilliztech/woodpecker v0.1.4 // indirect
+	github.com/zilliztech/woodpecker v0.1.5-0.20250919073140-d96966813dbd // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.5 // indirect
 	go.etcd.io/etcd/client/v2 v2.305.5 // indirect
