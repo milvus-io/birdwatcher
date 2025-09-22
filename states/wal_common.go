@@ -6,12 +6,14 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/cockroachdb/errors"
 
 	"github.com/milvus-io/birdwatcher/wal/adaptor"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/messagespb"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/options"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/types"
@@ -20,6 +22,8 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/v2/util/tsoutil"
 )
+
+const messageCipherHeader = "_ch"
 
 // WALScanner represents a scanner for a single pchannel
 type WALScanner struct {
@@ -89,27 +93,31 @@ func NewWALScanner(ctx context.Context, walName, topic string, mqAddr string) (*
 
 // FormatMessageInfo formats message information for display
 func FormatMessageInfo(msg message.ImmutableMessage) string {
-	if msg.ReplicateHeader() != nil {
-		return fmt.Sprintf(
-			"[Type=%s] [VChannel=%s] [TimeTick=%d] [Time=%v] [MessageID=%s] [ReplicateMessageID=%s] [Size=%d]",
-			msg.MessageType().String(),
-			msg.VChannel(),
-			msg.TimeTick(),
-			tsoutil.PhysicalTime(msg.TimeTick()),
-			msg.MessageID().String(),
-			msg.ReplicateHeader().MessageID.String(),
-			msg.EstimateSize(),
-		)
+	parts := []string{
+		fmt.Sprintf("[Type=%s]", msg.MessageType().String()),
+		fmt.Sprintf("[VChannel=%s]", msg.VChannel()),
+		fmt.Sprintf("[TimeTick=%d]", msg.TimeTick()),
+		fmt.Sprintf("[Time=%v]", tsoutil.PhysicalTime(msg.TimeTick())),
+		fmt.Sprintf("[MessageID=%s]", msg.MessageID().String()),
 	}
-	return fmt.Sprintf(
-		"[Type=%s] [VChannel=%s] [TimeTick=%d] [Time=%v] [MessageID=%s] [Size=%d]",
-		msg.MessageType().String(),
-		msg.VChannel(),
-		msg.TimeTick(),
-		tsoutil.PhysicalTime(msg.TimeTick()),
-		msg.MessageID().String(),
-		msg.EstimateSize(),
-	)
+
+	if msg.ReplicateHeader() != nil {
+		parts = append(parts, fmt.Sprintf("[ReplicateMessageID=%s]", msg.ReplicateHeader().MessageID.String()))
+	}
+
+	parts = append(parts, fmt.Sprintf("[Size=%d]", msg.EstimateSize()))
+
+	if cipherProperty, ok := msg.Properties().Get(messageCipherHeader); ok {
+		header := &messagespb.CipherHeader{}
+		if err := message.DecodeProto(cipherProperty, header); err == nil {
+			cipherHeaderStr := header.String()
+			if cipherHeaderStr != "" && cipherHeaderStr != "[]" {
+				parts = append(parts, fmt.Sprintf("[CipherHeader=%s]", cipherHeaderStr))
+			}
+		}
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // SetupSignalHandling sets up signal handling for graceful shutdown
