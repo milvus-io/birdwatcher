@@ -12,6 +12,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/wal/adaptor"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/v2/proto/messagespb"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/options"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/types"
@@ -20,6 +21,8 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/v2/util/tsoutil"
 )
+
+const messageCipherHeader = "_ch"
 
 // WALScanner represents a scanner for a single pchannel
 type WALScanner struct {
@@ -101,14 +104,22 @@ func FormatMessageInfo(msg message.ImmutableMessage) string {
 			msg.EstimateSize(),
 		)
 	}
+	cipherHeader := ""
+	if cipherProperty, ok := msg.Properties().Get(messageCipherHeader); ok {
+		header := &messagespb.CipherHeader{}
+		if err := message.DecodeProto(cipherProperty, header); err == nil {
+			cipherHeader = header.String()
+		}
+	}
 	return fmt.Sprintf(
-		"[Type=%s] [VChannel=%s] [TimeTick=%d] [Time=%v] [MessageID=%s] [Size=%d]",
+		"[Type=%s] [VChannel=%s] [TimeTick=%d] [Time=%v] [MessageID=%s] [Size=%d] [CipherHeader=%v]",
 		msg.MessageType().String(),
 		msg.VChannel(),
 		msg.TimeTick(),
 		tsoutil.PhysicalTime(msg.TimeTick()),
 		msg.MessageID().String(),
 		msg.EstimateSize(),
+		cipherHeader,
 	)
 }
 
