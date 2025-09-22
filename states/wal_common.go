@@ -100,13 +100,13 @@ func FormatMessageInfo(msg message.ImmutableMessage) string {
 		fmt.Sprintf("[Time=%v]", tsoutil.PhysicalTime(msg.TimeTick())),
 		fmt.Sprintf("[MessageID=%s]", msg.MessageID().String()),
 	}
-	
+
 	if msg.ReplicateHeader() != nil {
 		parts = append(parts, fmt.Sprintf("[ReplicateMessageID=%s]", msg.ReplicateHeader().MessageID.String()))
 	}
-	
+
 	parts = append(parts, fmt.Sprintf("[Size=%d]", msg.EstimateSize()))
-	
+
 	if cipherProperty, ok := msg.Properties().Get(messageCipherHeader); ok {
 		header := &messagespb.CipherHeader{}
 		if err := message.DecodeProto(cipherProperty, header); err == nil {
@@ -116,7 +116,7 @@ func FormatMessageInfo(msg message.ImmutableMessage) string {
 			}
 		}
 	}
-	
+
 	return strings.Join(parts, " ")
 }
 
