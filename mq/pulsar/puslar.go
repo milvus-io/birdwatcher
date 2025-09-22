@@ -56,15 +56,12 @@ func (p *pulsarConsumer) Seek(id ifc.MessageID) error {
 }
 
 func (p *pulsarConsumer) GetLastMessageID() (ifc.MessageID, error) {
-	msgID, err := p.consumer.GetLastMessageID(p.topic, 0)
-	return &pulsarID{messageID: msgID}, err
+	latestMessage := pulsar.LatestMessageID()
+	return &pulsarID{messageID: latestMessage}, nil
 }
 
 func (p *pulsarConsumer) GetLastMessage() (ifc.Message, error) {
-	msgID, err := p.consumer.GetLastMessageID(p.topic, 0)
-	if err != nil {
-		return nil, err
-	}
+	msgID := pulsar.LatestMessageID()
 	reader, err := p.client.CreateReader(
 		pulsar.ReaderOptions{
 			Topic:                   p.topic,
