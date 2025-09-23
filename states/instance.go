@@ -75,9 +75,6 @@ func (s *InstanceState) SetupCommands() {
 		// balance-explain
 		ExplainBalanceCommand(cli, basePath),
 
-		//
-		getVerifySegmentCmd(cli, basePath),
-
 		// probe
 		GetProbeCmd(cli, basePath),
 
