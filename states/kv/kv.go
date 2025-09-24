@@ -260,10 +260,14 @@ func (kv *etcdKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision 
 	currentKey := joinPath(base, prefix)
 	var i int
 	prefixBS := []byte(currentKey)
-	for int64(i) < cnt {
+	for {
 		resp, err = kv.client.Get(context.Background(), currentKey, options...)
 		if err != nil {
 			return err
+		}
+
+		if resp.Count == 0 {
+			break
 		}
 
 		valid := 0
