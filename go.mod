@@ -257,4 +257,7 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace github.com/tecbot/gorocksdb => github.com/milvus-io/gorocksdb v0.0.0-20220624081344-8c5f4212846b // indirect
+replace (
+	github.com/milvus-io/milvus/pkg/v2 => github.com/bigsheeper/milvus/pkg/v2 v2.0.0-20250922120106-7b7c4885f631
+	github.com/tecbot/gorocksdb => github.com/milvus-io/gorocksdb v0.0.0-20220624081344-8c5f4212846b // indirect
+)

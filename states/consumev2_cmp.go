@@ -194,20 +194,33 @@ func (s *InstanceState) displayComparedCurrentMessages(
 	pchannelNames []string,
 	messageCounters map[string]int,
 ) {
-	getCounts := func(pchannelNames []string, messageCounters map[string]int) []int {
+	getMessageInfo := func(pchannelNames []string,
+		currentMessages map[string]message.ImmutableMessage,
+		messageCounters map[string]int,
+	) ([]string, []string, []int) {
+		messageIDs := make([]string, len(pchannelNames))
+		timeTicks := make([]string, len(pchannelNames))
 		counts := make([]int, len(pchannelNames))
 		for i, pchannelName := range pchannelNames {
+			message := currentMessages[pchannelName]
 			counts[i] = messageCounters[pchannelName]
+			messageIDs[i] = message.MessageID().String()
+			timeTicks[i] = fmt.Sprintf("%d", message.TimeTick())
+			if message.ReplicateHeader() != nil {
+				messageIDs[i] = fmt.Sprintf("%s(r:%s)", messageIDs[i], message.ReplicateHeader().MessageID.String())
+				timeTicks[i] = fmt.Sprintf("%s(r:%d)", timeTicks[i], message.ReplicateHeader().TimeTick)
+			}
 		}
-		return counts
+		return messageIDs, timeTicks, counts
 	}
 
 	if len(pchannelNames) > 0 && currentMessages[pchannelNames[0]] != nil {
 		msg := currentMessages[pchannelNames[0]]
-		counts := getCounts(pchannelNames, messageCounters)
-		fmt.Printf("✅ [Type=%s] [MessageID=%s] [PChannels=%v] [Counts=%v]\n",
+		messageIDs, timeTicks, counts := getMessageInfo(pchannelNames, currentMessages, messageCounters)
+		fmt.Printf("✅ [Type=%s] [MessageIDs=%s] [TimeTicks=%v] [PChannels=%v] [Counts=%v]\n",
 			msg.MessageType().String(),
-			msg.MessageID().String(),
+			messageIDs,
+			timeTicks,
 			pchannelNames,
 			counts)
 	}

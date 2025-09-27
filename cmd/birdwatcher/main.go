@@ -31,7 +31,7 @@ func init() {
 		Level:  "error",
 		Stdout: true,
 	})
-	paramtable.Get().Init(paramtable.NewBaseTableFromYamlOnly("../configs/milvus.yaml"))
+	paramtable.Init()
 }
 
 func main() {
