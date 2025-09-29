@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -53,10 +54,16 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
+	// dedup by serverID, standalone sessions shares same serverID
+	groups := lo.GroupBy(sessions, func(session *models.Session) int64 {
+		return session.ServerID
+	})
+
 	type pprofResult struct {
-		session *models.Session
-		data    []byte
-		err     error
+		id       int64
+		sessions []*models.Session
+		data     []byte
+		err      error
 	}
 
 	ch := make(chan pprofResult, len(sessions))
@@ -67,11 +74,16 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 			if result.err != nil {
 				fmt.Println()
 			}
-			session := result.session
+			session := result.sessions[0]
+			serverName := session.ServerName
+			// set to mixture if there are multiple sessions in group
+			if len(result.sessions) > 1 {
+				serverName = "mixture"
+			}
 			tw.WriteHeader(&tar.Header{
 				Typeflag: tar.TypeReg,
 
-				Name: fmt.Sprintf("%s_%d_%s", session.ServerName, session.ServerID, p.Type),
+				Name: fmt.Sprintf("%s_%d_%s", serverName, session.ServerID, p.Type),
 				Size: int64(len(result.data)),
 				Mode: 0o600,
 			})
@@ -81,21 +93,25 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 				signal <- err
 			}
 
-			fmt.Printf("%s pprof from %s-%d fetched, added into archive file\n", p.Type, session.ServerName, session.ServerID)
+			fmt.Printf("%s pprof from %s-%d fetched, added into archive file\n", p.Type, serverName, session.ServerID)
 		}
 		close(signal)
 	}()
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(sessions))
-	for _, session := range sessions {
-		go func(session *models.Session) {
+	wg.Add(len(groups))
+	for id, sessions := range groups {
+		go func(id int64, sessions []*models.Session) {
 			defer wg.Done()
+			// protection logic
+			if len(sessions) == 0 {
+				return
+			}
 
 			result := pprofResult{
-				session: session,
+				sessions: sessions,
 			}
-			addr := session.IP()
+			addr := sessions[0].IP()
 			// TODO add auto detection from configuration API
 			url := fmt.Sprintf("http://%s:%d/debug/pprof/%s?debug=0", addr, p.Port, p.Type)
 
@@ -116,7 +132,7 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 
 			result.data = bs
 			ch <- result
-		}(session)
+		}(id, sessions)
 	}
 	wg.Wait()
 	close(ch)
