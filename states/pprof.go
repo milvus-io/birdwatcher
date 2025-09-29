@@ -93,7 +93,7 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 				signal <- err
 			}
 
-			fmt.Printf("%s pprof from %s-%d fetched, added into archive file\n", p.Type, session.ServerName, session.ServerID)
+			fmt.Printf("%s pprof from %s-%d fetched, added into archive file\n", p.Type, serverName, session.ServerID)
 		}
 		close(signal)
 	}()
