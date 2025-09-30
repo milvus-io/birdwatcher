@@ -31,6 +31,8 @@ func init() {
 		Level:  "error",
 		Stdout: true,
 	})
+	// skip LOCAL_STOARGE_SIZE fallback logic
+	os.Setenv("LOCAL_STORAGE_SIZE", "-1")
 	paramtable.Init()
 }
 
