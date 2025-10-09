@@ -18,6 +18,8 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/options"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/types"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/walimpls"
+	_ "github.com/milvus-io/milvus/pkg/v2/streaming/walimpls/impls/kafka"
+	_ "github.com/milvus-io/milvus/pkg/v2/streaming/walimpls/impls/pulsar"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/walimpls/registry"
 	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/v2/util/tsoutil"
@@ -44,21 +46,34 @@ func NewWALScanner(ctx context.Context, walName, topic string, mqAddr string) (*
 		mqPort = port
 	}
 
-	walNameEnum := message.WALNamePulsar
+	var walNameEnum message.WALName
 	switch walName {
-	case commonpb.WALName_Pulsar.String():
-		if mqIP == "" {
-			mqIP, mqPort, _ = net.SplitHostPort(defaultPulsarAddr)
+	case commonpb.WALName_Pulsar.String(), strings.ToLower(commonpb.WALName_Pulsar.String()):
+		walNameEnum = message.WALNamePulsar
+		if mqIP != "" {
+			paramtable.Get().Save(paramtable.Get().PulsarCfg.Address.Key, mqIP)
+			defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Address.Key)
 		}
-		paramtable.Get().Save(paramtable.Get().PulsarCfg.Address.Key, mqIP)
-		defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Address.Key)
-		paramtable.Get().Save(paramtable.Get().PulsarCfg.Port.Key, mqPort)
-		defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Port.Key)
-	case commonpb.WALName_Kafka.String():
-		return nil, errors.Newf("kafka is not supported yet")
-	case commonpb.WALName_RocksMQ.String():
+		if mqPort != "" {
+			paramtable.Get().Save(paramtable.Get().PulsarCfg.Port.Key, mqPort)
+			defer paramtable.Get().Reset(paramtable.Get().PulsarCfg.Port.Key)
+		}
+	case commonpb.WALName_Kafka.String(), strings.ToLower(commonpb.WALName_Kafka.String()):
+		walNameEnum = message.WALNameKafka
+		// port is not set, use default port 9092
+		if mqAddr != "" && mqPort == "" {
+			addr := fmt.Sprintf("%s:%d", mqAddr, 9092)
+			paramtable.Get().Save(paramtable.Get().KafkaCfg.Address.Key, addr)
+			defer paramtable.Get().Reset(paramtable.Get().KafkaCfg.Address.Key)
+		}
+		// port is set in mqAddr
+		if mqAddr != "" && mqPort != "" {
+			paramtable.Get().Save(paramtable.Get().KafkaCfg.Address.Key, mqAddr)
+			defer paramtable.Get().Reset(paramtable.Get().KafkaCfg.Address.Key)
+		}
+	case commonpb.WALName_RocksMQ.String(), strings.ToLower(commonpb.WALName_RocksMQ.String()):
 		return nil, errors.Newf("rocksmq is not supported yet")
-	case commonpb.WALName_WoodPecker.String():
+	case commonpb.WALName_WoodPecker.String(), strings.ToLower(commonpb.WALName_WoodPecker.String()):
 		return nil, errors.Newf("woodpecker is not supported yet")
 	default:
 		return nil, errors.Newf("invalid wal name: %s", walName)
