@@ -22,7 +22,7 @@ import (
 	"github.com/milvus-io/birdwatcher/states"
 )
 
-//go:embed static/*
+//go:embed static/* static/**/*
 var staticFiles embed.FS
 
 const sessionTimeout = 30 * time.Minute
@@ -129,15 +129,7 @@ func StartWebUI(config *configs.Config, port int) error {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 	})
 
-	// Serve app.js
-	r.GET("/app.js", func(c *gin.Context) {
-		data, err := staticFiles.ReadFile("static/app.js")
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Failed to read app.js")
-			return
-		}
-		c.Data(http.StatusOK, "application/javascript", data)
-	})
+    // app assets are served from /static
 
 	// API routes
 	api := r.Group("/api")
