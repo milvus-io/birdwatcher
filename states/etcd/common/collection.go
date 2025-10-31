@@ -61,6 +61,7 @@ func ListCollections(ctx context.Context, cli kv.MetaKV, basePath string, filter
 
 	results = lo.Map(results, func(collection *models.Collection, _ int) *models.Collection {
 		collection.GetProto().GetSchema().Fields, _ = getCollectionFields(ctx, cli, basePath, collection.GetProto().GetID())
+		collection.GetProto().GetSchema().StructArrayFields, _ = getCollectionStructFields(ctx, cli, basePath, collection.GetProto().GetID())
 		collection.Functions, _ = ListCollectionFunctions(ctx, cli, basePath, collection.GetProto().GetID())
 		return collection
 	})
@@ -103,6 +104,11 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 
 func getCollectionFields(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) ([]*schemapb.FieldSchema, error) {
 	fields, _, err := ListProtoObjects[schemapb.FieldSchema](ctx, cli, path.Join(basePath, fmt.Sprintf("root-coord/fields/%d", collID)))
+	return fields, err
+}
+
+func getCollectionStructFields(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) ([]*schemapb.StructArrayFieldSchema, error) {
+	fields, _, err := ListProtoObjects[schemapb.StructArrayFieldSchema](ctx, cli, path.Join(basePath, fmt.Sprintf("root-coord/struct-array-fields/%d", collID)))
 	return fields, err
 }
 
