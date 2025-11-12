@@ -252,8 +252,8 @@ func (rs *Segments) printDefault() string {
 					}
 				}
 			default: // line format
-				fmt.Fprintf(sb, "SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  StorageVersion:%d, IsSorted: %v \n",
-					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.StorageVersion, info.IsSorted)
+				fmt.Fprintf(sb, "SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  StorageVersion:%d, SchemaVersion:%d, IsSorted: %v \n",
+					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.StorageVersion, info.SchemaVersion, info.IsSorted)
 			}
 		}
 		if rs.format == "statistics" {
