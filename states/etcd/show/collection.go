@@ -24,9 +24,11 @@ type CollectionParam struct {
 	CollectionName      string `name:"name" default:"" desc:"collection name to display"`
 	DatabaseID          int64  `name:"dbid" default:"-1" desc:"database id to filter"`
 	State               string `name:"state" default:"" desc:"collection state to filter"`
+	WithPropertyKey     string `name:"propertyKey" default:"" desc:"collection property to filter"`
+	Format              string `name:"format" default:"" desc:"output format"`
 }
 
-func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) (*Collections, error) {
+func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) (*framework.PresetResultSet, error) {
 	var collections []*models.Collection
 	var total int64
 	var err error
@@ -50,6 +52,19 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 				return false
 			}
 
+			if p.WithPropertyKey != "" {
+				found := false
+				for _, prop := range coll.Properties {
+					if prop.Key == p.WithPropertyKey {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return false
+				}
+			}
+
 			total++
 			return true
 		})
@@ -67,12 +82,12 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 		}
 	}
 
-	return &Collections{
+	return framework.NewPresetResultSet(&Collections{
 		collections: collections,
 		total:       total,
 		channels:    channels,
 		healthy:     healthy,
-	}, nil
+	}, framework.NameFormat(p.Format)), nil
 }
 
 type Collections struct {
@@ -92,6 +107,12 @@ func (rs *Collections) PrintAs(format framework.Format) string {
 		fmt.Fprintln(sb, "================================================================================")
 		fmt.Fprintf(sb, "--- Total collections:  %d\t Matched collections:  %d\n", rs.total, len(rs.collections))
 		fmt.Fprintf(sb, "--- Total channel: %d\t Healthy collections: %d\n", rs.channels, rs.healthy)
+		return sb.String()
+	case framework.FormatLine:
+		sb := &strings.Builder{}
+		for _, coll := range rs.collections {
+			fmt.Fprintf(sb, "collection id %d\t collection name %s\n", coll.GetProto().ID, coll.GetProto().Schema.Name)
+		}
 		return sb.String()
 	}
 	return ""
