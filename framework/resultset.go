@@ -7,6 +7,7 @@ const (
 	FormatPlain
 	FormatJSON
 	FormatTable
+	FormatLine
 )
 
 var name2Format = map[string]Format{
@@ -14,6 +15,7 @@ var name2Format = map[string]Format{
 	"plain":   FormatPlain,
 	"json":    FormatJSON,
 	"table":   FormatTable,
+	"line":    FormatLine,
 }
 
 // ResultSet is the interface for command result set.
