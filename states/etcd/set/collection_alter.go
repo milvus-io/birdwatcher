@@ -4,74 +4,42 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/spf13/cobra"
-
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
-// FieldAlterCommand returns `set collection-alter` command.
-func FieldAlterCommand(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "field-alter",
-		Short: "set alter-field ",
-		Run: func(cmd *cobra.Command, args []string) {
-			collectionID, err := cmd.Flags().GetInt64("collectionID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if collectionID <= 0 {
-				fmt.Printf("wrong collection id(%d)\n", collectionID)
-				return
-			}
+type FieldAttrParam struct {
+	framework.ParamBase `use:"set field-attr" desc:"set field attribute for collection"`
+	CollectionID        int64 `name:"collectionID" default:"0" desc:"collection id to update"`
+	FieldID             int64 `name:"fieldID" default:"0" desc:"field id to update"`
 
-			fieldID, err := cmd.Flags().GetInt64("fieldID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+	// target attributes
+	IsClusteringKey bool `name:"clusterKey" default:"false" desc:"flags indicating whether to enable clusterKey"`
+	Nullable        bool `name:"nullable" default:"false" desc:"flags indicating whether to enable nullable"`
 
-			if fieldID <= 0 {
-				fmt.Printf("wrong field id(%d)\n", fieldID)
-				return
-			}
+	Run bool `name:"run" default:"false"`
+}
 
-			run, err := cmd.Flags().GetBool("run")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			dryRun := !run
-
-			clusterKey, err := cmd.Flags().GetBool("clusterKey")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			if fieldID <= 0 {
-				fmt.Printf("wrong fieldID(%d)\n", fieldID)
-				return
-			}
-
-			alterClusterKey := func(field *schemapb.FieldSchema) {
-				if field.FieldID != fieldID {
-					return
-				}
-				field.IsClusteringKey = clusterKey
-			}
-			err = common.UpdateField(context.Background(), cli, basePath, collectionID, fieldID, alterClusterKey, dryRun)
-			if err != nil {
-				fmt.Printf("failed to alter field (%s)\n", err.Error())
-				return
-			}
-		},
+func (c *ComponentSet) FieldAttrCommand(ctx context.Context, p *FieldAttrParam) error {
+	if p.CollectionID <= 0 {
+		return fmt.Errorf("invalid collection id(%d)", p.CollectionID)
 	}
-	cmd.Flags().Bool("run", false, "flags indicating whether to execute alter command")
-	cmd.Flags().Int64("collectionID", 0, "collection id to alter")
-	cmd.Flags().Int64("fieldID", 0, "field id to alter")
-	cmd.Flags().Bool("clusterKey", false, "flags indicating whether to enable clusterKey")
-	return cmd
+	if p.FieldID < 0 {
+		return fmt.Errorf("invalid field id(%d)", p.FieldID)
+	}
+
+	alterField := func(field *schemapb.FieldSchema) {
+		if field.FieldID != p.FieldID {
+			return
+		}
+		field.IsClusteringKey = p.IsClusteringKey
+		field.Nullable = p.Nullable
+	}
+	err := common.UpdateField(ctx, c.client, c.basePath, p.CollectionID, p.FieldID, alterField, !p.Run)
+	if err != nil {
+		return fmt.Errorf("failed to alter field (%s)", err.Error())
+	}
+
+	return nil
 }

@@ -3,7 +3,6 @@ package etcd
 import (
 	"context"
 	"fmt"
-	"path"
 
 	"github.com/spf13/cobra"
 
@@ -51,7 +50,6 @@ func SetCommand(cli kv.MetaKV, instanceName string, metaPath string) *cobra.Comm
 	setCmd.AddCommand(
 		// by-dev/config not by-dev/meta/config
 		set.EtcdConfigCommand(cli, instanceName),
-		set.FieldAlterCommand(cli, path.Join(instanceName, metaPath)),
 	)
 
 	return setCmd
