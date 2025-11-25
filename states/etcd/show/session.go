@@ -17,7 +17,7 @@ import (
 
 type SessionParam struct {
 	framework.ParamBase `use:"show session" desc:"list online milvus components" alias:"sessions"`
-	Format              string `name:"format" default:"line" desc:"output format"`
+	Format              string `name:"format" default:"default" desc:"output format"`
 }
 
 // SessionCommand returns show session command.
@@ -34,8 +34,6 @@ func (c *ComponentShow) SessionCommand(ctx context.Context, p *SessionParam) (*f
 type Sessions struct {
 	framework.ListResultSet[*models.Session]
 }
-
-type SessionGroup struct{}
 
 func (rs *Sessions) PrintAs(format framework.Format) string {
 	switch format {
