@@ -231,51 +231,32 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 		}
 	}
 
-	// Key-Value properties
-	if footer != nil && footer.KeyValueMetadata != nil {
-		for _, item := range footer.KeyValueMetadata {
-			if item.GetKey() == "key_layout_type_map" {
-				// attempt to parse JSON for stats and optional prefix filtering
-				var mm map[string]string
-				if err := json.Unmarshal([]byte(item.GetValue()), &mm); err != nil {
-					fmt.Printf("        kv: %s (invalid json): %v\n", item.GetKey(), err)
-					continue
-				}
+	kvMetaData := pqReader.MetaData().KeyValueMetadata()
+	v := kvMetaData.FindValue("key_layout_type_map")
+	if v != nil {
+		var mm map[string]string
+		if err := json.Unmarshal([]byte(*v), &mm); err != nil {
+			fmt.Printf("        kv: key_layout_type_map (invalid json): %v\n", err)
+			return
+		}
 
-				// print details first
-				sharedCount, nonCount := 0, 0
-				if p.KeyPrefix == "" {
-					// keep original raw output when no prefix filter
-					fmt.Printf("        kv: %s=%s\n", item.GetKey(), item.GetValue())
-				} else {
-					// print filtered layout entries
-					for k, v := range mm {
-						if !strings.HasPrefix(k, p.KeyPrefix) {
-							continue
-						}
-						fmt.Printf("        layout: %s=%s\n", k, v)
-					}
-				}
-
-				// calculate and print layout summary at the end
-				for k, v := range mm {
-					if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
-						continue
-					}
-					if v == "SHARED" {
-						sharedCount++
-					} else {
-						nonCount++
-					}
-				}
-				totalCount := sharedCount + nonCount
-				fmt.Printf("        layout summary: shared=%d items, non-shared=%d items, total=%d items\n",
-					sharedCount, nonCount, totalCount)
+		sharedCount := 0
+		nonCount := 0
+		// calculate and print layout summary at the end
+		for k, val := range mm {
+			if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
 				continue
 			}
-			// default: print other kv
-			fmt.Printf("        kv: %s=%s\n", item.GetKey(), item.GetValue())
+			fmt.Printf("        layout: %s=%s\n", k, val)
+
+			if val == "SHARED" {
+				sharedCount++
+			} else {
+				nonCount++
+			}
 		}
->>>>>>> a96a49a (add prefix search for show json-stats)
+		totalCount := sharedCount + nonCount
+		fmt.Printf("        layout summary: shared=%d items, non-shared=%d items, total=%d items\n",
+			sharedCount, nonCount, totalCount)
 	}
 }
