@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -27,6 +28,7 @@ type JSONStatsParam struct {
 	State               string `name:"state" default:"Flushed" desc:"target segment state"`
 	Detail              bool   `name:"detail" default:"false" desc:"print details including files & memory size"`
 	ShowSchema          bool   `name:"show-schema" default:"false" desc:"print schema"`
+	KeyPrefix           string `name:"prefix" default:"" desc:"filter json keys by prefix when parsing layout map"`
 }
 
 // JSONStatsCommand implements `show json-stats` using etcd meta (same source as show segment).
@@ -229,10 +231,32 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 		}
 	}
 
-	// Key-Value properties
 	kvMetaData := pqReader.MetaData().KeyValueMetadata()
 	v := kvMetaData.FindValue("key_layout_type_map")
 	if v != nil {
-		fmt.Printf("        kv: %s=%s\n", "key_layout_type_map", *v)
+		var mm map[string]string
+		if err := json.Unmarshal([]byte(*v), &mm); err != nil {
+			fmt.Printf("        kv: key_layout_type_map (invalid json): %v\n", err)
+			return
+		}
+
+		sharedCount := 0
+		nonCount := 0
+		// calculate and print layout summary at the end
+		for k, val := range mm {
+			if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
+				continue
+			}
+			fmt.Printf("        layout: %s=%s\n", k, val)
+
+			if val == "SHARED" {
+				sharedCount++
+			} else {
+				nonCount++
+			}
+		}
+		totalCount := sharedCount + nonCount
+		fmt.Printf("        layout summary: shared=%d items, non-shared=%d items, total=%d items\n",
+			sharedCount, nonCount, totalCount)
 	}
 }
