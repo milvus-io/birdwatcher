@@ -25,9 +25,9 @@ func (s *InstanceState) KillCommand(ctx context.Context, p *EtcdKillParam) error
 	var key string
 	switch milvusComponent(strings.ToUpper(p.Component)) {
 	case compQueryCoord, compDataCoord, compIndexCoord, compRootCoord, compMixCoord:
-		key = path.Join(s.basePath, "session", strings.ToLower(string(p.Component)))
+		key = path.Join(s.basePath, "session", strings.ToLower(p.Component))
 	case compQueryNode, compDataNode, compProxy:
-		key = path.Join(s.basePath, "session", fmt.Sprintf("%s-%d", strings.ToLower(string(p.Component)), p.NodeID))
+		key = path.Join(s.basePath, "session", fmt.Sprintf("%s-%d", strings.ToLower(p.Component), p.NodeID))
 	case compAll:
 		fallthrough
 	default:
