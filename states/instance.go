@@ -63,8 +63,6 @@ func (s *InstanceState) SetupCommands() {
 		// restore [subcommand] options...
 		// etcd.RestoreCommand(cli, basePath),
 
-		// kill --component [component] --id [id]
-		getEtcdKillCmd(cli, basePath),
 		// visit [component] [id]
 		getVisitCmd(s.CmdState, cli, basePath),
 		// show-log-level
