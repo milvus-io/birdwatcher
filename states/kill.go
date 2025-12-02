@@ -9,40 +9,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
-
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
-// getEtcdKillCmd returns command for kill component session
-// usage: kill component
-func getEtcdKillCmd(cli kv.MetaKV, basePath string) *cobra.Command {
-	component := compAll
-	cmd := &cobra.Command{
-		Use:   "kill",
-		Short: "Kill component session from etcd",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := cmd.Flags().GetInt64("id")
-			if err != nil {
-				return err
-			}
-			switch component {
-			case compQueryCoord, compDataCoord, compIndexCoord, compRootCoord:
-				return etcdKillComponent(cli, path.Join(basePath, "session", strings.ToLower(string(component))), id)
-			case compQueryNode:
-				return etcdKillComponent(cli, path.Join(basePath, "session", fmt.Sprintf("%s-%d", strings.ToLower(string(component)), id)), id)
-			case compAll:
-				fallthrough
-			default:
-				return errors.New("need to specify component type for killing")
-			}
-		},
-	}
+type EtcdKillParam struct {
+	framework.ParamBase `use:"kill" desc:"Kill component session from etcd"`
+	Component           string `name:"component" default:"" desc:"component type to kill"`
+	NodeID              int64  `name:"id" default:"0" desc:"Server ID to kill"`
+}
 
-	cmd.Flags().Var(&component, "component", "component type to kill")
-	cmd.Flags().Int64("id", 0, "Server ID to kill")
-	return cmd
+func (s *InstanceState) KillCommand(ctx context.Context, p *EtcdKillParam) error {
+	switch milvusComponent(strings.ToUpper(p.Component)) {
+	case compQueryCoord, compDataCoord, compIndexCoord, compRootCoord, compMixCoord:
+		return etcdKillComponent(s.client, path.Join(s.basePath, "session", strings.ToLower(string(p.Component))), p.NodeID)
+	case compQueryNode, compDataNode:
+		return etcdKillComponent(s.client, path.Join(s.basePath, "session", fmt.Sprintf("%s-%d", strings.ToLower(string(p.Component)), p.NodeID)), p.NodeID)
+	case compAll:
+		fallthrough
+	default:
+		return errors.New("need to specify component type for killing")
+	}
 }
 
 func etcdKillComponent(cli kv.MetaKV, key string, id int64) error {

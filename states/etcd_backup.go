@@ -39,6 +39,9 @@ const (
 	compIndexCoord milvusComponent = "INDEXCOORD"
 
 	compQueryNode milvusComponent = "QUERYNODE"
+	compDataNode  milvusComponent = "DATANODE"
+
+	compMixCoord milvusComponent = "MIXCOORD"
 )
 
 // String implements pflag.Value.
@@ -50,10 +53,10 @@ func (c *milvusComponent) String() string {
 func (c *milvusComponent) Set(v string) error {
 	switch strings.ToUpper(v) {
 	case string(compAll), string(compQueryCoord), string(compRootCoord), string(compDataCoord), string(compIndexCoord),
-		string(compQueryNode):
+		string(compQueryNode), string(compMixCoord):
 		*c = milvusComponent(strings.ToUpper(v))
 	default:
-		return errors.New(`must be one of "ALL", "QueryCoord", "DataCoord", "IndexCoord" or "RootCoord"`)
+		return errors.New(`must be one of "ALL", "MixCoord", "QueryCoord", "DataCoord", "IndexCoord" or "RootCoord"`)
 	}
 	return nil
 }
