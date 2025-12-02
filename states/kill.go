@@ -18,19 +18,28 @@ type EtcdKillParam struct {
 	framework.ParamBase `use:"kill" desc:"Kill component session from etcd"`
 	Component           string `name:"component" default:"" desc:"component type to kill"`
 	NodeID              int64  `name:"id" default:"0" desc:"Server ID to kill"`
+	Run                 bool   `name:"run" default:"false"`
 }
 
 func (s *InstanceState) KillCommand(ctx context.Context, p *EtcdKillParam) error {
+	var key string
 	switch milvusComponent(strings.ToUpper(p.Component)) {
 	case compQueryCoord, compDataCoord, compIndexCoord, compRootCoord, compMixCoord:
-		return etcdKillComponent(s.client, path.Join(s.basePath, "session", strings.ToLower(string(p.Component))), p.NodeID)
-	case compQueryNode, compDataNode:
-		return etcdKillComponent(s.client, path.Join(s.basePath, "session", fmt.Sprintf("%s-%d", strings.ToLower(string(p.Component)), p.NodeID)), p.NodeID)
+		key = path.Join(s.basePath, "session", strings.ToLower(string(p.Component)))
+	case compQueryNode, compDataNode, compProxy:
+		key = path.Join(s.basePath, "session", fmt.Sprintf("%s-%d", strings.ToLower(string(p.Component)), p.NodeID))
 	case compAll:
 		fallthrough
 	default:
 		return errors.New("need to specify component type for killing")
 	}
+
+	if p.Run {
+		return etcdKillComponent(s.client, key, p.NodeID)
+	}
+	fmt.Println("Plan to remove session key: ", key)
+
+	return nil
 }
 
 func etcdKillComponent(cli kv.MetaKV, key string, id int64) error {

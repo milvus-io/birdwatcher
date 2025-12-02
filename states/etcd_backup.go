@@ -40,6 +40,7 @@ const (
 
 	compQueryNode milvusComponent = "QUERYNODE"
 	compDataNode  milvusComponent = "DATANODE"
+	compProxy     milvusComponent = "PROXY"
 
 	compMixCoord milvusComponent = "MIXCOORD"
 )
