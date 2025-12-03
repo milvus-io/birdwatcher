@@ -13,6 +13,7 @@ type Session struct {
 	Address    string `json:"Address,omitempty"`
 	Exclusive  bool   `json:"Exclusive,omitempty"`
 	Version    string `json:"Version,omitempty"`
+	HostName   string `json:"HostName,omitempty"`
 
 	key string
 }
