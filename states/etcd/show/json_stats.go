@@ -29,6 +29,7 @@ type JSONStatsParam struct {
 	Detail              bool   `name:"detail" default:"false" desc:"print details including files & memory size"`
 	ShowSchema          bool   `name:"show-schema" default:"false" desc:"print schema"`
 	KeyPrefix           string `name:"prefix" default:"" desc:"filter json keys by prefix when parsing layout map"`
+	PrintShared         bool   `name:"print-shared" default:"true" desc:"print shared keys data layout"`
 }
 
 // JSONStatsCommand implements `show json-stats` using etcd meta (same source as show segment).
@@ -232,6 +233,33 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 	}
 
 	kvMetaData := pqReader.MetaData().KeyValueMetadata()
+
+	// Print all metadata keys and values (except key_layout_type_map which is handled separately)
+	if kvMetaData != nil && kvMetaData.Len() > 0 {
+		fmt.Printf("      [parquet] metadata entries: %d\n", kvMetaData.Len())
+		for i := 0; i < kvMetaData.Len(); i++ {
+			key := kvMetaData.Keys()[i]
+			val := kvMetaData.Values()[i]
+			// Skip key_layout_type_map as it's processed separately below
+			if key == "key_layout_type_map" {
+				continue
+			}
+			// Special handling: row_group_metadata -> count groups by ';'
+			if key == "row_group_metadata" {
+				parts := strings.Split(val, ";")
+				cnt := 0
+				for _, p := range parts {
+					if strings.TrimSpace(p) != "" {
+						cnt++
+					}
+				}
+				fmt.Printf("        row_group_metadata groups: %d\n", cnt)
+				continue
+			}
+			fmt.Printf("        [%d] %s: %s\n", i, key, val)
+		}
+	}
+
 	v := kvMetaData.FindValue("key_layout_type_map")
 	if v != nil {
 		var mm map[string]string
@@ -240,23 +268,48 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 			return
 		}
 
+		var nonSharedKeys []string
 		sharedCount := 0
-		nonCount := 0
-		// calculate and print layout summary at the end
+		// separate shared and non-shared keys
 		for k, val := range mm {
 			if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
 				continue
 			}
-			fmt.Printf("        layout: %s=%s\n", k, val)
-
 			if val == "SHARED" {
 				sharedCount++
 			} else {
-				nonCount++
+				nonSharedKeys = append(nonSharedKeys, k)
 			}
 		}
-		totalCount := sharedCount + nonCount
+
+		// print shared keys if enabled
+		if p.PrintShared {
+			fmt.Printf("        shared keys: ")
+			first := true
+			for k, val := range mm {
+				if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
+					continue
+				}
+				if val == "SHARED" {
+					if !first {
+						fmt.Printf(", ")
+					}
+					fmt.Printf("%s", k)
+					first = false
+				}
+			}
+			if sharedCount > 0 {
+				fmt.Println()
+			} else {
+				fmt.Println("(none)")
+			}
+		}
+		// print non-shared keys in one line
+		if len(nonSharedKeys) > 0 {
+			fmt.Printf("        non-shared keys: %s\n", strings.Join(nonSharedKeys, ", "))
+		}
+		totalCount := sharedCount + len(nonSharedKeys)
 		fmt.Printf("        layout summary: shared=%d items, non-shared=%d items, total=%d items\n",
-			sharedCount, nonCount, totalCount)
+			sharedCount, len(nonSharedKeys), totalCount)
 	}
 }
