@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -105,131 +103,98 @@ func GetQueryCoordState(client querypb.QueryCoordClient, conn *grpc.ClientConn, 
 	return state
 }
 
-func checkerActivationCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "checker",
-		Short: "checker cmd",
-	}
-	cmd.AddCommand(
-		checkerActivateCmd(clientv2, id),
-		checkerDeactivateCmd(clientv2, id),
-		checkerListCmd(clientv2, id),
-	)
-	return cmd
+// ===== Checker Commands (Framework style) =====
+
+type CheckerActivateParam struct {
+	framework.ParamBase `use:"checker activate" desc:"Activate a checker by ID"`
+	CheckerID           int64 `name:"checkerID" desc:"Checker ID to activate"`
 }
 
-func checkerActivateCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "activate",
-		Short: "activate checkerID",
-		Run: func(cmd *cobra.Command, args []string) {
-			checkerID, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				fmt.Println("checkerID must be a number")
-				return
-			}
-			req := &querypb.ActivateCheckerRequest{
-				Base: &commonpb.MsgBase{
-					TargetID: id,
-					SourceID: -1,
-				},
-				CheckerID: int32(checkerID),
-			}
-
-			status, err := clientv2.ActivateChecker(context.Background(), req)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if status.ErrorCode != commonpb.ErrorCode_Success {
-				fmt.Print(status.Reason)
-				return
-			}
-			fmt.Println("success")
+func (s *queryCoordState) CheckerActivateCommand(ctx context.Context, p *CheckerActivateParam) error {
+	req := &querypb.ActivateCheckerRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
 		},
+		CheckerID: int32(p.CheckerID),
 	}
 
-	return cmd
+	status, err := s.client.ActivateChecker(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to activate checker: %w", err)
+	}
+	if status.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("activate checker failed: %s", status.Reason)
+	}
+
+	fmt.Printf("Checker %d activated successfully\n", p.CheckerID)
+	return nil
 }
 
-func checkerDeactivateCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "deactivate",
-		Short: "deactivate checkerID",
-		Run: func(cmd *cobra.Command, args []string) {
-			checkerID, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				fmt.Println("checkerID must be a number")
-				return
-			}
-			req := &querypb.DeactivateCheckerRequest{
-				Base: &commonpb.MsgBase{
-					TargetID: id,
-					SourceID: -1,
-				},
-				CheckerID: int32(checkerID),
-			}
-
-			status, err := clientv2.DeactivateChecker(context.Background(), req)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if status.ErrorCode != commonpb.ErrorCode_Success {
-				fmt.Print(status.Reason)
-				return
-			}
-			fmt.Println("success")
-		},
-	}
-
-	return cmd
+type CheckerDeactivateParam struct {
+	framework.ParamBase `use:"checker deactivate" desc:"Deactivate a checker by ID"`
+	CheckerID           int64 `name:"checkerID" desc:"Checker ID to deactivate"`
 }
 
-func checkerListCmd(clientv2 querypb.QueryCoordClient, id int64) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "checker list [checkerIDs]",
-		Run: func(cmd *cobra.Command, args []string) {
-			checkerIDs := make([]int32, 0)
-			for _, arg := range args {
-				checkerID, err := strconv.ParseInt(arg, 10, 32)
-				if err != nil {
-					fmt.Println("checkerID must be number")
-				}
-				checkerIDs = append(checkerIDs, int32(checkerID))
-			}
-
-			req := &querypb.ListCheckersRequest{
-				Base: &commonpb.MsgBase{
-					TargetID: id,
-					SourceID: -1,
-				},
-				CheckerIDs: checkerIDs,
-			}
-
-			resp, err := clientv2.ListCheckers(context.Background(), req)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
-				fmt.Println(resp.Status.Reason)
-				return
-			}
-
-			sort.Slice(resp.CheckerInfos, func(i, j int) bool {
-				return resp.CheckerInfos[i].GetId() < resp.CheckerInfos[j].GetId()
-			})
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
-			fmt.Fprintln(w, "id\tdesc\tfound\tactivated")
-			for _, info := range resp.CheckerInfos {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", info.GetId(), info.GetDesc(), info.GetFound(), info.GetActivated())
-			}
-			w.Flush()
+func (s *queryCoordState) CheckerDeactivateCommand(ctx context.Context, p *CheckerDeactivateParam) error {
+	req := &querypb.DeactivateCheckerRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
 		},
+		CheckerID: int32(p.CheckerID),
 	}
-	return cmd
+
+	status, err := s.client.DeactivateChecker(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate checker: %w", err)
+	}
+	if status.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("deactivate checker failed: %s", status.Reason)
+	}
+
+	fmt.Printf("Checker %d deactivated successfully\n", p.CheckerID)
+	return nil
+}
+
+type CheckerListParam struct {
+	framework.ParamBase `use:"checker list" desc:"List checkers status"`
+	CheckerIDs          []int64 `name:"checkerID" desc:"Checker IDs to query (empty for all)"`
+}
+
+func (s *queryCoordState) CheckerListCommand(ctx context.Context, p *CheckerListParam) error {
+	checkerIDs := make([]int32, 0, len(p.CheckerIDs))
+	for _, id := range p.CheckerIDs {
+		checkerIDs = append(checkerIDs, int32(id))
+	}
+
+	req := &querypb.ListCheckersRequest{
+		Base: &commonpb.MsgBase{
+			TargetID: s.session.ServerID,
+			SourceID: -1,
+		},
+		CheckerIDs: checkerIDs,
+	}
+
+	resp, err := s.client.ListCheckers(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to list checkers: %w", err)
+	}
+	if resp.Status.ErrorCode != commonpb.ErrorCode_Success {
+		return fmt.Errorf("list checkers failed: %s", resp.Status.Reason)
+	}
+
+	sort.Slice(resp.CheckerInfos, func(i, j int) bool {
+		return resp.CheckerInfos[i].GetId() < resp.CheckerInfos[j].GetId()
+	})
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
+	fmt.Fprintln(w, "id\tdesc\tfound\tactivated")
+	for _, info := range resp.CheckerInfos {
+		fmt.Fprintf(w, "%v\t%v\t%v\t%v\n", info.GetId(), info.GetDesc(), info.GetFound(), info.GetActivated())
+	}
+	w.Flush()
+	return nil
 }
 
 // ===== New Ops Commands =====
