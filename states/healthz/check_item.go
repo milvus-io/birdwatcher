@@ -25,6 +25,7 @@ func init() {
 	allCheckItems["QUERYVIEW_LAG"] = newQueryViewLag()
 	allCheckItems["DYNAMIC_ATTR_MISMATCH"] = newDynamicAttrMismatch()
 	allCheckItems["LOADED_INDEX_MISSING"] = newLoadedIndexMissing()
+	allCheckItems["MIXED_BINLOGS"] = newMixedBinlogs()
 
 	defaultList = []string{
 		"ISS43407",
