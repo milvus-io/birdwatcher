@@ -54,47 +54,5 @@ func (i *MixedBinlogs) Check(ctx context.Context, client metakv.MetaKV, basePath
 		}
 	}
 
-	// for _, sesscli := range sessionClients {
-	// 	clientv2 := sesscli.Client
-	// 	resp, err := clientv2.GetDataDistribution(ctx, &querypb.GetDataDistributionRequest{
-	// 		Base: &commonpb.MsgBase{
-	// 			SourceID: -1,
-	// 			TargetID: sesscli.Session.ServerID,
-	// 		},
-	// 	})
-	// 	if err != nil {
-	// 		fmt.Println(err.Error())
-	// 		continue
-	// 	}
-
-	// 	for _, segment := range resp.GetSegments() {
-	// 		if _, ok := validIDs[segment.GetID()]; !ok {
-	// 			results = append(results, &HealthzCheckReport{
-	// 				Item: i.Name(),
-	// 				Msg:  fmt.Sprintf("Sealed segment %d still loaded while meta gc-ed", segment.GetID()),
-	// 				Extra: map[string]any{
-	// 					"segment_id":    segment.GetID(),
-	// 					"segment_state": "sealed",
-	// 				},
-	// 			})
-	// 		}
-	// 	}
-
-	// 	for _, lv := range resp.GetLeaderViews() {
-	// 		growings := lo.Uniq(lo.Union(lv.GetGrowingSegmentIDs(), lo.Keys(lv.GetGrowingSegments())))
-	// 		for _, segmentID := range growings {
-	// 			if _, ok := validIDs[segmentID]; !ok {
-	// 				results = append(results, &HealthzCheckReport{
-	// 					Item: i.Name(),
-	// 					Msg:  fmt.Sprintf("Sealed segment %d still loaded while meta gc-ed", segmentID),
-	// 					Extra: map[string]any{
-	// 						"segment_id":    segmentID,
-	// 						"segment_state": "growing",
-	// 					},
-	// 				})
-	// 			}
-	// 		}
-	// 	}
-	// }
 	return results, nil
 }

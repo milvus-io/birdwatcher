@@ -69,12 +69,12 @@ func (c *ComponentRepair) MixedBinlogsCommand(ctx context.Context, p *MixedBinlo
 			var targetBinlogs []*models.FieldBinlog
 			var verdict string
 			switch {
-			case fieldNumber == v1.Len():
-				targetBinlogs = lo.Values(v2binlogs)
-				verdict = "v1 haves all fields, remove v2 binlogs"
 			case fieldNumber == v2.Len():
 				targetBinlogs = lo.Values(v1binlogs)
 				verdict = "v2 haves all fields, remove v1 binlogs"
+			case fieldNumber == v1.Len():
+				targetBinlogs = lo.Values(v2binlogs)
+				verdict = "v1 haves all fields, remove v2 binlogs"
 			default:
 				return errors.New("neither v1 or v2 binlog has all fields")
 			}
@@ -109,11 +109,21 @@ func (c *ComponentRepair) MixedBinlogsCommand(ctx context.Context, p *MixedBinlo
 		for _, binlog := range result.targetBinlogs {
 			key := fmt.Sprintf("%s/datacoord-meta/binlog/%d/%d/%d/%d", c.basePath, segment.CollectionID, segment.PartitionID, segment.ID, binlog.FieldID)
 			fmt.Println("plan to remove key: ", key)
-			err := c.client.Remove(ctx, key)
+			// load value to backup
+			value, err := c.client.Load(ctx, key)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Remove key %s done\n", key)
+			backupKey := fmt.Sprintf("repair/%s", key)
+			err = c.client.Save(ctx, backupKey, value)
+			if err != nil {
+				return err
+			}
+			err = c.client.Remove(ctx, key)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Remove key %s done, value stored in: %s\n", key, backupKey)
 		}
 	}
 	return nil
