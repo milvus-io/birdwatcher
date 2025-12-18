@@ -34,7 +34,7 @@ func (i *MixedBinlogs) Check(ctx context.Context, client metakv.MetaKV, basePath
 	for _, segment := range segments {
 		v1 := typeutil.NewSet[int64]()
 		v2 := typeutil.NewSet[int64]()
-		for _, binlog := range segment.Binlogs {
+		for _, binlog := range segment.GetBinlogs() {
 			if len(binlog.ChildFields) > 0 {
 				v2.Insert(binlog.ChildFields...)
 			} else {
