@@ -195,7 +195,7 @@ func UpdateCollection(ctx context.Context, cli kv.MetaKV, key string, fn func(co
 	return nil
 }
 
-func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, fieldID int64, fn func(field *schemapb.FieldSchema), dryRun bool) error {
+func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, fieldID int64, fn func(field *schemapb.FieldSchema) error, dryRun bool) error {
 	prefix := path.Join(basePath, SnapshotPrefix, FieldMetaPrefix, strconv.FormatInt(collectionID, 10))
 	keys, values, err := cli.LoadWithPrefix(ctx, prefix)
 	if err != nil {
@@ -242,7 +242,10 @@ func UpdateField(ctx context.Context, cli kv.MetaKV, basePath string, collection
 		return err
 	}
 	fmt.Println("before alter", info)
-	fn(info)
+	err = fn(info)
+	if err != nil {
+		return err
+	}
 	bs, err := proto.Marshal(info)
 	if err != nil {
 		return err
