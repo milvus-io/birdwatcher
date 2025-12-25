@@ -29,6 +29,17 @@ type HardwareMetrics struct {
 	// how to metric disk & disk usage in distributed storage
 	Disk      uint64 `json:"disk"`
 	DiskUsage uint64 `json:"disk_usage"`
+
+	// jemalloc memory statistics
+	JemallocAllocated     uint64  `json:"jemalloc_allocated"`
+	JemallocActive        uint64  `json:"jemalloc_active"`
+	JemallocMetadata      uint64  `json:"jemalloc_metadata"`
+	JemallocResident      uint64  `json:"jemalloc_resident"`
+	JemallocMapped        uint64  `json:"jemalloc_mapped"`
+	JemallocRetained      uint64  `json:"jemalloc_retained"`
+	JemallocFragmentation float64 `json:"jemalloc_fragmentation"`
+	JemallocOverhead      float64 `json:"jemalloc_overhead"`
+	JemallocSuccess       bool    `json:"jemalloc_success"`
 }
 
 const (

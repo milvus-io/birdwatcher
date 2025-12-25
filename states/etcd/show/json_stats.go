@@ -29,6 +29,7 @@ type JSONStatsParam struct {
 	Detail              bool   `name:"detail" default:"false" desc:"print details including files & memory size"`
 	ShowSchema          bool   `name:"show-schema" default:"false" desc:"print schema"`
 	KeyPrefix           string `name:"prefix" default:"" desc:"filter json keys by prefix when parsing layout map"`
+	PrintShared         bool   `name:"print-shared" default:"true" desc:"print shared keys data layout"`
 }
 
 // JSONStatsCommand implements `show json-stats` using etcd meta (same source as show segment).
@@ -122,11 +123,23 @@ func (c *ComponentShow) JSONStatsCommand(ctx context.Context, p *JSONStatsParam)
 				}
 				if ossReady {
 					objKey := strings.ReplaceAll(shreddingPath, "ROOT_PATH", rootPath)
-					// fmt.Printf("      [s3] objKey: %s\n", objKey)
-					// parquet footer summary
-					readParquetFooterSummary(ctx, mclient, bucketName, objKey)
-					// full metadata
-					readParquetMeta(ctx, mclient, bucketName, objKey, p)
+					// Try reading meta.json first (new format)
+					// meta.json path: ROOT_PATH/json_stats/%d/%d/%d/%d/%d/%d/%d/meta.json
+					metaPath := fmt.Sprintf("ROOT_PATH/json_stats/%d/%d/%d/%d/%d/%d/%d/meta.json",
+						keyStats.GetJsonKeyStatsDataFormat(),
+						keyStats.GetBuildID(),
+						keyStats.GetVersion(),
+						seg.CollectionID,
+						seg.PartitionID,
+						seg.ID,
+						fieldID)
+					metaKey := strings.ReplaceAll(metaPath, "ROOT_PATH", rootPath)
+					if !readJSONMeta(ctx, mclient, bucketName, metaKey, p) {
+						// parquet footer summary
+						readParquetFooterSummary(ctx, mclient, bucketName, objKey)
+						// Fall back to reading from parquet metadata (old format)
+						readParquetMeta(ctx, mclient, bucketName, objKey, p)
+					}
 				}
 			} else {
 				fmt.Printf("  field[%d]: version=%d files=%d mem=%d build=%d format=%d\n",
@@ -198,6 +211,90 @@ func readParquetFooterSummary(ctx context.Context, client *minio.Client, bucket,
 	fmt.Printf("      [parquet] footer: meta_len=%d magic=%s, key=%s\n", metaLen, magic, key)
 }
 
+// jsonStatsMeta represents the structure of meta.json file
+type jsonStatsMeta struct {
+	Version             string            `json:"version"`
+	NumRows             int64             `json:"num_rows"`
+	NumShreddingColumns int64             `json:"num_shredding_columns"`
+	LayoutTypeMap       map[string]string `json:"layout_type_map"`
+}
+
+// readJSONMeta reads the meta.json file from S3 and prints layout information
+func readJSONMeta(ctx context.Context, client *minio.Client, bucket, metaKey string, p *JSONStatsParam) bool {
+	obj, err := client.GetObject(ctx, bucket, metaKey, minio.GetObjectOptions{})
+	if err != nil {
+		return false
+	}
+	defer obj.Close()
+
+	data, err := io.ReadAll(obj)
+	if err != nil {
+		return false
+	}
+
+	var meta jsonStatsMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		fmt.Printf("      [meta.json] failed to parse: %s\n", err.Error())
+		return false
+	}
+
+	fmt.Printf("      [meta.json] version=%s num_rows=%d num_shredding_columns=%d\n",
+		meta.Version, meta.NumRows, meta.NumShreddingColumns)
+
+	if meta.LayoutTypeMap != nil {
+		printLayoutTypeMap(meta.LayoutTypeMap, p)
+	}
+
+	return true
+}
+
+// printLayoutTypeMap prints the layout type map with shared/non-shared key separation
+func printLayoutTypeMap(mm map[string]string, p *JSONStatsParam) {
+	var nonSharedKeys []string
+	sharedCount := 0
+	// separate shared and non-shared keys
+	for k, val := range mm {
+		if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
+			continue
+		}
+		if val == "SHARED" {
+			sharedCount++
+		} else {
+			nonSharedKeys = append(nonSharedKeys, k)
+		}
+	}
+
+	// print shared keys if enabled
+	if p.PrintShared {
+		fmt.Printf("        shared keys: ")
+		first := true
+		for k, val := range mm {
+			if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
+				continue
+			}
+			if val == "SHARED" {
+				if !first {
+					fmt.Printf(", ")
+				}
+				fmt.Printf("%s", k)
+				first = false
+			}
+		}
+		if sharedCount > 0 {
+			fmt.Println()
+		} else {
+			fmt.Println("(none)")
+		}
+	}
+	// print non-shared keys in one line
+	if len(nonSharedKeys) > 0 {
+		fmt.Printf("        non-shared keys: %s\n", strings.Join(nonSharedKeys, ", "))
+	}
+	totalCount := sharedCount + len(nonSharedKeys)
+	fmt.Printf("        layout summary: shared=%d items, non-shared=%d items, total=%d items\n",
+		sharedCount, len(nonSharedKeys), totalCount)
+}
+
 func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key string, p *JSONStatsParam) {
 	obj, err := client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
 	if err != nil {
@@ -232,6 +329,33 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 	}
 
 	kvMetaData := pqReader.MetaData().KeyValueMetadata()
+
+	// Print all metadata keys and values (except key_layout_type_map which is handled separately)
+	if kvMetaData != nil && kvMetaData.Len() > 0 {
+		fmt.Printf("      [parquet] metadata entries: %d\n", kvMetaData.Len())
+		for i := 0; i < kvMetaData.Len(); i++ {
+			key := kvMetaData.Keys()[i]
+			val := kvMetaData.Values()[i]
+			// Skip key_layout_type_map as it's processed separately below
+			if key == "key_layout_type_map" {
+				continue
+			}
+			// Special handling: row_group_metadata -> count groups by ';'
+			if key == "row_group_metadata" {
+				parts := strings.Split(val, ";")
+				cnt := 0
+				for _, p := range parts {
+					if strings.TrimSpace(p) != "" {
+						cnt++
+					}
+				}
+				fmt.Printf("        row_group_metadata groups: %d\n", cnt)
+				continue
+			}
+			fmt.Printf("        [%d] %s: %s\n", i, key, val)
+		}
+	}
+
 	v := kvMetaData.FindValue("key_layout_type_map")
 	if v != nil {
 		var mm map[string]string
@@ -239,24 +363,6 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 			fmt.Printf("        kv: key_layout_type_map (invalid json): %v\n", err)
 			return
 		}
-
-		sharedCount := 0
-		nonCount := 0
-		// calculate and print layout summary at the end
-		for k, val := range mm {
-			if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
-				continue
-			}
-			fmt.Printf("        layout: %s=%s\n", k, val)
-
-			if val == "SHARED" {
-				sharedCount++
-			} else {
-				nonCount++
-			}
-		}
-		totalCount := sharedCount + nonCount
-		fmt.Printf("        layout summary: shared=%d items, non-shared=%d items, total=%d items\n",
-			sharedCount, nonCount, totalCount)
+		printLayoutTypeMap(mm, p)
 	}
 }
