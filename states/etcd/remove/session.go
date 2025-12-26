@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
+	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
 type RemoveSessionParam struct {
@@ -40,13 +44,21 @@ func (c *ComponentRemove) RemoveSessionCommand(ctx context.Context, p *RemoveSes
 	}
 
 	if p.Run {
-		fmt.Println("Start to remove session")
+		fmt.Println("Start to revoke session lease")
 		for _, session := range sessions {
-			err := c.client.Remove(ctx, session.GetKey())
-			if err != nil {
+			etcdCli := kv.MustGetETCDClient(c.client)
+			if _, err := etcdCli.Lease.Revoke(ctx, clientv3.LeaseID(session.LeaseID)); err != nil && !errors.Is(err, rpctypes.ErrLeaseNotFound) {
 				return err
 			}
 		}
+		fmt.Println("Session lease revoked, validating session key to be removed...")
+		for _, session := range sessions {
+			_, err := c.client.Load(ctx, session.GetKey())
+			if !errors.Is(err, kv.ErrKeyNotFound) {
+				return fmt.Errorf("session key %s still exists", session.GetKey())
+			}
+		}
+		fmt.Println("Session key removed successfully, done")
 	} else {
 		fmt.Println("[Dry-mode] skip removing")
 	}

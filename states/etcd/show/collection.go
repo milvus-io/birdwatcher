@@ -188,4 +188,8 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 	for _, kv := range collection.Properties {
 		fmt.Fprintf(sb, "\tKey: %s: %v\n", kv.GetKey(), kv.GetValue())
 	}
+	fmt.Fprintf(sb, "Shard Infos(%d):\n", len(collection.ShardInfos))
+	for idx, shardInfo := range collection.ShardInfos {
+		fmt.Fprintf(sb, "VChannelName: %s, LastTruncateTimeTick: %d\n", collection.VirtualChannelNames[idx], shardInfo.LastTruncateTimeTick)
+	}
 }
