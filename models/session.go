@@ -14,6 +14,7 @@ type Session struct {
 	Exclusive  bool   `json:"Exclusive,omitempty"`
 	Version    string `json:"Version,omitempty"`
 	HostName   string `json:"HostName,omitempty"`
+	LeaseID    int64  `json:"LeaseID,omitempty"`
 
 	key string
 }

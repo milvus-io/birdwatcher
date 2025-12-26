@@ -73,8 +73,8 @@ func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam
 }
 
 func PrintSimpleImportJob(job *datapb.ImportJob) {
-	str := fmt.Sprintf("JobID: %d DBID: %d CollectionID: %d State: %s StartTime: %s",
-		job.GetJobID(), job.GetDbID(), job.GetCollectionID(), job.State.String(), job.GetStartTime())
+	str := fmt.Sprintf("JobID: %d DBID: %d CollectionID: %d State: %s CreateTime: %s",
+		job.GetJobID(), job.GetDbID(), job.GetCollectionID(), job.State.String(), job.GetCreateTime())
 	if job.GetState() == internalpb.ImportJobState_Failed {
 		str = fmt.Sprintf("%s Reason: %s", str, job.GetReason())
 	}
@@ -112,7 +112,7 @@ func PrintDetailedImportJob(ctx context.Context, client kv.MetaKV, basePath stri
 	fmt.Printf("Partition IDs        : %s\n", formatIntSlice(job.GetPartitionIDs()))
 	fmt.Printf("Vchannels            : %s\n", strings.Join(job.GetVchannels(), ", "))
 	fmt.Printf("Reason               : %s\n", job.GetReason())
-	fmt.Printf("Start Time           : %s\n", job.GetStartTime())
+	fmt.Printf("Create Time          : %s\n", job.GetCreateTime())
 	fmt.Printf("Complete Time        : %s\n", job.GetCompleteTime())
 	fmt.Printf("Timeout TS           : %d\n", job.GetTimeoutTs())
 	fmt.Printf("Cleanup TS           : %d\n", job.GetCleanupTs())

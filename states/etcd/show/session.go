@@ -86,13 +86,13 @@ func (rs *Sessions) printAsGroups() string {
 			return session.IsMain(coord)
 		})
 		if main != nil {
-			fmt.Fprintf(sb, "%s\tID: %d%s\tVersion: %s\tAddress: %s\tHostName: %s\n", color.GreenString("[Main]"), main.ServerID, isMixture(main), main.Version, main.Address, main.HostName)
+			fmt.Fprintf(sb, "%s\tID: %d%s\tVersion: %s\tAddress: %s\tHostName: %s\tLeaseID: %d\n", color.GreenString("[Main]"), main.ServerID, isMixture(main), main.Version, main.Address, main.HostName, main.LeaseID)
 		}
 		standBys := lo.Filter(sessions, func(session *models.Session, _ int) bool {
 			return main == nil || session.ServerID != main.ServerID
 		})
 		for _, standBy := range standBys {
-			fmt.Fprintf(sb, "%s\tID: %d%s\tVersion: %s\tAddress: %s\tHostName: %s\n", color.YellowString("[Stand]"), standBy.ServerID, isMixture(standBy), standBy.Version, standBy.Address, standBy.HostName)
+			fmt.Fprintf(sb, "%s\tID: %d%s\tVersion: %s\tAddress: %s\tHostName: %s\tLeaseID: %d\n", color.YellowString("[Stand]"), standBy.ServerID, isMixture(standBy), standBy.Version, standBy.Address, standBy.HostName, standBy.LeaseID)
 		}
 		fmt.Fprintln(sb)
 	}
@@ -101,7 +101,7 @@ func (rs *Sessions) printAsGroups() string {
 		fmt.Fprintf(sb, "Node(s) %s\n", color.GreenString(node))
 		sessions := componentGroups[node]
 		for _, session := range sessions {
-			fmt.Fprintf(sb, "\tID: %d\tVersion: %s\tAddress: %s\tHostName: %s\n", session.ServerID, session.Version, session.Address, session.HostName)
+			fmt.Fprintf(sb, "\tID: %d\tVersion: %s\tAddress: %s\tHostName: %s\tLeaseID: %d\n", session.ServerID, session.Version, session.Address, session.HostName, session.LeaseID)
 		}
 		fmt.Fprintln(sb)
 	}

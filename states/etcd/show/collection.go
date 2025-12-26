@@ -131,6 +131,7 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 	updateTime, _ := utils.ParseTS(collection.UpdateTimestamp)
 	fmt.Fprintf(sb, "Collection State: %s\tCreate Time: %s\n", collection.State.String(), createTime.Format("2006-01-02 15:04:05"))
 	fmt.Fprintf(sb, "Update Time: %s\tUpdate timestamp: %d\n", updateTime.Format("2006-01-02 15:04:05"), collection.UpdateTimestamp)
+	fmt.Fprintf(sb, "Schema Version: %d\n", collection.Schema.Version)
 	fmt.Fprintf(sb, "Fields:\n")
 	fields := collection.Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
@@ -181,8 +182,14 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 		fmt.Fprintf(sb, "Function Name: %s, Type: %s, Input: %v, Output: %v\n", fp.GetName(), fp.GetType().String(), fp.GetInputFieldNames(), fp.GetOutputFieldNames())
 	}
 	fmt.Fprintf(sb, "Consistency Level: %s\n", collection.ConsistencyLevel.String())
-	for _, channel := range info.Channels() {
-		fmt.Fprintf(sb, "Start position for channel %s(%s): %v\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID)
+	fmt.Fprintf(sb, "Shard Infos(%d):\n", len(info.Channels()))
+	for idx, channel := range info.Channels() {
+		lastTruncateTimeTick := uint64(0)
+		shardInfos := info.GetProto().GetShardInfos()
+		if idx < len(shardInfos) {
+			lastTruncateTimeTick = shardInfos[idx].LastTruncateTimeTick
+		}
+		fmt.Fprintf(sb, " - Channel: %s(%s), StartPosition: %v, LastTruncateTimeTick: %d\n", channel.PhysicalName, channel.VirtualName, channel.StartPosition.MsgID, lastTruncateTimeTick)
 	}
 	fmt.Fprintf(sb, "Collection properties(%d):\n", len(collection.Properties))
 	for _, kv := range collection.Properties {
