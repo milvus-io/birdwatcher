@@ -1,7 +1,10 @@
 run:
-  go: "1.23"
+  go: "1.24.11"
   build-tags:
   - "WKAFKA"
+
+output:
+  formats: "colored-line-number"
 
 linters:
   disable-all: true

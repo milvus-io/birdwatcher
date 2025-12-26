@@ -52,16 +52,20 @@ func (c *ComponentRemove) RemoveSessionCommand(ctx context.Context, p *RemoveSes
 			}
 		}
 		fmt.Println("Session lease revoked, validating session key to be removed...")
+		var validationErrors []string
+
 		for _, session := range sessions {
 			_, err := c.client.Load(ctx, session.GetKey())
 			if !errors.Is(err, kv.ErrKeyNotFound) {
-				return fmt.Errorf("session key %s still exists", session.GetKey())
+				validationErrors = append(validationErrors, fmt.Sprintf("session key %s still exists", session.GetKey()))
 			}
+		}
+		if len(validationErrors) > 0 {
+			return fmt.Errorf("validation failed: %s", strings.Join(validationErrors, "; "))
 		}
 		fmt.Println("Session key removed successfully, done")
 	} else {
 		fmt.Println("[Dry-mode] skip removing")
 	}
-
 	return nil
 }

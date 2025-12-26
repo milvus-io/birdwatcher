@@ -16,8 +16,8 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/jedib0t/go-pretty/v6 v6.6.7
 	github.com/manifoldco/promptui v0.9.0
-	github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20251215075310-deda9c0dcece
-	github.com/milvus-io/milvus/pkg/v2 v2.6.4-0.20251217085517-7c575a18b046
+	github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20251225072315-fa678197de17
+	github.com/milvus-io/milvus/pkg/v2 v2.6.4-0.20251226021719-ef6d9c25c2e9
 	github.com/minio/minio-go/v7 v7.0.73
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
@@ -31,13 +31,13 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.865
 	github.com/tikv/client-go/v2 v2.0.4
 	github.com/x448/float16 v0.8.4
-	go.etcd.io/etcd/api/v3 v3.5.5
-	go.etcd.io/etcd/client/v3 v3.5.5
-	go.etcd.io/etcd/server/v3 v3.5.5
+	go.etcd.io/etcd/api/v3 v3.5.23
+	go.etcd.io/etcd/client/v3 v3.5.23
+	go.etcd.io/etcd/server/v3 v3.5.23
 	go.uber.org/atomic v1.11.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/oauth2 v0.28.0
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -80,7 +80,6 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
-	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/getsentry/sentry-go v0.12.0 // indirect
@@ -99,6 +98,7 @@ require (
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
@@ -187,11 +187,11 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	github.com/zilliztech/woodpecker v0.1.13 // indirect
-	go.etcd.io/bbolt v1.3.6 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.5 // indirect
-	go.etcd.io/etcd/client/v2 v2.305.5 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.5.5 // indirect
-	go.etcd.io/etcd/raft/v3 v3.5.5 // indirect
+	go.etcd.io/bbolt v1.3.12 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.23 // indirect
+	go.etcd.io/etcd/client/v2 v2.305.23 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.5.23 // indirect
+	go.etcd.io/etcd/raft/v3 v3.5.23 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.59.0 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
