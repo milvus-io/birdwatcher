@@ -39,7 +39,10 @@ const (
 	RequestTimeout = time.Second * 3
 )
 
-var EmptyValueByte = []byte(EmptyValueString)
+var (
+	EmptyValueByte = []byte(EmptyValueString)
+	ErrKeyNotFound = errors.New("key not found")
+)
 
 // MetaKV contains base operations of kv. Include save, load and remove etc.
 type MetaKV interface {
@@ -55,6 +58,11 @@ type MetaKV interface {
 	BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision bool, batchSize int64) error
 	WalkWithPrefix(ctx context.Context, prefix string, paginationSize int, fn func([]byte, []byte) error) error
 	Close()
+}
+
+func MustGetETCDClient(kv MetaKV) *clientv3.Client {
+	etcd := kv.(*etcdKV)
+	return etcd.client
 }
 
 // implementation assertion
@@ -87,7 +95,7 @@ func (kv *etcdKV) Load(ctx context.Context, key string, opts ...LoadOption) (str
 		return "", err
 	}
 	if resp.Count <= 0 {
-		return "", fmt.Errorf("key not found: %s", key)
+		return "", ErrKeyNotFound
 	}
 	return string(resp.Kvs[0].Value), nil
 }
