@@ -161,16 +161,10 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 		// ping etcd
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
-		err = pingMetaStore(ctx, cli, cp.RootPath, cp.MetaPath)
-		if err != nil {
-			if errors.Is(err, ErrNotMilvsuRootPath) {
-				if !cp.Force {
-					cli.Close()
-					fmt.Printf("Connection established, but %s, please check your config or use Dry mode\n", err.Error())
-					return err
-				}
-			} else {
-				fmt.Println("cannot connect to etcd with addr:", cp.EtcdAddr, err.Error())
+		if !cp.Force {
+			err = pingMetaStore(ctx, cli, cp.RootPath, cp.MetaPath)
+			if err != nil {
+				fmt.Printf("Connection established, but %s, please check your config or use Dry mode\n", err.Error())
 				return err
 			}
 		}
