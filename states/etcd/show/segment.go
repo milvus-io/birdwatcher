@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ type SegmentParam struct {
 	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail binlog info"`
 	State               string `name:"state" default:"" desc:"target segment state"`
 	Level               string `name:"level" default:"" desc:"target segment level"`
+	Sorted              string `name:"sorted" default:"" desc:"flags indicating whether sort segments by segmentID"`
 }
 
 type segStats struct {
@@ -46,7 +48,8 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
 			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
 			(p.State == "" || strings.EqualFold(segment.State.String(), p.State)) &&
-			(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level))
+			(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level)) &&
+			(p.Sorted == "" || strings.EqualFold(strconv.FormatBool(segment.IsSorted), p.Sorted))
 	})
 	if err != nil {
 		fmt.Println("failed to list segments", err.Error())
@@ -232,6 +235,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	if detailBinlog {
 		var binlogSize int64
 		var insertmemSize int64
+		var binlogNumber int64
 		fmt.Println("**************************************")
 		fmt.Println("Binlogs:")
 		sort.Slice(info.GetBinlogs(), func(i, j int) bool {
@@ -255,8 +259,10 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				insertmemSize += binlog.MemSize
 				fieldLogSize += binlog.LogSize
 			}
-			fmt.Println("--- Field Log Size:", hrSize(fieldLogSize))
+			binlogNumber += int64(len(log.Binlogs))
+			fmt.Printf("--- Field Log Size: %s\t, Log Count: %d\n", hrSize(fieldLogSize), len(log.Binlogs))
 		}
+		fmt.Println("=== Segment Total Binlog Number: ", binlogNumber)
 		fmt.Println("=== Segment Total Binlog Size: ", hrSize(binlogSize))
 		fmt.Println("=== Segment Total Binlog Mem Size: ", hrSize(insertmemSize))
 
@@ -284,6 +290,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 		fmt.Println("Delta Logs:")
 		var deltaLogSize int64
 		var memSize int64
+		var deltaLogNumber int64
 		for _, log := range info.GetDeltalogs() {
 			for _, l := range log.Binlogs {
 				fmt.Printf("Entries: %d From: %v - To: %v\n", l.EntriesNum, l.TimestampFrom, l.TimestampTo)
@@ -291,7 +298,9 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				deltaLogSize += l.LogSize
 				memSize += l.MemSize
 			}
+			deltaLogNumber += int64(len(log.Binlogs))
 		}
+		fmt.Println("=== Segment Total Deltalog Number: ", deltaLogNumber)
 		fmt.Println("=== Segment Total Deltalog Size: ", hrSize(deltaLogSize))
 		fmt.Println("=== Segment Total Deltalog Mem Size: ", hrSize(memSize))
 
