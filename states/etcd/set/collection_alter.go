@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
@@ -20,6 +22,10 @@ type FieldAttrParam struct {
 	Nullable        bool   `name:"nullable" default:"false" desc:"flags indicating whether to enable nullable"`
 	DefaultValue    string `name:"defaultValue" default:"" desc:"default value for nullable field"`
 
+	// type params modification
+	TypeParams       []string `name:"typeParams" default:"" desc:"type params to set, format: key=value (e.g., max_length=256,dim=128)"`
+	DeleteTypeParams []string `name:"deleteTypeParams" default:"" desc:"type param keys to delete"`
+
 	Run bool `name:"run" default:"false"`
 }
 
@@ -29,6 +35,12 @@ func (c *ComponentSet) FieldAttrCommand(ctx context.Context, p *FieldAttrParam) 
 	}
 	if p.FieldID < 0 {
 		return fmt.Errorf("invalid field id(%d)", p.FieldID)
+	}
+
+	// parse type params to set
+	typeParamsToSet, err := parseTypeParams(p.TypeParams)
+	if err != nil {
+		return fmt.Errorf("failed to parse type params: %s", err.Error())
 	}
 
 	alterField := func(field *schemapb.FieldSchema) error {
@@ -44,14 +56,75 @@ func (c *ComponentSet) FieldAttrCommand(ctx context.Context, p *FieldAttrParam) 
 			}
 			field.DefaultValue = defaultValue
 		}
+
+		// handle type params deletion
+		if len(p.DeleteTypeParams) > 0 {
+			deleteSet := make(map[string]struct{})
+			for _, key := range p.DeleteTypeParams {
+				deleteSet[key] = struct{}{}
+			}
+			newTypeParams := make([]*commonpb.KeyValuePair, 0, len(field.TypeParams))
+			for _, kv := range field.TypeParams {
+				if _, shouldDelete := deleteSet[kv.Key]; !shouldDelete {
+					newTypeParams = append(newTypeParams, kv)
+				} else {
+					fmt.Printf("Deleting type param: %s=%s\n", kv.Key, kv.Value)
+				}
+			}
+			field.TypeParams = newTypeParams
+		}
+
+		// handle type params update/add
+		if len(typeParamsToSet) > 0 {
+			// create a map from existing type params for easy lookup
+			existingParams := make(map[string]*commonpb.KeyValuePair)
+			for _, kv := range field.TypeParams {
+				existingParams[kv.Key] = kv
+			}
+
+			for key, value := range typeParamsToSet {
+				if existing, ok := existingParams[key]; ok {
+					fmt.Printf("Updating type param: %s=%s -> %s=%s\n", key, existing.Value, key, value)
+					existing.Value = value
+				} else {
+					fmt.Printf("Adding type param: %s=%s\n", key, value)
+					field.TypeParams = append(field.TypeParams, &commonpb.KeyValuePair{
+						Key:   key,
+						Value: value,
+					})
+				}
+			}
+		}
+
 		return nil
 	}
-	err := common.UpdateField(ctx, c.client, c.basePath, p.CollectionID, p.FieldID, alterField, !p.Run)
+	err = common.UpdateField(ctx, c.client, c.basePath, p.CollectionID, p.FieldID, alterField, !p.Run)
 	if err != nil {
 		return fmt.Errorf("failed to alter field (%s)", err.Error())
 	}
 
 	return nil
+}
+
+// parseTypeParams parses type params from string slice in format "key=value"
+func parseTypeParams(params []string) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, param := range params {
+		if param == "" {
+			continue
+		}
+		parts := strings.SplitN(param, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid type param format: %s, expected key=value", param)
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if key == "" {
+			return nil, fmt.Errorf("type param key cannot be empty")
+		}
+		result[key] = value
+	}
+	return result, nil
 }
 
 func GetDefaultValueForDataType(dataType schemapb.DataType, defaultValue string) (*schemapb.ValueField, error) {
