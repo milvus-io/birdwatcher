@@ -30,7 +30,7 @@ func (s *InstanceState) CompactBatchCommand(ctx context.Context, p *CompactBatch
 	}
 	// list segment info to get row count information
 	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(s *models.Segment) bool {
-		return (p.CollectionID == 0 || p.CollectionID == s.CollectionID) &&
+		return p.CollectionID == s.CollectionID &&
 			(p.StorageVersion == -1 || p.StorageVersion == s.StorageVersion) &&
 			s.GetState() == commonpb.SegmentState_Flushed
 	})
@@ -47,6 +47,12 @@ func (s *InstanceState) CompactBatchCommand(ctx context.Context, p *CompactBatch
 	if !p.Run {
 		return nil
 	}
+
+	if len(segmentIDs) == 0 {
+		fmt.Println("no segment selected for compaction")
+		return nil
+	}
+
 	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
 	if err != nil {
 		return err
