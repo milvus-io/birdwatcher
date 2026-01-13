@@ -21,7 +21,7 @@ const (
 	ChannelRemovalPrefix    = `channel-removal`
 
 	SegmentMetaPrefix      = "s"
-	SegmentStatsMetaPrefix = "datacoord-meta/statslog"
+	SegmentStatsMetaPrefix = "statslog"
 
 	CompactionTaskPrefix = `compaction-task`
 )

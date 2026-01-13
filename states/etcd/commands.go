@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/milvus-io/birdwatcher/states/etcd/download"
-	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/set"
 	"github.com/milvus-io/birdwatcher/states/kv"
@@ -53,31 +52,6 @@ func SetCommand(cli kv.MetaKV, instanceName string, metaPath string) *cobra.Comm
 	)
 
 	return setCmd
-}
-
-// RemoveCommand returns etcd remove commands.
-// WARNING this command shall be used with EXTRA CARE!
-func RemoveCommand(cli kv.MetaKV, instanceName, basePath string) *cobra.Command {
-	removeCmd := &cobra.Command{
-		Use: "remove",
-	}
-
-	removeCmd.AddCommand(
-		// remove segment
-		remove.SegmentCommand(cli, basePath),
-		// remove binlog file
-		remove.BinlogCommand(cli, basePath),
-		// remove collection-drop
-		remove.CollectionDropCommand(cli, basePath),
-		// remove sgements with collection dropped
-		remove.SegmentCollectionDroppedCommand(cli, basePath),
-		// remove etcd-config
-		remove.EtcdConfigCommand(cli, instanceName),
-		// remove collection has been dropped
-		remove.CollectionCleanCommand(cli, basePath),
-	)
-
-	return removeCmd
 }
 
 // RawCommands provides raw "get" command to list kv in etcd

@@ -66,10 +66,6 @@ func (s *embedEtcdMockState) SetupCommands() {
 		// show [subcommand] options...
 		etcd.ShowCommand(s.client, rootPath),
 
-		// remove [subcommand] options...
-		// used for testing
-		etcd.RemoveCommand(s.client, s.instanceName, rootPath),
-
 		// for testing
 		etcd.RepairCommand(s.client, rootPath),
 
@@ -201,6 +197,7 @@ func getEmbedEtcdInstanceV2(parent *framework.CmdState, server *embed.Etcd, conf
 	return state
 }
 
+// TODO: Refactor to follow framework pattern
 func getPrintMetricsCmd(state *embedEtcdMockState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "print-metrics",
@@ -224,6 +221,7 @@ func getPrintMetricsCmd(state *embedEtcdMockState) *cobra.Command {
 	return cmd
 }
 
+// TODO: Refactor to follow framework pattern
 func getListMetricsNodeCmd(state *embedEtcdMockState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-metrics-nodes",

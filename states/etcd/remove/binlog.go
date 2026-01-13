@@ -4,169 +4,102 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"time"
 
 	"github.com/samber/lo"
-	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 var backupKeyPrefix = "birdwatcher/backup"
 
-// BinlogCommand returns remove binlog file from segment command.
-func BinlogCommand(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "binlog",
-		Short: "Remove binlog file from segment with specified segment id and binlog key",
-		Run: func(cmd *cobra.Command, args []string) {
-			logType, err := cmd.Flags().GetString("logType")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+type RemoveBinlogParam struct {
+	framework.ParamBase `use:"remove etcd-config" desc:"remove etcd stored configuations"`
+	LogType             string `name:"p.LogType" default:"unknown" desc:"log type: binlog/deltalog/statslog"`
+	CollectionID        int64  `name:"p.CollectionID" default:"0" desc:"collection id to remove"`
+	PartitionID         int64  `name:"p.PartitionID" default:"0" desc:"partition id to remove"`
+	SegmentID           int64  `name:"p.SegmentID" default:"0" desc:"segment id to remove"`
+	FieldID             int64  `name:"p.FieldID" default:"0" desc:"field id to remove"`
+	LogID               int64  `name:"logID" default:"0" desc:"log id to remove"`
 
-			collectionID, err := cmd.Flags().GetInt64("collectionID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			partitionID, err := cmd.Flags().GetInt64("partitionID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			segmentID, err := cmd.Flags().GetInt64("segmentID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			fieldID, err := cmd.Flags().GetInt64("fieldID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			logID, err := cmd.Flags().GetInt64("logID")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			var key string
-			switch logType {
-			case "binlog":
-				key = path.Join(basePath, "datacoord-meta",
-					fmt.Sprintf("binlog/%d/%d/%d/%d", collectionID, partitionID, segmentID, fieldID))
-			case "deltalog":
-				key = path.Join(basePath, "datacoord-meta",
-					fmt.Sprintf("deltalog/%d/%d/%d/%d", collectionID, partitionID, segmentID, fieldID))
-			case "statslog":
-				key = path.Join(basePath, "datacoord-meta",
-					fmt.Sprintf("statslog/%d/%d/%d/%d", collectionID, partitionID, segmentID, fieldID))
-			default:
-				fmt.Println("logType unknown:", logType)
-				return
-			}
-
-			restore, err := cmd.Flags().GetBool("restore")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if restore {
-				err = restoreBinlog(cli, key)
-				if err != nil {
-					fmt.Println(err.Error())
-				}
-				return
-			}
-
-			err = backupBinlog(cli, key)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			run, err := cmd.Flags().GetBool("run")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			removeAll, err := cmd.Flags().GetBool("removeAll")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-
-			// remove all
-			if removeAll {
-				_, err = getFieldBinlog(cli, key)
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				if !run {
-					return
-				}
-				fmt.Printf("key:%s will be deleted\n", key)
-				err = removeBinlog(cli, key)
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				return
-			}
-
-			// remove one
-			{
-				fieldBinlog, err := getFieldBinlog(cli, key)
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				fieldBinlog, err = removeLogFromFieldBinlog(key, logID, fieldBinlog)
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-
-				if !run {
-					return
-				}
-
-				err = saveFieldBinlog(cli, key, fieldBinlog)
-				if err != nil {
-					fmt.Println(err.Error())
-					return
-				}
-				fmt.Printf("Remove one binlog %s/%d from etcd succeeds.\n", key, logID)
-			}
-		},
-	}
-
-	cmd.Flags().String("logType", "unknown", "log type: binlog/deltalog/statslog")
-	cmd.Flags().Bool("run", false, "flags indicating whether to execute removed command")
-	cmd.Flags().Bool("restore", false, "flags indicating whether to restore removed command")
-	cmd.Flags().Bool("removeAll", false, "remove all binlogs belongs to the field")
-	cmd.Flags().Int64("collectionID", 0, "collection id to remove")
-	cmd.Flags().Int64("partitionID", 0, "partition id to remove")
-	cmd.Flags().Int64("segmentID", 0, "segment id to remove")
-	cmd.Flags().Int64("fieldID", 0, "field id to remove")
-	cmd.Flags().Int64("logID", 0, "log id to remove")
-	return cmd
+	Restore   bool `name:"restore" default:"false" desc:"flags indicating whether to restore removed command"`
+	RemoveAll bool `name:"removeAll" default:"false" desc:"remove all binlogs belongs to the field"`
+	Run       bool `name:"run" default:"false" desc:"flag to control actually run or dry"`
 }
 
-func backupBinlog(cli kv.MetaKV, key string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	val, err := cli.Load(ctx, key)
+func (c *ComponentRemove) RemoveBinlogCommand(ctx context.Context, p *RemoveBinlogParam) error {
+	var key string
+	switch p.LogType {
+	case "binlog":
+		key = path.Join(c.basePath, "datacoord-meta",
+			fmt.Sprintf("binlog/%d/%d/%d/%d", p.CollectionID, p.PartitionID, p.SegmentID, p.FieldID))
+	case "deltalog":
+		key = path.Join(c.basePath, "datacoord-meta",
+			fmt.Sprintf("deltalog/%d/%d/%d/%d", p.CollectionID, p.PartitionID, p.SegmentID, p.FieldID))
+	case "statslog":
+		key = path.Join(c.basePath, "datacoord-meta",
+			fmt.Sprintf("statslog/%d/%d/%d/%d", p.CollectionID, p.PartitionID, p.SegmentID, p.FieldID))
+	default:
+		return fmt.Errorf("p.LogType unknown: %s", p.LogType)
+	}
+
+	if p.Restore {
+		err := c.restoreBinlog(ctx, key)
+		if err != nil {
+			return fmt.Errorf("failed to restore binlog, %s", err.Error())
+		}
+		return nil
+	}
+
+	err := c.backupBinlog(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to backup binlog, %s", err.Error())
+	}
+
+	// remove all
+	if p.RemoveAll {
+		_, err = c.getFieldBinlog(ctx, key)
+		if err != nil {
+			return fmt.Errorf("failed to get field binlog, %s", err.Error())
+		}
+		if !p.Run {
+			return nil
+		}
+		fmt.Printf("key: %s will be deleted\n", key)
+		err = c.removeBinlog(ctx, key)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// remove one
+	{
+		fieldBinlog, err := c.getFieldBinlog(ctx, key)
+		if err != nil {
+			return fmt.Errorf("failed to get field binlog, %s", err.Error())
+		}
+		fieldBinlog, err = removeLogFromFieldBinlog(key, p.LogID, fieldBinlog)
+		if err != nil {
+			return fmt.Errorf("failed to remove log from field binlog, %s", err.Error())
+		}
+
+		if !p.Run {
+			return nil
+		}
+
+		err = c.saveFieldBinlog(ctx, key, fieldBinlog)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Remove one binlog %s/%d from etcd succeeds.\n", key, p.LogID)
+	}
+	return nil
+}
+
+func (c *ComponentRemove) backupBinlog(ctx context.Context, key string) error {
+	val, err := c.client.Load(ctx, key)
 	if err != nil {
 		fmt.Printf("get key:%s failed\n", key)
 		return err
@@ -174,7 +107,7 @@ func backupBinlog(cli kv.MetaKV, key string) error {
 
 	backupKey := path.Join(backupKeyPrefix, key)
 	fmt.Printf("start backup key:%s to %s \n", key, backupKey)
-	err = cli.Save(ctx, backupKey, val)
+	err = c.client.Save(ctx, backupKey, val)
 	if err != nil {
 		fmt.Println("failed save kv into etcd, ", err.Error())
 		return err
@@ -183,19 +116,16 @@ func backupBinlog(cli kv.MetaKV, key string) error {
 	return nil
 }
 
-func restoreBinlog(cli kv.MetaKV, key string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
+func (c *ComponentRemove) restoreBinlog(ctx context.Context, key string) error {
 	backupKey := path.Join(backupKeyPrefix, key)
-	val, err := cli.Load(ctx, backupKey)
+	val, err := c.client.Load(ctx, backupKey)
 	if err != nil {
 		fmt.Printf("get backup key:%s failed\n", backupKey)
 		return err
 	}
 
 	fmt.Printf("start restore key:%s to %s\n", backupKey, key)
-	err = cli.Save(ctx, key, val)
+	err = c.client.Save(ctx, key, val)
 	if err != nil {
 		fmt.Println("failed save kv into etcd, ", err.Error())
 		return err
@@ -204,10 +134,8 @@ func restoreBinlog(cli kv.MetaKV, key string) error {
 	return nil
 }
 
-func removeBinlog(cli kv.MetaKV, key string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	err := cli.Remove(ctx, key)
+func (c *ComponentRemove) removeBinlog(ctx context.Context, key string) error {
+	err := c.client.Remove(ctx, key)
 	if err != nil {
 		fmt.Printf("delete key:%s failed\n", key)
 		return err
@@ -216,11 +144,8 @@ func removeBinlog(cli kv.MetaKV, key string) error {
 	return nil
 }
 
-func getFieldBinlog(cli kv.MetaKV, key string) (*datapb.FieldBinlog, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	cli.Load(ctx, key)
-	value, err := cli.Load(ctx, key)
+func (c *ComponentRemove) getFieldBinlog(ctx context.Context, key string) (*datapb.FieldBinlog, error) {
+	value, err := c.client.Load(ctx, key)
 	if err != nil {
 		fmt.Printf("get key:%s failed\n", key)
 		return nil, err
@@ -253,14 +178,12 @@ func removeLogFromFieldBinlog(key string, logID int64, fieldBinlog *datapb.Field
 	return fieldBinlog, nil
 }
 
-func saveFieldBinlog(cli kv.MetaKV, key string, fieldBinlog *datapb.FieldBinlog) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func (c *ComponentRemove) saveFieldBinlog(ctx context.Context, key string, fieldBinlog *datapb.FieldBinlog) error {
 	mb, err := proto.Marshal(fieldBinlog)
 	if err != nil {
 		return err
 	}
-	err = cli.Save(ctx, key, string(mb))
+	err = c.client.Save(ctx, key, string(mb))
 	if err != nil {
 		fmt.Println("failed save field binlog kv into etcd, ", err.Error())
 		return err

@@ -12,6 +12,11 @@ func ListEtcdConfigs(ctx context.Context, cli kv.MetaKV, basePath string) (keys,
 	return cli.LoadWithPrefix(ctx, prefix)
 }
 
+func GetEtcdConfig(ctx context.Context, cli kv.MetaKV, basePath string, key string) (string, error) {
+	prefix := path.Join(basePath, "config", key)
+	return cli.Load(ctx, prefix)
+}
+
 func SetEtcdConfig(ctx context.Context, cli kv.MetaKV, basePath string, key, value string) error {
 	prefix := path.Join(basePath, "config", key)
 	return cli.Save(ctx, prefix, value)
