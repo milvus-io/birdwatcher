@@ -96,7 +96,7 @@ func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath strin
 	}
 
 	if len(colls) == 0 {
-		return nil, errors.Newf("collection with id %d not found", collID)
+		return nil, errors.Wrap(ErrCollectionNotFound, fmt.Sprintf("collection %d not found", collID))
 	}
 
 	return colls[0], nil

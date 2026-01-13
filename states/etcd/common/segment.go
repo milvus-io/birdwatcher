@@ -369,10 +369,7 @@ func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collect
 }
 
 // WalkAllSegments walk all segment info from etcd with func
-func WalkAllSegments(cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool, op func(*datapb.SegmentInfo) error, limit int64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
+func WalkAllSegments(ctx context.Context, cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool, op func(*datapb.SegmentInfo) error, limit int64) error {
 	cnt := int64(0)
 	return WalkWithPrefix(ctx, cli, path.Join(basePath, SegmentMetaPrefix)+"/", 1000, func(k []byte, v []byte) error {
 		info := &datapb.SegmentInfo{}

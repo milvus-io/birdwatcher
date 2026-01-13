@@ -4,41 +4,33 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/spf13/cobra"
-
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
-// EtcdConfigCommand returns set etcd-config command.
-func EtcdConfigCommand(cli kv.MetaKV, basePath string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "config-etcd",
-		Short: "remove configuations",
-		Run: func(cmd *cobra.Command, args []string) {
-			key, err := cmd.Flags().GetString("key")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			if key == "" {
-				fmt.Println("key & value cannot be empty")
-				return
-			}
+type RemoveEtcdConfigParam struct {
+	framework.ParamBase `use:"remove etcd-config" desc:"remove etcd stored configuations"`
+	Key                 string `name:"key" desc:"etcd config key" default:""`
+	Run                 bool   `name:"run" default:"false" desc:"flag to control actually run or dry"`
+}
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			err = common.RemoveEtcdConfig(ctx, cli, basePath, key)
-			if err != nil {
-				fmt.Println("failed to remove etcd config item,", err.Error())
-				return
-			}
-
-			fmt.Println("etcd config remove.")
-		},
+func (c *ComponentRemove) RemoveEtcdConfigCommand(ctx context.Context, p *RemoveEtcdConfigParam) error {
+	if p.Key == "" {
+		fmt.Println("key & value cannot be empty")
+		return nil
 	}
 
-	cmd.Flags().String("key", "", "etcd config key")
-	return cmd
+	value, err := common.GetEtcdConfig(ctx, c.client, c.basePath, p.Key)
+	if err != nil {
+		return fmt.Errorf("failed to get etcd config item with key %s, %s", p.Key, err.Error())
+	}
+
+	if !p.Run {
+		fmt.Printf("dry run key: %s value: %s\n", p.Key, value)
+		return nil
+	}
+
+	fmt.Printf("remove key: %s value: %s\n", p.Key, value)
+
+	return common.RemoveEtcdConfig(ctx, c.client, c.basePath, p.Key)
 }
