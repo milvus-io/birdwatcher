@@ -152,6 +152,10 @@ func (kv *etcdKV) Remove(ctx context.Context, key string) error {
 // RemoveWithPrefix removes the keys with given prefix.
 func (kv *etcdKV) RemoveWithPrefix(ctx context.Context, prefix string) error {
 	key := joinPath(kv.rootPath, prefix)
+	// preix must end with "/" in case of remove unwanted keys
+	if !strings.HasSuffix(key, "/") {
+		key += "/"
+	}
 	_, err := kv.client.Delete(ctx, key, clientv3.WithPrefix())
 	return err
 }
