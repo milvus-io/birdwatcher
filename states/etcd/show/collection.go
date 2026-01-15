@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -108,6 +109,8 @@ func (rs *Collections) PrintAs(format framework.Format) string {
 		fmt.Fprintf(sb, "--- Total collections:  %d\t Matched collections:  %d\n", rs.total, len(rs.collections))
 		fmt.Fprintf(sb, "--- Total channel: %d\t Healthy collections: %d\n", rs.channels, rs.healthy)
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	case framework.FormatLine:
 		sb := &strings.Builder{}
 		for _, coll := range rs.collections {
@@ -116,6 +119,113 @@ func (rs *Collections) PrintAs(format framework.Format) string {
 		return sb.String()
 	}
 	return ""
+}
+
+func (rs *Collections) printAsJSON() string {
+	type FieldJSON struct {
+		FieldID        int64             `json:"field_id"`
+		Name           string            `json:"name"`
+		DataType       string            `json:"data_type"`
+		IsPrimaryKey   bool              `json:"is_primary_key,omitempty"`
+		AutoID         bool              `json:"auto_id,omitempty"`
+		IsPartitionKey bool              `json:"is_partition_key,omitempty"`
+		IsDynamic      bool              `json:"is_dynamic,omitempty"`
+		Nullable       bool              `json:"nullable,omitempty"`
+		TypeParams     map[string]string `json:"type_params,omitempty"`
+	}
+
+	type ChannelJSON struct {
+		PhysicalName string `json:"physical_name"`
+		VirtualName  string `json:"virtual_name"`
+	}
+
+	type CollectionJSON struct {
+		ID               int64             `json:"id"`
+		Name             string            `json:"name"`
+		DBID             int64             `json:"db_id"`
+		State            string            `json:"state"`
+		CreateTime       string            `json:"create_time"`
+		UpdateTime       string            `json:"update_time"`
+		SchemaVersion    int32             `json:"schema_version"`
+		ConsistencyLevel string            `json:"consistency_level"`
+		Fields           []FieldJSON       `json:"fields"`
+		Channels         []ChannelJSON     `json:"channels"`
+		Properties       map[string]string `json:"properties,omitempty"`
+	}
+
+	type OutputJSON struct {
+		Collections      []CollectionJSON `json:"collections"`
+		TotalCollections int64            `json:"total_collections"`
+		MatchedCount     int              `json:"matched_count"`
+		TotalChannels    int              `json:"total_channels"`
+		HealthyCount     int              `json:"healthy_count"`
+	}
+
+	output := OutputJSON{
+		Collections:      make([]CollectionJSON, 0, len(rs.collections)),
+		TotalCollections: rs.total,
+		MatchedCount:     len(rs.collections),
+		TotalChannels:    rs.channels,
+		HealthyCount:     rs.healthy,
+	}
+
+	for _, coll := range rs.collections {
+		proto := coll.GetProto()
+		createTime, _ := utils.ParseTS(proto.CreateTime)
+		updateTime, _ := utils.ParseTS(proto.UpdateTimestamp)
+
+		fields := make([]FieldJSON, 0, len(proto.Schema.Fields))
+		for _, f := range proto.Schema.Fields {
+			typeParams := make(map[string]string)
+			for _, kv := range f.TypeParams {
+				typeParams[kv.Key] = kv.Value
+			}
+			fields = append(fields, FieldJSON{
+				FieldID:        f.FieldID,
+				Name:           f.Name,
+				DataType:       f.DataType.String(),
+				IsPrimaryKey:   f.IsPrimaryKey,
+				AutoID:         f.AutoID,
+				IsPartitionKey: f.IsPartitionKey,
+				IsDynamic:      f.IsDynamic,
+				Nullable:       f.GetNullable(),
+				TypeParams:     typeParams,
+			})
+		}
+
+		channels := make([]ChannelJSON, 0, len(coll.Channels()))
+		for _, ch := range coll.Channels() {
+			channels = append(channels, ChannelJSON{
+				PhysicalName: ch.PhysicalName,
+				VirtualName:  ch.VirtualName,
+			})
+		}
+
+		props := make(map[string]string)
+		for _, kv := range proto.Properties {
+			props[kv.GetKey()] = kv.GetValue()
+		}
+
+		output.Collections = append(output.Collections, CollectionJSON{
+			ID:               proto.ID,
+			Name:             proto.Schema.Name,
+			DBID:             proto.DbId,
+			State:            proto.State.String(),
+			CreateTime:       createTime.Format("2006-01-02 15:04:05"),
+			UpdateTime:       updateTime.Format("2006-01-02 15:04:05"),
+			SchemaVersion:    proto.Schema.Version,
+			ConsistencyLevel: proto.ConsistencyLevel.String(),
+			Fields:           fields,
+			Channels:         channels,
+			Properties:       props,
+		})
+	}
+
+	bs, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }
 
 func (rs *Collections) Entities() any {

@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -42,7 +43,39 @@ func (rs *Users) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Total Users(s): %d\n", len(rs.Data))
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Users) printAsJSON() string {
+	type UserJSON struct {
+		Username string `json:"username"`
+		Tenant   string `json:"tenant"`
+	}
+
+	type OutputJSON struct {
+		Users []UserJSON `json:"users"`
+		Total int        `json:"total"`
+	}
+
+	output := OutputJSON{
+		Users: make([]UserJSON, 0, len(rs.Data)),
+		Total: len(rs.Data),
+	}
+
+	for _, user := range rs.Data {
+		output.Users = append(output.Users, UserJSON{
+			Username: user.Username,
+			Tenant:   user.Tenant,
+		})
+	}
+
+	bs, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }

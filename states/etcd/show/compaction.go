@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -106,8 +107,77 @@ func (rs *CompactionTasks) PrintAs(format framework.Format) string {
 		fmt.Fprintln(sb, "================================================================================")
 		fmt.Fprintf(sb, "--- Total compactions:  %d\t Matched compactions:  %d\n", rs.total, len(rs.tasks))
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	}
 	return ""
+}
+
+func (rs *CompactionTasks) printAsJSON() string {
+	type CompactionTaskJSON struct {
+		PlanID         int64   `json:"plan_id"`
+		TriggerID      int64   `json:"trigger_id"`
+		CollectionID   int64   `json:"collection_id"`
+		CollectionName string  `json:"collection_name"`
+		PartitionID    int64   `json:"partition_id,omitempty"`
+		Channel        string  `json:"channel"`
+		Type           string  `json:"type"`
+		State          string  `json:"state"`
+		StartTime      string  `json:"start_time"`
+		EndTime        string  `json:"end_time,omitempty"`
+		NodeID         int64   `json:"node_id,omitempty"`
+		TotalRows      int64   `json:"total_rows,omitempty"`
+		InputSegments  []int64 `json:"input_segments,omitempty"`
+		ResultSegments []int64 `json:"result_segments,omitempty"`
+	}
+
+	type OutputJSON struct {
+		Compactions  []CompactionTaskJSON `json:"compactions"`
+		TotalCount   int64                `json:"total_count"`
+		MatchedCount int                  `json:"matched_count"`
+	}
+
+	output := OutputJSON{
+		Compactions:  make([]CompactionTaskJSON, 0, len(rs.tasks)),
+		TotalCount:   rs.total,
+		MatchedCount: len(rs.tasks),
+	}
+
+	for _, t := range rs.tasks {
+		task := CompactionTaskJSON{
+			PlanID:         t.GetPlanID(),
+			TriggerID:      t.GetTriggerID(),
+			CollectionID:   t.GetCollectionID(),
+			CollectionName: t.GetSchema().GetName(),
+			PartitionID:    t.GetPartitionID(),
+			Channel:        t.GetChannel(),
+			Type:           t.GetType().String(),
+			State:          t.GetState().String(),
+			NodeID:         t.GetNodeID(),
+			TotalRows:      t.GetTotalRows(),
+		}
+
+		startT := time.Unix(t.GetStartTime(), 0)
+		task.StartTime = startT.Format("2006-01-02 15:04:05")
+
+		if t.GetEndTime() > 0 {
+			endT := time.Unix(t.GetEndTime(), 0)
+			task.EndTime = endT.Format("2006-01-02 15:04:05")
+		}
+
+		if rs.param.Detail {
+			task.InputSegments = t.GetInputSegments()
+			task.ResultSegments = t.GetResultSegments()
+		}
+
+		output.Compactions = append(output.Compactions, task)
+	}
+
+	bs, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }
 
 func (rs *CompactionTasks) Entities() any {

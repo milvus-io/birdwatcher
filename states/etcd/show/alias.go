@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -48,9 +49,48 @@ func (rs *Aliases) PrintAs(format framework.Format) string {
 			}
 		}
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Aliases) printAsJSON() string {
+	type AliasJSON struct {
+		DBID            int64  `json:"db_id"`
+		CollectionID    int64  `json:"collection_id"`
+		Name            string `json:"name"`
+		State           string `json:"state"`
+		CreateTimestamp string `json:"create_timestamp"`
+	}
+
+	type OutputJSON struct {
+		Aliases []AliasJSON `json:"aliases"`
+		Total   int         `json:"total"`
+	}
+
+	output := OutputJSON{
+		Aliases: make([]AliasJSON, 0, len(rs.Data)),
+		Total:   len(rs.Data),
+	}
+
+	for _, a := range rs.Data {
+		t, _ := utils.ParseTS(a.CreateTS)
+		output.Aliases = append(output.Aliases, AliasJSON{
+			DBID:            a.DBID,
+			CollectionID:    a.CollectionID,
+			Name:            a.Name,
+			State:           a.State.String(),
+			CreateTimestamp: t.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	bs, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }
 
 func (rs *Aliases) PrintAlias(sb *strings.Builder, a *models.Alias) {

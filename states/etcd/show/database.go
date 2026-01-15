@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -44,9 +45,52 @@ func (rs *Databases) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Total Database(s): %d\n", len(rs.Data))
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Databases) printAsJSON() string {
+	type DatabaseJSON struct {
+		ID         int64             `json:"id"`
+		Name       string            `json:"name"`
+		TenantID   string            `json:"tenant_id"`
+		State      string            `json:"state"`
+		Properties map[string]string `json:"properties,omitempty"`
+	}
+
+	type OutputJSON struct {
+		Databases []DatabaseJSON `json:"databases"`
+		Total     int            `json:"total"`
+	}
+
+	output := OutputJSON{
+		Databases: make([]DatabaseJSON, 0, len(rs.Data)),
+		Total:     len(rs.Data),
+	}
+
+	for _, database := range rs.Data {
+		db := database.GetProto()
+		props := make(map[string]string)
+		for _, kv := range db.Properties {
+			props[kv.GetKey()] = kv.GetValue()
+		}
+		output.Databases = append(output.Databases, DatabaseJSON{
+			ID:         db.Id,
+			Name:       db.Name,
+			TenantID:   db.TenantId,
+			State:      db.State.String(),
+			Properties: props,
+		})
+	}
+
+	bs, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }
 
 func (rs *Databases) printDatabaseInfo(sb *strings.Builder, m *models.Database) {

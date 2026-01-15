@@ -1,5 +1,7 @@
 package framework
 
+import "encoding/json"
+
 type Format int32
 
 const (
@@ -73,4 +75,14 @@ func NewListResult[LRS any, P interface {
 	var p P = &t
 	p.SetData(data)
 	return &t
+}
+
+// MarshalJSON is a helper function for JSON serialization.
+// It returns a pretty-printed JSON string of the given value.
+func MarshalJSON(v any) string {
+	bs, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }

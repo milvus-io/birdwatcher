@@ -32,6 +32,8 @@ type Config struct {
 	ConfigPath string `yaml:"-"`
 	// backup workspace path, default $PWD/bw_workspace
 	WorkspacePath string `yaml:"WorkspacePath"`
+	// output format: default, plain, json, table, line
+	OutputFormat string `yaml:"OutputFormat"`
 
 	logger *log.Logger
 

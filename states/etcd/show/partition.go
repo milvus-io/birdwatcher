@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -49,7 +50,42 @@ func (rs *Partitions) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Total Partition(s): %d\n", len(rs.Data))
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Partitions) printAsJSON() string {
+	type PartitionJSON struct {
+		PartitionID   int64  `json:"partition_id"`
+		PartitionName string `json:"partition_name"`
+		State         string `json:"state"`
+	}
+
+	type OutputJSON struct {
+		Partitions []PartitionJSON `json:"partitions"`
+		Total      int             `json:"total"`
+	}
+
+	output := OutputJSON{
+		Partitions: make([]PartitionJSON, 0, len(rs.Data)),
+		Total:      len(rs.Data),
+	}
+
+	for _, info := range rs.Data {
+		partition := info.GetProto()
+		output.Partitions = append(output.Partitions, PartitionJSON{
+			PartitionID:   partition.GetPartitionID(),
+			PartitionName: partition.GetPartitionName(),
+			State:         partition.State.String(),
+		})
+	}
+
+	bs, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	return string(bs)
 }
