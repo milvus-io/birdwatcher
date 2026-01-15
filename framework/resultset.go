@@ -5,7 +5,8 @@ import "encoding/json"
 type Format int32
 
 const (
-	FormatDefault Format = iota + 1
+	FormatUnset   Format = iota // Format not explicitly set, use global config
+	FormatDefault               // Explicit default format
 	FormatPlain
 	FormatJSON
 	FormatTable
@@ -33,10 +34,12 @@ type PresetResultSet struct {
 }
 
 func (rs *PresetResultSet) String() string {
-	if rs.format < FormatDefault {
-		return rs.PrintAs(FormatDefault)
-	}
 	return rs.PrintAs(rs.format)
+}
+
+// GetFormat returns the preset format.
+func (rs *PresetResultSet) GetFormat() Format {
+	return rs.format
 }
 
 func NewPresetResultSet(rs ResultSet, format Format) *PresetResultSet {
@@ -47,7 +50,11 @@ func NewPresetResultSet(rs ResultSet, format Format) *PresetResultSet {
 }
 
 // NameFormat name to format mapping tool function.
+// Returns FormatUnset if name is empty (to allow global config fallback).
 func NameFormat(name string) Format {
+	if name == "" {
+		return FormatUnset
+	}
 	f, ok := name2Format[name]
 	if !ok {
 		return FormatDefault

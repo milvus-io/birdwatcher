@@ -17,10 +17,11 @@ type DatabaseParam struct {
 	framework.ParamBase `use:"show database" desc:"display Database info from rootcoord meta"`
 	DatabaseID          int64  `name:"id" default:"0" desc:"database id to filter with"`
 	DatabaseName        string `name:"name" default:"" desc:"database name to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // DatabaseCommand returns show database comand.
-func (c *ComponentShow) DatabaseCommand(ctx context.Context, p *DatabaseParam) (*Databases, error) {
+func (c *ComponentShow) DatabaseCommand(ctx context.Context, p *DatabaseParam) (*framework.PresetResultSet, error) {
 	dbs, err := common.ListDatabase(ctx, c.client, c.metaPath, func(db *models.Database) bool {
 		return (p.DatabaseName == "" || db.GetProto().GetName() == p.DatabaseName) && (p.DatabaseID == 0 || db.GetProto().GetId() == p.DatabaseID)
 	})
@@ -29,7 +30,7 @@ func (c *ComponentShow) DatabaseCommand(ctx context.Context, p *DatabaseParam) (
 		return nil, errors.Wrap(err, "failed to list database info")
 	}
 
-	return framework.NewListResult[Databases](dbs), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Databases](dbs), framework.NameFormat(p.Format)), nil
 }
 
 type Databases struct {

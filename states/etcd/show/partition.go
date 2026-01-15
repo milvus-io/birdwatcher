@@ -15,11 +15,12 @@ import (
 
 type PartitionParam struct {
 	framework.ParamBase `use:"show partition" desc:"list partitions of provided collection"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to list"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to list"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // PartitionCommand returns command to list partition info for provided collection.
-func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam) (*Partitions, error) {
+func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam) (*framework.PresetResultSet, error) {
 	if p.CollectionID == 0 {
 		return nil, errors.New("collection id not provided")
 	}
@@ -33,7 +34,7 @@ func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam)
 		return nil, fmt.Errorf("no partition found for collection %d", p.CollectionID)
 	}
 
-	return framework.NewListResult[Partitions](partitions), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Partitions](partitions), framework.NameFormat(p.Format)), nil
 }
 
 type Partitions struct {

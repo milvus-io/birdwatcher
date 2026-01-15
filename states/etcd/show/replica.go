@@ -17,11 +17,12 @@ import (
 
 type ReplicaParam struct {
 	framework.ParamBase `use:"show replica" desc:"list current replica information from QueryCoord" alias:"replicas"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // ReplicaCommand returns command for show querycoord replicas.
-func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*Replicas, error) {
+func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*framework.PresetResultSet, error) {
 	var collections []*models.Collection
 	var err error
 	if p.CollectionID > 0 {
@@ -48,7 +49,7 @@ func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*R
 
 	rs := framework.NewListResult[Replicas](replicas)
 	rs.collections = lo.SliceToMap(collections, func(c *models.Collection) (int64, *models.Collection) { return c.GetProto().GetID(), c })
-	return rs, nil
+	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
 }
 
 type Replicas struct {

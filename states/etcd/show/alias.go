@@ -18,11 +18,12 @@ import (
 
 type AliasParam struct {
 	framework.ParamBase `use:"show alias" desc:"list alias meta info" alias:"aliases"`
-	DBID                int64 `name:"dbid" default:"-1" desc:"database id to filter with"`
+	DBID                int64  `name:"dbid" default:"-1" desc:"database id to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // AliasCommand implements `show alias` command.
-func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*Aliases, error) {
+func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*framework.PresetResultSet, error) {
 	aliases, err := common.ListAlias(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(a *models.Alias) bool {
 		return p.DBID == -1 || p.DBID == a.DBID
 	})
@@ -30,7 +31,7 @@ func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*Alias
 		return nil, errors.Wrap(err, "failed to list alias info")
 	}
 
-	return framework.NewListResult[Aliases](aliases), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Aliases](aliases), framework.NameFormat(p.Format)), nil
 }
 
 type Aliases struct {

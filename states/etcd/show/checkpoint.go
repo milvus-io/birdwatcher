@@ -19,11 +19,12 @@ import (
 
 type CheckpointParam struct {
 	framework.ParamBase `use:"show checkpoint" desc:"list checkpoint collection vchannels" alias:"checkpoints,cp"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // CheckpointCommand returns show checkpoint command.
-func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) (*Checkpoints, error) {
+func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) (*framework.PresetResultSet, error) {
 	coll, err := common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, p.CollectionID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get collection")
@@ -61,7 +62,7 @@ func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointPara
 		checkpoints = append(checkpoints, checkpoint)
 	}
 
-	return framework.NewListResult[Checkpoints](checkpoints), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Checkpoints](checkpoints), framework.NameFormat(p.Format)), nil
 }
 
 type Checkpoint struct {

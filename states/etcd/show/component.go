@@ -4,6 +4,7 @@ import (
 	"path"
 
 	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
@@ -25,4 +26,15 @@ func NewComponent(cli kv.MetaKV, config *configs.Config, basePath string, metaPa
 		basePath: basePath,
 		metaPath: path.Join(basePath, metaPath),
 	}
+}
+
+// GetGlobalFormat implements framework.FormatProvider interface.
+func (c *ComponentShow) GetGlobalFormat() framework.Format {
+	if c.config != nil {
+		formatName := c.config.GetGlobalOutputFormat()
+		if formatName != "" {
+			return framework.NameFormat(formatName)
+		}
+	}
+	return framework.FormatDefault
 }

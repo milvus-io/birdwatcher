@@ -15,18 +15,18 @@ import (
 
 type UserParam struct {
 	framework.ParamBase `use:"show user" desc:"display user info from rootcoord meta"`
-	// DatabaseName        string `name:"name" default:"" desc:"database name to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
-// DatabaseCommand returns show database comand.
-func (c *ComponentShow) UserCommand(ctx context.Context, p *UserParam) (*Users, error) {
+// UserCommand returns show user command.
+func (c *ComponentShow) UserCommand(ctx context.Context, p *UserParam) (*framework.PresetResultSet, error) {
 	users, err := common.ListUsers(ctx, c.client, c.basePath)
 	if err != nil {
-		fmt.Println("failed to list database info", err.Error())
-		return nil, errors.Wrap(err, "failed to list database info")
+		fmt.Println("failed to list user info", err.Error())
+		return nil, errors.Wrap(err, "failed to list user info")
 	}
 
-	return framework.NewListResult[Users](users), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Users](users), framework.NameFormat(p.Format)), nil
 }
 
 type Users struct {
