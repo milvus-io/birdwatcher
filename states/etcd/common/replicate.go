@@ -2,11 +2,14 @@ package common
 
 import (
 	"context"
+	"errors"
 	"path"
 
 	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/milvus/pkg/v2/proto/streamingpb"
 )
+
+var ErrReplicateConfigurationNotFound = errors.New("no replicate configuration found")
 
 const (
 	replicateConfiguration = "streamingcoord-meta/replicate-configuration"
@@ -18,6 +21,9 @@ func ListReplicateConfiguration(ctx context.Context, cli kv.MetaKV, basePath str
 	metas, _, err := ListProtoObjects[streamingpb.ReplicateConfigurationMeta](ctx, cli, prefix)
 	if err != nil {
 		return nil, err
+	}
+	if len(metas) == 0 {
+		return nil, ErrReplicateConfigurationNotFound
 	}
 	return metas[0], nil
 }
