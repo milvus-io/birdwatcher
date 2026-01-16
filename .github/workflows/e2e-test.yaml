@@ -73,6 +73,7 @@ jobs:
           BW_BINARY: ./bin/birdwatcher
           ETCD_ADDR: 127.0.0.1:2379
           ROOT_PATH: by-dev
+          LOG_DIR: ./e2e_logs
 
       - name: Collect logs on failure
         if: failure()
@@ -83,6 +84,15 @@ jobs:
           echo "=== Last 200 lines of Milvus Logs ==="
           tail -200 milvus.log || true
 
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "=== Test Summary ==="
+          cat ./e2e_logs/test_summary.log || true
+          echo ""
+          echo "=== JSON Report Preview ==="
+          cat ./e2e_logs/test_report.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Total: {d[\"summary\"][\"total\"]}, Passed: {d[\"summary\"][\"passed\"]}, Failed: {d[\"summary\"][\"failed\"]}, Skipped: {d[\"summary\"][\"skipped\"]}')" || true
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,6 +100,7 @@ jobs:
           name: e2e-test-logs
           path: |
             e2e_test_output.log
+            e2e_logs/
             milvus.log
             etcd.log
             minio.log
