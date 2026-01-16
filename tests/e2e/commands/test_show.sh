@@ -5,7 +5,7 @@
 section "Show Commands Tests"
 
 # Database commands
-test_command "show database" "show database" 0 "Database\|database"
+test_command "show database" "show database" 0 "Database|database"
 test_command "show database by name" "show database --name default" 0
 
 # Collection commands
