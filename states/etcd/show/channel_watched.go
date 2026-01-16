@@ -147,4 +147,3 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, m *models.
 
 	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.Schema.EnableDynamicField)
 }
-
