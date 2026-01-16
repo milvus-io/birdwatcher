@@ -66,9 +66,10 @@ test_json_command "show alias json" "show alias --format json"
 test_optional "show resource-group" "show resource-group"
 
 # Compaction - compaction was triggered in test data setup
-test_optional "show compaction" "show compaction"
+# Note: command is "show compactions" (plural)
+test_optional "show compactions" "show compactions"
 # Note: use --ignoreDone=false to include completed compaction tasks
-test_json_command "show compaction json" "show compaction --ignoreDone=false --format json"
+test_json_command "show compactions json" "show compactions --ignoreDone=false --format json"
 
 # User - root user and test_user should exist
 test_command "show user" "show user" 0
