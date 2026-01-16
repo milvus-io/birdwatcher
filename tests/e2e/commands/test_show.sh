@@ -32,12 +32,14 @@ test_command "show partition" "show partition" 0
 test_optional "show partition by collection" "show partition --collection test_collection"
 test_optional "show partition-loaded" "show partition-loaded"
 # Note: show partition requires --collection flag for JSON output
-test_optional "show partition json" "show partition --collection test_collection --format json"
+test_json_command "show partition json" "show partition --collection test_collection --format json"
+test_json_command "show partition-loaded json" "show partition-loaded --format json"
 
 # Index commands
 test_command "show index" "show index" 0
 test_optional "show segment-index" "show segment-index"
 test_json_command "show index json" "show index --format json"
+test_json_command "show segment-index json" "show segment-index --format json"
 
 # Checkpoint commands
 test_optional "show checkpoint" "show checkpoint"
@@ -64,6 +66,7 @@ test_json_command "show alias json" "show alias --format json"
 
 # Resource group
 test_optional "show resource-group" "show resource-group"
+test_json_command "show resource-group json" "show resource-group --format json"
 
 # Compaction - compaction was triggered in test data setup
 # Note: command is "show compactions" (plural)
@@ -80,12 +83,14 @@ test_optional "show config-etcd" "show config-etcd"
 
 # Stats task
 test_optional "show stats-task" "show stats-task"
+test_json_command "show stats-task json" "show stats-task --format json"
 
 # Collection history
 test_optional "show collection-history" "show collection-history"
 
 # Bulk insert jobs
 test_optional "show bulkinsert" "show bulkinsert"
+test_json_command "show bulkinsert json" "show bulkinsert --format json"
 
 # Replicate (CDC related)
 test_optional "show replicate" "show replicate"

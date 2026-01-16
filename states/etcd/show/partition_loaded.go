@@ -12,11 +12,12 @@ import (
 
 type PartitionLoadedParam struct {
 	framework.ParamBase `use:"show partition-loaded" desc:"display the information of loaded partition(s) from querycoord meta"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
-	PartitionID         int64 `name:"partition" default:"0" desc:"partition id to filter with"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	PartitionID         int64  `name:"partition" default:"0" desc:"partition id to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
-func (c *ComponentShow) PartitionLoadedCommand(ctx context.Context, p *PartitionLoadedParam) (*PartitionsLoaded, error) {
+func (c *ComponentShow) PartitionLoadedCommand(ctx context.Context, p *PartitionLoadedParam) (*framework.PresetResultSet, error) {
 	partitions, err := common.ListPartitionLoadedInfo(ctx, c.client, c.metaPath, func(info *models.PartitionLoaded) bool {
 		pl := info.GetProto()
 		return (p.CollectionID == 0 || p.CollectionID == pl.CollectionID) &&
@@ -25,7 +26,7 @@ func (c *ComponentShow) PartitionLoadedCommand(ctx context.Context, p *Partition
 	if err != nil {
 		return nil, err
 	}
-	return framework.NewListResult[PartitionsLoaded](partitions), nil
+	return framework.NewPresetResultSet(framework.NewListResult[PartitionsLoaded](partitions), framework.NameFormat(p.Format)), nil
 }
 
 type PartitionsLoaded struct {
@@ -41,9 +42,41 @@ func (rs *PartitionsLoaded) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Partitions Loaded: %d\n", len(rs.Data))
 		return sb.String()
-	default:
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	}
 	return ""
+}
+
+func (rs *PartitionsLoaded) printAsJSON() string {
+	type PartitionLoadedJSON struct {
+		CollectionID  int64  `json:"collection_id"`
+		PartitionID   int64  `json:"partition_id"`
+		ReplicaNumber int32  `json:"replica_number"`
+		Status        string `json:"status"`
+	}
+
+	type OutputJSON struct {
+		Partitions []PartitionLoadedJSON `json:"partitions"`
+		Total      int                   `json:"total"`
+	}
+
+	output := OutputJSON{
+		Partitions: make([]PartitionLoadedJSON, 0, len(rs.Data)),
+		Total:      len(rs.Data),
+	}
+
+	for _, m := range rs.Data {
+		info := m.GetProto()
+		output.Partitions = append(output.Partitions, PartitionLoadedJSON{
+			CollectionID:  info.CollectionID,
+			PartitionID:   info.PartitionID,
+			ReplicaNumber: info.ReplicaNumber,
+			Status:        info.Status.String(),
+		})
+	}
+
+	return framework.MarshalJSON(output)
 }
 
 func (rs *PartitionsLoaded) printPartitionLoaded(sb *strings.Builder, m *models.PartitionLoaded) {
