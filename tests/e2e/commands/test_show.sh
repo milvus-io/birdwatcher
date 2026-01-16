@@ -29,7 +29,7 @@ test_json_command "show segment-index" "show segment-index --format json"
 test_optional "show checkpoint json" "show checkpoint --format json"
 
 # Channel commands
-test_json_command "show channel-watched" "show channel-watched --format json"
+test_json_command "show channel-watch" "show channel-watch --format json"
 
 # Collection loaded
 test_json_command "show collection-loaded" "show collection-loaded --format json"
