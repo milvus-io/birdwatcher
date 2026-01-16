@@ -91,11 +91,16 @@ test_json_command() {
     # Validate JSON using Python
     if echo "$output" | python3 -c "import sys, json; json.load(sys.stdin)" 2>/dev/null; then
         echo -e "${GREEN}PASSED${NC}"
+        echo "  JSON Output:"
+        echo "$output" | head -20
+        if [[ $(echo "$output" | wc -l) -gt 20 ]]; then
+            echo "  ... (truncated)"
+        fi
         ((TESTS_PASSED++)) || true
         return 0
     else
         echo -e "${YELLOW}WARN${NC} (command succeeded but output is not valid JSON)"
-        echo "  Output: ${output:0:200}"
+        echo "  Output: ${output:0:500}"
         ((TESTS_SKIPPED++)) || true
         return 0
     fi
