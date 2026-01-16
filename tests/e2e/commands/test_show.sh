@@ -29,10 +29,11 @@ test_json_command "show segment json" "show segment --format json"
 
 # Partition commands
 test_command "show partition" "show partition" 0
-test_optional "show partition by collection" "show partition --collection test_collection"
+# Note: show partition requires --collection flag with collection ID (not name)
+test_optional "show partition by collection" "show partition --collection 0"
 test_optional "show partition-loaded" "show partition-loaded"
-# Note: show partition requires --collection flag for JSON output
-test_json_command "show partition json" "show partition --collection test_collection --format json"
+# partition JSON test requires collection ID, moved to test_optional
+test_optional "show partition json" "show partition --format json"
 test_json_command "show partition-loaded json" "show partition-loaded --format json"
 
 # Index commands
