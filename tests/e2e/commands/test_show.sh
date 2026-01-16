@@ -56,15 +56,17 @@ test_json_command "show stats-task" "show stats-task --format json"
 # Bulk insert jobs
 test_json_command "show bulkinsert" "show bulkinsert --format json"
 
-# Commands that may not support JSON yet or require special setup
-test_optional "show config-etcd" "show config-etcd --format json"
-test_optional "show collection-history" "show collection-history --format json"
-test_optional "show replicate" "show replicate --format json"
-test_optional "show wal-broadcast" "show wal-broadcast --format json"
-test_optional "show wal-distribution" "show wal-distribution --format json"
-test_optional "show json-stats" "show json-stats --format json"
-test_optional "show loaded-json-stats" "show loaded-json-stats --format json"
-test_optional "show etcd-kv-tree" "show etcd-kv-tree --format json"
-test_optional "show segment-loaded" "show segment-loaded --format json"
-test_optional "show configurations" "show configurations --format json"
-test_optional "show current-version" "show current-version --format json"
+# Commands with JSON support added
+test_json_command "show config-etcd" "show config-etcd --format json"
+
+# Commands that don't support --format flag yet (test without JSON)
+test_optional "show collection-history" "show collection-history"
+test_optional "show replicate" "show replicate"
+test_optional "show wal-broadcast" "show wal-broadcast"
+test_optional "show wal-distribution" "show wal-distribution"
+test_optional "show json-stats" "show json-stats"
+test_optional "show loaded-json-stats" "show loaded-json-stats"
+test_optional "show etcd-kv-tree" "show etcd-kv-tree"
+test_optional "show segment-loaded" "show segment-loaded"
+test_optional "show configurations" "show configurations"
+test_optional "show current-version" "show current-version"
