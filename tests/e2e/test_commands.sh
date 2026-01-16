@@ -24,11 +24,18 @@ NC='\033[0m' # No Color
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Helper function to run birdwatcher command
+# Helper function to run birdwatcher command (captures both stdout and stderr)
 run_bw() {
     local cmd="$1"
     local full_cmd="connect --etcd ${ETCD_ADDR} --rootPath ${ROOT_PATH}, ${cmd}"
     ${BW_BINARY} -olc "${full_cmd}" 2>&1
+}
+
+# Helper function to run birdwatcher command (stdout only, for JSON output)
+run_bw_stdout() {
+    local cmd="$1"
+    local full_cmd="connect --etcd ${ETCD_ADDR} --rootPath ${ROOT_PATH}, ${cmd}"
+    ${BW_BINARY} -olc "${full_cmd}" 2>/dev/null
 }
 
 # Test function with assertions
@@ -76,7 +83,7 @@ test_json_command() {
     echo -n "Testing JSON: ${test_name}... "
 
     set +e
-    output=$(run_bw "${cmd}" 2>&1)
+    output=$(run_bw_stdout "${cmd}")
     exit_code=$?
     set -e
 
