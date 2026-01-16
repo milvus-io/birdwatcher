@@ -50,7 +50,7 @@ test_command() {
         echo -e "${RED}FAILED${NC} (exit code: $exit_code, expected: $expected_exit_code)"
         echo "  Command: ${cmd}"
         echo "  Output: ${output:0:500}"
-        ((TESTS_FAILED++))
+        ((TESTS_FAILED++)) || true
         return 1
     fi
 
@@ -58,12 +58,12 @@ test_command() {
         echo -e "${RED}FAILED${NC} (output pattern not matched)"
         echo "  Expected pattern: $expected_output_pattern"
         echo "  Output: ${output:0:500}"
-        ((TESTS_FAILED++))
+        ((TESTS_FAILED++)) || true
         return 1
     fi
 
     echo -e "${GREEN}PASSED${NC}"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED++)) || true
     return 0
 }
 
@@ -84,19 +84,19 @@ test_json_command() {
         echo -e "${RED}FAILED${NC} (exit code: $exit_code)"
         echo "  Command: ${cmd}"
         echo "  Output: ${output:0:500}"
-        ((TESTS_FAILED++))
+        ((TESTS_FAILED++)) || true
         return 1
     fi
 
     # Validate JSON using Python
     if echo "$output" | python3 -c "import sys, json; json.load(sys.stdin)" 2>/dev/null; then
         echo -e "${GREEN}PASSED${NC}"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     else
         echo -e "${YELLOW}WARN${NC} (command succeeded but output is not valid JSON)"
         echo "  Output: ${output:0:200}"
-        ((TESTS_SKIPPED++))
+        ((TESTS_SKIPPED++)) || true
         return 0
     fi
 }
@@ -116,10 +116,10 @@ test_optional() {
 
     if [[ $exit_code -eq 0 ]]; then
         echo -e "${GREEN}PASSED${NC}"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
     else
         echo -e "${YELLOW}SKIPPED${NC} (command returned non-zero but this is acceptable)"
-        ((TESTS_SKIPPED++))
+        ((TESTS_SKIPPED++)) || true
     fi
     return 0
 }
@@ -129,7 +129,7 @@ skip_test() {
     local test_name="$1"
     local reason="$2"
     echo -e "Skipping: ${test_name}... ${YELLOW}SKIPPED${NC} (${reason})"
-    ((TESTS_SKIPPED++))
+    ((TESTS_SKIPPED++)) || true
 }
 
 # Print section header

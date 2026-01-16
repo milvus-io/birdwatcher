@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path"
 	"strings"
@@ -132,11 +131,7 @@ func (rs *Checkpoints) printAsJSON() string {
 		output.Checkpoints = append(output.Checkpoints, cpJSON)
 	}
 
-	bs, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return err.Error()
-	}
-	return string(bs)
+	return framework.MarshalJSON(output)
 }
 
 func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*models.MsgPosition, error) {

@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -22,7 +21,6 @@ type UserParam struct {
 func (c *ComponentShow) UserCommand(ctx context.Context, p *UserParam) (*framework.PresetResultSet, error) {
 	users, err := common.ListUsers(ctx, c.client, c.basePath)
 	if err != nil {
-		fmt.Println("failed to list user info", err.Error())
 		return nil, errors.Wrap(err, "failed to list user info")
 	}
 
@@ -73,9 +71,5 @@ func (rs *Users) printAsJSON() string {
 		})
 	}
 
-	bs, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return err.Error()
-	}
-	return string(bs)
+	return framework.MarshalJSON(output)
 }

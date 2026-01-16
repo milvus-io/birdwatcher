@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -87,11 +86,7 @@ func (rs *Databases) printAsJSON() string {
 		})
 	}
 
-	bs, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return err.Error()
-	}
-	return string(bs)
+	return framework.MarshalJSON(output)
 }
 
 func (rs *Databases) printDatabaseInfo(sb *strings.Builder, m *models.Database) {

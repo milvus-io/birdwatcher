@@ -86,10 +86,13 @@ func NewListResult[LRS any, P interface {
 
 // MarshalJSON is a helper function for JSON serialization.
 // It returns a pretty-printed JSON string of the given value.
+// On error, it returns a valid JSON object with the error message.
 func MarshalJSON(v any) string {
 	bs, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return err.Error()
+		errJSON := map[string]string{"error": err.Error()}
+		errBs, _ := json.MarshalIndent(errJSON, "", "  ")
+		return string(errBs)
 	}
 	return string(bs)
 }

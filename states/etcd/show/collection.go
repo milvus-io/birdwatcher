@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -221,11 +220,7 @@ func (rs *Collections) printAsJSON() string {
 		})
 	}
 
-	bs, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return err.Error()
-	}
-	return string(bs)
+	return framework.MarshalJSON(output)
 }
 
 func (rs *Collections) Entities() any {

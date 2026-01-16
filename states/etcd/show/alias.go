@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -87,11 +86,7 @@ func (rs *Aliases) printAsJSON() string {
 		})
 	}
 
-	bs, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return err.Error()
-	}
-	return string(bs)
+	return framework.MarshalJSON(output)
 }
 
 func (rs *Aliases) PrintAlias(sb *strings.Builder, a *models.Alias) {

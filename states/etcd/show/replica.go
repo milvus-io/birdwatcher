@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -141,11 +140,7 @@ func (rs *Replicas) printAsJSON() string {
 		})
 	}
 
-	bs, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return err.Error()
-	}
-	return string(bs)
+	return framework.MarshalJSON(output)
 }
 
 func (rs *Replicas) printReplica(sb *strings.Builder, r *models.Replica) {
