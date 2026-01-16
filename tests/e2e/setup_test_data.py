@@ -119,6 +119,30 @@ def main():
     client.load_collection("test_collection")
     print("  Collection loaded")
 
+    # Create alias for collection
+    print("Creating alias for test_collection...")
+    try:
+        client.create_alias("test_collection", "test_alias")
+        print("  Alias 'test_alias' created")
+    except Exception as e:
+        print(f"  Alias creation may have failed: {e}")
+
+    # Perform a search to generate query stats
+    print("Performing search queries...")
+    search_vectors = [np.random.rand(128).tolist() for _ in range(5)]
+    for i, vec in enumerate(search_vectors):
+        try:
+            results = client.search(
+                collection_name="test_collection",
+                data=[vec],
+                anns_field="embedding",
+                limit=10,
+                output_fields=["name", "score"]
+            )
+            print(f"  Search {i+1} completed with {len(results[0])} results")
+        except Exception as e:
+            print(f"  Search {i+1} failed: {e}")
+
     # Create a simpler second collection
     print("Creating simple_collection...")
     schema2 = client.create_schema(auto_id=True, enable_dynamic_field=False)
