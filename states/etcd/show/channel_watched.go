@@ -34,30 +34,39 @@ func (c *ComponentShow) ChannelWatchedCommand(ctx context.Context, p *ChannelWat
 		return nil, errors.Wrap(err, "failed to list channel watch info")
 	}
 
-	rs := framework.NewListResult[ChannelsWatched](infos)
-	rs.printSchema = p.PrintSchema
+	rs := &ChannelsWatched{
+		data:        infos,
+		printSchema: p.PrintSchema,
+	}
 
 	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
 }
 
 type ChannelsWatched struct {
-	framework.ListResultSet[*models.ChannelWatch]
+	data        []*models.ChannelWatch
 	printSchema bool
 }
 
-func (rs *ChannelsWatched) PrintAs(format framework.Format) string {
-	sb := &strings.Builder{}
+func (rs *ChannelsWatched) Entities() any {
+	return rs.data
+}
 
+func (rs *ChannelsWatched) PrintAs(format framework.Format) string {
 	switch format {
+	case framework.FormatDefault, framework.FormatPlain:
+		return rs.printDefault()
 	case framework.FormatJSON:
 		return rs.printAsJSON()
-	default:
-		for _, info := range rs.Data {
-			rs.printChannelWatchInfo(sb, info)
-		}
-		fmt.Fprintf(sb, "--- Total Channels: %d\n", len(rs.Data))
 	}
+	return ""
+}
 
+func (rs *ChannelsWatched) printDefault() string {
+	sb := &strings.Builder{}
+	for _, info := range rs.data {
+		rs.printChannelWatchInfo(sb, info)
+	}
+	fmt.Fprintf(sb, "--- Total Channels: %d\n", len(rs.data))
 	return sb.String()
 }
 
@@ -76,11 +85,11 @@ func (rs *ChannelsWatched) printAsJSON() string {
 	}
 
 	output := OutputJSON{
-		Channels: make([]ChannelWatchedJSON, 0, len(rs.Data)),
-		Total:    len(rs.Data),
+		Channels: make([]ChannelWatchedJSON, 0, len(rs.data)),
+		Total:    len(rs.data),
 	}
 
-	for _, model := range rs.Data {
+	for _, model := range rs.data {
 		info := model.GetProto()
 		ch := ChannelWatchedJSON{
 			Key:         model.Key(),
