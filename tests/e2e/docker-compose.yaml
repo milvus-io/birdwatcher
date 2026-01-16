@@ -32,13 +32,15 @@ services:
       retries: 12
 
   milvus:
-    image: ${MILVUS_IMAGE:-milvusdb/milvus:master-latest}
+    image: ${MILVUS_IMAGE:-milvusdb/milvus:v2.6.8}
     environment:
       - ETCD_ENDPOINTS=127.0.0.1:2379
       - MINIO_ADDRESS=127.0.0.1:9000
       - MINIO_ACCESS_KEY_ID=minioadmin
       - MINIO_SECRET_ACCESS_KEY=minioadmin
       - COMMON_STORAGETYPE=local
+    volumes:
+      - ./user.yaml:/milvus/configs/user.yaml
     command: milvus run standalone
     network_mode: host
     depends_on:

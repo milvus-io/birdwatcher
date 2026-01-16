@@ -249,19 +249,53 @@ def create_users_and_roles(client):
     """Create test users and roles."""
     print("\n=== Creating users and roles ===")
 
+    # Create test users
+    test_users = [
+        ("test_user", "Test123!"),
+        ("readonly_user", "Readonly123!"),
+    ]
+
+    for username, password in test_users:
+        try:
+            client.create_user(username, password)
+            print(f"  Created user: {username}")
+        except Exception as e:
+            if "already exists" in str(e).lower():
+                print(f"  User {username} already exists")
+            else:
+                print(f"  User {username} creation note: {e}")
+
+    # Create test roles
+    test_roles = ["test_role", "readonly_role"]
+    for role_name in test_roles:
+        try:
+            client.create_role(role_name)
+            print(f"  Created role: {role_name}")
+        except Exception as e:
+            if "already exists" in str(e).lower():
+                print(f"  Role {role_name} already exists")
+            else:
+                print(f"  Role {role_name} creation note: {e}")
+
+    # Grant role to user
     try:
-        # Note: User management requires root credentials in production
-        # In test environment, this may or may not work depending on auth settings
-        client.create_user("test_user", "Test123!")
-        print("  Created user: test_user")
+        client.grant_role("test_user", "test_role")
+        print("  Granted test_role to test_user")
     except Exception as e:
-        print(f"  User creation note: {e}")
+        print(f"  Role grant note: {e}")
+
+    # List users and roles for verification
+    try:
+        users = client.list_users()
+        print(f"  Current users: {users}")
+    except Exception as e:
+        print(f"  List users note: {e}")
 
     try:
-        client.create_role("test_role")
-        print("  Created role: test_role")
+        roles = client.list_roles()
+        print(f"  Current roles: {roles}")
     except Exception as e:
-        print(f"  Role creation note: {e}")
+        print(f"  List roles note: {e}")
 
 
 def print_summary(client):
@@ -292,8 +326,12 @@ def main():
     print("Setting up comprehensive test data for birdwatcher E2E tests...")
     print("=" * 60)
 
-    # Connect to Milvus
-    client = MilvusClient(uri="http://localhost:19530")
+    # Connect to Milvus with root credentials (auth enabled)
+    client = MilvusClient(
+        uri="http://localhost:19530",
+        user="root",
+        password="Milvus"
+    )
 
     # Wait for Milvus to be ready
     if not wait_for_milvus(client):

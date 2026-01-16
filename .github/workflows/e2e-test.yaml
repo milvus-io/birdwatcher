@@ -20,7 +20,7 @@ on:
       milvus_image:
         description: 'Milvus Docker image to test against'
         required: false
-        default: 'milvusdb/milvus:master-latest'
+        default: 'milvusdb/milvus:v2.6.8'
 
 jobs:
   e2e-test:
@@ -57,7 +57,7 @@ jobs:
         run: |
           docker compose -f tests/e2e/docker-compose.yaml up -d --wait
         env:
-          MILVUS_IMAGE: ${{ github.event.inputs.milvus_image || 'milvusdb/milvus:master-latest' }}
+          MILVUS_IMAGE: ${{ github.event.inputs.milvus_image || 'milvusdb/milvus:v2.6.8' }}
 
       - name: Setup test data
         run: |
