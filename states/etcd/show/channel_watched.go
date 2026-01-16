@@ -62,26 +62,40 @@ func (rs *ChannelsWatched) PrintAs(format framework.Format) string {
 }
 
 func (rs *ChannelsWatched) printAsJSON() string {
-	output := make([]map[string]any, 0, len(rs.Data))
+	type ChannelWatchedJSON struct {
+		Key          string `json:"key"`
+		ChannelName  string `json:"channel_name"`
+		State        string `json:"state"`
+		PositionID   []byte `json:"position_id,omitempty"`
+		PositionTime string `json:"position_time,omitempty"`
+	}
+
+	type OutputJSON struct {
+		Channels []ChannelWatchedJSON `json:"channels"`
+		Total    int                  `json:"total"`
+	}
+
+	output := OutputJSON{
+		Channels: make([]ChannelWatchedJSON, 0, len(rs.Data)),
+		Total:    len(rs.Data),
+	}
+
 	for _, model := range rs.Data {
 		info := model.GetProto()
-		m := make(map[string]any)
-		m["key"] = model.Key()
-		m["channel_name"] = info.Vchan.ChannelName
-		m["state"] = info.State.String()
+		ch := ChannelWatchedJSON{
+			Key:         model.Key(),
+			ChannelName: info.Vchan.ChannelName,
+			State:       info.State.String(),
+		}
 
 		pos := info.Vchan.SeekPosition
 		if pos != nil {
 			startTime, _ := utils.ParseTS(pos.Timestamp)
-			m["position_id"] = pos.MsgID
-			m["position_time"] = startTime
+			ch.PositionID = pos.MsgID
+			ch.PositionTime = startTime.Format(tsPrintFormat)
 		}
 
-		if rs.printSchema {
-			m["schema"] = info.Schema
-		}
-
-		output = append(output, m)
+		output.Channels = append(output.Channels, ch)
 	}
 
 	return framework.MarshalJSON(output)
