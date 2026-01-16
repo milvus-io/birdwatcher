@@ -53,60 +53,11 @@ jobs:
         run: |
           pip install -r tests/e2e/requirements.txt
 
-      - name: Start etcd
+      - name: Start Milvus with docker compose
         run: |
-          docker run -d --name etcd \
-            --network host \
-            -e ETCD_AUTO_COMPACTION_MODE=revision \
-            -e ETCD_AUTO_COMPACTION_RETENTION=1000 \
-            -e ETCD_QUOTA_BACKEND_BYTES=4294967296 \
-            -e ETCD_SNAPSHOT_COUNT=50000 \
-            -e ALLOW_NONE_AUTHENTICATION=yes \
-            -e ETCD_ADVERTISE_CLIENT_URLS=http://127.0.0.1:2379 \
-            -e ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379 \
-            quay.io/coreos/etcd:v3.5.25
-          echo "Waiting for etcd to be ready..."
-          timeout 60 bash -c 'until docker exec etcd etcdctl endpoint health --endpoints=127.0.0.1:2379; do sleep 2; done'
-          echo "etcd is ready!"
-
-      - name: Start MinIO
-        run: |
-          docker run -d --name minio \
-            --network host \
-            -e MINIO_ACCESS_KEY=minioadmin \
-            -e MINIO_SECRET_KEY=minioadmin \
-            minio/minio:RELEASE.2024-05-28T17-19-04Z \
-            server /data
-          echo "Waiting for MinIO to be ready..."
-          timeout 60 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
-          echo "MinIO is ready!"
-
-      - name: Create MinIO bucket
-        run: |
-          wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /tmp/mc
-          chmod +x /tmp/mc
-          /tmp/mc alias set myminio http://localhost:9000 minioadmin minioadmin
-          /tmp/mc mb myminio/a-bucket || true
-
-      - name: Start Milvus standalone
-        run: |
-          docker run -d --name milvus \
-            --network host \
-            -e ETCD_ENDPOINTS=127.0.0.1:2379 \
-            -e MINIO_ADDRESS=127.0.0.1:9000 \
-            -e MINIO_ACCESS_KEY_ID=minioadmin \
-            -e MINIO_SECRET_ACCESS_KEY=minioadmin \
-            -e COMMON_STORAGETYPE=local \
-            ${{ github.event.inputs.milvus_image || 'milvusdb/milvus:master-latest' }} \
-            milvus run standalone
-          echo "Milvus container started"
-
-      - name: Wait for Milvus healthy
-        run: |
-          echo "Waiting for Milvus to be healthy..."
-          timeout 180 bash -c 'until curl -sf http://localhost:9091/healthz; do echo "Waiting..."; sleep 5; done'
-          echo "Milvus is healthy!"
-          curl -s http://localhost:9091/healthz
+          docker compose -f tests/e2e/docker-compose.yaml up -d --wait
+        env:
+          MILVUS_IMAGE: ${{ github.event.inputs.milvus_image || 'milvusdb/milvus:master-latest' }}
 
       - name: Setup test data
         run: |
@@ -126,9 +77,9 @@ jobs:
       - name: Collect logs on failure
         if: failure()
         run: |
-          docker logs milvus > milvus.log 2>&1 || true
-          docker logs etcd > etcd.log 2>&1 || true
-          docker logs minio > minio.log 2>&1 || true
+          docker compose -f tests/e2e/docker-compose.yaml logs milvus > milvus.log 2>&1 || true
+          docker compose -f tests/e2e/docker-compose.yaml logs etcd > etcd.log 2>&1 || true
+          docker compose -f tests/e2e/docker-compose.yaml logs minio > minio.log 2>&1 || true
           echo "=== Last 200 lines of Milvus Logs ==="
           tail -200 milvus.log || true
 
@@ -147,5 +98,4 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker stop milvus etcd minio || true
-          docker rm milvus etcd minio || true
+          docker compose -f tests/e2e/docker-compose.yaml down -v || true
