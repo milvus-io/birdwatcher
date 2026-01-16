@@ -1,0 +1,155 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'states/**'
+      - 'framework/**'
+      - 'models/**'
+      - 'storage/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'tests/e2e/**'
+      - '.github/workflows/e2e-test.yaml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      milvus_image:
+        description: 'Milvus Docker image to test against'
+        required: false
+        default: 'milvusdb/milvus:master-latest'
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      etcd:
+        image: quay.io/coreos/etcd:v3.5.25
+        ports:
+          - 2379:2379
+        env:
+          ETCD_AUTO_COMPACTION_MODE: revision
+          ETCD_AUTO_COMPACTION_RETENTION: "1000"
+          ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+          ETCD_SNAPSHOT_COUNT: "50000"
+          ALLOW_NONE_AUTHENTICATION: "yes"
+          ETCD_ADVERTISE_CLIENT_URLS: "http://127.0.0.1:2379"
+          ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379"
+        options: >-
+          --health-cmd "etcdctl endpoint health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      minio:
+        image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+        ports:
+          - 9000:9000
+          - 9001:9001
+        env:
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Build birdwatcher
+        run: |
+          CGO_ENABLED=0 go build -o ./bin/birdwatcher ./cmd/birdwatcher/main.go
+          chmod +x ./bin/birdwatcher
+          echo "Birdwatcher built successfully"
+          ./bin/birdwatcher version || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r tests/e2e/requirements.txt
+
+      - name: Create MinIO bucket
+        run: |
+          # Wait for MinIO to be ready
+          timeout 60 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
+          # Install mc client and create bucket
+          wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /tmp/mc
+          chmod +x /tmp/mc
+          /tmp/mc alias set myminio http://localhost:9000 minioadmin minioadmin
+          /tmp/mc mb myminio/a-bucket || true
+
+      - name: Start Milvus standalone
+        run: |
+          docker run -d --name milvus \
+            --network host \
+            -e ETCD_ENDPOINTS=127.0.0.1:2379 \
+            -e MINIO_ADDRESS=127.0.0.1:9000 \
+            -e MINIO_ACCESS_KEY_ID=minioadmin \
+            -e MINIO_SECRET_ACCESS_KEY=minioadmin \
+            -e COMMON_STORAGETYPE=local \
+            ${{ github.event.inputs.milvus_image || 'milvusdb/milvus:master-latest' }} \
+            milvus run standalone
+          echo "Milvus container started"
+
+      - name: Wait for Milvus healthy
+        run: |
+          echo "Waiting for Milvus to be healthy..."
+          timeout 180 bash -c 'until curl -sf http://localhost:9091/healthz; do echo "Waiting..."; sleep 5; done'
+          echo "Milvus is healthy!"
+          curl -s http://localhost:9091/healthz
+
+      - name: Setup test data
+        run: |
+          python tests/e2e/setup_test_data.py
+
+      - name: Run E2E tests
+        id: e2e_tests
+        run: |
+          chmod +x tests/e2e/test_commands.sh
+          chmod +x tests/e2e/commands/*.sh
+          tests/e2e/test_commands.sh 2>&1 | tee e2e_test_output.log
+        env:
+          BW_BINARY: ./bin/birdwatcher
+          ETCD_ADDR: 127.0.0.1:2379
+          ROOT_PATH: by-dev
+
+      - name: Collect Milvus logs on failure
+        if: failure()
+        run: |
+          docker logs milvus > milvus.log 2>&1 || true
+          echo "=== Last 200 lines of Milvus Logs ==="
+          tail -200 milvus.log || true
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-logs
+          path: |
+            e2e_test_output.log
+            milvus.log
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop milvus || true
+          docker rm milvus || true
