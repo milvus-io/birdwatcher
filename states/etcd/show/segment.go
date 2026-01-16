@@ -43,7 +43,7 @@ type segStats struct {
 }
 
 // SegmentCommand returns show segments command.
-func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) error {
+func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) (*framework.PresetResultSet, error) {
 	segments, err := common.ListSegments(ctx, c.client, c.metaPath, func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID) &&
 			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
@@ -54,9 +54,115 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			(p.StorageVersion == -1 || segment.StorageVersion == p.StorageVersion)
 	})
 	if err != nil {
-		fmt.Println("failed to list segments", err.Error())
-		return nil
+		return nil, fmt.Errorf("failed to list segments: %w", err)
 	}
+
+	rs := &Segments{
+		segments: segments,
+		format:   p.Format,
+		detail:   p.Detail,
+	}
+	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
+}
+
+type Segments struct {
+	segments []*models.Segment
+	format   string
+	detail   bool
+}
+
+func (rs *Segments) Entities() any {
+	return rs.segments
+}
+
+func (rs *Segments) PrintAs(format framework.Format) string {
+	switch format {
+	case framework.FormatJSON:
+		return rs.printAsJSON()
+	default:
+		return rs.printDefault()
+	}
+}
+
+func (rs *Segments) printAsJSON() string {
+	type SegmentJSON struct {
+		SegmentID      int64  `json:"segment_id"`
+		CollectionID   int64  `json:"collection_id"`
+		PartitionID    int64  `json:"partition_id"`
+		State          string `json:"state"`
+		Level          string `json:"level"`
+		NumOfRows      int64  `json:"num_of_rows"`
+		MaxRowNum      int64  `json:"max_row_num"`
+		StorageVersion int64  `json:"storage_version"`
+		IsSorted       bool   `json:"is_sorted"`
+		InsertChannel  string `json:"insert_channel"`
+	}
+
+	type SummaryJSON struct {
+		Growing      int   `json:"growing"`
+		Sealed       int   `json:"sealed"`
+		Flushed      int   `json:"flushed"`
+		Dropped      int   `json:"dropped"`
+		TotalHealthy int   `json:"total_healthy"`
+		TotalRows    int64 `json:"total_rows"`
+	}
+
+	type OutputJSON struct {
+		Segments []SegmentJSON `json:"segments"`
+		Summary  SummaryJSON   `json:"summary"`
+	}
+
+	var growing, sealed, flushed, dropped, healthy int
+	var totalRC int64
+
+	output := OutputJSON{
+		Segments: make([]SegmentJSON, 0, len(rs.segments)),
+	}
+
+	for _, info := range rs.segments {
+		if info.State != commonpb.SegmentState_Dropped {
+			totalRC += info.NumOfRows
+			healthy++
+		}
+		switch info.State {
+		case commonpb.SegmentState_Growing:
+			growing++
+		case commonpb.SegmentState_Sealed:
+			sealed++
+		case commonpb.SegmentState_Flushing, commonpb.SegmentState_Flushed:
+			flushed++
+		case commonpb.SegmentState_Dropped:
+			dropped++
+		}
+
+		output.Segments = append(output.Segments, SegmentJSON{
+			SegmentID:      info.ID,
+			CollectionID:   info.CollectionID,
+			PartitionID:    info.PartitionID,
+			State:          info.State.String(),
+			Level:          info.Level.String(),
+			NumOfRows:      info.NumOfRows,
+			MaxRowNum:      info.MaxRowNum,
+			StorageVersion: info.StorageVersion,
+			IsSorted:       info.IsSorted,
+			InsertChannel:  info.InsertChannel,
+		})
+	}
+
+	output.Summary = SummaryJSON{
+		Growing:      growing,
+		Sealed:       sealed,
+		Flushed:      flushed,
+		Dropped:      dropped,
+		TotalHealthy: healthy,
+		TotalRows:    totalRC,
+	}
+
+	return framework.MarshalJSON(output)
+}
+
+func (rs *Segments) printDefault() string {
+	sb := &strings.Builder{}
 
 	totalRC := int64(0)
 	healthy := 0
@@ -66,12 +172,12 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 	var smallCnt, otherCnt int64
 
 	collectionID2SegStats := make(map[int64]*segStats)
-	collectionID2Segments := lo.GroupBy(segments, func(s *models.Segment) int64 {
+	collectionID2Segments := lo.GroupBy(rs.segments, func(s *models.Segment) int64 {
 		return s.CollectionID
 	})
 
 	for collectionID, segs := range collectionID2Segments {
-		fmt.Printf("===============================CollectionID: %d===========================\n", collectionID)
+		fmt.Fprintf(sb, "===============================CollectionID: %d===========================\n", collectionID)
 		collectionID2SegStats[collectionID] = &segStats{
 			binlogLogSize: make(map[int64]int64),
 			binlogMemSize: make(map[int64]int64),
@@ -100,12 +206,9 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 				dropped++
 			}
 
-			switch p.Format {
+			switch rs.format {
 			case "table":
-				PrintSegmentInfo(info, p.Detail)
-			case "line":
-				fmt.Printf("SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  StorageVersion:%d, IsSorted: %v \n",
-					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.StorageVersion, info.IsSorted)
+				printSegmentInfoToBuilder(sb, info, rs.detail)
 			case "statistics":
 				if info.State != commonpb.SegmentState_Dropped {
 					for _, binlog := range info.GetBinlogs() {
@@ -128,25 +231,25 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 						}
 					}
 				}
-			default:
-				err := fmt.Errorf("unsupport format:%s", p.Format)
-				return err
+			default: // line format
+				fmt.Fprintf(sb, "SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  StorageVersion:%d, IsSorted: %v \n",
+					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.StorageVersion, info.IsSorted)
 			}
 		}
-		if p.Format == "statistics" {
-			outputStats("Collection", collectionID2SegStats[collectionID])
+		if rs.format == "statistics" {
+			outputStatsToBuilder(sb, "Collection", collectionID2SegStats[collectionID])
 		}
-		fmt.Printf("\n")
+		fmt.Fprintf(sb, "\n")
 	}
 
-	if p.Format == "statistics" {
-		outputStats("Total", lo.Values(collectionID2SegStats)...)
+	if rs.format == "statistics" {
+		outputStatsToBuilder(sb, "Total", lo.Values(collectionID2SegStats)...)
 	}
 
-	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
-	fmt.Printf("--- Small Segments: %d, row count: %d\t Other Segments: %d, row count: %d\n", small, smallCnt, other, otherCnt)
-	fmt.Printf("--- Total Segments: %d, row count: %d\n", healthy, totalRC)
-	return nil
+	fmt.Fprintf(sb, "--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
+	fmt.Fprintf(sb, "--- Small Segments: %d, row count: %d\t Other Segments: %d, row count: %d\n", small, smallCnt, other, otherCnt)
+	fmt.Fprintf(sb, "--- Total Segments: %d, row count: %d\n", healthy, totalRC)
+	return sb.String()
 }
 
 func outputStats(scope string, stats ...*segStats) {
@@ -332,4 +435,76 @@ func countBinlogNum(fbl []*models.FieldBinlog) int {
 		result += len(f.Binlogs)
 	}
 	return result
+}
+
+func outputStatsToBuilder(sb *strings.Builder, scope string, stats ...*segStats) {
+	var totalBinlogLogSize int64
+	var totalBinlogMemSize int64
+	var totalDeltaLogSize int64
+	var totalDeltaMemSize int64
+	var totalDeltaEntryNum int64
+	var totalStatsLogSize int64
+	var totalStatsMemSize int64
+	for _, s := range stats {
+		for fieldID, logSize := range s.binlogLogSize {
+			memSize := s.binlogMemSize[fieldID]
+			if scope != "Total" {
+				fmt.Fprintf(sb, "field[%d] binlog size: %s, mem size: %s\n", fieldID, hrSize(logSize), hrSize(memSize))
+			}
+			totalBinlogLogSize += logSize
+			totalBinlogMemSize += memSize
+		}
+
+		totalDeltaLogSize += s.deltaLogSize
+		totalDeltaMemSize += s.deltaMemSize
+		totalDeltaEntryNum += s.deltaEntryNum
+		totalStatsLogSize += s.statsLogSize
+		totalStatsMemSize += s.statsMemSize
+	}
+
+	fmt.Fprintf(sb, "--- %s binlog size: %s, mem size: %s\n", scope, hrSize(totalBinlogLogSize), hrSize(totalBinlogMemSize))
+	fmt.Fprintf(sb, "--- %s deltalog size: %s, mem size: %s, delta entry number: %d\n", scope, hrSize(totalDeltaLogSize), hrSize(totalDeltaMemSize), totalDeltaEntryNum)
+	fmt.Fprintf(sb, "--- %s statslog size: %s, mem size: %s\n", scope, hrSize(totalStatsLogSize), hrSize(totalStatsMemSize))
+}
+
+func printSegmentInfoToBuilder(sb *strings.Builder, info *models.Segment, detailBinlog bool) {
+	fmt.Fprintln(sb, "================================================================================")
+	fmt.Fprintf(sb, "Segment ID: %d\n", info.ID)
+	fmt.Fprintf(sb, "Segment State: %v", info.State)
+	if info.State == commonpb.SegmentState_Dropped {
+		dropTime := time.Unix(0, int64(info.DroppedAt))
+		fmt.Fprintf(sb, "\tDropped Time: %s", dropTime.Format(tsPrintFormat))
+	}
+	fmt.Fprintf(sb, "\tSegment Level: %s", info.Level.String())
+	fmt.Fprintf(sb, "\tStorage Version: %d", info.GetStorageVersion())
+	fmt.Fprintln(sb)
+	fmt.Fprintf(sb, "Collection ID: %d\t\tPartitionID: %d\n", info.CollectionID, info.PartitionID)
+	fmt.Fprintf(sb, "Insert Channel:%s\n", info.InsertChannel)
+	fmt.Fprintf(sb, "Num of Rows: %d\t\tMax Row Num: %d\n", info.NumOfRows, info.MaxRowNum)
+	lastExpireTime, _ := utils.ParseTS(info.LastExpireTime)
+	fmt.Fprintf(sb, "Last Expire Time: %s\n", lastExpireTime.Format(tsPrintFormat))
+	fmt.Fprintf(sb, "Compact from %v \n", info.CompactionFrom)
+	if info.StartPosition != nil {
+		startTime, _ := utils.ParseTS(info.GetStartPosition().GetTimestamp())
+		fmt.Fprintf(sb, "Start Position ID: %v, time: %s, channel name %s\n", info.GetStartPosition().MsgID, startTime.Format(tsPrintFormat), info.GetStartPosition().GetChannelName())
+	} else {
+		fmt.Fprintln(sb, "Start Position: nil")
+	}
+	if info.DmlPosition != nil {
+		dmlTime, _ := utils.ParseTS(info.DmlPosition.Timestamp)
+		fmt.Fprintf(sb, "Dml Position ID: %v, time: %s, channel name: %s\n", info.DmlPosition.MsgID, dmlTime.Format(tsPrintFormat), info.GetDmlPosition().GetChannelName())
+	} else {
+		fmt.Fprintln(sb, "Dml Position: nil")
+	}
+	fmt.Fprintf(sb, "Manifest Path: %s\n", info.ManifestPath)
+	fmt.Fprintf(sb, "Binlog Nums %d\tStatsLog Nums: %d\tDeltaLog Nums:%d\n",
+		countBinlogNum(info.GetBinlogs()), countBinlogNum(info.GetStatslogs()), countBinlogNum(info.GetDeltalogs()))
+
+	if info.JsonKeyStats != nil {
+		fmt.Fprintln(sb, "Json Key Stats:")
+		for _, keyStats := range info.JsonKeyStats {
+			fmt.Fprintf(sb, "  Stats info: %v\n", keyStats)
+		}
+	}
+	fmt.Fprintln(sb, "================================================================================")
 }

@@ -28,9 +28,10 @@ type CompactionTaskParam struct {
 	SegmentID           int64  ` name:"segmentID" default:"0" desc:"SegmentID  to filter"`
 	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing input/result segmentIDs"`
 	IgnoreDone          bool   `name:"ignoreDone" default:"true" desc:"ignore finished compaction tasks"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
-func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) (*CompactionTasks, error) {
+func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) (*framework.PresetResultSet, error) {
 	var compactionTasks []*models.CompactionTask
 	var err error
 	var total int64
@@ -79,11 +80,12 @@ func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *Compaction
 	sort.Slice(compactionTasks, func(i, j int) bool {
 		return compactionTasks[i].GetPlanID() < compactionTasks[j].GetPlanID()
 	})
-	return &CompactionTasks{
+	result := &CompactionTasks{
 		tasks: compactionTasks,
 		total: total,
 		param: p,
-	}, nil
+	}
+	return framework.NewPresetResultSet(result, framework.NameFormat(p.Format)), nil
 }
 
 type CompactionTasks struct {

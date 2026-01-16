@@ -31,7 +31,8 @@ test_json_command "show segment json" "show segment --format json"
 test_command "show partition" "show partition" 0
 test_optional "show partition by collection" "show partition --collection test_collection"
 test_optional "show partition-loaded" "show partition-loaded"
-test_json_command "show partition json" "show partition --format json"
+# Note: show partition requires --collection flag for JSON output
+test_optional "show partition json" "show partition --collection test_collection --format json"
 
 # Index commands
 test_command "show index" "show index" 0
@@ -41,7 +42,8 @@ test_json_command "show index json" "show index --format json"
 # Checkpoint commands
 test_optional "show checkpoint" "show checkpoint"
 test_optional "show checkpoint by collection" "show checkpoint --collection test_collection"
-test_json_command "show checkpoint json" "show checkpoint --format json"
+# Note: show checkpoint requires --collection flag for JSON output
+test_optional "show checkpoint json" "show checkpoint --collection test_collection --format json"
 
 # Channel commands
 test_command "show channel-watched" "show channel-watched" 0

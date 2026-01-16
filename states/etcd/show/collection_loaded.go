@@ -19,11 +19,12 @@ const (
 
 type CollectionLoadedParam struct {
 	framework.ParamBase `use:"show collection-loaded" desc:"display information of loaded collection from querycoord" alias:"collection-load"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to check"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to check"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // CollectionLoadedCommand return show collection-loaded command.
-func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *CollectionLoadedParam) (*CollectionsLoaded, error) {
+func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *CollectionLoadedParam) (*framework.PresetResultSet, error) {
 	var total int
 	infos, err := common.ListCollectionLoadedInfo(ctx, c.client, c.metaPath, func(info *models.CollectionLoaded) bool {
 		total++
@@ -38,7 +39,7 @@ func (c *ComponentShow) CollectionLoadedCommand(ctx context.Context, p *Collecti
 		})
 	}
 
-	return framework.NewListResult[CollectionsLoaded](infos), nil
+	return framework.NewPresetResultSet(framework.NewListResult[CollectionsLoaded](infos), framework.NameFormat(p.Format)), nil
 }
 
 type CollectionsLoaded struct {
@@ -54,9 +55,40 @@ func (rs *CollectionsLoaded) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Collections Loaded: %d\n", len(rs.Data))
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *CollectionsLoaded) printAsJSON() string {
+	type CollectionLoadedJSON struct {
+		CollectionID  int64  `json:"collection_id"`
+		ReplicaNumber int32  `json:"replica_number"`
+		Status        string `json:"status"`
+	}
+
+	type OutputJSON struct {
+		Collections []CollectionLoadedJSON `json:"collections"`
+		Total       int                    `json:"total"`
+	}
+
+	output := OutputJSON{
+		Collections: make([]CollectionLoadedJSON, 0, len(rs.Data)),
+		Total:       len(rs.Data),
+	}
+
+	for _, cl := range rs.Data {
+		info := cl.GetProto()
+		output.Collections = append(output.Collections, CollectionLoadedJSON{
+			CollectionID:  info.CollectionID,
+			ReplicaNumber: info.ReplicaNumber,
+			Status:        info.Status.String(),
+		})
+	}
+
+	return framework.MarshalJSON(output)
 }
 
 func (rs *CollectionsLoaded) printCollectionLoaded(sb *strings.Builder, cl *models.CollectionLoaded) {
