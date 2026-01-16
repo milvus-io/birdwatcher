@@ -82,12 +82,12 @@ func (app *ApplicationState) connectTiKV(ctx context.Context, cp *ConnectParams)
 			}
 		}
 
-		fmt.Println("Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
+		fmt.Fprintln(os.Stderr, "Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
 
 		// use rootPath as instanceName
 		app.SetTagNext(tikvTag, getInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config))
 	} else {
-		fmt.Println("using dry mode, ignore rootPath and metaPath")
+		fmt.Fprintln(os.Stderr, "using dry mode, ignore rootPath and metaPath")
 		// rootPath empty fall back to metastore connected state
 		app.SetTagNext(tikvTag, kvState)
 	}
@@ -169,12 +169,12 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 			}
 		}
 
-		fmt.Println("Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
+		fmt.Fprintln(os.Stderr, "Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
 
 		// use rootPath as instanceName
 		app.SetTagNext(etcdTag, getInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config))
 	} else {
-		fmt.Println("using dry mode, ignore rootPath and metaPath")
+		fmt.Fprintln(os.Stderr, "using dry mode, ignore rootPath and metaPath")
 		// rootPath empty fall back to etcd connected state
 		app.SetTagNext(etcdTag, kvState)
 	}
@@ -332,7 +332,7 @@ func (s *kvConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
 		}
 	}
 
-	fmt.Printf("Using meta path: %s/%s/\n", p.instanceName, p.MetaPath)
+	fmt.Fprintf(os.Stderr, "Using meta path: %s/%s/\n", p.instanceName, p.MetaPath)
 
 	s.SetNext(etcdTag, getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config))
 	return nil
