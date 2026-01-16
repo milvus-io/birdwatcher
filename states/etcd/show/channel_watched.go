@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -48,23 +47,44 @@ type ChannelsWatched struct {
 
 func (rs *ChannelsWatched) PrintAs(format framework.Format) string {
 	sb := &strings.Builder{}
-	for _, info := range rs.Data {
-		switch format {
-		case framework.FormatDefault, framework.FormatPlain:
-			rs.printChannelWatchInfo(sb, info)
-		case framework.FormatJSON:
-			rs.printChannelWatchInfoJSON(sb, info)
-		default:
-		}
-	}
 
 	switch format {
-	case framework.FormatDefault, framework.FormatPlain:
-		fmt.Fprintf(sb, "--- Total Channels: %d\n", len(rs.Data))
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
+		for _, info := range rs.Data {
+			rs.printChannelWatchInfo(sb, info)
+		}
+		fmt.Fprintf(sb, "--- Total Channels: %d\n", len(rs.Data))
 	}
 
 	return sb.String()
+}
+
+func (rs *ChannelsWatched) printAsJSON() string {
+	output := make([]map[string]any, 0, len(rs.Data))
+	for _, model := range rs.Data {
+		info := model.GetProto()
+		m := make(map[string]any)
+		m["key"] = model.Key()
+		m["channel_name"] = info.Vchan.ChannelName
+		m["state"] = info.State.String()
+
+		pos := info.Vchan.SeekPosition
+		if pos != nil {
+			startTime, _ := utils.ParseTS(pos.Timestamp)
+			m["position_id"] = pos.MsgID
+			m["position_time"] = startTime
+		}
+
+		if rs.printSchema {
+			m["schema"] = info.Schema
+		}
+
+		output = append(output, m)
+	}
+
+	return framework.MarshalJSON(output)
 }
 
 func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, m *models.ChannelWatch) {
@@ -128,28 +148,3 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, m *models.
 	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.Schema.EnableDynamicField)
 }
 
-func (rs *ChannelsWatched) printChannelWatchInfoJSON(sb *strings.Builder, model *models.ChannelWatch) {
-	info := model.GetProto()
-	m := make(map[string]any)
-	m["key"] = model.Key()
-	m["channel_name"] = info.Vchan.ChannelName
-
-	pos := info.Vchan.SeekPosition
-	if pos != nil {
-		startTime, _ := utils.ParseTS(pos.Timestamp)
-		m["position_id"] = pos.MsgID
-		m["position_time"] = startTime
-	}
-
-	if rs.printSchema {
-		m["schema"] = info.Schema
-	}
-
-	bs, err := json.Marshal(m)
-	if err != nil {
-		fmt.Println("failed to marshal watch info json:", err.Error())
-		return
-	}
-
-	fmt.Fprintln(sb, string(bs))
-}
