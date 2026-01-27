@@ -58,6 +58,17 @@ func (s *CmdState) Log(v ...any) {
 	}
 }
 
+// GetGlobalFormat returns the global output format from config.
+func (s *CmdState) GetGlobalFormat() Format {
+	if s.config != nil {
+		formatName := s.config.GetGlobalOutputFormat()
+		if formatName != "" {
+			return NameFormat(formatName)
+		}
+	}
+	return FormatDefault
+}
+
 // SetLabel updates label value.
 func (s *CmdState) SetLabel(label string) {
 	s.label = label

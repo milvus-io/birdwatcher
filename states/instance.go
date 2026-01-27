@@ -39,6 +39,17 @@ func (s *InstanceState) Close() {
 	}
 }
 
+// GetGlobalFormat implements framework.FormatProvider interface.
+func (s *InstanceState) GetGlobalFormat() framework.Format {
+	if s.config != nil {
+		formatName := s.config.GetGlobalOutputFormat()
+		if formatName != "" {
+			return framework.NameFormat(formatName)
+		}
+	}
+	return framework.FormatDefault
+}
+
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *InstanceState) SetupCommands() {

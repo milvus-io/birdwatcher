@@ -2,7 +2,6 @@ package show
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -35,36 +34,80 @@ func (c *ComponentShow) ChannelWatchedCommand(ctx context.Context, p *ChannelWat
 		return nil, errors.Wrap(err, "failed to list channel watch info")
 	}
 
-	rs := framework.NewListResult[ChannelsWatched](infos)
-	rs.printSchema = p.PrintSchema
+	rs := &ChannelsWatched{
+		data:        infos,
+		printSchema: p.PrintSchema,
+	}
 
 	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
 }
 
 type ChannelsWatched struct {
-	framework.ListResultSet[*models.ChannelWatch]
+	data        []*models.ChannelWatch
 	printSchema bool
 }
 
-func (rs *ChannelsWatched) PrintAs(format framework.Format) string {
-	sb := &strings.Builder{}
-	for _, info := range rs.Data {
-		switch format {
-		case framework.FormatDefault, framework.FormatPlain:
-			rs.printChannelWatchInfo(sb, info)
-		case framework.FormatJSON:
-			rs.printChannelWatchInfoJSON(sb, info)
-		default:
-		}
-	}
+func (rs *ChannelsWatched) Entities() any {
+	return rs.data
+}
 
+func (rs *ChannelsWatched) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
-		fmt.Fprintf(sb, "--- Total Channels: %d\n", len(rs.Data))
-	default:
+		return rs.printDefault()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
+	}
+	return ""
+}
+
+func (rs *ChannelsWatched) printDefault() string {
+	sb := &strings.Builder{}
+	for _, info := range rs.data {
+		rs.printChannelWatchInfo(sb, info)
+	}
+	fmt.Fprintf(sb, "--- Total Channels: %d\n", len(rs.data))
+	return sb.String()
+}
+
+func (rs *ChannelsWatched) printAsJSON() string {
+	type ChannelWatchedJSON struct {
+		Key          string `json:"key"`
+		ChannelName  string `json:"channel_name"`
+		State        string `json:"state"`
+		PositionID   []byte `json:"position_id,omitempty"`
+		PositionTime string `json:"position_time,omitempty"`
 	}
 
-	return sb.String()
+	type OutputJSON struct {
+		Channels []ChannelWatchedJSON `json:"channels"`
+		Total    int                  `json:"total"`
+	}
+
+	output := OutputJSON{
+		Channels: make([]ChannelWatchedJSON, 0, len(rs.data)),
+		Total:    len(rs.data),
+	}
+
+	for _, model := range rs.data {
+		info := model.GetProto()
+		ch := ChannelWatchedJSON{
+			Key:         model.Key(),
+			ChannelName: info.Vchan.ChannelName,
+			State:       info.State.String(),
+		}
+
+		pos := info.Vchan.SeekPosition
+		if pos != nil {
+			startTime, _ := utils.ParseTS(pos.Timestamp)
+			ch.PositionID = pos.MsgID
+			ch.PositionTime = startTime.Format(tsPrintFormat)
+		}
+
+		output.Channels = append(output.Channels, ch)
+	}
+
+	return framework.MarshalJSON(output)
 }
 
 func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, m *models.ChannelWatch) {
@@ -126,30 +169,4 @@ func (rs *ChannelsWatched) printChannelWatchInfo(sb *strings.Builder, m *models.
 	}
 
 	fmt.Fprintf(sb, "Enable Dynamic Schema: %t\n", info.Schema.EnableDynamicField)
-}
-
-func (rs *ChannelsWatched) printChannelWatchInfoJSON(sb *strings.Builder, model *models.ChannelWatch) {
-	info := model.GetProto()
-	m := make(map[string]any)
-	m["key"] = model.Key()
-	m["channel_name"] = info.Vchan.ChannelName
-
-	pos := info.Vchan.SeekPosition
-	if pos != nil {
-		startTime, _ := utils.ParseTS(pos.Timestamp)
-		m["position_id"] = pos.MsgID
-		m["position_time"] = startTime
-	}
-
-	if rs.printSchema {
-		m["schema"] = info.Schema
-	}
-
-	bs, err := json.Marshal(m)
-	if err != nil {
-		fmt.Println("failed to marshal watch info json:", err.Error())
-		return
-	}
-
-	fmt.Fprintln(sb, string(bs))
 }

@@ -16,11 +16,12 @@ import (
 
 type ReplicaParam struct {
 	framework.ParamBase `use:"show replica" desc:"list current replica information from QueryCoord" alias:"replicas"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // ReplicaCommand returns command for show querycoord replicas.
-func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*Replicas, error) {
+func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*framework.PresetResultSet, error) {
 	var collections []*models.Collection
 	var err error
 	if p.CollectionID > 0 {
@@ -47,7 +48,7 @@ func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*R
 
 	rs := framework.NewListResult[Replicas](replicas)
 	rs.collections = lo.SliceToMap(collections, func(c *models.Collection) (int64, *models.Collection) { return c.GetProto().GetID(), c })
-	return rs, nil
+	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
 }
 
 type Replicas struct {
@@ -69,9 +70,77 @@ func (rs *Replicas) PrintAs(format framework.Format) string {
 			fmt.Fprintln(sb)
 		}
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Replicas) printAsJSON() string {
+	type ShardReplicaJSON struct {
+		Shard string  `json:"shard"`
+		Nodes []int64 `json:"nodes"`
+	}
+
+	type ReplicaJSON struct {
+		ReplicaID     int64              `json:"replica_id"`
+		CollectionID  int64              `json:"collection_id"`
+		ResourceGroup string             `json:"resource_group"`
+		Nodes         []int64            `json:"nodes"`
+		ShardReplicas []ShardReplicaJSON `json:"shard_replicas,omitempty"`
+	}
+
+	type CollectionReplicasJSON struct {
+		CollectionID   int64         `json:"collection_id"`
+		CollectionName string        `json:"collection_name"`
+		Replicas       []ReplicaJSON `json:"replicas"`
+	}
+
+	type OutputJSON struct {
+		Collections []CollectionReplicasJSON `json:"collections"`
+		Total       int                      `json:"total"`
+	}
+
+	groups := lo.GroupBy(rs.Data, func(replica *models.Replica) int64 { return replica.GetProto().CollectionID })
+	output := OutputJSON{
+		Collections: make([]CollectionReplicasJSON, 0, len(groups)),
+		Total:       len(rs.Data),
+	}
+
+	for collectionID, replicas := range groups {
+		collName := ""
+		if coll, ok := rs.collections[collectionID]; ok {
+			collName = coll.GetProto().Schema.Name
+		}
+
+		replicaJSONs := make([]ReplicaJSON, 0, len(replicas))
+		for _, r := range replicas {
+			replica := r.GetProto()
+			shardReplicas := make([]ShardReplicaJSON, 0, len(replica.ChannelNodeInfos))
+			for shard, shardReplica := range replica.ChannelNodeInfos {
+				shardReplicas = append(shardReplicas, ShardReplicaJSON{
+					Shard: shard,
+					Nodes: shardReplica.RwNodes,
+				})
+			}
+			replicaJSONs = append(replicaJSONs, ReplicaJSON{
+				ReplicaID:     replica.ID,
+				CollectionID:  replica.CollectionID,
+				ResourceGroup: replica.ResourceGroup,
+				Nodes:         replica.Nodes,
+				ShardReplicas: shardReplicas,
+			})
+		}
+
+		output.Collections = append(output.Collections, CollectionReplicasJSON{
+			CollectionID:   collectionID,
+			CollectionName: collName,
+			Replicas:       replicaJSONs,
+		})
+	}
+
+	return framework.MarshalJSON(output)
 }
 
 func (rs *Replicas) printReplica(sb *strings.Builder, r *models.Replica) {

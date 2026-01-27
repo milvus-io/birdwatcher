@@ -1,0 +1,112 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'states/**'
+      - 'framework/**'
+      - 'models/**'
+      - 'storage/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'tests/e2e/**'
+      - '.github/workflows/e2e-test.yaml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      milvus_image:
+        description: 'Milvus Docker image to test against'
+        required: false
+        default: 'milvusdb/milvus:v2.6.8'
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Build birdwatcher
+        run: |
+          CGO_ENABLED=0 go build -o ./bin/birdwatcher ./cmd/birdwatcher/main.go
+          chmod +x ./bin/birdwatcher
+          echo "Birdwatcher built successfully"
+          ./bin/birdwatcher version || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r tests/e2e/requirements.txt
+
+      - name: Start Milvus with docker compose
+        run: |
+          docker compose -f tests/e2e/docker-compose.yaml up -d --wait
+        env:
+          MILVUS_IMAGE: ${{ github.event.inputs.milvus_image || 'milvusdb/milvus:v2.6.8' }}
+
+      - name: Setup test data
+        run: |
+          python tests/e2e/setup_test_data.py
+
+      - name: Run E2E tests
+        id: e2e_tests
+        run: |
+          chmod +x tests/e2e/test_commands.sh
+          chmod +x tests/e2e/commands/*.sh
+          tests/e2e/test_commands.sh 2>&1 | tee e2e_test_output.log
+        env:
+          BW_BINARY: ./bin/birdwatcher
+          ETCD_ADDR: 127.0.0.1:2379
+          ROOT_PATH: by-dev
+          LOG_DIR: ./e2e_logs
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f tests/e2e/docker-compose.yaml logs milvus > milvus.log 2>&1 || true
+          docker compose -f tests/e2e/docker-compose.yaml logs etcd > etcd.log 2>&1 || true
+          docker compose -f tests/e2e/docker-compose.yaml logs minio > minio.log 2>&1 || true
+          echo "=== Last 200 lines of Milvus Logs ==="
+          tail -200 milvus.log || true
+
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "=== Test Summary ==="
+          cat ./e2e_logs/test_summary.log || true
+          echo ""
+          echo "=== JSON Report Preview ==="
+          cat ./e2e_logs/test_report.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Total: {d[\"summary\"][\"total\"]}, Passed: {d[\"summary\"][\"passed\"]}, Failed: {d[\"summary\"][\"failed\"]}, Skipped: {d[\"summary\"][\"skipped\"]}')" || true
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-logs
+          path: |
+            e2e_test_output.log
+            e2e_logs/
+            milvus.log
+            etcd.log
+            minio.log
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f tests/e2e/docker-compose.yaml down -v || true

@@ -17,6 +17,11 @@ type commandItem struct {
 	cmd *cobra.Command
 }
 
+// FormatProvider is an optional interface for states that provide global output format.
+type FormatProvider interface {
+	GetGlobalFormat() Format
+}
+
 func parseFunctionCommands(state State) []commandItem {
 	v := reflect.ValueOf(state)
 	tp := v.Type()
@@ -130,11 +135,18 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 					continue
 				}
 				rs := result.Interface().(ResultSet)
-				if preset, ok := rs.(*PresetResultSet); ok {
-					fmt.Println(preset.String())
-					return
+				// Determine output format: command param > global config > default
+				outputFormat := FormatDefault
+				if fp, ok := state.(FormatProvider); ok {
+					outputFormat = fp.GetGlobalFormat()
 				}
-				fmt.Println(rs.PrintAs(FormatDefault))
+				if preset, ok := rs.(*PresetResultSet); ok {
+					// If command explicitly set a format, use it
+					if preset.GetFormat() != FormatUnset {
+						outputFormat = preset.GetFormat()
+					}
+				}
+				fmt.Println(rs.PrintAs(outputFormat))
 			}
 		}
 	}

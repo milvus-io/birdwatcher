@@ -13,9 +13,10 @@ import (
 type ResourceGroupParam struct {
 	framework.ParamBase `use:"show resource-group" desc:"list resource groups in current instance"`
 	Name                string `name:"name" default:"" desc:"resource group name to list"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
-func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGroupParam) (*ResourceGroups, error) {
+func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGroupParam) (*framework.PresetResultSet, error) {
 	rgs, err := common.ListResourceGroups(ctx, c.client, c.metaPath, func(rg *models.ResourceGroup) bool {
 		return p.Name == "" || p.Name == rg.GetProto().GetName()
 	})
@@ -23,7 +24,7 @@ func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGro
 		return nil, err
 	}
 
-	return framework.NewListResult[ResourceGroups](rgs), nil
+	return framework.NewPresetResultSet(framework.NewListResult[ResourceGroups](rgs), framework.NameFormat(p.Format)), nil
 }
 
 type ResourceGroups struct {
@@ -40,7 +41,41 @@ func (rs *ResourceGroups) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Total Resource Group(s): %d\n", len(rs.Data))
 		return sb.String()
-	default:
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	}
 	return ""
+}
+
+func (rs *ResourceGroups) printAsJSON() string {
+	type ResourceGroupJSON struct {
+		Name           string  `json:"name"`
+		CapacityLegacy int32   `json:"capacity_legacy"`
+		Nodes          []int64 `json:"nodes"`
+		LimitNodeNum   int32   `json:"limit_node_num"`
+		RequestNodeNum int32   `json:"request_node_num"`
+	}
+
+	type OutputJSON struct {
+		ResourceGroups []ResourceGroupJSON `json:"resource_groups"`
+		Total          int                 `json:"total"`
+	}
+
+	output := OutputJSON{
+		ResourceGroups: make([]ResourceGroupJSON, 0, len(rs.Data)),
+		Total:          len(rs.Data),
+	}
+
+	for _, info := range rs.Data {
+		rg := info.GetProto()
+		output.ResourceGroups = append(output.ResourceGroups, ResourceGroupJSON{
+			Name:           rg.GetName(),
+			CapacityLegacy: rg.GetCapacity(),
+			Nodes:          rg.GetNodes(),
+			LimitNodeNum:   rg.GetConfig().GetLimits().GetNodeNum(),
+			RequestNodeNum: rg.GetConfig().GetRequests().GetNodeNum(),
+		})
+	}
+
+	return framework.MarshalJSON(output)
 }

@@ -14,18 +14,17 @@ import (
 
 type UserParam struct {
 	framework.ParamBase `use:"show user" desc:"display user info from rootcoord meta"`
-	// DatabaseName        string `name:"name" default:"" desc:"database name to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
-// DatabaseCommand returns show database comand.
-func (c *ComponentShow) UserCommand(ctx context.Context, p *UserParam) (*Users, error) {
+// UserCommand returns show user command.
+func (c *ComponentShow) UserCommand(ctx context.Context, p *UserParam) (*framework.PresetResultSet, error) {
 	users, err := common.ListUsers(ctx, c.client, c.basePath)
 	if err != nil {
-		fmt.Println("failed to list database info", err.Error())
-		return nil, errors.Wrap(err, "failed to list database info")
+		return nil, errors.Wrap(err, "failed to list user info")
 	}
 
-	return framework.NewListResult[Users](users), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Users](users), framework.NameFormat(p.Format)), nil
 }
 
 type Users struct {
@@ -42,7 +41,35 @@ func (rs *Users) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Total Users(s): %d\n", len(rs.Data))
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Users) printAsJSON() string {
+	type UserJSON struct {
+		Username string `json:"username"`
+		Tenant   string `json:"tenant"`
+	}
+
+	type OutputJSON struct {
+		Users []UserJSON `json:"users"`
+		Total int        `json:"total"`
+	}
+
+	output := OutputJSON{
+		Users: make([]UserJSON, 0, len(rs.Data)),
+		Total: len(rs.Data),
+	}
+
+	for _, user := range rs.Data {
+		output.Users = append(output.Users, UserJSON{
+			Username: user.Username,
+			Tenant:   user.Tenant,
+		})
+	}
+
+	return framework.MarshalJSON(output)
 }

@@ -18,11 +18,12 @@ import (
 
 type CheckpointParam struct {
 	framework.ParamBase `use:"show checkpoint" desc:"list checkpoint collection vchannels" alias:"checkpoints,cp"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // CheckpointCommand returns show checkpoint command.
-func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) (*Checkpoints, error) {
+func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointParam) (*framework.PresetResultSet, error) {
 	coll, err := common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, p.CollectionID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get collection")
@@ -60,7 +61,7 @@ func (c *ComponentShow) CheckpointCommand(ctx context.Context, p *CheckpointPara
 		checkpoints = append(checkpoints, checkpoint)
 	}
 
-	return framework.NewListResult[Checkpoints](checkpoints), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Checkpoints](checkpoints), framework.NameFormat(p.Format)), nil
 }
 
 type Checkpoint struct {
@@ -88,9 +89,49 @@ func (rs *Checkpoints) PrintAs(format framework.Format) string {
 				checkpoint.Source)
 		}
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Checkpoints) printAsJSON() string {
+	type CheckpointJSON struct {
+		VirtualChannel  string `json:"virtual_channel"`
+		PhysicalChannel string `json:"physical_channel"`
+		Source          string `json:"source"`
+		Timestamp       string `json:"timestamp,omitempty"`
+		ChannelName     string `json:"channel_name,omitempty"`
+		HasCheckpoint   bool   `json:"has_checkpoint"`
+	}
+
+	type OutputJSON struct {
+		Checkpoints []CheckpointJSON `json:"checkpoints"`
+		Total       int              `json:"total"`
+	}
+
+	output := OutputJSON{
+		Checkpoints: make([]CheckpointJSON, 0, len(rs.Data)),
+		Total:       len(rs.Data),
+	}
+
+	for _, cp := range rs.Data {
+		cpJSON := CheckpointJSON{
+			VirtualChannel:  cp.Channel.VirtualName,
+			PhysicalChannel: cp.Channel.PhysicalName,
+			Source:          cp.Source,
+			HasCheckpoint:   cp.Checkpoint != nil,
+		}
+		if cp.Checkpoint != nil {
+			t, _ := utils.ParseTS(cp.Checkpoint.GetProto().GetTimestamp())
+			cpJSON.Timestamp = t.Format("2006-01-02 15:04:05")
+			cpJSON.ChannelName = cp.Checkpoint.GetProto().ChannelName
+		}
+		output.Checkpoints = append(output.Checkpoints, cpJSON)
+	}
+
+	return framework.MarshalJSON(output)
 }
 
 func (c *ComponentShow) getChannelCheckpoint(ctx context.Context, channelName string) (*models.MsgPosition, error) {

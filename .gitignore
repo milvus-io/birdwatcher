@@ -5,6 +5,7 @@ bin/
 dist/
 bw_workspace/
 
+birdwatcher
 birdwatcher-build
 .bw_config
 

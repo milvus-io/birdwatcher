@@ -17,11 +17,12 @@ import (
 
 type AliasParam struct {
 	framework.ParamBase `use:"show alias" desc:"list alias meta info" alias:"aliases"`
-	DBID                int64 `name:"dbid" default:"-1" desc:"database id to filter with"`
+	DBID                int64  `name:"dbid" default:"-1" desc:"database id to filter with"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // AliasCommand implements `show alias` command.
-func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*Aliases, error) {
+func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*framework.PresetResultSet, error) {
 	aliases, err := common.ListAlias(ctx, c.client, c.metaPath, etcdversion.GetVersion(), func(a *models.Alias) bool {
 		return p.DBID == -1 || p.DBID == a.DBID
 	})
@@ -29,7 +30,7 @@ func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*Alias
 		return nil, errors.Wrap(err, "failed to list alias info")
 	}
 
-	return framework.NewListResult[Aliases](aliases), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Aliases](aliases), framework.NameFormat(p.Format)), nil
 }
 
 type Aliases struct {
@@ -48,9 +49,44 @@ func (rs *Aliases) PrintAs(format framework.Format) string {
 			}
 		}
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Aliases) printAsJSON() string {
+	type AliasJSON struct {
+		DBID            int64  `json:"db_id"`
+		CollectionID    int64  `json:"collection_id"`
+		Name            string `json:"name"`
+		State           string `json:"state"`
+		CreateTimestamp string `json:"create_timestamp"`
+	}
+
+	type OutputJSON struct {
+		Aliases []AliasJSON `json:"aliases"`
+		Total   int         `json:"total"`
+	}
+
+	output := OutputJSON{
+		Aliases: make([]AliasJSON, 0, len(rs.Data)),
+		Total:   len(rs.Data),
+	}
+
+	for _, a := range rs.Data {
+		t, _ := utils.ParseTS(a.CreateTS)
+		output.Aliases = append(output.Aliases, AliasJSON{
+			DBID:            a.DBID,
+			CollectionID:    a.CollectionID,
+			Name:            a.Name,
+			State:           a.State.String(),
+			CreateTimestamp: t.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return framework.MarshalJSON(output)
 }
 
 func (rs *Aliases) PrintAlias(sb *strings.Builder, a *models.Alias) {

@@ -14,11 +14,12 @@ import (
 
 type PartitionParam struct {
 	framework.ParamBase `use:"show partition" desc:"list partitions of provided collection"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to list"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to list"`
+	Format              string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // PartitionCommand returns command to list partition info for provided collection.
-func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam) (*Partitions, error) {
+func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam) (*framework.PresetResultSet, error) {
 	if p.CollectionID == 0 {
 		return nil, errors.New("collection id not provided")
 	}
@@ -32,7 +33,7 @@ func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam)
 		return nil, fmt.Errorf("no partition found for collection %d", p.CollectionID)
 	}
 
-	return framework.NewListResult[Partitions](partitions), nil
+	return framework.NewPresetResultSet(framework.NewListResult[Partitions](partitions), framework.NameFormat(p.Format)), nil
 }
 
 type Partitions struct {
@@ -49,7 +50,38 @@ func (rs *Partitions) PrintAs(format framework.Format) string {
 		}
 		fmt.Fprintf(sb, "--- Total Partition(s): %d\n", len(rs.Data))
 		return sb.String()
+	case framework.FormatJSON:
+		return rs.printAsJSON()
 	default:
 	}
 	return ""
+}
+
+func (rs *Partitions) printAsJSON() string {
+	type PartitionJSON struct {
+		PartitionID   int64  `json:"partition_id"`
+		PartitionName string `json:"partition_name"`
+		State         string `json:"state"`
+	}
+
+	type OutputJSON struct {
+		Partitions []PartitionJSON `json:"partitions"`
+		Total      int             `json:"total"`
+	}
+
+	output := OutputJSON{
+		Partitions: make([]PartitionJSON, 0, len(rs.Data)),
+		Total:      len(rs.Data),
+	}
+
+	for _, info := range rs.Data {
+		partition := info.GetProto()
+		output.Partitions = append(output.Partitions, PartitionJSON{
+			PartitionID:   partition.GetPartitionID(),
+			PartitionName: partition.GetPartitionName(),
+			State:         partition.State.String(),
+		})
+	}
+
+	return framework.MarshalJSON(output)
 }
