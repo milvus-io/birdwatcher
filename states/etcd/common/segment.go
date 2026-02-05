@@ -371,10 +371,11 @@ func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collect
 // WalkAllSegments walk all segment info from etcd with func
 func WalkAllSegments(ctx context.Context, cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool, op func(*datapb.SegmentInfo) error, limit int64) error {
 	cnt := int64(0)
-	return WalkWithPrefix(ctx, cli, path.Join(basePath, SegmentMetaPrefix)+"/", 1000, func(k []byte, v []byte) error {
+	return WalkWithPrefix(ctx, cli, path.Join(basePath, DCPrefix, SegmentMetaPrefix)+"/", 1000, func(k []byte, v []byte) error {
 		info := &datapb.SegmentInfo{}
 		err := proto.Unmarshal(v, info)
 		if err != nil {
+			fmt.Printf("WalkWithPrefix failed with path %s, value: %s, error: %s\n", string(k), string(v), err.Error())
 			return err
 		}
 
