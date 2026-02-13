@@ -13,10 +13,9 @@ import (
 )
 
 type CollectionConsistencyLevelParam struct {
-	framework.ParamBase `use:"set collection consistency-level" desc:"set collection default consistency level"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to update"`
-	ConsistencyLevel    string `name:"consistency-level" default:"" desc:"Consistency Level to set"`
-	Run                 bool   `name:"run" default:"false"`
+	framework.ExecutionParam `use:"set collection consistency-level" desc:"set collection default consistency level"`
+	CollectionID             int64  `name:"collection" default:"0" desc:"collection id to update"`
+	ConsistencyLevel         string `name:"consistency-level" default:"" desc:"Consistency Level to set"`
 }
 
 func (c *ComponentSet) CollectionConsistencyLevelCommand(ctx context.Context, p *CollectionConsistencyLevelParam) error {

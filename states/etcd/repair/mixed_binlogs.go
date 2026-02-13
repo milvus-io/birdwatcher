@@ -14,8 +14,7 @@ import (
 )
 
 type MixedBinlogsParam struct {
-	framework.ParamBase `use:"repair mixed-binlogs" desc:"repair collection info"`
-	Run                 bool `name:"run" default:"false" desc:"run the mixed binlogs repair command"`
+	framework.ExecutionParam `use:"repair mixed-binlogs" desc:"repair collection info"`
 }
 
 func (c *ComponentRepair) MixedBinlogsCommand(ctx context.Context, p *MixedBinlogsParam) error {

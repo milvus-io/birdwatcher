@@ -14,11 +14,10 @@ import (
 )
 
 type AddIndexParamParam struct {
-	framework.ParamBase `use:"repair add_index_params" desc:"check index param and try to add param"`
-	Collection          int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	Key                 string `name:"key" default:"retrieve_friendly" desc:"add params key"`
-	Value               string `name:"value" default:"true" desc:"add params value"`
-	Run                 bool   `name:"run" default:"false" desc:"actual do repair"`
+	framework.ExecutionParam `use:"repair add_index_params" desc:"check index param and try to add param"`
+	Collection               int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	Key                      string `name:"key" default:"retrieve_friendly" desc:"add params key"`
+	Value                    string `name:"value" default:"true" desc:"add params value"`
 }
 
 func (c *ComponentRepair) AddIndexParamsCommand(ctx context.Context, p *AddIndexParamParam) error {

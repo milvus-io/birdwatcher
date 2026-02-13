@@ -13,10 +13,9 @@ import (
 )
 
 type DirtyImportingSegment struct {
-	framework.ParamBase `use:"remove dirty-importing-segment" desc:"remove dirty importing segments with 0 rows"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
-	Ts                  int64 `name:"ts" default:"0" desc:"only remove segments with ts less than this value"`
-	Run                 bool  `name:"run" default:"false" desc:"flag to control actually run or dry"`
+	framework.ExecutionParam `use:"remove dirty-importing-segment" desc:"remove dirty importing segments with 0 rows"`
+	CollectionID             int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	Ts                       int64 `name:"ts" default:"0" desc:"only remove segments with ts less than this value"`
 }
 
 // DirtyImportingSegmentCommand returns command to remove

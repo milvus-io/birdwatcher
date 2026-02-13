@@ -13,9 +13,8 @@ import (
 )
 
 type PartitionParam struct {
-	framework.ParamBase `use:"show partition" desc:"list partitions of provided collection"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to list"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show partition" desc:"list partitions of provided collection"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to list"`
 }
 
 // PartitionCommand returns command to list partition info for provided collection.

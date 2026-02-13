@@ -17,9 +17,8 @@ import (
 )
 
 type CheckpointParam struct {
-	framework.ParamBase `use:"show checkpoint" desc:"list checkpoint collection vchannels" alias:"checkpoints,cp"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show checkpoint" desc:"list checkpoint collection vchannels" alias:"checkpoints,cp"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to filter with"`
 }
 
 // CheckpointCommand returns show checkpoint command.

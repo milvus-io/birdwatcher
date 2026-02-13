@@ -23,13 +23,12 @@ import (
 )
 
 type CollectionInfoParam struct {
-	framework.ParamBase `use:"repair collection-info" desc:"repair collection info"`
-	Path                string `name:"filePath" default:"" desc:"path to the collection info file"`
-	DatabaseID          int64  `name:"databaseID" default:"0" desc:"database ID to repair"`
-	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection ID to repair"`
-	CollectionName      string `name:"collectionName" default:"" desc:"collection name to repair"`
-	EnableDynamic       bool   `name:"enableDynamic" default:"false" desc:"enable dynamic collection info repair, default is false"`
-	Run                 bool   `name:"run" default:"false" desc:"run the collection info repair command"`
+	framework.ExecutionParam `use:"repair collection-info" desc:"repair collection info"`
+	Path                     string `name:"filePath" default:"" desc:"path to the collection info file"`
+	DatabaseID               int64  `name:"databaseID" default:"0" desc:"database ID to repair"`
+	CollectionID             int64  `name:"collectionID" default:"0" desc:"collection ID to repair"`
+	CollectionName           string `name:"collectionName" default:"" desc:"collection name to repair"`
+	EnableDynamic            bool   `name:"enableDynamic" default:"false" desc:"enable dynamic collection info repair, default is false"`
 }
 
 type ListModel struct {

@@ -15,10 +15,9 @@ import (
 )
 
 type ChannelWatchedParam struct {
-	framework.ParamBase `use:"repair channel-watch"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to repair"`
-	ChannelName         string `name:"vchannel" default:"" desc:"channel name to repair"`
-	Run                 bool   `name:"run" default:"false" desc:"whether to remove legacy collection meta, default set to \"false\" to dry run"`
+	framework.ExecutionParam `use:"repair channel-watch"`
+	CollectionID             int64  `name:"collection" default:"0" desc:"collection id to repair"`
+	ChannelName              string `name:"vchannel" default:"" desc:"channel name to repair"`
 }
 
 func (c *ComponentRepair) RepairChannelWatchedCommand(ctx context.Context, p *ChannelWatchedParam) error {

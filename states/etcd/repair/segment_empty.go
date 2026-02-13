@@ -12,9 +12,7 @@ import (
 )
 
 type RepairEmptySegmentParam struct {
-	framework.ParamBase `use:"repair empty-segment" desc:"Remove empty segment from meta"`
-
-	Run bool `name:"run" default:"false" desc:"flags indicating whether to remove segments from meta"`
+	framework.ExecutionParam `use:"repair empty-segment" desc:"Remove empty segment from meta"`
 }
 
 // EmptySegmentCommand returns repair empty-segment command.

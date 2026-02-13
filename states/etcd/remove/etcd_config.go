@@ -9,9 +9,8 @@ import (
 )
 
 type RemoveEtcdConfigParam struct {
-	framework.ParamBase `use:"remove etcd-config" desc:"remove etcd stored configuations"`
-	Key                 string `name:"key" desc:"etcd config key" default:""`
-	Run                 bool   `name:"run" default:"false" desc:"flag to control actually run or dry"`
+	framework.ExecutionParam `use:"remove etcd-config" desc:"remove etcd stored configuations"`
+	Key                      string `name:"key" desc:"etcd config key" default:""`
 }
 
 func (c *ComponentRemove) RemoveEtcdConfigCommand(ctx context.Context, p *RemoveEtcdConfigParam) error {

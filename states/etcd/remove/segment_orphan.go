@@ -13,9 +13,8 @@ import (
 )
 
 type SegmentOrphan struct {
-	framework.ParamBase `use:"remove segment-orphan" desc:"remove orphan segments that collection meta already gone"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
-	Run                 bool  `name:"run" default:"false" desc:"flag to control actually run or dry"`
+	framework.ExecutionParam `use:"remove segment-orphan" desc:"remove orphan segments that collection meta already gone"`
+	CollectionID             int64 `name:"collection" default:"0" desc:"collection id to filter with"`
 }
 
 // SegmentOrphanCommand returns command to remove

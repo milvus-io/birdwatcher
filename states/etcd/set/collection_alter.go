@@ -13,9 +13,9 @@ import (
 )
 
 type FieldAttrParam struct {
-	framework.ParamBase `use:"set field-attr" desc:"set field attribute for collection"`
-	CollectionID        int64 `name:"collectionID" default:"0" desc:"collection id to update"`
-	FieldID             int64 `name:"fieldID" default:"0" desc:"field id to update"`
+	framework.ExecutionParam `use:"set field-attr" desc:"set field attribute for collection"`
+	CollectionID             int64 `name:"collectionID" default:"0" desc:"collection id to update"`
+	FieldID                  int64 `name:"fieldID" default:"0" desc:"field id to update"`
 
 	// target attributes
 	IsClusteringKey bool   `name:"clusterKey" default:"false" desc:"flags indicating whether to enable clusterKey"`
@@ -25,8 +25,6 @@ type FieldAttrParam struct {
 	// type params modification
 	TypeParams       []string `name:"typeParams" default:"" desc:"type params to set, format: key=value (e.g., max_length=256,dim=128)"`
 	DeleteTypeParams []string `name:"deleteTypeParams" default:"" desc:"type param keys to delete"`
-
-	Run bool `name:"run" default:"false"`
 }
 
 func (c *ComponentSet) FieldAttrCommand(ctx context.Context, p *FieldAttrParam) error {

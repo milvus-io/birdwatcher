@@ -11,9 +11,8 @@ import (
 )
 
 type ResourceGroupParam struct {
-	framework.ParamBase `use:"show resource-group" desc:"list resource groups in current instance"`
-	Name                string `name:"name" default:"" desc:"resource group name to list"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show resource-group" desc:"list resource groups in current instance"`
+	Name                   string `name:"name" default:"" desc:"resource group name to list"`
 }
 
 func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGroupParam) (*framework.PresetResultSet, error) {

@@ -18,16 +18,15 @@ import (
 )
 
 type SegmentParam struct {
-	framework.ParamBase `use:"show segment" desc:"display segment information from data coord meta store" alias:"segments"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	PartitionID         int64  `name:"partition" default:"0" desc:"partition id to filter with"`
-	SegmentID           int64  `name:"segment" default:"0" desc:"segment id to display"`
-	Format              string `name:"format" default:"line" desc:"segment display format"`
-	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail binlog info"`
-	State               string `name:"state" default:"" desc:"target segment state"`
-	Level               string `name:"level" default:"" desc:"target segment level"`
-	Sorted              string `name:"sorted" default:"" desc:"flags indicating whether sort segments by segmentID"`
-	StorageVersion      int64  `name:"storageVersion" default:"-1" desc:"segment storage version to filter"`
+	framework.DataSetParam `use:"show segment" desc:"display segment information from data coord meta store" alias:"segments"`
+	CollectionID           int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	PartitionID            int64  `name:"partition" default:"0" desc:"partition id to filter with"`
+	SegmentID              int64  `name:"segment" default:"0" desc:"segment id to display"`
+	Detail                 bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail binlog info"`
+	State                  string `name:"state" default:"" desc:"target segment state"`
+	Level                  string `name:"level" default:"" desc:"target segment level"`
+	Sorted                 string `name:"sorted" default:"" desc:"flags indicating whether sort segments by segmentID"`
+	StorageVersion         int64  `name:"storageVersion" default:"-1" desc:"segment storage version to filter"`
 }
 
 type segStats struct {
@@ -209,6 +208,8 @@ func (rs *Segments) printDefault() string {
 			switch rs.format {
 			case "table":
 				printSegmentInfoToBuilder(sb, info, rs.detail)
+			case "sheet":
+				PrintSegmentInfo(info, rs.detail)
 			case "statistics":
 				if info.State != commonpb.SegmentState_Dropped {
 					for _, binlog := range info.GetBinlogs() {

@@ -11,10 +11,9 @@ import (
 )
 
 type PartitionLoadedParam struct {
-	framework.ParamBase `use:"show partition-loaded" desc:"display the information of loaded partition(s) from querycoord meta"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	PartitionID         int64  `name:"partition" default:"0" desc:"partition id to filter with"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show partition-loaded" desc:"display the information of loaded partition(s) from querycoord meta"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	PartitionID            int64 `name:"partition" default:"0" desc:"partition id to filter with"`
 }
 
 func (c *ComponentShow) PartitionLoadedCommand(ctx context.Context, p *PartitionLoadedParam) (*framework.PresetResultSet, error) {

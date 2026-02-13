@@ -19,10 +19,9 @@ var (
 )
 
 type WALBroadcastTaskParam struct {
-	framework.ParamBase `use:"repair wal-broadcast-task" desc:"repair wal broadcast task"`
-	Mode                string `name:"mode" default:"reset" desc:"reset or remove wal broadcast task"`
-	BroadcastID         int64  `name:"broadcast_id" default:"" desc:"broadcast id to repair"`
-	Run                 bool   `name:"run" default:"false" desc:"actual do repair"`
+	framework.ExecutionParam `use:"repair wal-broadcast-task" desc:"repair wal broadcast task"`
+	Mode                     string `name:"mode" default:"reset" desc:"reset or remove wal broadcast task"`
+	BroadcastID              int64  `name:"broadcast_id" default:"" desc:"broadcast id to repair"`
 }
 
 func (c *ComponentRepair) WALBroadcastTaskCommand(ctx context.Context, p *WALBroadcastTaskParam) error {

@@ -16,9 +16,8 @@ import (
 )
 
 type RepairChannelParam struct {
-	framework.ParamBase `use:"repair channel" desc:"do channel watch change and try to repair"`
-	Collection          int64 `name:"collection" default:"0" desc:"collection id to filter with"`
-	Run                 bool  `name:"run" default:"false" desc:"actual do repair"`
+	framework.ExecutionParam `use:"repair channel" desc:"do channel watch change and try to repair"`
+	Collection               int64 `name:"collection" default:"0" desc:"collection id to filter with"`
 }
 
 // RepairChannelCommand defines repair channel command.

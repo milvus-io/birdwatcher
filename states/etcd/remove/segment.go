@@ -16,12 +16,11 @@ import (
 )
 
 type SegmentParam struct {
-	framework.ParamBase `use:"remove segment" desc:"Remove segment from meta with specified filters"`
-	SegmentID           int64  `name:"segmentID" default:"0" desc:"segment id to remove"`
-	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection id to filter with"`
-	State               string `name:"state" default:"" desc:"segment state"`
-	MaxNum              int64  `name:"maxNum" default:"9223372036854775807" desc:"max number of segment to remove"`
-	Run                 bool   `name:"run" default:"false" desc:"flag to control actually run or dry"`
+	framework.ExecutionParam `use:"remove segment" desc:"Remove segment from meta with specified filters"`
+	SegmentID                int64  `name:"segmentID" default:"0" desc:"segment id to remove"`
+	CollectionID             int64  `name:"collectionID" default:"0" desc:"collection id to filter with"`
+	State                    string `name:"state" default:"" desc:"segment state"`
+	MaxNum                   int64  `name:"maxNum" default:"9223372036854775807" desc:"max number of segment to remove"`
 }
 
 func (c *ComponentRemove) RemoveSegmentCommand(ctx context.Context, p *SegmentParam) error {
@@ -59,7 +58,7 @@ func (c *ComponentRemove) RemoveSegmentCommand(ctx context.Context, p *SegmentPa
 
 	err := common.WalkAllSegments(ctx, c.client, c.basePath, filterFunc, opFunc, p.MaxNum)
 	if err != nil && !errors.Is(err, common.ErrReachMaxNumOfWalkSegment) {
-		fmt.Printf("WalkAllSegmentsfailed, err: %s\n", err.Error())
+		fmt.Printf("WalkAllSegments failed, err: %s\n", err.Error())
 	}
 
 	if !p.Run {

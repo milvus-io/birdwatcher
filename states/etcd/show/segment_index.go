@@ -14,12 +14,11 @@ import (
 )
 
 type SegmentIndexParam struct {
-	framework.ParamBase `use:"show segment-index" desc:"display segment index information" alias:"segments-index,segment-indexes,segments-indexes"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	SegmentID           int64  `name:"segment" default:"0" desc:"segment id to filter with"`
-	FieldID             int64  `name:"field" default:"0" desc:"field id to filter with"`
-	IndexID             int64  `name:"indexID" default:"0" desc:"index id to filter with"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show segment-index" desc:"display segment index information" alias:"segments-index,segment-indexes,segments-indexes"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	SegmentID              int64 `name:"segment" default:"0" desc:"segment id to filter with"`
+	FieldID                int64 `name:"field" default:"0" desc:"field id to filter with"`
+	IndexID                int64 `name:"indexID" default:"0" desc:"index id to filter with"`
 }
 
 // SegmentIndexCommand returns show segment-index command.

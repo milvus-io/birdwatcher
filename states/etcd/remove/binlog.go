@@ -15,17 +15,16 @@ import (
 var backupKeyPrefix = "birdwatcher/backup"
 
 type RemoveBinlogParam struct {
-	framework.ParamBase `use:"remove etcd-config" desc:"remove etcd stored configuations"`
-	LogType             string `name:"p.LogType" default:"unknown" desc:"log type: binlog/deltalog/statslog"`
-	CollectionID        int64  `name:"p.CollectionID" default:"0" desc:"collection id to remove"`
-	PartitionID         int64  `name:"p.PartitionID" default:"0" desc:"partition id to remove"`
-	SegmentID           int64  `name:"p.SegmentID" default:"0" desc:"segment id to remove"`
-	FieldID             int64  `name:"p.FieldID" default:"0" desc:"field id to remove"`
-	LogID               int64  `name:"logID" default:"0" desc:"log id to remove"`
+	framework.ExecutionParam `use:"remove etcd-config" desc:"remove etcd stored configuations"`
+	LogType                  string `name:"p.LogType" default:"unknown" desc:"log type: binlog/deltalog/statslog"`
+	CollectionID             int64  `name:"p.CollectionID" default:"0" desc:"collection id to remove"`
+	PartitionID              int64  `name:"p.PartitionID" default:"0" desc:"partition id to remove"`
+	SegmentID                int64  `name:"p.SegmentID" default:"0" desc:"segment id to remove"`
+	FieldID                  int64  `name:"p.FieldID" default:"0" desc:"field id to remove"`
+	LogID                    int64  `name:"logID" default:"0" desc:"log id to remove"`
 
 	Restore   bool `name:"restore" default:"false" desc:"flags indicating whether to restore removed command"`
 	RemoveAll bool `name:"removeAll" default:"false" desc:"remove all binlogs belongs to the field"`
-	Run       bool `name:"run" default:"false" desc:"flag to control actually run or dry"`
 }
 
 func (c *ComponentRemove) RemoveBinlogCommand(ctx context.Context, p *RemoveBinlogParam) error {

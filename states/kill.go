@@ -15,10 +15,9 @@ import (
 )
 
 type EtcdKillParam struct {
-	framework.ParamBase `use:"kill" desc:"Kill component session from etcd"`
-	Component           string `name:"component" default:"" desc:"component type to kill"`
-	NodeID              int64  `name:"id" default:"0" desc:"Server ID to kill"`
-	Run                 bool   `name:"run" default:"false"`
+	framework.ExecutionParam `use:"kill" desc:"Kill component session from etcd"`
+	Component                string `name:"component" default:"" desc:"component type to kill"`
+	NodeID                   int64  `name:"id" default:"0" desc:"Server ID to kill"`
 }
 
 func (s *InstanceState) KillCommand(ctx context.Context, p *EtcdKillParam) error {

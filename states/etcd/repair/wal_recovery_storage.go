@@ -16,8 +16,7 @@ import (
 )
 
 type WALRecoveryStorageParam struct {
-	framework.ParamBase `use:"repair wal-recovery-storage" desc:"recover wal from storage"`
-	Run                 bool `name:"run" default:"false" desc:"actual do repair"`
+	framework.ExecutionParam `use:"repair wal-recovery-storage" desc:"recover wal from storage"`
 }
 
 func (c *ComponentRepair) WALRecoveryStorageCommand(ctx context.Context, p *WALRecoveryStorageParam) error {

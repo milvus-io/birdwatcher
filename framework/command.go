@@ -165,17 +165,25 @@ func GetCmdFromFlag(p CmdParam) (string, string) {
 	}
 	tp := v.Type()
 
-	f, has := tp.FieldByName("ParamBase")
-	if !has {
-		return "", ""
+	// Search for the tag-bearing embedded base field.
+	// Priority: DataSetParam/ExecutionParam first, then ParamBase for backward compatibility.
+	for _, baseName := range []string{"DataSetParam", "ExecutionParam", "ParamBase"} {
+		f, has := tp.FieldByName(baseName)
+		if !has {
+			continue
+		}
+		if f.Type.Kind() != reflect.Struct {
+			continue
+		}
+		tag := f.Tag
+		use := tag.Get("use")
+		desc := tag.Get("desc")
+		if use != "" || desc != "" {
+			return use, desc
+		}
 	}
 
-	if f.Type.Kind() != reflect.Struct {
-		return "", ""
-	}
-
-	tag := f.Tag
-	return tag.Get("use"), tag.Get("desc")
+	return "", ""
 }
 
 func ParseUseSegments(use string) []string {
@@ -209,6 +217,14 @@ func setupFlags(p CmdParam, flags *pflag.FlagSet) {
 	for v.Kind() != reflect.Struct {
 		v = v.Elem()
 	}
+
+	setupFlagsRecursive(v, flags)
+}
+
+// setupFlagsRecursive iterates struct fields and registers cobra flags.
+// It recurses into anonymous (embedded) struct fields to pick up flags
+// from base types like DataSetParam and ExecutionParam.
+func setupFlagsRecursive(v reflect.Value, flags *pflag.FlagSet) {
 	tp := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
@@ -222,20 +238,22 @@ func setupFlags(p CmdParam, flags *pflag.FlagSet) {
 		switch f.Type.Kind() {
 		case reflect.Int64:
 			var dv int64
-			if v, err := strconv.ParseInt(defaultStr, 10, 64); err == nil {
-				dv = v
+			if val, err := strconv.ParseInt(defaultStr, 10, 64); err == nil {
+				dv = val
 			}
 			flags.Int64(name, dv, desc)
 		case reflect.String:
 			flags.String(name, defaultStr, desc)
 		case reflect.Bool:
 			var dv bool
-			if v, err := strconv.ParseBool(defaultStr); err == nil {
-				dv = v
+			if val, err := strconv.ParseBool(defaultStr); err == nil {
+				dv = val
 			}
 			flags.Bool(name, dv, desc)
 		case reflect.Struct:
-			continue
+			if f.Anonymous {
+				setupFlagsRecursive(v.Field(i), flags)
+			}
 		case reflect.Slice:
 			switch f.Type.Elem().Kind() {
 			case reflect.Int64:
@@ -251,7 +269,7 @@ func setupFlags(p CmdParam, flags *pflag.FlagSet) {
 	}
 }
 
-// parseFlags parse parameters from flagset and setup value via reflection.
+// parseFlags parses parameters from flagset and sets values via reflection.
 func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
 	v := reflect.ValueOf(p)
 	if v.Kind() != reflect.Pointer {
@@ -259,6 +277,12 @@ func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
 	}
 
 	v = v.Elem()
+	return parseFlagsRecursive(v, flags)
+}
+
+// parseFlagsRecursive reads flag values and sets struct fields.
+// It recurses into anonymous (embedded) struct fields.
+func parseFlagsRecursive(v reflect.Value, flags *pflag.FlagSet) error {
 	tp := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
@@ -269,34 +293,37 @@ func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
 		name := f.Tag.Get("name")
 		switch f.Type.Kind() {
 		case reflect.Int64:
-			p, err := flags.GetInt64(name)
+			val, err := flags.GetInt64(name)
 			if err != nil {
 				return err
 			}
-			v.FieldByName(f.Name).SetInt(p)
+			v.Field(i).SetInt(val)
 		case reflect.String:
-			p, err := flags.GetString(name)
+			val, err := flags.GetString(name)
 			if err != nil {
 				return err
 			}
-			v.FieldByName(f.Name).SetString(p)
+			v.Field(i).SetString(val)
 		case reflect.Bool:
-			p, err := flags.GetBool(name)
+			val, err := flags.GetBool(name)
 			if err != nil {
 				return err
 			}
-			v.FieldByName(f.Name).SetBool(p)
+			v.Field(i).SetBool(val)
 		case reflect.Struct:
-			continue
+			if f.Anonymous {
+				if err := parseFlagsRecursive(v.Field(i), flags); err != nil {
+					return err
+				}
+			}
 		case reflect.Slice:
-			// fmt.Println(f.Type.Elem())
-			var p any
+			var val any
 			var err error
 			switch f.Type.Elem().Kind() {
 			case reflect.Int64:
-				p, err = flags.GetInt64Slice(name)
+				val, err = flags.GetInt64Slice(name)
 			case reflect.String:
-				p, err = flags.GetStringSlice(name)
+				val, err = flags.GetStringSlice(name)
 			default:
 				fmt.Printf("field %s with slice kind %s not supported yet\n", f.Name, f.Type.Elem().Kind())
 				continue
@@ -304,7 +331,7 @@ func parseFlags(p CmdParam, flags *pflag.FlagSet) error {
 			if err != nil {
 				return err
 			}
-			v.FieldByName(f.Name).Set(reflect.ValueOf(p))
+			v.Field(i).Set(reflect.ValueOf(val))
 		default:
 			fmt.Printf("field %s with kind %s not supported yet\n", f.Name, f.Type.Kind())
 		}
