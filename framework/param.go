@@ -21,7 +21,7 @@ func (pb ParamBase) Desc() (string, string) {
 // It provides a built-in Format flag for output formatting.
 type DataSetParam struct {
 	ParamBase
-	Format string `name:"format" default:"" desc:"output format (default, json, table, line)"`
+	Format string `name:"format" default:"" desc:"output format" values:"default,json,table,line,plain"`
 }
 
 // GetFormat returns the Format as a framework.Format enum value.

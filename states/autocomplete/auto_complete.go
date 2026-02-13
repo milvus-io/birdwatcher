@@ -18,7 +18,7 @@ var (
 // acCandidate is the interface for auto-complete candidates.
 type acCandidate interface {
 	Match(cComp) bool
-	NextCandidates([]acCandidate) []acCandidate
+	NextCandidates(cComp, []acCandidate) []acCandidate
 	Suggest(cComp) map[string]string
 }
 
@@ -57,7 +57,7 @@ func (c *cmdCandidate) Match(input cComp) bool {
 }
 
 // NextCandidates implements acCandidate, returns all subCommand and flags.
-func (c *cmdCandidate) NextCandidates(_ []acCandidate) []acCandidate {
+func (c *cmdCandidate) NextCandidates(_ cComp, _ []acCandidate) []acCandidate {
 	var cmdFlags []*pflag.Flag
 	c.Flags().VisitAll(func(flag *pflag.Flag) {
 		cmdFlags = append(cmdFlags, flag)
@@ -102,7 +102,16 @@ func (c *flagCandidate) Match(input cComp) bool {
 	}
 }
 
+// Suggest implements acCandidate.
 func (c *flagCandidate) Suggest(target cComp) map[string]string {
+	// Handle value suggestion for --flag value or --flag=value
+	if target.cType == cmdCompFlag && target.cTag == c.Name && target.cValue != "" {
+		result := make(map[string]string)
+		for _, v := range getValueSuggestions(c.Flag, target.cValue) {
+			result[v] = ""
+		}
+		return result
+	}
 	k := fmt.Sprintf("--%s", c.Name)
 	if (strings.HasPrefix(k, target.raw) && strings.HasPrefix(target.raw, "--")) || target.cType == cmdCompAll {
 		return map[string]string{k: c.Usage}
@@ -110,10 +119,77 @@ func (c *flagCandidate) Suggest(target cComp) map[string]string {
 	return map[string]string{}
 }
 
-// NextCandidates iomplement acCandidate.
-func (c *flagCandidate) NextCandidates(current []acCandidate) []acCandidate {
-	// TODO add next value match all candidate
+// NextCandidates implements acCandidate.
+func (c *flagCandidate) NextCandidates(matched cComp, current []acCandidate) []acCandidate {
+	// If value was already consumed, return to normal candidates
+	if matched.cValue != "" {
+		return current
+	}
+	// If flag has value suggestions, offer value candidates
+	if hasValueSuggestions(c.Flag) {
+		return []acCandidate{&flagValueCandidate{
+			flag:               c.Flag,
+			previousCandidates: current,
+		}}
+	}
 	return current
+}
+
+// flagValueCandidate represents a pending flag value in autocomplete.
+// It offers value suggestions and transitions back to previous candidates once consumed.
+type flagValueCandidate struct {
+	flag               *pflag.Flag
+	previousCandidates []acCandidate
+}
+
+// Match implements acCandidate. Matches any command-type input (flag values appear as bare words).
+func (c *flagValueCandidate) Match(_ cComp) bool {
+	return true
+}
+
+// NextCandidates implements acCandidate. Returns previous candidates after value is consumed.
+func (c *flagValueCandidate) NextCandidates(_ cComp, _ []acCandidate) []acCandidate {
+	return c.previousCandidates
+}
+
+// Suggest implements acCandidate. Returns value suggestions filtered by prefix.
+func (c *flagValueCandidate) Suggest(target cComp) map[string]string {
+	result := make(map[string]string)
+	for _, v := range getValueSuggestions(c.flag, target.cTag) {
+		result[v] = ""
+	}
+	return result
+}
+
+// hasValueSuggestions returns true if the flag has static values or a registered suggester.
+func hasValueSuggestions(flag *pflag.Flag) bool {
+	if _, ok := flag.Annotations["values"]; ok {
+		return true
+	}
+	if names, ok := flag.Annotations["valuesSuggester"]; ok && len(names) > 0 {
+		_, exists := GetValueSuggester(names[0])
+		return exists
+	}
+	return false
+}
+
+// getValueSuggestions returns value suggestions for a flag filtered by prefix.
+func getValueSuggestions(flag *pflag.Flag, partial string) []string {
+	if values, ok := flag.Annotations["values"]; ok {
+		var result []string
+		for _, v := range values {
+			if strings.HasPrefix(v, partial) {
+				result = append(result, v)
+			}
+		}
+		return result
+	}
+	if names, ok := flag.Annotations["valuesSuggester"]; ok && len(names) > 0 {
+		if s, ok := GetValueSuggester(names[0]); ok {
+			return s.Suggest(partial)
+		}
+	}
+	return nil
 }
 
 // SuggestInputCommands returns suggestions based on command setup.
@@ -153,7 +229,7 @@ loop:
 
 		for _, candidate := range candidates {
 			if candidate.Match(comps[i]) {
-				candidates = candidate.NextCandidates(candidates)
+				candidates = candidate.NextCandidates(comps[i], candidates)
 				continue loop
 			}
 		}
