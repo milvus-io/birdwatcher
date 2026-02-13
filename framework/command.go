@@ -266,6 +266,15 @@ func setupFlagsRecursive(v reflect.Value, flags *pflag.FlagSet) {
 		default:
 			fmt.Printf("field %s with kind %s not supported yet\n", f.Name, f.Type.Kind())
 		}
+
+		if name != "" {
+			if valuesTag := f.Tag.Get("values"); valuesTag != "" {
+				_ = flags.SetAnnotation(name, "values", strings.Split(valuesTag, ","))
+			}
+			if suggesterTag := f.Tag.Get("valuesSuggester"); suggesterTag != "" {
+				_ = flags.SetAnnotation(name, "valuesSuggester", []string{suggesterTag})
+			}
+		}
 	}
 }
 
