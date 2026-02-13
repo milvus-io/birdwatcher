@@ -19,8 +19,7 @@ var paginationSize = 2000
 type ExcludePrefixOptions func(string) bool
 
 type CollectionMetaLeakedParam struct {
-	framework.ParamBase `use:"remove collection-meta-leaked" desc:"Remove leaked collection meta for collection has been dropped"`
-	Run                 bool `name:"run" default:"false" desc:"flags indicating whether to execute removed command"`
+	framework.ExecutionParam `use:"remove collection-meta-leaked" desc:"Remove leaked collection meta for collection has been dropped"`
 }
 
 func (c *ComponentRemove) CollectionMetaLeakedCommand(ctx context.Context, p *CollectionMetaLeakedParam) error {

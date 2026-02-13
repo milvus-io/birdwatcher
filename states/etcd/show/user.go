@@ -13,8 +13,7 @@ import (
 )
 
 type UserParam struct {
-	framework.ParamBase `use:"show user" desc:"display user info from rootcoord meta"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show user" desc:"display user info from rootcoord meta"`
 }
 
 // UserCommand returns show user command.

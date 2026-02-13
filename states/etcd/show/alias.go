@@ -16,9 +16,8 @@ import (
 )
 
 type AliasParam struct {
-	framework.ParamBase `use:"show alias" desc:"list alias meta info" alias:"aliases"`
-	DBID                int64  `name:"dbid" default:"-1" desc:"database id to filter with"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show alias" desc:"list alias meta info" alias:"aliases"`
+	DBID                   int64 `name:"dbid" default:"-1" desc:"database id to filter with"`
 }
 
 // AliasCommand implements `show alias` command.

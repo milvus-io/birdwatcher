@@ -21,13 +21,12 @@ import (
 )
 
 type RepairCheckpointParam struct {
-	framework.ParamBase `use:"repair checkpoint" desc:"reset checkpoint of vchannels to latest checkpoint(or latest msgID) of physical channel"`
-	Collection          int64  `name:"collection" default:"0" desc:"collection id"`
-	VChannel            string `name:"vchannel" default:"" desc:"vchannel name"`
-	SetTo               string `name:"set_to" default:"latest-cp" desc:"support latest-cp(the latest checkpoint from segment checkpoint of corresponding collection on this physical channel) and latest-msgid(the latest msg from this physical channel)"`
-	MqType              string `name:"mq_type" default:"kafka" desc:"MQ type, only support kafka(default) and pulsar"`
-	Address             string `name:"address" default:"localhost:9092" desc:"mq endpoint, default value is kafka address"`
-	Run                 bool   `name:"run" default:"false" desc:"actual do repair"`
+	framework.ExecutionParam `use:"repair checkpoint" desc:"reset checkpoint of vchannels to latest checkpoint(or latest msgID) of physical channel"`
+	Collection               int64  `name:"collection" default:"0" desc:"collection id"`
+	VChannel                 string `name:"vchannel" default:"" desc:"vchannel name"`
+	SetTo                    string `name:"set_to" default:"latest-cp" desc:"support latest-cp(the latest checkpoint from segment checkpoint of corresponding collection on this physical channel) and latest-msgid(the latest msg from this physical channel)"`
+	MqType                   string `name:"mq_type" default:"kafka" desc:"MQ type, only support kafka(default) and pulsar"`
+	Address                  string `name:"address" default:"localhost:9092" desc:"mq endpoint, default value is kafka address"`
 }
 
 // CheckpointCommand usage:

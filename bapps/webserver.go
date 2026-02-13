@@ -185,6 +185,11 @@ func (app *WebServerApp) BindCmdParam(c *gin.Context, cp framework.CmdParam) err
 	for v.Kind() != reflect.Struct {
 		v = v.Elem()
 	}
+
+	return bindCmdParamRecursive(c, v)
+}
+
+func bindCmdParamRecursive(c *gin.Context, v reflect.Value) error {
 	tp := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
@@ -194,27 +199,37 @@ func (app *WebServerApp) BindCmdParam(c *gin.Context, cp framework.CmdParam) err
 		}
 		name := f.Tag.Get("name")
 		rawStr, ok := c.GetQuery(name)
-		if !ok {
-			continue
-		}
 		switch f.Type.Kind() {
 		case reflect.Int64:
+			if !ok {
+				continue
+			}
 			var dv int64
-			if v, err := strconv.ParseInt(rawStr, 10, 64); err == nil {
-				dv = v
+			if val, err := strconv.ParseInt(rawStr, 10, 64); err == nil {
+				dv = val
 			}
 			v.Field(i).SetInt(dv)
 			fmt.Println("set default", f.Name, dv)
 		case reflect.String:
+			if !ok {
+				continue
+			}
 			v.Field(i).SetString(rawStr)
 		case reflect.Bool:
+			if !ok {
+				continue
+			}
 			var dv bool
-			if v, err := strconv.ParseBool(rawStr); err == nil {
-				dv = v
+			if val, err := strconv.ParseBool(rawStr); err == nil {
+				dv = val
 			}
 			v.Field(i).SetBool(dv)
 		case reflect.Struct:
-			continue
+			if f.Anonymous {
+				if err := bindCmdParamRecursive(c, v.Field(i)); err != nil {
+					return err
+				}
+			}
 		default:
 			return fmt.Errorf("field %s with kind %s not supported yet", f.Name, f.Type.Kind())
 		}
@@ -232,6 +247,11 @@ func setupDefaultValue(p framework.CmdParam) {
 	for v.Kind() != reflect.Struct {
 		v = v.Elem()
 	}
+
+	setupDefaultValueRecursive(v)
+}
+
+func setupDefaultValueRecursive(v reflect.Value) {
 	tp := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
@@ -243,8 +263,8 @@ func setupDefaultValue(p framework.CmdParam) {
 		switch f.Type.Kind() {
 		case reflect.Int64:
 			var dv int64
-			if v, err := strconv.ParseInt(defaultStr, 10, 64); err == nil {
-				dv = v
+			if val, err := strconv.ParseInt(defaultStr, 10, 64); err == nil {
+				dv = val
 			}
 			v.Field(i).SetInt(dv)
 			fmt.Println("set default", f.Name, dv)
@@ -252,12 +272,14 @@ func setupDefaultValue(p framework.CmdParam) {
 			v.Field(i).SetString(defaultStr)
 		case reflect.Bool:
 			var dv bool
-			if v, err := strconv.ParseBool(defaultStr); err == nil {
-				dv = v
+			if val, err := strconv.ParseBool(defaultStr); err == nil {
+				dv = val
 			}
 			v.Field(i).SetBool(dv)
 		case reflect.Struct:
-			continue
+			if f.Anonymous {
+				setupDefaultValueRecursive(v.Field(i))
+			}
 		case reflect.Slice:
 			continue
 		default:

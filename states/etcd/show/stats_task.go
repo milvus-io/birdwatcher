@@ -15,15 +15,14 @@ import (
 )
 
 type StatsTaskParam struct {
-	framework.ParamBase `use:"show stats-task" desc:"display stats task information"`
-	SubJobType          string `name:"subJobType" default:"" desc:"stats type to filter with, e.g. JsonKeyIndexJob, TextIndexJob, etc."`
-	TaskID              string `name:"taskID" default:"" desc:"taskID also known as planID"`
-	State               string `name:"state" default:"" desc:"stats state"`
-	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection id to filter with"`
-	SegmentID           int64  `name:"segmentID" default:"0" desc:"segmentID id to filter with"`
-	Since               string `name:"since" default:"" desc:"only show tasks created after this time, format: 2006-01-02 15:04:05 or duration like 1h, 30m"`
-	Failed              bool   `name:"failed" default:"false" desc:"only show tasks with fail reason"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show stats-task" desc:"display stats task information"`
+	SubJobType             string `name:"subJobType" default:"" desc:"stats type to filter with, e.g. JsonKeyIndexJob, TextIndexJob, etc."`
+	TaskID                 string `name:"taskID" default:"" desc:"taskID also known as planID"`
+	State                  string `name:"state" default:"" desc:"stats state"`
+	CollectionID           int64  `name:"collectionID" default:"0" desc:"collection id to filter with"`
+	SegmentID              int64  `name:"segmentID" default:"0" desc:"segmentID id to filter with"`
+	Since                  string `name:"since" default:"" desc:"only show tasks created after this time, format: 2006-01-02 15:04:05 or duration like 1h, 30m"`
+	Failed                 bool   `name:"failed" default:"false" desc:"only show tasks with fail reason"`
 }
 
 func (c *ComponentShow) StatsTaskCommand(ctx context.Context, p *StatsTaskParam) (*framework.PresetResultSet, error) {

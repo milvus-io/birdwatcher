@@ -10,13 +10,12 @@ import (
 )
 
 type StatsTaskParam struct {
-	framework.ParamBase `use:"remove stats-task" desc:"Remove stats task"`
-	SubJobType          string `name:"subJobType" default:"" desc:"stats type to remove, e.g. JsonKeyIndexJob, TextIndexJob, etc."`
-	TaskID              string `name:"taskID" default:"" desc:"taskID also known as planID"`
-	State               string `name:"state" default:"" desc:"stats state"`
-	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
-	SegmentID           int64  `name:"segmentID" default:"0" desc:"segmentID id to filter"`
-	Run                 bool   `name:"run" default:"false" desc:"flag to control actually run or dry"`
+	framework.ExecutionParam `use:"remove stats-task" desc:"Remove stats task"`
+	SubJobType               string `name:"subJobType" default:"" desc:"stats type to remove, e.g. JsonKeyIndexJob, TextIndexJob, etc."`
+	TaskID                   string `name:"taskID" default:"" desc:"taskID also known as planID"`
+	State                    string `name:"state" default:"" desc:"stats state"`
+	CollectionID             int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
+	SegmentID                int64  `name:"segmentID" default:"0" desc:"segmentID id to filter"`
 }
 
 // RemoveStatsTaskCommand is the command function to remove stats task.

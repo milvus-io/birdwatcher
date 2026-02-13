@@ -17,11 +17,10 @@ import (
 )
 
 type ChannelWatchedParam struct {
-	framework.ParamBase `use:"show channel-watch" desc:"display channel watching info from data coord meta store" alias:"channel-watched"`
-	Format              string `name:"format" default:"" desc:"output format"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	WithoutSchema       bool   `name:"withoutSchema" default:"false" desc:"filter channel watch info with not schema"`
-	PrintSchema         bool   `name:"printSchema" default:"false" desc:"print schema info stored in watch info"`
+	framework.DataSetParam `use:"show channel-watch" desc:"display channel watching info from data coord meta store" alias:"channel-watched"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	WithoutSchema          bool  `name:"withoutSchema" default:"false" desc:"filter channel watch info with not schema"`
+	PrintSchema            bool  `name:"printSchema" default:"false" desc:"print schema info stored in watch info"`
 }
 
 // ChannelWatchedCommand return show channel-watched commands.

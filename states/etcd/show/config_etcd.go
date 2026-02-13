@@ -10,8 +10,7 @@ import (
 )
 
 type ConfigEtcdParam struct {
-	framework.ParamBase `use:"show config-etcd" desc:"list configuations set by etcd source"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show config-etcd" desc:"list configuations set by etcd source"`
 }
 
 // ConfigEtcdCommand return show config-etcd command.

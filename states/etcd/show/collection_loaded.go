@@ -18,9 +18,8 @@ const (
 )
 
 type CollectionLoadedParam struct {
-	framework.ParamBase `use:"show collection-loaded" desc:"display information of loaded collection from querycoord" alias:"collection-load"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to check"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show collection-loaded" desc:"display information of loaded collection from querycoord" alias:"collection-load"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to check"`
 }
 
 // CollectionLoadedCommand return show collection-loaded command.

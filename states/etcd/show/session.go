@@ -16,8 +16,7 @@ import (
 )
 
 type SessionParam struct {
-	framework.ParamBase `use:"show session" desc:"list online milvus components" alias:"sessions"`
-	Format              string `name:"format" default:"default" desc:"output format"`
+	framework.DataSetParam `use:"show session" desc:"list online milvus components" alias:"sessions"`
 }
 
 // SessionCommand returns show session command.

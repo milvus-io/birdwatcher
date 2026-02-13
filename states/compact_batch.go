@@ -18,10 +18,9 @@ import (
 )
 
 type CompactBatchParam struct {
-	framework.ParamBase `use:"compact-batch" desc:"dispatch compact job by batch"`
-	CollectionID        int64 `name:"collection" default:"0" desc:"collection id to filter with"`
-	StorageVersion      int64 `name:"storageVersion" default:"-1"`
-	Run                 bool  `name:"run" default:"false"`
+	framework.ExecutionParam `use:"compact-batch" desc:"dispatch compact job by batch"`
+	CollectionID             int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	StorageVersion           int64 `name:"storageVersion" default:"-1"`
 }
 
 func (s *InstanceState) CompactBatchCommand(ctx context.Context, p *CompactBatchParam) error {

@@ -12,9 +12,8 @@ import (
 )
 
 type CollectionDropParam struct {
-	framework.ParamBase `use:"remove collection-drop" desc:"Remove collection & channel meta for collection in dropping/dropped state"`
-	CollectionID        int64 `name:"collectionID" default:"0" desc:"collection id to remove"`
-	Run                 bool  `name:"run" default:"false" desc:"flags indicating whether to execute removed command"`
+	framework.ExecutionParam `use:"remove collection-drop" desc:"Remove collection & channel meta for collection in dropping/dropped state"`
+	CollectionID             int64 `name:"collectionID" default:"0" desc:"collection id to remove"`
 }
 
 func (c *ComponentRemove) CollectionDropCommand(ctx context.Context, p *CollectionDropParam) error {

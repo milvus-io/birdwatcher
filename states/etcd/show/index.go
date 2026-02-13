@@ -12,9 +12,8 @@ import (
 )
 
 type IndexParam struct {
-	framework.ParamBase `use:"show index" desc:"" alias:"indexes"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to list index on"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show index" desc:"" alias:"indexes"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to list index on"`
 }
 
 // IndexCommand returns show index command.

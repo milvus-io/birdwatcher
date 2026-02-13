@@ -13,10 +13,9 @@ import (
 )
 
 type DatabaseParam struct {
-	framework.ParamBase `use:"show database" desc:"display Database info from rootcoord meta"`
-	DatabaseID          int64  `name:"id" default:"0" desc:"database id to filter with"`
-	DatabaseName        string `name:"name" default:"" desc:"database name to filter with"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show database" desc:"display Database info from rootcoord meta"`
+	DatabaseID             int64  `name:"id" default:"0" desc:"database id to filter with"`
+	DatabaseName           string `name:"name" default:"" desc:"database name to filter with"`
 }
 
 // DatabaseCommand returns show database comand.

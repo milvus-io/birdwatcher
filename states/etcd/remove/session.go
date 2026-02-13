@@ -17,10 +17,9 @@ import (
 )
 
 type RemoveSessionParam struct {
-	framework.ParamBase `use:"remove session" desc:"remove session with specified component type & node id"`
-	Component           string `name:"component" default:"" desc:"component type to remove"`
-	ID                  int64  `name:"sessionID" default:"0" desc:"session id to remove"`
-	Run                 bool   `name:"run" default:"false" desc:"actual remove session, default in dry-run mode"`
+	framework.ExecutionParam `use:"remove session" desc:"remove session with specified component type & node id"`
+	Component                string `name:"component" default:"" desc:"component type to remove"`
+	ID                       int64  `name:"sessionID" default:"0" desc:"session id to remove"`
 }
 
 func (c *ComponentRemove) RemoveSessionCommand(ctx context.Context, p *RemoveSessionParam) error {

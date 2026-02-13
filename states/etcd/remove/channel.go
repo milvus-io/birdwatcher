@@ -10,10 +10,9 @@ import (
 )
 
 type RemoveChannelParam struct {
-	framework.ParamBase `use:"remove channel" desc:"Remove channel from datacoord meta with specified condition if orphan"`
+	framework.ExecutionParam `use:"remove channel" desc:"Remove channel from datacoord meta with specified condition if orphan"`
 
 	Channel string `name:"channel" default:"" desc:"channel name to remove"`
-	Run     bool   `name:"run" default:"false" desc:"flags indicating whether to remove channel from meta, default is false"`
 	Force   bool   `name:"force" default:"false" desc:"force remove channel ignoring collection check"`
 }
 

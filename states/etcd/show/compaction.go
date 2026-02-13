@@ -17,18 +17,17 @@ import (
 // CompactionCommand returns sub command for showCmd.
 // show compaction [options...]
 type CompactionTaskParam struct {
-	framework.ParamBase `use:"show compactions" desc:"list current available compactions from DataCoord"`
-	CollectionName      string `name:"collectionName" default:"" desc:"collection name to display"`
-	State               string `name:"state" default:"" desc:"compaction state to filter"`
-	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
-	PartitionID         int64  `name:"partitionID" default:"0" desc:"partitionID id to filter"`
-	CompactionType      string `name:"type" default:"" desc:"compaction type to filter"`
-	TriggerID           int64  `name:"triggerID" default:"0" desc:"TriggerID to filter"`
-	PlanID              int64  ` name:"planID" default:"0" desc:"PlanID  to filter"`
-	SegmentID           int64  ` name:"segmentID" default:"0" desc:"SegmentID  to filter"`
-	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing input/result segmentIDs"`
-	IgnoreDone          bool   `name:"ignoreDone" default:"true" desc:"ignore finished compaction tasks"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show compactions" desc:"list current available compactions from DataCoord"`
+	CollectionName         string `name:"collectionName" default:"" desc:"collection name to display"`
+	State                  string `name:"state" default:"" desc:"compaction state to filter"`
+	CollectionID           int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
+	PartitionID            int64  `name:"partitionID" default:"0" desc:"partitionID id to filter"`
+	CompactionType         string `name:"type" default:"" desc:"compaction type to filter"`
+	TriggerID              int64  `name:"triggerID" default:"0" desc:"TriggerID to filter"`
+	PlanID                 int64  ` name:"planID" default:"0" desc:"PlanID  to filter"`
+	SegmentID              int64  ` name:"segmentID" default:"0" desc:"SegmentID  to filter"`
+	Detail                 bool   `name:"detail" default:"false" desc:"flags indicating whether printing input/result segmentIDs"`
+	IgnoreDone             bool   `name:"ignoreDone" default:"true" desc:"ignore finished compaction tasks"`
 }
 
 func (c *ComponentShow) CompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) (*framework.PresetResultSet, error) {

@@ -15,9 +15,8 @@ import (
 )
 
 type ReplicaParam struct {
-	framework.ParamBase `use:"show replica" desc:"list current replica information from QueryCoord" alias:"replicas"`
-	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	Format              string `name:"format" default:"" desc:"output format (default, json)"`
+	framework.DataSetParam `use:"show replica" desc:"list current replica information from QueryCoord" alias:"replicas"`
+	CollectionID           int64 `name:"collection" default:"0" desc:"collection id to filter with"`
 }
 
 // ReplicaCommand returns command for show querycoord replicas.

@@ -18,14 +18,13 @@ import (
 const printFileLimit = 3
 
 type ImportJobParam struct {
-	framework.ParamBase `use:"show bulkinsert" desc:"display bulkinsert jobs and tasks" alias:"import"`
+	framework.DataSetParam `use:"show bulkinsert" desc:"display bulkinsert jobs and tasks" alias:"import"`
 
 	JobID        int64  `name:"job" default:"0" desc:"job id to filter with"`
 	CollectionID int64  `name:"collection" default:"0" desc:"collection id to filter with"`
 	State        string `name:"state" default:"" desc:"target import job state, [pending, preimporting, importing, failed, completed]"`
 	Detail       bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail bulkinsert job"`
 	ShowAllFiles bool   `name:"showAllFiles" default:"false" desc:"flags indicating whether printing all files"`
-	Format       string `name:"format" default:"" desc:"output format (default, json)"`
 }
 
 // BulkInsertCommand returns show bulkinsert command.

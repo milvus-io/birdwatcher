@@ -12,10 +12,9 @@ import (
 )
 
 type RemoveImportJobParam struct {
-	framework.ParamBase `use:"remove import-job" desc:"Remove import job from datacoord meta with specified job id" alias:"import"`
+	framework.ExecutionParam `use:"remove import-job" desc:"Remove import job from datacoord meta with specified job id" alias:"import"`
 
 	JobID int64 `name:"job" default:"" desc:"import job id to remove"`
-	Run   bool  `name:"run" default:"false" desc:"flags indicating whether to remove import job from meta"`
 }
 
 func (c *ComponentRemove) RemoveImportJobCommand(ctx context.Context, p *RemoveImportJobParam) error {

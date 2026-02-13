@@ -15,10 +15,9 @@ import (
 )
 
 type RepairSegmentPartDropParam struct {
-	framework.ParamBase `use:"repair segment-part-dropping" desc:"mark segments of partitions in dropping state to dropped"`
-	Collection          int64 `name:"collection" default:"0" desc:"collection id to filter with"`
-	Partition           int64 `name:"partition" default:"0" desc:"partition id to filter with"`
-	Run                 bool  `name:"run" default:"false" desc:"actual do repair"`
+	framework.ExecutionParam `use:"repair segment-part-dropping" desc:"mark segments of partitions in dropping state to dropped"`
+	Collection               int64 `name:"collection" default:"0" desc:"collection id to filter with"`
+	Partition                int64 `name:"partition" default:"0" desc:"partition id to filter with"`
 }
 
 func (c *ComponentRepair) RepairSegmentPartDropCommand(ctx context.Context, p *RepairSegmentPartDropParam) error {

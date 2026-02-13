@@ -13,11 +13,10 @@ import (
 )
 
 type RepairSegmentParam struct {
-	framework.ParamBase `use:"repair segment" desc:"do segment & index meta check and try to repair"`
+	framework.ExecutionParam `use:"repair segment" desc:"do segment & index meta check and try to repair"`
 
 	Collection int64 `name:"collection" default:"0" desc:"collection id to filter with"`
 	Segment    int64 `name:"segment" default:"0" desc:"segment id to filter with"`
-	Run        bool  `name:"run" default:"false" desc:"actual do repair"`
 }
 
 // old logic backup

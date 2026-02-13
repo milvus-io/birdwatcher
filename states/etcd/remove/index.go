@@ -10,9 +10,8 @@ import (
 )
 
 type RemoveIndexParam struct {
-	framework.ParamBase `use:"remove index" desc:"Remove index meta"`
-	IndexID             int64 `name:"indexID" default:"0" desc:"index id to remove"`
-	Run                 bool  `name:"run" default:"false" desc:"flag to control actually run or dry"`
+	framework.ExecutionParam `use:"remove index" desc:"Remove index meta"`
+	IndexID                  int64 `name:"indexID" default:"0" desc:"index id to remove"`
 }
 
 func (c *ComponentRemove) RemoveIndexCommand(ctx context.Context, p *RemoveIndexParam) error {

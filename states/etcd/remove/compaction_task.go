@@ -10,14 +10,13 @@ import (
 )
 
 type CompactionTaskParam struct {
-	framework.ParamBase `use:"remove compaction" desc:"Remove compaction task"`
-	CompactionType      string `name:"type" default:"ClusteringCompaction" desc:"compaction type to remove"`
-	JobID               string `name:"jobID" default:"" desc:"jobID also known as triggerID"`
-	TaskID              string `name:"taskID" default:"" desc:"taskID also known as planID"`
-	State               string `name:"state" default:"" desc:"task state"`
-	CollectionID        int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
-	PartitionID         int64  `name:"partitionID" default:"0" desc:"partitionID id to filter"`
-	Run                 bool   `name:"run" default:"false" desc:"flag to control actually run or dry"`
+	framework.ExecutionParam `use:"remove compaction" desc:"Remove compaction task"`
+	CompactionType           string `name:"type" default:"ClusteringCompaction" desc:"compaction type to remove"`
+	JobID                    string `name:"jobID" default:"" desc:"jobID also known as triggerID"`
+	TaskID                   string `name:"taskID" default:"" desc:"taskID also known as planID"`
+	State                    string `name:"state" default:"" desc:"task state"`
+	CollectionID             int64  `name:"collectionID" default:"0" desc:"collection id to filter"`
+	PartitionID              int64  `name:"partitionID" default:"0" desc:"partitionID id to filter"`
 }
 
 // RemoveCompactionTaskCommand is the command function to remove compaction task.

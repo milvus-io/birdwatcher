@@ -19,13 +19,12 @@ import (
 // CollectionCommand returns sub command for showCmd.
 // show collection [options...]
 type CollectionParam struct {
-	framework.ParamBase `use:"show collections" desc:"list current available collection from RootCoord"`
-	CollectionID        int64  `name:"id" default:"0" desc:"collection id to display"`
-	CollectionName      string `name:"name" default:"" desc:"collection name to display"`
-	DatabaseID          int64  `name:"dbid" default:"-1" desc:"database id to filter"`
-	State               string `name:"state" default:"" desc:"collection state to filter"`
-	WithPropertyKey     string `name:"propertyKey" default:"" desc:"collection property to filter"`
-	Format              string `name:"format" default:"" desc:"output format"`
+	framework.DataSetParam `use:"show collections" desc:"list current available collection from RootCoord"`
+	CollectionID           int64  `name:"id" default:"0" desc:"collection id to display"`
+	CollectionName         string `name:"name" default:"" desc:"collection name to display"`
+	DatabaseID             int64  `name:"dbid" default:"-1" desc:"database id to filter"`
+	State                  string `name:"state" default:"" desc:"collection state to filter"`
+	WithPropertyKey        string `name:"propertyKey" default:"" desc:"collection property to filter"`
 }
 
 func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) (*framework.PresetResultSet, error) {
