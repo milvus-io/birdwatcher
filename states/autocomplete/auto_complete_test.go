@@ -50,7 +50,13 @@ func TestStaticValueSuggestions(t *testing.T) {
 	t.Run("partial match with equals sign", func(t *testing.T) {
 		result := SuggestInputCommands("mycmd --format=j", commands)
 		keys := sortedKeys(result)
-		assert.Equal(t, []string{"json"}, keys)
+		assert.Equal(t, []string{"--format=json"}, keys)
+	})
+
+	t.Run("empty value with equals sign suggests all values", func(t *testing.T) {
+		result := SuggestInputCommands("mycmd --format=", commands)
+		keys := sortedKeys(result)
+		assert.Equal(t, []string{"--format=default", "--format=json", "--format=line", "--format=plain", "--format=table"}, keys)
 	})
 
 	t.Run("consumed value returns to flags", func(t *testing.T) {
@@ -83,6 +89,18 @@ func TestStaticValueSuggestions(t *testing.T) {
 		result := SuggestInputCommands("mycmd --format p", commands)
 		keys := sortedKeys(result)
 		assert.Equal(t, []string{"plain"}, keys)
+	})
+
+	t.Run("equals form consumed then flags suggested", func(t *testing.T) {
+		result := SuggestInputCommands("mycmd --format=json --", commands)
+		assert.Contains(t, result, "--format")
+		assert.Contains(t, result, "--collection")
+	})
+
+	t.Run("equals form empty value consumed then flags suggested", func(t *testing.T) {
+		result := SuggestInputCommands("mycmd --format= --", commands)
+		assert.Contains(t, result, "--format")
+		assert.Contains(t, result, "--collection")
 	})
 }
 

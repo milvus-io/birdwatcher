@@ -105,12 +105,20 @@ func (c *flagCandidate) Match(input cComp) bool {
 // Suggest implements acCandidate.
 func (c *flagCandidate) Suggest(target cComp) map[string]string {
 	// Handle value suggestion for --flag value or --flag=value
-	if target.cType == cmdCompFlag && target.cTag == c.Name && target.cValue != "" {
-		result := make(map[string]string)
-		for _, v := range getValueSuggestions(c.Flag, target.cValue) {
-			result[v] = ""
+	if target.cType == cmdCompFlag && target.cTag == c.Name {
+		isEqualsForm := strings.Contains(target.raw, "=")
+		if target.cValue != "" || isEqualsForm {
+			result := make(map[string]string)
+			for _, v := range getValueSuggestions(c.Flag, target.cValue) {
+				if isEqualsForm {
+					// Include --flag= prefix so go-prompt replaces the whole word correctly
+					result[fmt.Sprintf("--%s=%s", c.Name, v)] = ""
+				} else {
+					result[v] = ""
+				}
+			}
+			return result
 		}
-		return result
 	}
 	k := fmt.Sprintf("--%s", c.Name)
 	if (strings.HasPrefix(k, target.raw) && strings.HasPrefix(target.raw, "--")) || target.cType == cmdCompAll {
@@ -121,8 +129,8 @@ func (c *flagCandidate) Suggest(target cComp) map[string]string {
 
 // NextCandidates implements acCandidate.
 func (c *flagCandidate) NextCandidates(matched cComp, current []acCandidate) []acCandidate {
-	// If value was already consumed, return to normal candidates
-	if matched.cValue != "" {
+	// If value was already consumed (explicitly or via --flag= form), return to normal candidates
+	if matched.cValue != "" || strings.Contains(matched.raw, "=") {
 		return current
 	}
 	// If flag has value suggestions, offer value candidates
