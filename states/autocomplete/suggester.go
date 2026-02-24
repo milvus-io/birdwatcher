@@ -1,5 +1,7 @@
 package autocomplete
 
+import "sync"
+
 // ValueSuggester provides dynamic value suggestions for a flag.
 type ValueSuggester interface {
 	Suggest(partial string) []string
@@ -11,16 +13,29 @@ type ValueSuggestFunc func(partial string) []string
 // Suggest implements ValueSuggester.
 func (f ValueSuggestFunc) Suggest(partial string) []string { return f(partial) }
 
-var suggestRegistry = map[string]ValueSuggester{}
+var (
+	suggestRegistry = map[string]ValueSuggester{}
+	mutex           sync.RWMutex
+)
 
 // RegisterValueSuggester registers a named ValueSuggester.
-func RegisterValueSuggester(name string, s ValueSuggester) { suggestRegistry[name] = s }
+func RegisterValueSuggester(name string, s ValueSuggester) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	suggestRegistry[name] = s
+}
 
 // GetValueSuggester looks up a registered ValueSuggester by name.
 func GetValueSuggester(name string) (ValueSuggester, bool) {
+	mutex.RLock()
+	defer mutex.RUnlock()
 	v, ok := suggestRegistry[name]
 	return v, ok
 }
 
 // UnregisterValueSuggester removes a named ValueSuggester from the registry.
-func UnregisterValueSuggester(name string) { delete(suggestRegistry, name) }
+func UnregisterValueSuggester(name string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	delete(suggestRegistry, name)
+}
