@@ -19,7 +19,7 @@ func (c *fileCandidate) Match(input cComp) bool {
 	return input.cType == cmdCompCommand
 }
 
-func (c *fileCandidate) NextCandidates(_ []acCandidate) []acCandidate {
+func (c *fileCandidate) NextCandidates(_ cComp, _ []acCandidate) []acCandidate {
 	return c.previousCandidates
 }
 
