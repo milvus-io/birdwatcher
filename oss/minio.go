@@ -93,7 +93,7 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 		return nil, err
 	}
 
-	fmt.Printf("Start to connect to oss endpoind: %s\n", endpoint)
+	fmt.Printf("Start to connect to oss endpoint: %s\n", endpoint)
 	client, err := minio.New(endpoint, opts)
 	if err != nil {
 		fmt.Println("new client failed: ", err.Error())

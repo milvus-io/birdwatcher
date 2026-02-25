@@ -43,6 +43,10 @@ func (c *cmdCandidate) args() []acCandidate {
 			if name == "directory" {
 				result = append(result, &fileCandidate{previousCandidates: []acCandidate{}, validator: func(info fs.DirEntry) bool { return info.IsDir() }})
 			}
+			if strings.HasPrefix(name, "suggester:") {
+				suggesterName := strings.TrimPrefix(name, "suggester:")
+				result = append(result, &argSuggesterCandidate{name: suggesterName, previousCandidates: []acCandidate{}})
+			}
 		}
 	}
 	return result

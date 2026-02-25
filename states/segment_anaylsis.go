@@ -27,11 +27,11 @@ func (app *ApplicationState) StorageAnalysisCommand(ctx context.Context, p *Stor
 	if !ok {
 		return errors.New("Etcd instance not connected")
 	}
-	state, ok = app.states[minioTag]
+	state, ok = app.states[ossTag]
 	if !ok {
 		return errors.New("Minio instance not connected")
 	}
-	minio, ok := state.(*storage.MinioState)
+	minio, ok := state.(*storage.OSSState)
 	if !ok {
 		return errors.New("Minio instance not connected")
 	}

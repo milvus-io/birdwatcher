@@ -11,7 +11,7 @@ const (
 	etcdTag   = "etcd"
 	tikvTag   = "tikv"
 	pulsarTag = "pulsar"
-	minioTag  = "minio"
+	ossTag    = "oss"
 )
 
 // Start returns the first state - offline.
