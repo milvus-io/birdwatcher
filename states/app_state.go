@@ -110,13 +110,13 @@ func (app *ApplicationState) IsEnding() bool {
 	return false
 }
 
-func (app *ApplicationState) ConnectMinioCommand(ctx context.Context, p *storage.ConnectMinioParam) error {
-	state, err := storage.ConnectMinio(ctx, p, app.core)
+func (app *ApplicationState) ConnectMinioCommand(ctx context.Context, p *storage.ConnectOSSParam) error {
+	state, err := storage.ConnectOSS(ctx, p, app.core)
 	if err != nil {
 		return err
 	}
 
-	app.SetTagNext(minioTag, state)
+	app.SetTagNext(ossTag, state)
 	return nil
 }
 
