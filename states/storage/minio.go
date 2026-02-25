@@ -50,8 +50,9 @@ func (s *OSSState) suggestPaths(partial string) []string {
 	var filterPart string
 	var resultPrefix string
 
-	if partial == "" || partial == "/" {
-		// List current directory (or root for "/")
+	switch {
+	// List current directory (or root for "/")
+	case partial == "" || partial == "/":
 		if partial == "/" {
 			listPrefix = ""
 			resultPrefix = "/"
@@ -60,14 +61,14 @@ func (s *OSSState) suggestPaths(partial string) []string {
 			resultPrefix = ""
 		}
 		filterPart = ""
-	} else if strings.HasSuffix(partial, "/") {
-		// "subdir/" → list inside that directory
+	// "subdir/" → list inside that directory
+	case strings.HasSuffix(partial, "/"):
 		resolved := s.resolvePath(partial)
 		listPrefix = toListingPrefix(resolved)
 		resultPrefix = partial
 		filterPart = ""
-	} else {
-		// "sub" or "dir/sub" → list parent, filter by base
+	// "sub" or "dir/sub" → list parent, filter by base
+	default:
 		dir := path.Dir(partial)
 		filterPart = path.Base(partial)
 		if dir == "." {
