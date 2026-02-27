@@ -368,6 +368,14 @@ func UpdateSegments(ctx context.Context, cli kv.MetaKV, basePath string, collect
 	return nil
 }
 
+func UpdateSegment(ctx context.Context, cli kv.MetaKV, segment *models.Segment) error {
+	bs, err := proto.Marshal(segment.SegmentInfo)
+	if err != nil {
+		return err
+	}
+	return cli.Save(ctx, segment.GetKey(), string(bs))
+}
+
 // WalkAllSegments walk all segment info from etcd with func
 func WalkAllSegments(ctx context.Context, cli kv.MetaKV, basePath string, filter func(*datapb.SegmentInfo) bool, op func(*datapb.SegmentInfo) error, limit int64) error {
 	cnt := int64(0)
