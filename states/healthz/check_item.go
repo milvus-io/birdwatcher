@@ -26,6 +26,7 @@ func init() {
 	allCheckItems["DYNAMIC_ATTR_MISMATCH"] = newDynamicAttrMismatch()
 	allCheckItems["LOADED_INDEX_MISSING"] = newLoadedIndexMissing()
 	allCheckItems["MIXED_BINLOGS"] = newMixedBinlogs()
+	allCheckItems["GRANT_ALIAS_CHECK"] = newGrantAliasCheck()
 
 	defaultList = []string{
 		"ISS43407",
