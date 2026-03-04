@@ -73,6 +73,7 @@ type BackupParam struct {
 	component      milvusComponent
 	IgnoreRevision bool  `name:"ignoreRevision" default:"false" desc:"backup ignore revision change, ONLY shall works with no nodes online"`
 	BatchSize      int64 `name:"batchSize" default:"100" desc:"batch fetch size for etcd backup operation"`
+	BackupMetrics  bool  `name:"backupMetrics" default:"false" desc:"fetch component metrics flag"`
 }
 
 func (p *BackupParam) ParseArgs(args []string) error {
@@ -118,9 +119,11 @@ func (s *InstanceState) BackupCommand(ctx context.Context, p *BackupParam) error
 	if err != nil {
 		fmt.Printf("backup etcd failed, error: %v\n", err)
 	}
-	backupMetrics(s.client, s.basePath, w)
-	backupConfiguration(s.client, s.basePath, w)
-	backupAppMetrics(s.client, s.basePath, w)
+	if p.BackupMetrics {
+		backupMetrics(s.client, s.basePath, w)
+		backupConfiguration(s.client, s.basePath, w)
+		backupAppMetrics(s.client, s.basePath, w)
+	}
 	fmt.Printf("backup for prefix done, stored in file: %s\n", f.Name())
 	return nil
 }
