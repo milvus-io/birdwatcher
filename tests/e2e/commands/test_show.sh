@@ -56,6 +56,10 @@ test_json_command "show stats-task" "show stats-task --format json"
 # Bulk insert jobs
 test_json_command "show bulkinsert" "show bulkinsert --format json"
 
+# Show import-task tests
+test_optional "show import-task help" "show import-task --help"
+test_optional "show import-task non-existent" "show import-task --task 999999"
+
 # Commands with JSON support added
 test_json_command "show config-etcd" "show config-etcd --format json"
 
