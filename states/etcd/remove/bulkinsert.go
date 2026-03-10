@@ -14,7 +14,8 @@ import (
 type RemoveImportJobParam struct {
 	framework.ExecutionParam `use:"remove import-job" desc:"Remove import job from datacoord meta with specified job id" alias:"import"`
 
-	JobID int64 `name:"job" default:"" desc:"import job id to remove"`
+	JobID        int64 `name:"job" default:"" desc:"import job id to remove"`
+	WithoutTasks bool  `name:"without-tasks" default:"false" desc:"remove job only, keep associated tasks"`
 }
 
 type RemoveImportTaskParam struct {
@@ -46,19 +47,130 @@ func (c *ComponentRemove) RemoveImportJobCommand(ctx context.Context, p *RemoveI
 	fmt.Printf("selected target import job, jobID: %d, key=%s\n", targetJob.GetJobID(), targetPath)
 	show.PrintDetailedImportJob(ctx, c.client, c.basePath, targetJob, false)
 
+	// If without-tasks flag is set, remove only the job (old behavior)
+	if p.WithoutTasks {
+		if !p.Run {
+			return nil
+		}
+
+		fmt.Printf("Start to delete import job (without tasks)...\n")
+		delCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+		err = c.client.Remove(delCtx, targetPath)
+		cancel()
+		if err != nil {
+			fmt.Printf("failed to delete import job %d, error: %s\n", targetJob.GetJobID(), err.Error())
+			return err
+		}
+		fmt.Printf("remove import job %d done\n", targetJob.GetJobID())
+		return nil
+	}
+
+	// Default behavior: remove job with associated tasks
+	// Query associated PreImportTasks
+	preimportTasks, err := common.ListPreImportTasks(ctx, c.client, c.basePath, func(task *models.PreImportTask) bool {
+		return task.GetProto().GetJobID() == p.JobID
+	})
+	if err != nil {
+		fmt.Println("failed to list preimport tasks, err=", err.Error())
+		return err
+	}
+
+	// Query associated ImportTaskV2 tasks
+	importTasks, err := common.ListImportTasks(ctx, c.client, c.basePath, func(task *models.ImportTaskV2) bool {
+		return task.GetProto().GetJobID() == p.JobID
+	})
+	if err != nil {
+		fmt.Println("failed to list import tasks, err=", err.Error())
+		return err
+	}
+
+	// Display summary of what will be removed
+	fmt.Printf("\nWill remove the following items:\n")
+	fmt.Printf("- Import Job: %d\n", p.JobID)
+	if len(preimportTasks) > 0 {
+		fmt.Printf("- PreImportTasks: %d\n", len(preimportTasks))
+		for _, task := range preimportTasks {
+			fmt.Printf("  - TaskID: %d, key=%s\n", task.GetProto().GetTaskID(), task.Key())
+		}
+	}
+	if len(importTasks) > 0 {
+		fmt.Printf("- ImportTaskV2: %d\n", len(importTasks))
+		for _, task := range importTasks {
+			fmt.Printf("  - TaskID: %d, key=%s\n", task.GetProto().GetTaskID(), task.Key())
+		}
+	}
+
 	if !p.Run {
 		return nil
 	}
 
-	fmt.Printf("Start to delete import job...\n")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	err = c.client.Remove(ctx, targetPath)
-	cancel()
-	if err != nil {
-		fmt.Printf("failed to delete import job %d, error: %s\n", targetJob.GetJobID(), err.Error())
-		return err
+	// Start deletion process
+	fmt.Printf("\nStart to delete import job and associated tasks...\n")
+
+	preimportFailures := []int64{}
+	importFailures := []int64{}
+
+	// Delete PreImportTasks first
+	for _, task := range preimportTasks {
+		delCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+		err = c.client.Remove(delCtx, task.Key())
+		cancel()
+		if err != nil {
+			fmt.Printf("failed to delete PreImportTask %d, error: %s\n", task.GetProto().GetTaskID(), err.Error())
+			preimportFailures = append(preimportFailures, task.GetProto().GetTaskID())
+		} else {
+			fmt.Printf("removed PreImportTask %d done\n", task.GetProto().GetTaskID())
+		}
 	}
-	fmt.Printf("remove import job %d done\n", targetJob.GetJobID())
+
+	// Delete ImportTaskV2 tasks
+	for _, task := range importTasks {
+		delCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+		err = c.client.Remove(delCtx, task.Key())
+		cancel()
+		if err != nil {
+			fmt.Printf("failed to delete ImportTaskV2 %d, error: %s\n", task.GetProto().GetTaskID(), err.Error())
+			importFailures = append(importFailures, task.GetProto().GetTaskID())
+		} else {
+			fmt.Printf("removed ImportTaskV2 %d done\n", task.GetProto().GetTaskID())
+		}
+	}
+
+	// Delete the job itself (capture error, don't return immediately)
+	fmt.Printf("Start to delete import job...\n")
+	delCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+	jobDeletionError := c.client.Remove(delCtx, targetPath)
+	cancel()
+
+	// Always print deletion summary first (so users know what happened to tasks)
+	if len(preimportFailures) > 0 || len(importFailures) > 0 {
+		fmt.Printf("\nDeletion Summary:\n")
+		if len(preimportFailures) > 0 {
+			fmt.Printf("  Failed PreImportTasks: %v\n", preimportFailures)
+		}
+		if len(importFailures) > 0 {
+			fmt.Printf("  Failed ImportTaskV2s: %v\n", importFailures)
+		}
+		fmt.Printf("  Successfully deleted: %d PreImportTasks, %d ImportTaskV2s\n",
+			len(preimportTasks)-len(preimportFailures), len(importTasks)-len(importFailures))
+	}
+
+	// Now handle job deletion outcome
+	if jobDeletionError != nil {
+		fmt.Printf("failed to delete import job %d, error: %s\n", targetJob.GetJobID(), jobDeletionError.Error())
+		if len(preimportFailures) > 0 || len(importFailures) > 0 {
+			return fmt.Errorf("failed to delete import job and some tasks (see summary above)")
+		}
+		return fmt.Errorf("failed to delete import job (tasks were deleted, see summary above)")
+	}
+
+	fmt.Printf("Successfully deleted import job %d\n", targetJob.GetJobID())
+
+	// Return error if any tasks failed, even though job succeeded
+	if len(preimportFailures) > 0 || len(importFailures) > 0 {
+		return fmt.Errorf("import job deleted but some tasks failed to delete (see summary above)")
+	}
+
 	return nil
 }
 
