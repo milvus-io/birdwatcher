@@ -22,3 +22,6 @@ test_optional "remove stats-task dry" "remove stats-task --run=false"
 test_optional "remove collection-clean dry" "remove collection-clean --run=false"
 test_optional "remove collection-dropping dry" "remove collection-dropping --run=false"
 test_optional "remove dirty-importing-segment dry" "remove dirty-importing-segment --run=false"
+
+# Remove import-task tests (dry-run only for safety)
+test_optional "remove import-task dry" "remove import-task --task 999999 --run=false"
