@@ -18,7 +18,7 @@ import (
 const printFileLimit = 3
 
 type ImportJobParam struct {
-	framework.DataSetParam `use:"show bulkinsert" desc:"display bulkinsert jobs and tasks" alias:"import"`
+	framework.DataSetParam `use:"show bulkinsert" desc:"display bulkinsert jobs and tasks" alias:"import,import-job"`
 
 	JobID        int64  `name:"job" default:"0" desc:"job id to filter with"`
 	CollectionID int64  `name:"collection" default:"0" desc:"collection id to filter with"`
