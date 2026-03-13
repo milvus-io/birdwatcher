@@ -73,6 +73,19 @@ func setNextState(sessionType string, conn *grpc.ClientConn, state *framework.Cm
 	}
 }
 
+func connectSession(session *models.Session) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	}
+
+	conn, err := grpc.DialContext(context.Background(), session.Address, opts...)
+	if err != nil {
+		fmt.Printf("failed to connect to %s(%d) addr: %s, err: %s\n", session.ServerName, session.ServerID, session.Address, err.Error())
+	}
+	return conn, err
+}
+
 func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -84,21 +97,63 @@ func getSessionConnect(cli kv.MetaKV, basePath string, id int64, sessionType str
 
 	for _, session := range sessions {
 		if id == session.ServerID && sessionMatch(session, sessionType) {
-			opts := []grpc.DialOption{
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
-				grpc.WithBlock(),
-			}
-
-			conn, err = grpc.DialContext(context.Background(), session.Address, opts...)
-			if err != nil {
-				fmt.Printf("failed to connect to proxy(%d) addr: %s, err: %s\n", session.ServerID, session.Address, err.Error())
-			}
+			conn, err = connectSession(session)
 			return session, conn, err
 		}
 	}
 
 	fmt.Printf("%s id:%d not found\n", sessionType, id)
 	return nil, nil, errors.New("invalid id")
+}
+
+// getCoordSessionAuto automatically selects the primary coordinator session for the given type.
+// When multiple coordinators exist, it picks the one whose key marks it as main/primary.
+func getCoordSessionAuto(cli kv.MetaKV, basePath string, sessionType string) (session *models.Session, conn *grpc.ClientConn, err error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sessions, err := common.ListSessions(ctx, cli, basePath)
+	if err != nil {
+		fmt.Println("failed to list session, err:", err.Error())
+		return nil, nil, err
+	}
+
+	var matched []*models.Session
+	for _, s := range sessions {
+		if sessionMatch(s, sessionType) {
+			matched = append(matched, s)
+		}
+	}
+
+	if len(matched) == 0 {
+		fmt.Printf("no %s session found\n", sessionType)
+		return nil, nil, errors.New("no session found")
+	}
+
+	if len(matched) == 1 {
+		session = matched[0]
+		fmt.Printf("auto-select %s, serverID: %d, addr: %s\n", sessionType, session.ServerID, session.Address)
+		conn, err = connectSession(session)
+		return session, conn, err
+	}
+
+	// multiple coordinators found, pick the primary/main one
+	fmt.Printf("found %d %s sessions, selecting primary...\n", len(matched), sessionType)
+	for _, s := range matched {
+		if s.IsMain(sessionType) {
+			session = s
+			break
+		}
+	}
+	if session == nil {
+		// fallback to the first one if no primary found
+		session = matched[0]
+		fmt.Printf("no primary %s found, fallback to serverID: %d, addr: %s\n", sessionType, session.ServerID, session.Address)
+	} else {
+		fmt.Printf("auto-select primary %s, serverID: %d, addr: %s\n", sessionType, session.ServerID, session.Address)
+	}
+
+	conn, err = connectSession(session)
+	return session, conn, err
 }
 
 // sessionMatch is the util func handles mixcoord & XXXXcoord match logic
@@ -116,17 +171,12 @@ func getVisitSessionCmds(state *framework.CmdState, cli kv.MetaKV, basePath stri
 	sessionCmds := make([]*cobra.Command, 0, len(getSessionTypes()))
 	sessionTypes := getSessionTypes()
 
+	isCoordType := func(sessionType string) bool {
+		return strings.HasSuffix(sessionType, "coord")
+	}
+
 	RunFuncFactory := func(sessionType string) func(cmd *cobra.Command, args []string) {
 		return func(cmd *cobra.Command, args []string) {
-			if len(args) < 1 {
-				cmd.Usage()
-				return
-			}
-			id, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				cmd.Usage()
-				return
-			}
 			addr, err := cmd.Flags().GetString("addr")
 			if err != nil {
 				cmd.Usage()
@@ -153,6 +203,25 @@ func getVisitSessionCmds(state *framework.CmdState, cli kv.MetaKV, basePath stri
 				})
 				return
 			}
+
+			if len(args) < 1 {
+				// for coordinator types, auto-select when no server ID provided
+				if isCoordType(sessionType) {
+					session, conn, err := getCoordSessionAuto(cli, basePath, sessionType)
+					if err != nil {
+						return
+					}
+					setNextState(sessionType, conn, state, session)
+					return
+				}
+				cmd.Usage()
+				return
+			}
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				cmd.Usage()
+				return
+			}
 			session, conn, err := getSessionConnect(cli, basePath, id, sessionType)
 			if err != nil {
 				return
@@ -162,8 +231,12 @@ func getVisitSessionCmds(state *framework.CmdState, cli kv.MetaKV, basePath stri
 	}
 
 	for i := 0; i < len(sessionTypes); i++ {
+		use := sessionTypes[i] + " {serverId}"
+		if isCoordType(sessionTypes[i]) {
+			use = sessionTypes[i] + " [{serverId}]"
+		}
 		callCmd := &cobra.Command{
-			Use:   sessionTypes[i] + " {serverId}",
+			Use:   use,
 			Short: "component of " + sessionTypes[i] + "s",
 			Run:   RunFuncFactory(sessionTypes[i]),
 		}
