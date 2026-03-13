@@ -18,13 +18,20 @@ import (
 const printFileLimit = 3
 
 type ImportJobParam struct {
-	framework.DataSetParam `use:"show bulkinsert" desc:"display bulkinsert jobs and tasks" alias:"import"`
+	framework.DataSetParam `use:"show bulkinsert" desc:"display bulkinsert jobs and tasks" alias:"import,import-job"`
 
 	JobID        int64  `name:"job" default:"0" desc:"job id to filter with"`
 	CollectionID int64  `name:"collection" default:"0" desc:"collection id to filter with"`
 	State        string `name:"state" default:"" desc:"target import job state, [pending, preimporting, importing, failed, completed]"`
 	Detail       bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail bulkinsert job"`
 	ShowAllFiles bool   `name:"showAllFiles" default:"false" desc:"flags indicating whether printing all files"`
+}
+
+type ImportTaskParam struct {
+	framework.DataSetParam `use:"show import-task" desc:"display import task by task ID"`
+
+	TaskID       int64 `name:"task" default:"0" desc:"task id to display"`
+	ShowAllFiles bool  `name:"showAllFiles" default:"false" desc:"flags indicating whether printing all files"`
 }
 
 // BulkInsertCommand returns show bulkinsert command.
@@ -49,6 +56,65 @@ func (c *ComponentShow) BulkInsertCommand(ctx context.Context, p *ImportJobParam
 	}
 
 	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
+}
+
+// ShowImportTaskCommand returns show import-task command.
+func (c *ComponentShow) ShowImportTaskCommand(ctx context.Context, p *ImportTaskParam) error {
+	if p.TaskID == 0 {
+		fmt.Println("Error: task id is required (use --task <taskID>)")
+		return nil
+	}
+
+	// Search in PreImportTasks
+	preimportTasks, err := common.ListPreImportTasks(ctx, c.client, c.metaPath, func(task *models.PreImportTask) bool {
+		return task.GetProto().GetTaskID() == p.TaskID
+	})
+	if err != nil {
+		fmt.Println("failed to list preimport tasks, err=", err.Error())
+		return err
+	}
+
+	// Search in ImportTaskV2
+	importTasks, err := common.ListImportTasks(ctx, c.client, c.metaPath, func(task *models.ImportTaskV2) bool {
+		return task.GetProto().GetTaskID() == p.TaskID
+	})
+	if err != nil {
+		fmt.Println("failed to list import tasks, err=", err.Error())
+		return err
+	}
+
+	// Handle results
+	if len(preimportTasks) == 0 && len(importTasks) == 0 {
+		fmt.Printf("cannot find target import task: %d\n", p.TaskID)
+		return nil
+	}
+
+	// Show PreImportTasks if found
+	if len(preimportTasks) > 0 {
+		if len(importTasks) > 0 {
+			fmt.Println("Warning: Found task in both PreImportTask and ImportTaskV2 collections")
+		}
+		for _, task := range preimportTasks {
+			fmt.Println("===================================")
+			fmt.Println("    [PreImportTask] Task Details   ")
+			fmt.Println("===================================")
+			PrintPreImportTask(task.GetProto(), p.ShowAllFiles)
+			fmt.Println("===================================")
+		}
+	}
+
+	// Show ImportTaskV2 if found
+	if len(importTasks) > 0 {
+		for _, task := range importTasks {
+			fmt.Println("===================================")
+			fmt.Println("     [ImportTaskV2] Task Details   ")
+			fmt.Println("===================================")
+			PrintImportTask(task.GetProto(), p.ShowAllFiles)
+			fmt.Println("===================================")
+		}
+	}
+
+	return nil
 }
 
 type ImportJobs struct {
