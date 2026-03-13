@@ -350,7 +350,7 @@ func findMilvusInstance(ctx context.Context, cli clientv3.KV) ([]string, error) 
 		for _, kv := range resp.Kvs {
 			key := string(kv.Key)
 			parts := strings.Split(key, "/")
-			if parts[0] != "" {
+			if parts[0] != "" && parts[0] != "woodpecker" { // skip woodpecker prefix
 				apps = append(apps, parts[0])
 			}
 			// next key, since '0' is the next ascii char of '/'
