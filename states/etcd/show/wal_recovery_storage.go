@@ -8,9 +8,11 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/samber/lo"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/types"
 	"github.com/milvus-io/milvus/pkg/v2/util/funcutil"
@@ -33,11 +35,18 @@ func (c *ComponentShow) WalRecoveryStorageCommand(ctx context.Context, p *WALRec
 		return err
 	}
 
+	sessions, err := common.ListSessions(ctx, c.client, c.metaPath)
+	if err != nil {
+		return err
+	}
+	sessionMap := lo.SliceToMap(sessions, func(s *models.Session) (int64, *models.Session) { return s.ServerID, s })
+
+	nodeInfo := types.NewStreamingNodeInfoFromProto(metas.Channel.Node)
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.SetTitle(fmt.Sprintf("WAL Recovery Storage: %s, At StreamingNode: %s, Checkpoints: %s",
 		types.NewPChannelInfoFromProto(metas.Channel.Channel).String(),
-		types.NewStreamingNodeInfoFromProto(metas.Channel.Node).String(),
+		formatStreamingNode(nodeInfo, sessionMap),
 		common.FormatWALCheckpoint(p.WALName, metas.Checkpoints)))
 	t.AppendHeader(table.Row{"Channel", "Partition Count", "Segment Count", "Segments", "SchemaVersion"})
 	for _, meta := range metas.VChannels {
