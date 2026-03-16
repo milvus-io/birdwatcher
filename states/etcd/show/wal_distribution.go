@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/milvus/pkg/v2/proto/streamingpb"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/types"
@@ -27,6 +29,12 @@ func (c *ComponentShow) WalDistributionCommand(ctx context.Context, p *WALDistri
 		return err
 	}
 
+	sessions, err := common.ListSessions(ctx, c.client, c.metaPath)
+	if err != nil {
+		return err
+	}
+	sessionMap := lo.SliceToMap(sessions, func(s *models.Session) (int64, *models.Session) { return s.ServerID, s })
+
 	t := table.NewWriter()
 	t.SetTitle("WAL Distribution At Coordinator")
 	t.SetOutputMirror(os.Stdout)
@@ -37,16 +45,16 @@ func (c *ComponentShow) WalDistributionCommand(ctx context.Context, p *WALDistri
 	t.AppendHeader(header)
 	for _, meta := range metas {
 		channelInfo := types.NewPChannelInfoFromProto(meta.Channel)
-		assignedTo := types.NewStreamingNodeInfoFromProto(meta.Node)
+		nodeInfo := types.NewStreamingNodeInfoFromProto(meta.Node)
 		lastAssignTimestamp := time.Unix(int64(meta.LastAssignTimestampSeconds), 0)
 		row := table.Row{
 			channelInfo,
-			assignedTo,
+			formatStreamingNode(nodeInfo, sessionMap),
 			strings.TrimPrefix(meta.State.String(), "PCHANNEL_META_STATE_"),
 			lastAssignTimestamp,
 		}
 		if p.WithHistory {
-			row = append(row, c.formatHistory(meta.Histories))
+			row = append(row, c.formatHistory(meta.Histories, sessionMap))
 		}
 		t.AppendRow(row)
 	}
@@ -54,14 +62,21 @@ func (c *ComponentShow) WalDistributionCommand(ctx context.Context, p *WALDistri
 	return nil
 }
 
-func (c *ComponentShow) formatHistory(histories []*streamingpb.PChannelAssignmentLog) string {
+func (c *ComponentShow) formatHistory(histories []*streamingpb.PChannelAssignmentLog, sessionMap map[int64]*models.Session) string {
 	if len(histories) == 0 {
 		return ""
 	}
 	ss := make([]string, 0, len(histories))
 	for _, history := range histories {
-		assignedTo := types.NewStreamingNodeInfoFromProto(history.Node)
-		ss = append(ss, fmt.Sprintf("%s@%d->%s", types.AccessMode(history.AccessMode).String(), history.Term, assignedTo.String()))
+		nodeInfo := types.NewStreamingNodeInfoFromProto(history.Node)
+		ss = append(ss, fmt.Sprintf("%s@%d->%s", types.AccessMode(history.AccessMode).String(), history.Term, formatStreamingNode(nodeInfo, sessionMap)))
 	}
 	return strings.Join(ss, "\n")
+}
+
+func formatStreamingNode(node types.StreamingNodeInfo, sessionMap map[int64]*models.Session) string {
+	if sess, ok := sessionMap[node.ServerID]; ok {
+		return fmt.Sprintf("%d(%s)", node.ServerID, sess.HostName)
+	}
+	return fmt.Sprintf("%d(NotFound)", node.ServerID)
 }
