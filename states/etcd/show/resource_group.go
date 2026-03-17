@@ -109,8 +109,8 @@ func (rs *ResourceGroups) printAsJSON() string {
 	}
 
 	type ResourceGroupJSON struct {
-		Name   string       `json:"name"`
-		Config ConfigJSON   `json:"config"`
+		Name   string         `json:"name"`
+		Config ConfigJSON     `json:"config"`
 		Nodes  []NodeInfoJSON `json:"nodes"`
 	}
 
