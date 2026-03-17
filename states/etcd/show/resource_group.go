@@ -3,11 +3,18 @@ package show
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
+	"text/tabwriter"
+
+	"github.com/cockroachdb/errors"
+	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/rgpb"
 )
 
 type ResourceGroupParam struct {
@@ -23,21 +30,62 @@ func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGro
 		return nil, err
 	}
 
-	return framework.NewPresetResultSet(framework.NewListResult[ResourceGroups](rgs), framework.NameFormat(p.Format)), nil
+	sessions, err := common.ListSessions(ctx, c.client, c.metaPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list sessions")
+	}
+
+	rs := framework.NewListResult[ResourceGroups](rgs)
+	rs.sessionMap = lo.SliceToMap(sessions, func(s *models.Session) (int64, *models.Session) { return s.ServerID, s })
+	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
 }
 
 type ResourceGroups struct {
 	framework.ListResultSet[*models.ResourceGroup]
+	sessionMap map[int64]*models.Session
+}
+
+func (rs *ResourceGroups) getHostName(nodeID int64) string {
+	if sess, ok := rs.sessionMap[nodeID]; ok {
+		return sess.HostName
+	}
+	return "NotFound"
 }
 
 func (rs *ResourceGroups) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
 		sb := &strings.Builder{}
+		tw := tabwriter.NewWriter(sb, 0, 0, 2, ' ', 0)
 		for _, info := range rs.Data {
 			rg := info.GetProto()
-			fmt.Fprintf(sb, "Resource Group Name: %s\tCapacity[Legacy]: %d\tNodes: %v\tLimit: %d\tRequest: %d\n", rg.GetName(), rg.GetCapacity(), rg.GetNodes(), rg.GetConfig().GetLimits().GetNodeNum(), rg.GetConfig().GetRequests().GetNodeNum())
+			fmt.Fprintf(tw, "Resource Group: %s\n", rg.GetName())
+			// Config
+			cfg := rg.GetConfig()
+			fmt.Fprintf(tw, "  Config:\n")
+			fmt.Fprintf(tw, "    Request: %d\tLimit: %d\n", cfg.GetRequests().GetNodeNum(), cfg.GetLimits().GetNodeNum())
+			if transferFrom := cfg.GetTransferFrom(); len(transferFrom) > 0 {
+				fmt.Fprintf(tw, "    TransferFrom: %v\n", lo.Map(transferFrom, func(t *rgpb.ResourceGroupTransfer, _ int) string { return t.GetResourceGroup() }))
+			}
+			if transferTo := cfg.GetTransferTo(); len(transferTo) > 0 {
+				fmt.Fprintf(tw, "    TransferTo: %v\n", lo.Map(transferTo, func(t *rgpb.ResourceGroupTransfer, _ int) string { return t.GetResourceGroup() }))
+			}
+			if nodeFilter := cfg.GetNodeFilter(); nodeFilter != nil && len(nodeFilter.GetNodeLabels()) > 0 {
+				labels := lo.Map(nodeFilter.GetNodeLabels(), func(kv *commonpb.KeyValuePair, _ int) string {
+					return fmt.Sprintf("%s=%s", kv.GetKey(), kv.GetValue())
+				})
+				fmt.Fprintf(tw, "    NodeFilter: [%s]\n", strings.Join(labels, ", "))
+			}
+			// Nodes
+			nodes := append([]int64{}, rg.GetNodes()...)
+			slices.Sort(nodes)
+			fmt.Fprintf(tw, "  Nodes (%d):\n", len(nodes))
+			for _, nodeID := range nodes {
+				fmt.Fprintf(tw, "    - %d\t%s\n", nodeID, rs.getHostName(nodeID))
+			}
+			fmt.Fprintln(tw)
 		}
+		tw.Flush()
 		fmt.Fprintf(sb, "--- Total Resource Group(s): %d\n", len(rs.Data))
 		return sb.String()
 	case framework.FormatJSON:
@@ -47,12 +95,23 @@ func (rs *ResourceGroups) PrintAs(format framework.Format) string {
 }
 
 func (rs *ResourceGroups) printAsJSON() string {
+	type NodeInfoJSON struct {
+		NodeID   int64  `json:"node_id"`
+		HostName string `json:"hostname"`
+	}
+
+	type ConfigJSON struct {
+		RequestNodeNum int32    `json:"request_node_num"`
+		LimitNodeNum   int32    `json:"limit_node_num"`
+		TransferFrom   []string `json:"transfer_from,omitempty"`
+		TransferTo     []string `json:"transfer_to,omitempty"`
+		NodeLabels     []string `json:"node_labels,omitempty"`
+	}
+
 	type ResourceGroupJSON struct {
-		Name           string  `json:"name"`
-		CapacityLegacy int32   `json:"capacity_legacy"`
-		Nodes          []int64 `json:"nodes"`
-		LimitNodeNum   int32   `json:"limit_node_num"`
-		RequestNodeNum int32   `json:"request_node_num"`
+		Name   string         `json:"name"`
+		Config ConfigJSON     `json:"config"`
+		Nodes  []NodeInfoJSON `json:"nodes"`
 	}
 
 	type OutputJSON struct {
@@ -67,12 +126,35 @@ func (rs *ResourceGroups) printAsJSON() string {
 
 	for _, info := range rs.Data {
 		rg := info.GetProto()
+		cfg := rg.GetConfig()
+
+		cfgJSON := ConfigJSON{
+			RequestNodeNum: cfg.GetRequests().GetNodeNum(),
+			LimitNodeNum:   cfg.GetLimits().GetNodeNum(),
+		}
+		if transferFrom := cfg.GetTransferFrom(); len(transferFrom) > 0 {
+			cfgJSON.TransferFrom = lo.Map(transferFrom, func(t *rgpb.ResourceGroupTransfer, _ int) string { return t.GetResourceGroup() })
+		}
+		if transferTo := cfg.GetTransferTo(); len(transferTo) > 0 {
+			cfgJSON.TransferTo = lo.Map(transferTo, func(t *rgpb.ResourceGroupTransfer, _ int) string { return t.GetResourceGroup() })
+		}
+		if nodeFilter := cfg.GetNodeFilter(); nodeFilter != nil && len(nodeFilter.GetNodeLabels()) > 0 {
+			cfgJSON.NodeLabels = lo.Map(nodeFilter.GetNodeLabels(), func(kv *commonpb.KeyValuePair, _ int) string {
+				return fmt.Sprintf("%s=%s", kv.GetKey(), kv.GetValue())
+			})
+		}
+
+		sortedNodes := append([]int64{}, rg.GetNodes()...)
+		slices.Sort(sortedNodes)
+		nodes := make([]NodeInfoJSON, 0, len(sortedNodes))
+		for _, nodeID := range sortedNodes {
+			nodes = append(nodes, NodeInfoJSON{NodeID: nodeID, HostName: rs.getHostName(nodeID)})
+		}
+
 		output.ResourceGroups = append(output.ResourceGroups, ResourceGroupJSON{
-			Name:           rg.GetName(),
-			CapacityLegacy: rg.GetCapacity(),
-			Nodes:          rg.GetNodes(),
-			LimitNodeNum:   rg.GetConfig().GetLimits().GetNodeNum(),
-			RequestNodeNum: rg.GetConfig().GetRequests().GetNodeNum(),
+			Name:   rg.GetName(),
+			Config: cfgJSON,
+			Nodes:  nodes,
 		})
 	}
 
