@@ -146,6 +146,20 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 						outputFormat = preset.GetFormat()
 					}
 				}
+				if outputFormat == FormatTable {
+					innerRS := rs
+					if preset, ok := rs.(*PresetResultSet); ok {
+						innerRS = preset.ResultSet
+					}
+					if trs, ok := innerRS.(TableResultSet); ok {
+						title := ""
+						if titler, ok := innerRS.(TableTitler); ok {
+							title = titler.TableTitle()
+						}
+						fmt.Println(RenderTable(trs.TableHeaders(), trs.TableRows(), title))
+						continue
+					}
+				}
 				fmt.Println(rs.PrintAs(outputFormat))
 			}
 		}

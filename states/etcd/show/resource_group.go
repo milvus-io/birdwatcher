@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -28,6 +30,19 @@ func (c *ComponentShow) ResourceGroupCommand(ctx context.Context, p *ResourceGro
 
 type ResourceGroups struct {
 	framework.ListResultSet[*models.ResourceGroup]
+}
+
+func (rs *ResourceGroups) TableHeaders() table.Row {
+	return table.Row{"Name", "Capacity", "Nodes"}
+}
+
+func (rs *ResourceGroups) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, info := range rs.Data {
+		rg := info.GetProto()
+		rows = append(rows, table.Row{rg.GetName(), rg.GetCapacity(), fmt.Sprintf("%v", rg.GetNodes())})
+	}
+	return rows
 }
 
 func (rs *ResourceGroups) PrintAs(format framework.Format) string {

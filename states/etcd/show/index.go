@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
@@ -30,6 +32,26 @@ func (c *ComponentShow) IndexCommand(ctx context.Context, p *IndexParam) (*frame
 
 type Indexes struct {
 	framework.ListResultSet[*models.FieldIndex]
+}
+
+func (rs *Indexes) TableHeaders() table.Row {
+	return table.Row{"IndexID", "IndexName", "CollectionID", "FieldID", "IndexType", "MetricType"}
+}
+
+func (rs *Indexes) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, info := range rs.Data {
+		index := info.GetProto()
+		rows = append(rows, table.Row{
+			index.GetIndexInfo().GetIndexID(),
+			index.GetIndexInfo().GetIndexName(),
+			index.GetIndexInfo().GetCollectionID(),
+			index.GetIndexInfo().GetFieldID(),
+			common.GetKVPair(index.GetIndexInfo().GetIndexParams(), "index_type"),
+			common.GetKVPair(index.GetIndexInfo().GetIndexParams(), "metric_type"),
+		})
+	}
+	return rows
 }
 
 func (rs *Indexes) PrintAs(format framework.Format) string {

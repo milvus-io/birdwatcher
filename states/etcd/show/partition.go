@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -37,6 +38,19 @@ func (c *ComponentShow) PartitionCommand(ctx context.Context, p *PartitionParam)
 
 type Partitions struct {
 	framework.ListResultSet[*models.Partition]
+}
+
+func (rs *Partitions) TableHeaders() table.Row {
+	return table.Row{"PartitionID", "Name", "State"}
+}
+
+func (rs *Partitions) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, info := range rs.Data {
+		partition := info.GetProto()
+		rows = append(rows, table.Row{partition.GetPartitionID(), partition.GetPartitionName(), partition.State.String()})
+	}
+	return rows
 }
 
 func (rs *Partitions) PrintAs(format framework.Format) string {

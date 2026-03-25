@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
@@ -39,6 +41,18 @@ type ConfigItem struct {
 
 type ConfigEtcdResult struct {
 	configs []ConfigItem
+}
+
+func (rs *ConfigEtcdResult) TableHeaders() table.Row {
+	return table.Row{"Key", "Value"}
+}
+
+func (rs *ConfigEtcdResult) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.configs))
+	for _, config := range rs.configs {
+		rows = append(rows, table.Row{config.Key, config.Value})
+	}
+	return rows
 }
 
 func (rs *ConfigEtcdResult) Entities() any {

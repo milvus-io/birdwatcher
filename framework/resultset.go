@@ -1,6 +1,10 @@
 package framework
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/jedib0t/go-pretty/v6/table"
+)
 
 type Format int32
 
@@ -82,6 +86,29 @@ func NewListResult[LRS any, P interface {
 	var p P = &t
 	p.SetData(data)
 	return &t
+}
+
+// TableResultSet is an optional interface for ResultSet implementations
+// to support FormatTable output via go-pretty.
+type TableResultSet interface {
+	TableHeaders() table.Row
+	TableRows() []table.Row
+}
+
+// TableTitler is an optional interface for providing a table title.
+type TableTitler interface {
+	TableTitle() string
+}
+
+// RenderTable renders a go-pretty table from headers, rows, and optional title.
+func RenderTable(headers table.Row, rows []table.Row, title string) string {
+	t := table.NewWriter()
+	t.AppendHeader(headers)
+	t.AppendRows(rows)
+	if title != "" {
+		t.SetTitle(title)
+	}
+	return t.Render()
 }
 
 // MarshalJSON is a helper function for JSON serialization.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -32,6 +33,18 @@ func (c *ComponentShow) SessionCommand(ctx context.Context, p *SessionParam) (*f
 
 type Sessions struct {
 	framework.ListResultSet[*models.Session]
+}
+
+func (rs *Sessions) TableHeaders() table.Row {
+	return table.Row{"ServerID", "ServerName", "Address", "HostName", "Version", "LeaseID"}
+}
+
+func (rs *Sessions) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, s := range rs.Data {
+		rows = append(rows, table.Row{s.ServerID, s.ServerName, s.Address, s.HostName, s.Version, s.LeaseID})
+	}
+	return rows
 }
 
 func (rs *Sessions) PrintAs(format framework.Format) string {

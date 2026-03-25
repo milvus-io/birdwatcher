@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -71,6 +72,23 @@ type Checkpoint struct {
 
 type Checkpoints struct {
 	framework.ListResultSet[*Checkpoint]
+}
+
+func (rs *Checkpoints) TableHeaders() table.Row {
+	return table.Row{"VChannel", "Source", "Timestamp"}
+}
+
+func (rs *Checkpoints) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, cp := range rs.Data {
+		ts := ""
+		if cp.Checkpoint != nil {
+			t, _ := utils.ParseTS(cp.Checkpoint.GetProto().GetTimestamp())
+			ts = t.Format("2006-01-02 15:04:05")
+		}
+		rows = append(rows, table.Row{cp.Channel.VirtualName, cp.Source, ts})
+	}
+	return rows
 }
 
 func (rs *Checkpoints) PrintAs(format framework.Format) string {

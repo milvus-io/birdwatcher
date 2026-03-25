@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -34,6 +35,18 @@ func (c *ComponentShow) AliasCommand(ctx context.Context, p *AliasParam) (*frame
 
 type Aliases struct {
 	framework.ListResultSet[*models.Alias]
+}
+
+func (rs *Aliases) TableHeaders() table.Row {
+	return table.Row{"DBID", "CollectionID", "Name", "State"}
+}
+
+func (rs *Aliases) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, a := range rs.Data {
+		rows = append(rows, table.Row{a.DBID, a.CollectionID, a.Name, a.State.String()})
+	}
+	return rows
 }
 
 func (rs *Aliases) PrintAs(format framework.Format) string {

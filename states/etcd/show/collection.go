@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -94,6 +95,23 @@ type Collections struct {
 	total       int64
 	channels    int
 	healthy     int
+}
+
+func (rs *Collections) TableHeaders() table.Row {
+	return table.Row{"ID", "Name", "DBID", "State", "Fields", "Channels"}
+}
+
+func (rs *Collections) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.collections))
+	for _, coll := range rs.collections {
+		proto := coll.GetProto()
+		rows = append(rows, table.Row{
+			proto.ID, proto.Schema.Name, proto.DbId,
+			proto.State.String(), len(proto.Schema.Fields),
+			len(coll.Channels()),
+		})
+	}
+	return rows
 }
 
 func (rs *Collections) PrintAs(format framework.Format) string {

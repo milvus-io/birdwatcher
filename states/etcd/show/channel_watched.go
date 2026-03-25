@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -44,6 +45,22 @@ func (c *ComponentShow) ChannelWatchedCommand(ctx context.Context, p *ChannelWat
 type ChannelsWatched struct {
 	data        []*models.ChannelWatch
 	printSchema bool
+}
+
+func (rs *ChannelsWatched) TableHeaders() table.Row {
+	return table.Row{"VChannel", "State", "CollectionID"}
+}
+
+func (rs *ChannelsWatched) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.data))
+	for _, model := range rs.data {
+		info := model.GetProto()
+		rows = append(rows, table.Row{
+			info.Vchan.ChannelName, info.State.String(),
+			info.Vchan.CollectionID,
+		})
+	}
+	return rows
 }
 
 func (rs *ChannelsWatched) Entities() any {

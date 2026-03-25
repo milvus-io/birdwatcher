@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -53,6 +54,22 @@ func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*f
 type Replicas struct {
 	framework.ListResultSet[*models.Replica]
 	collections map[int64]*models.Collection
+}
+
+func (rs *Replicas) TableHeaders() table.Row {
+	return table.Row{"ReplicaID", "CollectionID", "ResourceGroup", "Nodes"}
+}
+
+func (rs *Replicas) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, r := range rs.Data {
+		replica := r.GetProto()
+		rows = append(rows, table.Row{
+			replica.ID, replica.CollectionID,
+			replica.ResourceGroup, fmt.Sprintf("%v", replica.Nodes),
+		})
+	}
+	return rows
 }
 
 func (rs *Replicas) PrintAs(format framework.Format) string {
