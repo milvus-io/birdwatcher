@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -28,6 +29,18 @@ func (c *ComponentShow) UserCommand(ctx context.Context, p *UserParam) (*framewo
 
 type Users struct {
 	framework.ListResultSet[*models.UserInfo]
+}
+
+func (rs *Users) TableHeaders() table.Row {
+	return table.Row{"Username", "Tenant"}
+}
+
+func (rs *Users) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.Data))
+	for _, user := range rs.Data {
+		rows = append(rows, table.Row{user.Username, user.Tenant})
+	}
+	return rows
 }
 
 func (rs *Users) PrintAs(format framework.Format) string {

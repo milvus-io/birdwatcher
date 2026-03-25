@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -91,6 +92,21 @@ type CompactionTasks struct {
 	tasks []*models.CompactionTask
 	total int64
 	param *CompactionTaskParam
+}
+
+func (rs *CompactionTasks) TableHeaders() table.Row {
+	return table.Row{"PlanID", "CollectionID", "Type", "State"}
+}
+
+func (rs *CompactionTasks) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.tasks))
+	for _, t := range rs.tasks {
+		rows = append(rows, table.Row{
+			t.GetPlanID(), t.GetCollectionID(),
+			t.GetType().String(), t.GetState().String(),
+		})
+	}
+	return rows
 }
 
 func (rs *CompactionTasks) PrintAs(format framework.Format) string {

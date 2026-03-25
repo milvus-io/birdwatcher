@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -63,6 +64,22 @@ type SegmentIndexes struct {
 	segments       []*models.Segment
 	segmentIndexes []*models.SegmentIndex
 	indexBuildInfo []*models.FieldIndex
+}
+
+func (rs *SegmentIndexes) TableHeaders() table.Row {
+	return table.Row{"SegmentID", "IndexID", "BuildID", "State"}
+}
+
+func (rs *SegmentIndexes) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.segmentIndexes))
+	for _, info := range rs.segmentIndexes {
+		segIdx := info.GetProto()
+		rows = append(rows, table.Row{
+			segIdx.GetSegmentID(), segIdx.GetIndexID(),
+			segIdx.GetBuildID(), segIdx.GetState().String(),
+		})
+	}
+	return rows
 }
 
 func (rs *SegmentIndexes) Entities() any {

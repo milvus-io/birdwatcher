@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -68,6 +69,22 @@ type Segments struct {
 	segments []*models.Segment
 	format   string
 	detail   bool
+}
+
+func (rs *Segments) TableHeaders() table.Row {
+	return table.Row{"SegmentID", "CollectionID", "PartitionID", "State", "Level", "NumOfRows", "StorageVersion", "IsSorted"}
+}
+
+func (rs *Segments) TableRows() []table.Row {
+	rows := make([]table.Row, 0, len(rs.segments))
+	for _, info := range rs.segments {
+		rows = append(rows, table.Row{
+			info.ID, info.CollectionID, info.PartitionID,
+			info.State.String(), info.Level.String(),
+			info.NumOfRows, info.StorageVersion, info.IsSorted,
+		})
+	}
+	return rows
 }
 
 func (rs *Segments) Entities() any {
