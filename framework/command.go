@@ -147,7 +147,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 					}
 				}
 				if outputFormat == FormatTable {
-					innerRS := ResultSet(rs)
+					innerRS := rs
 					if preset, ok := rs.(*PresetResultSet); ok {
 						innerRS = preset.ResultSet
 					}
