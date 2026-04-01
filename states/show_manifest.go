@@ -622,25 +622,26 @@ func manifestSnappyDecodeBlock(src []byte) ([]byte, error) {
 		case 0: // Literal
 			litLen := int(tag>>2) + 1
 			src = src[1:]
-			if litLen == 60+1 {
+			switch {
+			case litLen == 60+1:
 				if len(src) < 1 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}
 				litLen = int(src[0]) + 1
 				src = src[1:]
-			} else if litLen == 61+1 {
+			case litLen == 61+1:
 				if len(src) < 2 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}
 				litLen = int(src[0]) | int(src[1])<<8 + 1
 				src = src[2:]
-			} else if litLen == 62+1 {
+			case litLen == 62+1:
 				if len(src) < 3 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}
 				litLen = int(src[0]) | int(src[1])<<8 | int(src[2])<<16 + 1
 				src = src[3:]
-			} else if litLen == 63+1 {
+			case litLen == 63+1:
 				if len(src) < 4 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}
