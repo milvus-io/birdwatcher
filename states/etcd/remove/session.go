@@ -23,7 +23,7 @@ type RemoveSessionParam struct {
 }
 
 func (c *ComponentRemove) RemoveSessionCommand(ctx context.Context, p *RemoveSessionParam) error {
-	sessions, err := common.ListSessions(ctx, c.client, c.basePath)
+	sessions, err := common.ListSessions(ctx, c.client, c.metaPath)
 	if err != nil {
 		return err
 	}

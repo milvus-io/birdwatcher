@@ -20,7 +20,7 @@ func (c *ComponentRemove) CollectionDropCommand(ctx context.Context, p *Collecti
 	var collections []*models.Collection
 	var err error
 	if p.CollectionID > 0 {
-		collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, p.CollectionID)
+		collection, err := common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, p.CollectionID)
 		if err != nil {
 			fmt.Printf("failed to get collection by id(%d): %s\n", p.CollectionID, err.Error())
 			return err
@@ -32,7 +32,7 @@ func (c *ComponentRemove) CollectionDropCommand(ctx context.Context, p *Collecti
 		}
 		collections = append(collections, collection)
 	} else {
-		collections, err = common.ListCollections(context.Background(), c.client, c.basePath, func(coll *models.Collection) bool {
+		collections, err = common.ListCollections(context.Background(), c.client, c.metaPath, func(coll *models.Collection) bool {
 			return coll.GetProto().State == etcdpb.CollectionState_CollectionDropping || coll.GetProto().State == etcdpb.CollectionState_CollectionDropped
 		})
 		if err != nil {
@@ -57,7 +57,7 @@ func (c *ComponentRemove) cleanCollectionMeta(ctx context.Context, info *models.
 	if info.Key() == "" {
 		return fmt.Errorf("Collection %s[%d] key is empty string, cannot perform cleanup", collection.Schema.Name, collection.ID)
 	}
-	basePath := c.basePath
+	basePath := c.metaPath
 	cli := c.client
 
 	// TODO: alias meta can't be cleaned conveniently.

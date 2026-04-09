@@ -21,7 +21,7 @@ type CompactionTaskParam struct {
 
 // RemoveCompactionTaskCommand is the command function to remove compaction task.
 func (c *ComponentRemove) RemoveCompactionTaskCommand(ctx context.Context, p *CompactionTaskParam) error {
-	compactionTasks, err := common.ListCompactionTask(ctx, c.client, c.basePath, func(task *models.CompactionTask) bool {
+	compactionTasks, err := common.ListCompactionTask(ctx, c.client, c.metaPath, func(task *models.CompactionTask) bool {
 		if p.CompactionType != "" && p.CompactionType != task.GetType().String() {
 			return false
 		}

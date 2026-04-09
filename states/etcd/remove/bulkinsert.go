@@ -25,7 +25,7 @@ type RemoveImportTaskParam struct {
 }
 
 func (c *ComponentRemove) RemoveImportJobCommand(ctx context.Context, p *RemoveImportJobParam) error {
-	jobs, err := common.ListImportJobs(ctx, c.client, c.basePath, func(job *models.ImportJob) bool {
+	jobs, err := common.ListImportJobs(ctx, c.client, c.metaPath, func(job *models.ImportJob) bool {
 		return job.GetProto().GetJobID() == p.JobID
 	})
 	if err != nil {
@@ -45,7 +45,7 @@ func (c *ComponentRemove) RemoveImportJobCommand(ctx context.Context, p *RemoveI
 	targetJob := jobs[0].GetProto()
 	targetPath := jobs[0].Key()
 	fmt.Printf("selected target import job, jobID: %d, key=%s\n", targetJob.GetJobID(), targetPath)
-	show.PrintDetailedImportJob(ctx, c.client, c.basePath, targetJob, false)
+	show.PrintDetailedImportJob(ctx, c.client, c.metaPath, targetJob, false)
 
 	// If without-tasks flag is set, remove only the job (old behavior)
 	if p.WithoutTasks {
@@ -67,7 +67,7 @@ func (c *ComponentRemove) RemoveImportJobCommand(ctx context.Context, p *RemoveI
 
 	// Default behavior: remove job with associated tasks
 	// Query associated PreImportTasks
-	preimportTasks, err := common.ListPreImportTasks(ctx, c.client, c.basePath, func(task *models.PreImportTask) bool {
+	preimportTasks, err := common.ListPreImportTasks(ctx, c.client, c.metaPath, func(task *models.PreImportTask) bool {
 		return task.GetProto().GetJobID() == p.JobID
 	})
 	if err != nil {
@@ -76,7 +76,7 @@ func (c *ComponentRemove) RemoveImportJobCommand(ctx context.Context, p *RemoveI
 	}
 
 	// Query associated ImportTaskV2 tasks
-	importTasks, err := common.ListImportTasks(ctx, c.client, c.basePath, func(task *models.ImportTaskV2) bool {
+	importTasks, err := common.ListImportTasks(ctx, c.client, c.metaPath, func(task *models.ImportTaskV2) bool {
 		return task.GetProto().GetJobID() == p.JobID
 	})
 	if err != nil {
@@ -181,7 +181,7 @@ func (c *ComponentRemove) RemoveImportTaskCommand(ctx context.Context, p *Remove
 	}
 
 	// Search in PreImportTasks
-	preimportTasks, err := common.ListPreImportTasks(ctx, c.client, c.basePath, func(task *models.PreImportTask) bool {
+	preimportTasks, err := common.ListPreImportTasks(ctx, c.client, c.metaPath, func(task *models.PreImportTask) bool {
 		return task.GetProto().GetTaskID() == p.TaskID
 	})
 	if err != nil {
@@ -190,7 +190,7 @@ func (c *ComponentRemove) RemoveImportTaskCommand(ctx context.Context, p *Remove
 	}
 
 	// Search in ImportTaskV2
-	importTasks, err := common.ListImportTasks(ctx, c.client, c.basePath, func(task *models.ImportTaskV2) bool {
+	importTasks, err := common.ListImportTasks(ctx, c.client, c.metaPath, func(task *models.ImportTaskV2) bool {
 		return task.GetProto().GetTaskID() == p.TaskID
 	})
 	if err != nil {

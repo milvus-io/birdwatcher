@@ -24,7 +24,7 @@ func (c *ComponentRemove) RemoveStatsTaskCommand(ctx context.Context, p *StatsTa
 		return fmt.Errorf("subJobType parameter is required")
 	}
 
-	statsTasks, err := common.ListStatsTask(ctx, c.client, c.basePath, func(task *models.StatsTask) bool {
+	statsTasks, err := common.ListStatsTask(ctx, c.client, c.metaPath, func(task *models.StatsTask) bool {
 		if p.SubJobType != task.GetProto().GetSubJobType().String() {
 			return false
 		}

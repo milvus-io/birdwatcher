@@ -19,7 +19,7 @@ type SegmentOrphan struct {
 
 // SegmentOrphanCommand returns command to remove
 func (c *ComponentRemove) SegmentOrphanCommand(ctx context.Context, p *SegmentOrphan) error {
-	segments, err := common.ListSegments(ctx, c.client, c.basePath, func(segment *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, c.client, c.metaPath, func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID)
 	})
 	if err != nil {
@@ -31,7 +31,7 @@ func (c *ComponentRemove) SegmentOrphanCommand(ctx context.Context, p *SegmentOr
 	})
 
 	for collectionID, segments := range groups {
-		_, err := common.GetCollectionByIDVersion(ctx, c.client, c.basePath, collectionID)
+		_, err := common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, collectionID)
 		if errors.Is(err, common.ErrCollectionNotFound) {
 			// print segments
 			fmt.Printf("Collection %d missing, orphan segments: %v\n", collectionID, lo.Map(segments, func(segment *models.Segment, idx int) int64 {
@@ -40,7 +40,7 @@ func (c *ComponentRemove) SegmentOrphanCommand(ctx context.Context, p *SegmentOr
 
 			if p.Run {
 				for _, segment := range segments {
-					err := common.RemoveSegmentByID(ctx, c.client, c.basePath, segment.CollectionID, segment.PartitionID, segment.ID)
+					err := common.RemoveSegmentByID(ctx, c.client, c.metaPath, segment.CollectionID, segment.PartitionID, segment.ID)
 					if err != nil {
 						fmt.Printf("failed to remove segment %d, err: %s\n", segment.ID, err.Error())
 					}

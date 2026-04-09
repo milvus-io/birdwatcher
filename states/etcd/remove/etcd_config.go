@@ -9,7 +9,7 @@ import (
 )
 
 type RemoveEtcdConfigParam struct {
-	framework.ExecutionParam `use:"remove etcd-config" desc:"remove etcd stored configuations"`
+	framework.ExecutionParam `use:"remove config-etcd" desc:"remove etcd stored configuations"`
 	Key                      string `name:"key" desc:"etcd config key" default:""`
 }
 
