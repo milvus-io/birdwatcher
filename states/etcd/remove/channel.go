@@ -18,7 +18,7 @@ type RemoveChannelParam struct {
 
 // RemoveChannelCommand defines `remove channel` command.
 func (c *ComponentRemove) RemoveChannelCommand(ctx context.Context, p *RemoveChannelParam) error {
-	collections, err := common.ListCollections(ctx, c.client, c.basePath)
+	collections, err := common.ListCollections(ctx, c.client, c.metaPath)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (c *ComponentRemove) RemoveChannelCommand(ctx context.Context, p *RemoveCha
 		}
 	}
 
-	watchChannels, err := common.ListChannelWatch(ctx, c.client, c.basePath, func(info *models.ChannelWatch) bool {
+	watchChannels, err := common.ListChannelWatch(ctx, c.client, c.metaPath, func(info *models.ChannelWatch) bool {
 		if len(p.Channel) > 0 {
 			return info.GetProto().GetVchan().GetChannelName() == p.Channel
 		}
@@ -40,7 +40,7 @@ func (c *ComponentRemove) RemoveChannelCommand(ctx context.Context, p *RemoveCha
 		return err
 	}
 
-	cps, err := common.ListChannelCheckpoint(ctx, c.client, c.basePath, func(pos *models.MsgPosition) bool {
+	cps, err := common.ListChannelCheckpoint(ctx, c.client, c.metaPath, func(pos *models.MsgPosition) bool {
 		if len(p.Channel) > 0 {
 			return pos.GetProto().GetChannelName() == p.Channel
 		}

@@ -23,7 +23,7 @@ type CollectionMetaLeakedParam struct {
 }
 
 func (c *ComponentRemove) CollectionMetaLeakedCommand(ctx context.Context, p *CollectionMetaLeakedParam) error {
-	collections, err := common.ListCollections(ctx, c.client, c.basePath)
+	collections, err := common.ListCollections(ctx, c.client, c.metaPath)
 	if err != nil {
 		return fmt.Errorf("failed to list collections: %s", err.Error())
 	}
@@ -64,15 +64,15 @@ func (c *ComponentRemove) CollectionMetaLeakedCommand(ctx context.Context, p *Co
 
 	// remove collection meta
 	// meta before database
-	collectionMetaPrefix := path.Join(c.basePath, common.CollectionMetaPrefix)
+	collectionMetaPrefix := path.Join(c.metaPath, common.CollectionMetaPrefix)
 	// with database
-	dbCollectionMetaPrefix := path.Join(c.basePath, common.DBCollectionMetaPrefix)
+	dbCollectionMetaPrefix := path.Join(c.metaPath, common.DBCollectionMetaPrefix)
 	// remove collection field meta
-	fieldsPrefix := path.Join(c.basePath, common.FieldMetaPrefix)
-	fieldsSnapShotPrefix := path.Join(c.basePath, common.SnapshotPrefix, common.FieldMetaPrefix)
+	fieldsPrefix := path.Join(c.metaPath, common.FieldMetaPrefix)
+	fieldsSnapShotPrefix := path.Join(c.metaPath, common.SnapshotPrefix, common.FieldMetaPrefix)
 	// remove collection partition meta
-	partitionsPrefix := path.Join(c.basePath, common.PartitionPrefix)
-	partitionsSnapShotPrefix := path.Join(c.basePath, common.SnapshotPrefix, common.PartitionPrefix)
+	partitionsPrefix := path.Join(c.metaPath, common.PartitionPrefix)
+	partitionsSnapShotPrefix := path.Join(c.metaPath, common.SnapshotPrefix, common.PartitionPrefix)
 	prefixes := []string{
 		collectionMetaPrefix,
 		dbCollectionMetaPrefix,
@@ -92,8 +92,8 @@ func (c *ComponentRemove) CollectionMetaLeakedCommand(ctx context.Context, p *Co
 	}
 
 	// remove segment meta
-	segmentPrefix := path.Join(c.basePath, common.DCPrefix, common.SegmentMetaPrefix)
-	segmentStatsPrefix := path.Join(c.basePath, common.DCPrefix, common.SegmentStatsMetaPrefix)
+	segmentPrefix := path.Join(c.metaPath, common.DCPrefix, common.SegmentMetaPrefix)
+	segmentStatsPrefix := path.Join(c.metaPath, common.DCPrefix, common.SegmentStatsMetaPrefix)
 	fmt.Printf("start cleaning leaked segment meta, prefix: %s, exclude prefix%s\n", segmentPrefix, segmentStatsPrefix)
 	err = cleanMetaFn(ctx, segmentPrefix, func(key string) bool {
 		return strings.HasPrefix(key, segmentStatsPrefix)

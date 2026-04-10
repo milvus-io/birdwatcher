@@ -83,7 +83,7 @@ func (s *embedEtcdMockState) SetInstance(instanceName string) {
 	s.instanceName = instanceName
 	rootPath := path.Join(instanceName, metaPath)
 	s.ComponentShow = show.NewComponent(s.client, s.config, instanceName, metaPath)
-	s.ComponentRemove = remove.NewComponent(s.client, s.config, rootPath)
+	s.ComponentRemove = remove.NewComponent(s.client, s.config, instanceName, metaPath)
 	s.ComponentRepair = repair.NewComponent(s.client, s.config, rootPath)
 	s.SetupCommands()
 }
@@ -163,12 +163,10 @@ func (s *embedEtcdMockState) readWorkspaceMeta(path string) {
 }
 
 func getEmbedEtcdInstance(server *embed.Etcd, cli kv.MetaKV, instanceName string, config *configs.Config) framework.State {
-	basePath := path.Join(instanceName, metaPath)
-
 	state := &embedEtcdMockState{
 		CmdState:        framework.NewCmdState(fmt.Sprintf("Backup(%s)", instanceName), config),
 		ComponentShow:   show.NewComponent(cli, config, instanceName, metaPath),
-		ComponentRemove: remove.NewComponent(cli, config, basePath),
+		ComponentRemove: remove.NewComponent(cli, config, instanceName, metaPath),
 		instanceName:    instanceName,
 		server:          server,
 		client:          cli,

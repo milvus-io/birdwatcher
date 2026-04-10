@@ -21,7 +21,7 @@ type DirtyImportingSegment struct {
 // DirtyImportingSegmentCommand returns command to remove
 func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *DirtyImportingSegment) error {
 	fmt.Println("start to remove dirty importing segment")
-	segments, err := common.ListSegments(ctx, c.client, c.basePath, func(segment *models.Segment) bool {
+	segments, err := common.ListSegments(ctx, c.client, c.metaPath, func(segment *models.Segment) bool {
 		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID)
 	})
 	if err != nil {
@@ -43,7 +43,7 @@ func (c *ComponentRemove) DirtyImportingSegmentCommand(ctx context.Context, p *D
 				if segment.NumOfRows == 0 && segmentTs < uint64(p.Ts) {
 					cnt++
 					if p.Run {
-						err := common.RemoveSegmentByID(ctx, c.client, c.basePath, segment.CollectionID, segment.PartitionID, segment.ID)
+						err := common.RemoveSegmentByID(ctx, c.client, c.metaPath, segment.CollectionID, segment.PartitionID, segment.ID)
 						if err != nil {
 							fmt.Printf("failed to remove segment %d, err: %s\n", segment.ID, err.Error())
 						}

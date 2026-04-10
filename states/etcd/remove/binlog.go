@@ -15,7 +15,7 @@ import (
 var backupKeyPrefix = "birdwatcher/backup"
 
 type RemoveBinlogParam struct {
-	framework.ExecutionParam `use:"remove etcd-config" desc:"remove etcd stored configuations"`
+	framework.ExecutionParam `use:"remove binlog" desc:"remove binlog from meta"`
 	LogType                  string `name:"p.LogType" default:"unknown" desc:"log type: binlog/deltalog/statslog"`
 	CollectionID             int64  `name:"p.CollectionID" default:"0" desc:"collection id to remove"`
 	PartitionID              int64  `name:"p.PartitionID" default:"0" desc:"partition id to remove"`
@@ -31,13 +31,13 @@ func (c *ComponentRemove) RemoveBinlogCommand(ctx context.Context, p *RemoveBinl
 	var key string
 	switch p.LogType {
 	case "binlog":
-		key = path.Join(c.basePath, "datacoord-meta",
+		key = path.Join(c.metaPath, "datacoord-meta",
 			fmt.Sprintf("binlog/%d/%d/%d/%d", p.CollectionID, p.PartitionID, p.SegmentID, p.FieldID))
 	case "deltalog":
-		key = path.Join(c.basePath, "datacoord-meta",
+		key = path.Join(c.metaPath, "datacoord-meta",
 			fmt.Sprintf("deltalog/%d/%d/%d/%d", p.CollectionID, p.PartitionID, p.SegmentID, p.FieldID))
 	case "statslog":
-		key = path.Join(c.basePath, "datacoord-meta",
+		key = path.Join(c.metaPath, "datacoord-meta",
 			fmt.Sprintf("statslog/%d/%d/%d/%d", p.CollectionID, p.PartitionID, p.SegmentID, p.FieldID))
 	default:
 		return fmt.Errorf("p.LogType unknown: %s", p.LogType)

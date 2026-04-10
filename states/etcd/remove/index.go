@@ -15,7 +15,7 @@ type RemoveIndexParam struct {
 }
 
 func (c *ComponentRemove) RemoveIndexCommand(ctx context.Context, p *RemoveIndexParam) error {
-	indexes, err := common.ListIndex(ctx, c.client, c.basePath, func(index *models.FieldIndex) bool {
+	indexes, err := common.ListIndex(ctx, c.client, c.metaPath, func(index *models.FieldIndex) bool {
 		return index.GetProto().GetIndexInfo().GetIndexID() == p.IndexID
 	})
 	if err != nil {

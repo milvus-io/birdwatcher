@@ -46,7 +46,7 @@ func (c *ComponentRemove) RemoveSegmentCommand(ctx context.Context, p *SegmentPa
 			return err
 		}
 
-		if err := common.RemoveSegment(ctx, c.client, c.basePath, info); err != nil {
+		if err := common.RemoveSegment(ctx, c.client, c.metaPath, info); err != nil {
 			fmt.Printf("Remove segment %d from Etcd failed, err: %s\n", info.ID, err.Error())
 			return err
 		}
@@ -56,7 +56,7 @@ func (c *ComponentRemove) RemoveSegmentCommand(ctx context.Context, p *SegmentPa
 		return nil
 	}
 
-	err := common.WalkAllSegments(ctx, c.client, c.basePath, filterFunc, opFunc, p.MaxNum)
+	err := common.WalkAllSegments(ctx, c.client, c.metaPath, filterFunc, opFunc, p.MaxNum)
 	if err != nil && !errors.Is(err, common.ErrReachMaxNumOfWalkSegment) {
 		fmt.Printf("WalkAllSegments failed, err: %s\n", err.Error())
 	}
