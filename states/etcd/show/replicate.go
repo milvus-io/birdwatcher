@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -22,10 +23,18 @@ func (c *ComponentShow) ReplicateCommand(ctx context.Context, p *ReplicateParam)
 	if err != nil {
 		return err
 	}
-	cfgHelper, err := replicateutil.NewConfigHelper(c.basePath, cfg.ReplicateConfiguration)
+	currentClusterID := c.basePath
+	for _, cluster := range cfg.ReplicateConfiguration.GetClusters() {
+		if strings.Contains(cluster.GetClusterId(), c.basePath) || strings.Contains(c.basePath, cluster.GetClusterId()) {
+			currentClusterID = cluster.GetClusterId()
+			break
+		}
+	}
+	cfgHelper, err := replicateutil.NewConfigHelper(currentClusterID, cfg.ReplicateConfiguration)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Current Cluster ID: %s\n", currentClusterID)
 	cdcTasks, err := common.ListReplicatePChannel(ctx, c.client, c.metaPath)
 	if err != nil {
 		return err

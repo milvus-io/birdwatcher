@@ -3,8 +3,9 @@ package show
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/cockroachdb/errors"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -46,14 +47,21 @@ func (c *ComponentShow) ReplicaCommand(ctx context.Context, p *ReplicaParam) (*f
 		return nil, errors.Wrap(err, "failed to list replica info")
 	}
 
+	sessions, err := common.ListSessions(ctx, c.client, c.metaPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list sessions")
+	}
+
 	rs := framework.NewListResult[Replicas](replicas)
 	rs.collections = lo.SliceToMap(collections, func(c *models.Collection) (int64, *models.Collection) { return c.GetProto().GetID(), c })
+	rs.sessionMap = lo.SliceToMap(sessions, func(s *models.Session) (int64, *models.Session) { return s.ServerID, s })
 	return framework.NewPresetResultSet(rs, framework.NameFormat(p.Format)), nil
 }
 
 type Replicas struct {
 	framework.ListResultSet[*models.Replica]
 	collections map[int64]*models.Collection
+	sessionMap  map[int64]*models.Session
 }
 
 func (rs *Replicas) TableHeaders() table.Row {
@@ -76,15 +84,21 @@ func (rs *Replicas) PrintAs(format framework.Format) string {
 	switch format {
 	case framework.FormatDefault, framework.FormatPlain:
 		sb := &strings.Builder{}
+		tw := tabwriter.NewWriter(sb, 0, 0, 2, ' ', 0)
 		groups := lo.GroupBy(rs.Data, func(replica *models.Replica) int64 { return replica.GetProto().CollectionID })
 		for collectionID, replicas := range groups {
-			fmt.Fprintf(sb, "CollectionID: %d\t CollectionName:%s\n", collectionID, rs.collections[collectionID].GetProto().Schema.Name)
-			for _, replica := range replicas {
-				rs.printReplica(sb, replica)
+			collName := ""
+			if coll, ok := rs.collections[collectionID]; ok {
+				collName = coll.GetProto().Schema.Name
 			}
-			fmt.Fprintln(sb, "================================================================================")
-			fmt.Fprintln(sb)
+			fmt.Fprintf(tw, "CollectionID: %d\tCollectionName: %s\n", collectionID, collName)
+			for _, replica := range replicas {
+				rs.printReplica(tw, replica)
+			}
+			fmt.Fprintln(tw, "================================================================================")
+			fmt.Fprintln(tw)
 		}
+		tw.Flush()
 		return sb.String()
 	case framework.FormatJSON:
 		return rs.printAsJSON()
@@ -93,18 +107,26 @@ func (rs *Replicas) PrintAs(format framework.Format) string {
 	return ""
 }
 
+type nodeInfoJSON struct {
+	NodeID   int64  `json:"node_id"`
+	HostName string `json:"hostname"`
+}
+
 func (rs *Replicas) printAsJSON() string {
 	type ShardReplicaJSON struct {
-		Shard string  `json:"shard"`
-		Nodes []int64 `json:"nodes"`
+		Shard string         `json:"shard"`
+		Nodes []nodeInfoJSON `json:"nodes"`
 	}
 
 	type ReplicaJSON struct {
-		ReplicaID     int64              `json:"replica_id"`
-		CollectionID  int64              `json:"collection_id"`
-		ResourceGroup string             `json:"resource_group"`
-		Nodes         []int64            `json:"nodes"`
-		ShardReplicas []ShardReplicaJSON `json:"shard_replicas,omitempty"`
+		ReplicaID        int64              `json:"replica_id"`
+		CollectionID     int64              `json:"collection_id"`
+		ResourceGroup    string             `json:"resource_group"`
+		RwNodes          []nodeInfoJSON     `json:"rw_nodes"`
+		RoNodes          []nodeInfoJSON     `json:"ro_nodes,omitempty"`
+		RwStreamingNodes []nodeInfoJSON     `json:"rw_streaming_nodes,omitempty"`
+		RoStreamingNodes []nodeInfoJSON     `json:"ro_streaming_nodes,omitempty"`
+		ShardReplicas    []ShardReplicaJSON `json:"shard_replicas,omitempty"`
 	}
 
 	type CollectionReplicasJSON struct {
@@ -137,15 +159,18 @@ func (rs *Replicas) printAsJSON() string {
 			for shard, shardReplica := range replica.ChannelNodeInfos {
 				shardReplicas = append(shardReplicas, ShardReplicaJSON{
 					Shard: shard,
-					Nodes: shardReplica.RwNodes,
+					Nodes: rs.toNodeInfoJSONs(shardReplica.RwNodes),
 				})
 			}
 			replicaJSONs = append(replicaJSONs, ReplicaJSON{
-				ReplicaID:     replica.ID,
-				CollectionID:  replica.CollectionID,
-				ResourceGroup: replica.ResourceGroup,
-				Nodes:         replica.Nodes,
-				ShardReplicas: shardReplicas,
+				ReplicaID:        replica.ID,
+				CollectionID:     replica.CollectionID,
+				ResourceGroup:    replica.ResourceGroup,
+				RwNodes:          rs.toNodeInfoJSONs(replica.Nodes),
+				RoNodes:          rs.toNodeInfoJSONs(replica.RoNodes),
+				RwStreamingNodes: rs.toNodeInfoJSONs(replica.RwSqNodes),
+				RoStreamingNodes: rs.toNodeInfoJSONs(replica.RoSqNodes),
+				ShardReplicas:    shardReplicas,
 			})
 		}
 
@@ -159,14 +184,49 @@ func (rs *Replicas) printAsJSON() string {
 	return framework.MarshalJSON(output)
 }
 
-func (rs *Replicas) printReplica(sb *strings.Builder, r *models.Replica) {
+func (rs *Replicas) toNodeInfoJSONs(nodeIDs []int64) []nodeInfoJSON {
+	if len(nodeIDs) == 0 {
+		return nil
+	}
+	result := make([]nodeInfoJSON, 0, len(nodeIDs))
+	for _, id := range nodeIDs {
+		result = append(result, nodeInfoJSON{NodeID: id, HostName: rs.getHostName(id)})
+	}
+	return result
+}
+
+func (rs *Replicas) getHostName(nodeID int64) string {
+	if sess, ok := rs.sessionMap[nodeID]; ok {
+		return sess.HostName
+	}
+	return "NotFound"
+}
+
+func (rs *Replicas) printReplica(w *tabwriter.Writer, r *models.Replica) {
 	replica := r.GetProto()
-	fmt.Fprintln(sb, "================================================================================")
-	fmt.Fprintf(sb, "ReplicaID: %d \n", replica.ID)
-	fmt.Fprintf(sb, "ResourceGroup: %s\n", replica.ResourceGroup)
-	sort.Slice(replica.Nodes, func(i, j int) bool { return replica.Nodes[i] < replica.Nodes[j] })
-	fmt.Fprintf(sb, "All Nodes:%v\n", replica.Nodes)
+	fmt.Fprintln(w, "================================================================================")
+	fmt.Fprintf(w, "ReplicaID: %d\n", replica.ID)
+	fmt.Fprintf(w, "ResourceGroup: %s\n", replica.ResourceGroup)
+	rs.printNodeList(w, "RW Query Nodes", replica.Nodes)
+	rs.printNodeList(w, "RO Query Nodes", replica.RoNodes)
+	rs.printNodeList(w, "RW Streaming Nodes", replica.RwSqNodes)
+	rs.printNodeList(w, "RO Streaming Nodes", replica.RoSqNodes)
 	for shard, shardReplica := range replica.ChannelNodeInfos {
-		fmt.Fprintf(sb, "-- Shard Replica: Shard (%s) Nodes:%v\n", shard, shardReplica.RwNodes)
+		fmt.Fprintf(w, "-- Shard (%s) Nodes:\n", shard)
+		for _, id := range shardReplica.RwNodes {
+			fmt.Fprintf(w, "    - %d\t%s\n", id, rs.getHostName(id))
+		}
+	}
+}
+
+func (rs *Replicas) printNodeList(w *tabwriter.Writer, label string, nodeIDs []int64) {
+	if len(nodeIDs) == 0 {
+		return
+	}
+	sorted := append([]int64{}, nodeIDs...)
+	slices.Sort(sorted)
+	fmt.Fprintf(w, "%s (%d):\n", label, len(sorted))
+	for _, id := range sorted {
+		fmt.Fprintf(w, "  - %d\t%s\n", id, rs.getHostName(id))
 	}
 }
