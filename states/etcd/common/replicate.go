@@ -29,10 +29,11 @@ func ListReplicateConfiguration(ctx context.Context, cli kv.MetaKV, basePath str
 }
 
 func ListReplicatePChannel(ctx context.Context, cli kv.MetaKV, basePath string) ([]*streamingpb.ReplicatePChannelMeta, error) {
+	metas, _, err := ListReplicatePChannelWithKeys(ctx, cli, basePath)
+	return metas, err
+}
+
+func ListReplicatePChannelWithKeys(ctx context.Context, cli kv.MetaKV, basePath string) ([]*streamingpb.ReplicatePChannelMeta, []string, error) {
 	prefix := path.Join(basePath, replicatePChannel) + "/"
-	metas, _, err := ListProtoObjects[streamingpb.ReplicatePChannelMeta](ctx, cli, prefix)
-	if err != nil {
-		return nil, err
-	}
-	return metas, nil
+	return ListProtoObjects[streamingpb.ReplicatePChannelMeta](ctx, cli, prefix)
 }
