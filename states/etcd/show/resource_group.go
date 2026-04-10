@@ -8,9 +8,8 @@ import (
 	"text/tabwriter"
 
 	"github.com/cockroachdb/errors"
-	"github.com/samber/lo"
-
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
