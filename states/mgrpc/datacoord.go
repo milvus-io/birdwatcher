@@ -59,6 +59,7 @@ type CompactParam struct {
 	CompactAll          bool    `name:"compactAll" default:"false" desc:"explicitly allow compact all collections"`
 	ChannelName         string  `name:"channelName" default:"" desc:"channel name to compact"`
 	SegmentIDs          []int64 `name:"segmentID" default:"" desc:"segment ids to compact"`
+	TargetSizeInMB      int64   `name:"targetSizeInMB" default:"" desc:"target size in MB"`
 }
 
 func (s *dataCoordState) CompactCommand(ctx context.Context, p *CompactParam) error {
@@ -69,6 +70,7 @@ func (s *dataCoordState) CompactCommand(ctx context.Context, p *CompactParam) er
 		CollectionID: p.CollectionID,
 		Channel:      p.ChannelName,
 		SegmentIds:   p.SegmentIDs,
+		TargetSize:   p.TargetSizeInMB,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "manual compact fail with collectionID:%d", p.CollectionID)
