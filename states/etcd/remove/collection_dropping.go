@@ -55,7 +55,7 @@ func (c *ComponentRemove) cleanCollectionMeta(ctx context.Context, info *models.
 	collection := info.GetProto()
 	fmt.Println("Clean collection(drop) meta:")
 	if info.Key() == "" {
-		return fmt.Errorf("Collection %s[%d] key is empty string, cannot perform cleanup", collection.Schema.Name, collection.ID)
+		return fmt.Errorf("collection %s[%d] key is empty string, cannot perform cleanup", collection.Schema.Name, collection.ID)
 	}
 	basePath := c.metaPath
 	cli := c.client
@@ -86,7 +86,7 @@ func (c *ComponentRemove) cleanCollectionMeta(ctx context.Context, info *models.
 		return cw.GetProto().Vchan.CollectionID == collection.ID
 	})
 	if err != nil {
-		return fmt.Errorf("failed to list channel watch info for collection[%d], err: %s\n", collection.ID, err.Error())
+		return fmt.Errorf("failed to list channel watch info for collection[%d], err: %s", collection.ID, err.Error())
 	}
 	for _, info := range channelWatchInfos {
 		// remove channel watch meta

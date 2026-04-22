@@ -131,7 +131,7 @@ func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, m
 		}) {
 			fmt.Println(info.Key)
 			counter++
-			w.WriteString(fmt.Sprintf("Processing path: \"%s\"", info.Key))
+			fmt.Fprintf(w, "Processing path: \"%s\"", info.Key)
 			logsMap := logs[idx]
 			_, has := logsMap[info.Key]
 			if has {
@@ -141,14 +141,14 @@ func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, m
 
 			segmentID, err := ParseSegmentIDByBinlog(minioRootPath, info.Key)
 			if err != nil {
-				w.WriteString(fmt.Sprintf(", failed to parse segmentID: %s\n", err.Error()))
+				fmt.Fprintf(w, ", failed to parse segmentID: %s\n", err.Error())
 				continue
 			}
 
 			segment, ok := idSegments[segmentID]
 			if ok {
 				if segment.GetState() == commonpb.SegmentState_Dropped {
-					w.WriteString(fmt.Sprintf(", segment %d is dropped, waiting for gc\n", segmentID))
+					fmt.Fprintf(w, ", segment %d is dropped, waiting for gc\n", segmentID)
 					continue
 				}
 			}

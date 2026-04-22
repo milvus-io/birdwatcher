@@ -95,9 +95,9 @@ type flagCandidate struct {
 
 // Match implements acCandidate.
 func (c *flagCandidate) Match(input cComp) bool {
-	switch {
+	switch input.cType {
 	// --flag
-	case input.cType == cmdCompFlag:
+	case cmdCompFlag:
 		return input.cTag == c.Name
 	// -s (short-hand)
 	// TODO
