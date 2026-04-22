@@ -131,6 +131,7 @@ func (rs *SegmentIndexes) printDefault() string {
 			fmt.Fprintf(sb, "\t Index Type:%v on Field ID: %d", common.GetKVPair(index.GetProto().GetIndexInfo().GetIndexParams(), "index_type"), index.GetProto().GetIndexInfo().GetFieldID())
 			fmt.Fprintf(sb, "\tSerialized Size: %d\n", segIdx.GetSerializeSize())
 			fmt.Fprintf(sb, "\tCurrent Index Version: %d\n", segIdx.GetCurrentIndexVersion())
+			fmt.Fprintf(sb, "\tCurrent Scala Index Version: %d\n", segIdx.GetCurrentScalarIndexVersion())
 			fmt.Fprintf(sb, "\t Index Files: %v\n", segIdx.IndexFileKeys)
 
 			totalSize += segIdx.GetSerializeSize()

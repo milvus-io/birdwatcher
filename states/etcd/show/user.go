@@ -49,7 +49,7 @@ func (rs *Users) PrintAs(format framework.Format) string {
 		sb := &strings.Builder{}
 		for _, user := range rs.Data {
 			// rs.printDatabaseInfo(sb, database)
-			sb.WriteString(fmt.Sprintf("Username: %s Tenant:%s\n", user.Username, user.Tenant))
+			fmt.Fprintf(sb, "Username: %s Tenant:%s\n", user.Username, user.Tenant)
 		}
 		fmt.Fprintf(sb, "--- Total Users(s): %d\n", len(rs.Data))
 		return sb.String()

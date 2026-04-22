@@ -19,7 +19,7 @@ func ListJSONObjects[T any, P interface{ *T }](ctx context.Context, kv kv.MetaKV
 		return nil, nil, err
 	}
 	if len(keys) != len(vals) {
-		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListJSONObjects:%d vs %d", len(keys), len(vals))
+		return nil, nil, fmt.Errorf("error: keys and vals of different size in ListJSONObjects:%d vs %d", len(keys), len(vals))
 	}
 	result := make([]P, 0, len(vals))
 LOOP:
@@ -51,7 +51,7 @@ func ListProtoObjects[T any, P interface {
 		return nil, nil, err
 	}
 	if len(keys) != len(vals) {
-		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListProtoObjects:%d vs %d", len(keys), len(vals))
+		return nil, nil, fmt.Errorf("error: keys and vals of different size in ListProtoObjects:%d vs %d", len(keys), len(vals))
 	}
 	result := make([]*T, 0, len(keys))
 LOOP:
@@ -89,7 +89,7 @@ func ListProtoObjectsAdv[T any, P interface {
 		return nil, nil, err
 	}
 	if len(keys) != len(vals) {
-		return nil, nil, fmt.Errorf("Error: keys and vals of different size in ListProtoObjectsAdv:%d vs %d", len(keys), len(vals))
+		return nil, nil, fmt.Errorf("error: keys and vals of different size in ListProtoObjectsAdv:%d vs %d", len(keys), len(vals))
 	}
 	result := make([]*T, 0, len(vals))
 LOOP:

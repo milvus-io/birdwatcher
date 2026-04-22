@@ -31,8 +31,8 @@ func getFetchMetricsCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				metrics, defaultMetrics, _ := fetchInstanceMetrics(session)
 				fmt.Println(session)
 				// TODO parse metrics
-				fmt.Println(metrics)
-				fmt.Println(defaultMetrics)
+				fmt.Println(string(metrics))
+				fmt.Println(string(defaultMetrics))
 			}
 		},
 	}

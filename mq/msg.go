@@ -115,7 +115,7 @@ func convertToByteArray(input interface{}) ([]byte, error) {
 	case []byte:
 		return output, nil
 	default:
-		return nil, errors.New("Cannot convert interface{} to []byte")
+		return nil, errors.New("cannot convert interface{} to []byte")
 	}
 }
 
@@ -196,7 +196,7 @@ func (it *InsertMsg) NRows() uint64 {
 	if it.IsRowBased() {
 		return uint64(len(it.RowData))
 	}
-	return it.InsertRequest.GetNumRows()
+	return it.GetNumRows()
 }
 
 func (it *InsertMsg) CheckAligned() error {

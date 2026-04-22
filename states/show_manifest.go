@@ -393,19 +393,19 @@ func (a *avroReader) readIndex() (manifestIndex, error) {
 	var idx manifestIndex
 	var err error
 	if idx.ColumnName, err = a.readString(); err != nil {
-		return idx, fmt.Errorf("Index.column_name: %w", err)
+		return idx, fmt.Errorf("index.column_name: %w", err)
 	}
 	if idx.IndexType, err = a.readString(); err != nil {
-		return idx, fmt.Errorf("Index.index_type: %w", err)
+		return idx, fmt.Errorf("index.index_type: %w", err)
 	}
 	if idx.Path, err = a.readString(); err != nil {
-		return idx, fmt.Errorf("Index.path: %w", err)
+		return idx, fmt.Errorf("index.path: %w", err)
 	}
 	idx.Properties, err = readAvroMap(a, func() (string, error) {
 		return a.readString()
 	})
 	if err != nil {
-		return idx, fmt.Errorf("Index.properties: %w", err)
+		return idx, fmt.Errorf("index.properties: %w", err)
 	}
 	return idx, nil
 }
@@ -419,13 +419,13 @@ func (a *avroReader) readStatistics() (manifestStatistics, error) {
 		return a.readString()
 	})
 	if err != nil {
-		return stat, fmt.Errorf("Statistics.paths: %w", err)
+		return stat, fmt.Errorf("statistics.paths: %w", err)
 	}
 	stat.Metadata, err = readAvroMap(a, func() (string, error) {
 		return a.readString()
 	})
 	if err != nil {
-		return stat, fmt.Errorf("Statistics.metadata: %w", err)
+		return stat, fmt.Errorf("statistics.metadata: %w", err)
 	}
 	return stat, nil
 }
@@ -622,26 +622,26 @@ func manifestSnappyDecodeBlock(src []byte) ([]byte, error) {
 		case 0: // Literal
 			litLen := int(tag>>2) + 1
 			src = src[1:]
-			switch {
-			case litLen == 60+1:
+			switch litLen {
+			case 60 + 1:
 				if len(src) < 1 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}
 				litLen = int(src[0]) + 1
 				src = src[1:]
-			case litLen == 61+1:
+			case 61 + 1:
 				if len(src) < 2 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}
 				litLen = int(src[0]) | int(src[1])<<8 + 1
 				src = src[2:]
-			case litLen == 62+1:
+			case 62 + 1:
 				if len(src) < 3 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}
 				litLen = int(src[0]) | int(src[1])<<8 | int(src[2])<<16 + 1
 				src = src[3:]
-			case litLen == 63+1:
+			case 63 + 1:
 				if len(src) < 4 {
 					return nil, fmt.Errorf("snappy: truncated literal length")
 				}

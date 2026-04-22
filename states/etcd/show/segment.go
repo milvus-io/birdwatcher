@@ -27,6 +27,7 @@ type SegmentParam struct {
 	State                  string `name:"state" default:"" desc:"target segment state"`
 	Level                  string `name:"level" default:"" desc:"target segment level"`
 	Sorted                 string `name:"sorted" default:"" desc:"flags indicating whether sort segments by segmentID"`
+	VChannel               string `name:"vchannel" default:"" desc:"filter with vchannel"`
 	StorageVersion         int64  `name:"storageVersion" default:"-1" desc:"segment storage version to filter"`
 }
 
@@ -50,6 +51,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) (*f
 			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
 			(p.State == "" || strings.EqualFold(segment.State.String(), p.State)) &&
 			(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level)) &&
+			(p.VChannel == "" || strings.EqualFold(segment.GetInsertChannel(), p.VChannel)) &&
 			(p.Sorted == "" || strings.EqualFold(strconv.FormatBool(segment.IsSorted), p.Sorted)) &&
 			(p.StorageVersion == -1 || segment.StorageVersion == p.StorageVersion)
 	})
@@ -345,7 +347,7 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	} else {
 		fmt.Println("Dml Position: nil")
 	}
-	fmt.Printf("Manifest Path: %s\n", info.ManifestPath)
+	fmt.Printf("Manifest Path: %s\tDataVersion: %d\n", info.ManifestPath, info.GetDataVersion())
 	fmt.Printf("Binlog Nums %d\tStatsLog Nums: %d\tDeltaLog Nums:%d\n",
 		countBinlogNum(info.GetBinlogs()), countBinlogNum(info.GetStatslogs()), countBinlogNum(info.GetDeltalogs()))
 

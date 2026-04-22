@@ -46,7 +46,7 @@ func (c *ComponentRemove) RemoveSessionCommand(ctx context.Context, p *RemoveSes
 		fmt.Println("Start to revoke session lease")
 		for _, session := range sessions {
 			etcdCli := kv.MustGetETCDClient(c.client)
-			if _, err := etcdCli.Lease.Revoke(ctx, clientv3.LeaseID(session.LeaseID)); err != nil && !errors.Is(err, rpctypes.ErrLeaseNotFound) {
+			if _, err := etcdCli.Revoke(ctx, clientv3.LeaseID(session.LeaseID)); err != nil && !errors.Is(err, rpctypes.ErrLeaseNotFound) {
 				return err
 			}
 		}

@@ -14,7 +14,7 @@ type Collection struct {
 }
 
 func (c *Collection) WithFields(fields []*schemapb.FieldSchema) {
-	c.ProtoWrapper.GetProto().Schema.Fields = fields
+	c.GetProto().Schema.Fields = fields
 }
 
 func (c *Collection) Channels() []*Channel {
