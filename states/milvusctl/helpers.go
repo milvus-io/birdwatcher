@@ -100,7 +100,7 @@ func parseGenSpecs(raws []string) ([]ops.ColumnSpec, error) {
 	for _, r := range raws {
 		eq := strings.IndexByte(r, '=')
 		if eq <= 0 {
-			return nil, fmt.Errorf("bad --gen %q, want field=gen_type:key=value:...", r)
+			return nil, fmt.Errorf("bad --gen %q, want field=gen_type:key=value", r)
 		}
 		field := r[:eq]
 		spec, err := parseGenSpec(r[eq+1:])
