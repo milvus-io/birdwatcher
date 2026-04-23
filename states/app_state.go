@@ -10,6 +10,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/states/milvusctl"
 	"github.com/milvus-io/birdwatcher/states/storage"
 )
 
@@ -117,6 +118,16 @@ func (app *ApplicationState) ConnectMinioCommand(ctx context.Context, p *storage
 	}
 
 	app.SetTagNext(ossTag, state)
+	return nil
+}
+
+func (app *ApplicationState) ConnectMilvusCommand(ctx context.Context, p *milvusctl.ConnectMilvusParam) error {
+	state, err := milvusctl.ConnectMilusctl(ctx, p, app.core)
+	if err != nil {
+		return err
+	}
+
+	app.SetTagNext("milvusctl", state)
 	return nil
 }
 

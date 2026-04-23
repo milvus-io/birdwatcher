@@ -513,10 +513,12 @@ github.com/mediocregopher/radix/v3 v3.4.2/go.mod h1:8FL3F6UQRXHXIBSPUs5h0RybMF8i
 github.com/microcosm-cc/bluemonday v1.0.2/go.mod h1:iVP4YcDBq+n/5fb23BhYFvIMq/leAFZyRl6bYmGDlGc=
 github.com/miekg/dns v1.1.26 h1:gPxPSwALAeHJSjarOs00QjVdV9QoBvc1D2ujQUr5BzU=
 github.com/miekg/dns v1.1.26/go.mod h1:bPDLeHnStXmXAq1m/Ch/hvfNHr14JKNPMBo3VZKjuso=
-github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20260323081523-53649783989c h1:fleNZQdnHHP1jSYCX+l3TbQrWcUKjFBeRyBgD+v1QXQ=
-github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20260323081523-53649783989c/go.mod h1:/6UT4zZl6awVeXLeE7UGDWZvXj3IWkRsh3mqsn0DiAs=
-github.com/milvus-io/milvus/pkg/v2 v2.6.4-0.20260421084144-cd88c796fa9f h1:JJMBXT4xuZ9wxO+BWdTjXP6gVFGiWWQqJ+0bbGgw12k=
-github.com/milvus-io/milvus/pkg/v2 v2.6.4-0.20260421084144-cd88c796fa9f/go.mod h1:WD6bBAs/GpYQ7Wuw19p+gkGUTJaBBBXmnCBRNe3oFxY=
+github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20260413074534-08c2505b8be1 h1:p9ouIAB8HwUflf22In5c0QRC3Nc6DsZg+q3R38gvS/Q=
+github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20260413074534-08c2505b8be1/go.mod h1:/6UT4zZl6awVeXLeE7UGDWZvXj3IWkRsh3mqsn0DiAs=
+github.com/milvus-io/milvus/client/v2 v2.6.1-0.20260423095544-b650ea62d7bd h1:dEDKN/vgwTzqtYt75acn7CN7KvHxOd7Ki7rHAPmKA7k=
+github.com/milvus-io/milvus/client/v2 v2.6.1-0.20260423095544-b650ea62d7bd/go.mod h1:Z/oAjDJ3slYQY0sklULjq2iEudGxrf/nAssjCLxixSw=
+github.com/milvus-io/milvus/pkg/v2 v2.6.4-0.20260423095544-b650ea62d7bd h1:uJyupsbTwBPGb5MWy3ZpsZIawAWJM5+H7Rl2qlKxC1s=
+github.com/milvus-io/milvus/pkg/v2 v2.6.4-0.20260423095544-b650ea62d7bd/go.mod h1:NMXpL+rLT0tEM0Y6ur8LXPjkQWlWS4w3Gm9PWSWmKdM=
 github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8 h1:AMFGa4R4MiIpspGNG7Z948v4n35fFGB3RR3G/ry4FWs=
 github.com/minio/asm2plan9s v0.0.0-20200509001527-cdd76441f9d8/go.mod h1:mC1jAcsrzbxHt8iiaC+zU4b1ylILSosueou12R++wfY=
 github.com/minio/c2goasm v0.0.0-20190812172519-36a3d3bbc4f3 h1:+n/aFZefKZp7spd8DFdX7uMikMLXX4oubIzJF4kv/wI=
@@ -755,8 +757,8 @@ github.com/testcontainers/testcontainers-go v0.35.0 h1:uADsZpTKFAtp8SLK+hMwSaa+X
 github.com/testcontainers/testcontainers-go v0.35.0/go.mod h1:oEVBj5zrfJTrgjwONs1SsRbnBtH9OKl+IGl3UMcr2B4=
 github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a h1:J/YdBZ46WKpXsxsW93SG+q0F8KI+yFrcIDT4c/RNoc4=
 github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a/go.mod h1:h4xBhSNtOeEosLJ4P7JyKXX7Cabg7AVkWCK5gV2vOrM=
-github.com/tidwall/gjson v1.17.0 h1:/Jocvlh98kcTfpN2+JzGQWQcqrPQwDrVEMApx/M5ZwM=
-github.com/tidwall/gjson v1.17.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
+github.com/tidwall/gjson v1.17.1 h1:wlYEnwqAHgzmhNUFfw7Xalt2JzQvsMx2Se4PcoFCT/U=
+github.com/tidwall/gjson v1.17.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=
 github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JTxsfmM=
 github.com/tidwall/pretty v1.2.0 h1:RWIZEg2iJ8/g6fDDYzMpobmaoGh5OLl4AXtGUGPcqCs=
