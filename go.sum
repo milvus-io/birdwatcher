@@ -513,8 +513,8 @@ github.com/mediocregopher/radix/v3 v3.4.2/go.mod h1:8FL3F6UQRXHXIBSPUs5h0RybMF8i
 github.com/microcosm-cc/bluemonday v1.0.2/go.mod h1:iVP4YcDBq+n/5fb23BhYFvIMq/leAFZyRl6bYmGDlGc=
 github.com/miekg/dns v1.1.26 h1:gPxPSwALAeHJSjarOs00QjVdV9QoBvc1D2ujQUr5BzU=
 github.com/miekg/dns v1.1.26/go.mod h1:bPDLeHnStXmXAq1m/Ch/hvfNHr14JKNPMBo3VZKjuso=
-github.com/milvus-io/milvus-proto/go-api/v2 v2.6.15 h1:8gzIbATBopSYpmPYK55R3mAVp991lI0USs2Qb6wuhRA=
-github.com/milvus-io/milvus-proto/go-api/v2 v2.6.15/go.mod h1:/6UT4zZl6awVeXLeE7UGDWZvXj3IWkRsh3mqsn0DiAs=
+github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20260413074534-08c2505b8be1 h1:p9ouIAB8HwUflf22In5c0QRC3Nc6DsZg+q3R38gvS/Q=
+github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20260413074534-08c2505b8be1/go.mod h1:/6UT4zZl6awVeXLeE7UGDWZvXj3IWkRsh3mqsn0DiAs=
 github.com/milvus-io/milvus/client/v2 v2.6.1-0.20260423095544-b650ea62d7bd h1:dEDKN/vgwTzqtYt75acn7CN7KvHxOd7Ki7rHAPmKA7k=
 github.com/milvus-io/milvus/client/v2 v2.6.1-0.20260423095544-b650ea62d7bd/go.mod h1:Z/oAjDJ3slYQY0sklULjq2iEudGxrf/nAssjCLxixSw=
 github.com/milvus-io/milvus/pkg/v2 v2.6.4-0.20260423095544-b650ea62d7bd h1:uJyupsbTwBPGb5MWy3ZpsZIawAWJM5+H7Rl2qlKxC1s=
