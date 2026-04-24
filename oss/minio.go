@@ -16,6 +16,7 @@ const (
 	CloudProviderAliyun  = "aliyun"
 	CloudProviderAzure   = "azure"
 	CloudProviderTencent = "tencent"
+	CloudProviderHuawei  = "huawei"
 )
 
 type MinioClientParam struct {
@@ -83,6 +84,8 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 		processMinioAliyunOptions(p, opts)
 	case CloudProviderTencent:
 		err = processMinioTencentOptions(p, opts)
+	case CloudProviderHuawei:
+		err = processMinioHuaweiOptions(p, opts)
 	case CloudProviderAzure:
 		// TODO support azure
 		fallthrough
