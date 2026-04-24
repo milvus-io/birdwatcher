@@ -14,6 +14,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/gosuri/uilive v0.0.4
+	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.174
 	github.com/jedib0t/go-pretty/v6 v6.6.7
 	github.com/manifoldco/promptui v0.9.0
 	github.com/milvus-io/milvus-proto/go-api/v2 v2.6.6-0.20260413074534-08c2505b8be1
@@ -96,6 +97,7 @@ require (
 	github.com/go-playground/validator/v10 v10.14.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/goccy/go-yaml v1.11.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
@@ -180,11 +182,13 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/stathat/consistent v1.0.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
 	github.com/tidwall/gjson v1.17.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tikv/pd/client v0.0.0-20221031025758-80f0d8ca4d07 // indirect
+	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802 // indirect
@@ -204,6 +208,7 @@ require (
 	go.etcd.io/etcd/client/v2 v2.305.23 // indirect
 	go.etcd.io/etcd/pkg/v3 v3.5.23 // indirect
 	go.etcd.io/etcd/raft/v3 v3.5.23 // indirect
+	go.mongodb.org/mongo-driver v1.13.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.59.0 // indirect
 	go.opentelemetry.io/otel v1.43.0 // indirect
