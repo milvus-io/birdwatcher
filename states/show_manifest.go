@@ -121,14 +121,22 @@ func (s *InstanceState) ShowManifestCommand(ctx context.Context, p *ShowManifest
 
 const manifestMagic int32 = 0x4D494C56 // "MILV"
 
+// Manifest format evolution:
+//   - v1: initial (column_groups, delta_logs, stats as map<string, array<string>>)
+//   - v2: added indexes
+//   - v3: stats changed to map<string, Statistics>
+//   - v4: ColumnGroupFile.metadata (bytes) replaced by properties (map<string,string>)
+const manifestVersionV4 = 4
+
 // avroOCFMagic is the 4-byte magic header for Avro Object Container Format files.
 var avroOCFMagic = []byte{'O', 'b', 'j', 0x01}
 
 type manifestColumnGroupFile struct {
-	Path       string `json:"path"`
-	StartIndex int64  `json:"start_index"`
-	EndIndex   int64  `json:"end_index"`
-	Metadata   []byte `json:"metadata,omitempty"`
+	Path       string            `json:"path"`
+	StartIndex int64             `json:"start_index"`
+	EndIndex   int64             `json:"end_index"`
+	Metadata   []byte            `json:"metadata,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 type manifestColumnGroup struct {
@@ -327,7 +335,7 @@ func readAvroMap[V any](a *avroReader, readValue func() (V, error)) (map[string]
 	return result, nil
 }
 
-func (a *avroReader) readColumnGroupFile() (manifestColumnGroupFile, error) {
+func (a *avroReader) readColumnGroupFile(version int32) (manifestColumnGroupFile, error) {
 	var f manifestColumnGroupFile
 	var err error
 	if f.Path, err = a.readString(); err != nil {
@@ -339,13 +347,22 @@ func (a *avroReader) readColumnGroupFile() (manifestColumnGroupFile, error) {
 	if f.EndIndex, err = a.readLong(); err != nil {
 		return f, fmt.Errorf("ColumnGroupFile.end_index: %w", err)
 	}
-	if f.Metadata, err = a.readBytes(); err != nil {
-		return f, fmt.Errorf("ColumnGroupFile.metadata: %w", err)
+	if version >= manifestVersionV4 {
+		f.Properties, err = readAvroMap(a, func() (string, error) {
+			return a.readString()
+		})
+		if err != nil {
+			return f, fmt.Errorf("ColumnGroupFile.properties: %w", err)
+		}
+	} else {
+		if f.Metadata, err = a.readBytes(); err != nil {
+			return f, fmt.Errorf("ColumnGroupFile.metadata: %w", err)
+		}
 	}
 	return f, nil
 }
 
-func (a *avroReader) readColumnGroup() (manifestColumnGroup, error) {
+func (a *avroReader) readColumnGroup(version int32) (manifestColumnGroup, error) {
 	var cg manifestColumnGroup
 	var err error
 
@@ -357,7 +374,7 @@ func (a *avroReader) readColumnGroup() (manifestColumnGroup, error) {
 	}
 
 	cg.Files, err = readAvroArray(a, func() (manifestColumnGroupFile, error) {
-		return a.readColumnGroupFile()
+		return a.readColumnGroupFile(version)
 	})
 	if err != nil {
 		return cg, fmt.Errorf("ColumnGroup.files: %w", err)
@@ -432,13 +449,13 @@ func (a *avroReader) readStatistics() (manifestStatistics, error) {
 
 // readManifestRecord decodes the Manifest record fields from Avro binary encoding.
 // Field order: column_groups, delta_logs, stats(map<string, Statistics>), indexes
-func readManifestRecord(ar *avroReader) (*manifest, error) {
+func readManifestRecord(ar *avroReader, version int32) (*manifest, error) {
 	m := &manifest{}
 	var err error
 
 	// 1. Column groups: array<ColumnGroup>
 	m.ColumnGroups, err = readAvroArray(ar, func() (manifestColumnGroup, error) {
-		return ar.readColumnGroup()
+		return ar.readColumnGroup(version)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading column_groups: %w", err)
@@ -492,6 +509,14 @@ func parseAvroOCF(r io.Reader) (*manifest, error) {
 	codec := "null"
 	if codecBytes, ok := meta["avro.codec"]; ok {
 		codec = string(codecBytes)
+	}
+
+	// Detect manifest version from the embedded Avro schema.
+	// OCF files embed the writer's schema; the shape of ColumnGroupFile tells us
+	// whether this is v4 (properties: map<string,string>) or v3 (metadata: bytes).
+	version := int32(3)
+	if schemaBytes, ok := meta["avro.schema"]; ok {
+		version = detectOCFManifestVersion(schemaBytes)
 	}
 
 	// Read 16-byte sync marker
@@ -563,15 +588,63 @@ func parseAvroOCF(r io.Reader) (*manifest, error) {
 
 	// Decode the manifest record from the accumulated block data
 	blockReader := &avroReader{r: bytes.NewReader(allData)}
-	m, err := readManifestRecord(blockReader)
+	m, err := readManifestRecord(blockReader, version)
 	if err != nil {
 		return nil, fmt.Errorf("decoding manifest record: %w", err)
 	}
 
 	m.Format = "avro_ocf"
-	m.Version = 3 // OCF format implies current version
+	m.Version = version
 
 	return m, nil
+}
+
+// detectOCFManifestVersion inspects the Avro schema JSON embedded in an OCF file's
+// metadata and returns the manifest version inferred from the ColumnGroupFile record.
+//   - "properties" field present  → v4
+//   - "metadata" field present    → v3 (or earlier OCF writer)
+func detectOCFManifestVersion(schemaJSON []byte) int32 {
+	var schema any
+	if err := json.Unmarshal(schemaJSON, &schema); err != nil {
+		return 3
+	}
+	if columnGroupFileHasField(schema, "properties") {
+		return 4
+	}
+	return 3
+}
+
+// columnGroupFileHasField walks a decoded Avro schema tree and reports whether the
+// record named "ColumnGroupFile" has a field with the given name.
+func columnGroupFileHasField(node any, fieldName string) bool {
+	switch v := node.(type) {
+	case map[string]any:
+		if name, _ := v["name"].(string); name == "ColumnGroupFile" {
+			if fields, ok := v["fields"].([]any); ok {
+				for _, f := range fields {
+					fm, ok := f.(map[string]any)
+					if !ok {
+						continue
+					}
+					if fn, _ := fm["name"].(string); fn == fieldName {
+						return true
+					}
+				}
+			}
+		}
+		for _, child := range v {
+			if columnGroupFileHasField(child, fieldName) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range v {
+			if columnGroupFileHasField(child, fieldName) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // manifestSnappyDecode decodes Avro-framed snappy data.
@@ -751,8 +824,9 @@ func parseLegacyManifest(r io.Reader) (*manifest, error) {
 	}
 
 	// 3. Column groups: array<ColumnGroup>
+	// Legacy MILV format always used metadata (bytes); it was replaced by OCF before v4.
 	m.ColumnGroups, err = readAvroArray(ar, func() (manifestColumnGroup, error) {
-		return ar.readColumnGroup()
+		return ar.readColumnGroup(m.Version)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading column_groups: %w", err)
@@ -851,6 +925,12 @@ func printManifest(m *manifest) {
 			fmt.Printf("        Range: [%d, %d)\n", f.StartIndex, f.EndIndex)
 			if len(f.Metadata) > 0 {
 				fmt.Printf("        Metadata (%d bytes): %s\n", len(f.Metadata), hex.EncodeToString(f.Metadata))
+			}
+			if len(f.Properties) > 0 {
+				fmt.Printf("        Properties:\n")
+				for pk, pv := range f.Properties {
+					fmt.Printf("          %s: %s\n", pk, pv)
+				}
 			}
 		}
 	}
