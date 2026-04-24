@@ -2,8 +2,11 @@ package states
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/apache/arrow/go/v17/arrow"
@@ -88,6 +91,13 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 		return err
 	}
 
+	if segment.GetStorageVersion() >= 3 {
+		if segment.GetManifestPath() == "" {
+			return errors.Newf("segment %d storage version is %d but got empty manifest", segment.GetID(), segment.GetStorageVersion())
+		}
+		return inspectV3SegmentParquet(ctx, minioClient, bucketName, rootPath, segment, p)
+	}
+
 	for _, fieldBinlog := range segment.GetBinlogs() {
 		if p.FieldID != 0 && fieldBinlog.FieldID != p.FieldID {
 			continue
@@ -97,6 +107,58 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 			fmt.Printf("\n===== Field %d | %s =====\n", fieldBinlog.FieldID, logPath)
 			if err := inspectRemoteBinlog(ctx, minioClient, bucketName, logPath, segment.StorageVersion, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
 				fmt.Printf("failed to inspect %s: %s\n", logPath, err.Error())
+			}
+		}
+	}
+	return nil
+}
+
+// inspectV3SegmentParquet resolves parquet files via the v3 manifest (same logic as show manifest)
+// and inspects each column-group file. The FieldID filter selects column groups whose column list
+// contains the field id (stringified).
+func inspectV3SegmentParquet(ctx context.Context, minioClient *minio.Client, bucketName, rootPath string, segment *models.Segment, p *InspectParquetParam) error {
+	rawManifest := segment.GetManifestPath()
+	fmt.Printf("Manifest Raw: %s\n", rawManifest)
+
+	var manifestRef struct {
+		Ver      int    `json:"ver"`
+		BasePath string `json:"base_path"`
+	}
+	if err := json.Unmarshal([]byte(rawManifest), &manifestRef); err != nil {
+		return errors.Wrap(err, "parse manifest path JSON")
+	}
+
+	basePath := strings.ReplaceAll(manifestRef.BasePath, "ROOT_PATH", rootPath)
+	manifestPath := path.Join(basePath, "_metadata", fmt.Sprintf("manifest-%d.avro", manifestRef.Ver))
+	fmt.Printf("Manifest File: %s\n", manifestPath)
+
+	obj, err := minioClient.GetObject(ctx, bucketName, manifestPath, minio.GetObjectOptions{})
+	if err != nil {
+		return errors.Wrap(err, "get manifest object")
+	}
+	m, err := parseManifest(obj)
+	obj.Close()
+	if err != nil {
+		return errors.Wrap(err, "parse manifest")
+	}
+
+	fieldFilter := ""
+	if p.FieldID != 0 {
+		fieldFilter = strconv.FormatInt(p.FieldID, 10)
+	}
+
+	for i, cg := range m.ColumnGroups {
+		if fieldFilter != "" && !slices.Contains(cg.Columns, fieldFilter) {
+			continue
+		}
+		fmt.Printf("\n===== Column Group #%d | columns=%v format=%s =====\n", i, cg.Columns, cg.Format)
+		for _, f := range cg.Files {
+			// Manifest file paths are relative to {basePath}/_data.
+			filePath := path.Join(basePath, "_data", strings.ReplaceAll(f.Path, "ROOT_PATH", rootPath))
+			fmt.Printf("\n----- File %s (rows: [%d, %d)) -----\n", filePath, f.StartIndex, f.EndIndex)
+			// v3 manifest files are plain parquet — use storage version 2 path (direct parquet reader).
+			if err := inspectRemoteBinlog(ctx, minioClient, bucketName, filePath, 2, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
+				fmt.Printf("failed to inspect %s: %s\n", filePath, err.Error())
 			}
 		}
 	}
