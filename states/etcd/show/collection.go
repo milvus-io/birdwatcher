@@ -2,6 +2,7 @@ package show
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -254,6 +255,16 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 	fmt.Fprintf(sb, "Collection State: %s\tCreate Time: %s\n", collection.State.String(), createTime.Format("2006-01-02 15:04:05"))
 	fmt.Fprintf(sb, "Update Time: %s\tUpdate timestamp: %d\n", updateTime.Format("2006-01-02 15:04:05"), collection.UpdateTimestamp)
 	fmt.Fprintf(sb, "Schema Version: %d\n", collection.Schema.Version)
+	fmt.Fprintf(sb, "External Source: %s\n", collection.GetSchema().GetExternalSource())
+	if externalSpec := collection.GetSchema().GetExternalSpec(); externalSpec != "" {
+		specMap := make(map[string]any)
+		fmt.Fprintln(sb, "External Spec:")
+		if err := json.Unmarshal([]byte(externalSpec), &specMap); err == nil {
+			for k, v := range specMap {
+				fmt.Fprintf(sb, "\t - %s: %v\n", k, v)
+			}
+		}
+	}
 	fmt.Fprintf(sb, "Fields:\n")
 	fields := collection.Schema.Fields
 	sort.Slice(fields, func(i, j int) bool {
@@ -269,6 +280,9 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 		}
 		if field.GetDefaultValue() != nil {
 			fmt.Fprintf(sb, "\t - %s: %v\n", color.MagentaString("DefaultValue"), field.GetDefaultValue())
+		}
+		if field.GetExternalField() != "" {
+			fmt.Fprintf(sb, "\t - %s: %s\n", color.CyanString("ExternalField"), field.GetExternalField())
 		}
 		if field.IsDynamic {
 			fmt.Fprintf(sb, "\t - Dynamic Field\n")
