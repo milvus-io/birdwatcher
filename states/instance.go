@@ -7,6 +7,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd"
@@ -25,12 +27,14 @@ type InstanceState struct {
 	*repair.ComponentRepair
 	*set.ComponentSet
 	instanceName string
+	metaPath     string
 	client       metakv.MetaKV
 	auditFile    *os.File
 
-	etcdState framework.State
-	config    *configs.Config
-	basePath  string
+	etcdState  framework.State
+	config     *configs.Config
+	basePath   string
+	extensions []Extension
 }
 
 func (s *InstanceState) Close() {
@@ -50,6 +54,18 @@ func (s *InstanceState) GetGlobalFormat() framework.Format {
 	return framework.FormatDefault
 }
 
+func (s *InstanceState) InstanceName() string { return s.instanceName }
+
+func (s *InstanceState) MetaPath() string { return s.metaPath }
+
+func (s *InstanceState) BasePath() string { return s.basePath }
+
+func (s *InstanceState) Client() metakv.MetaKV { return s.client }
+
+func (s *InstanceState) Config() *configs.Config { return s.config }
+
+func (s *InstanceState) State() framework.State { return s }
+
 // SetupCommands setups the command.
 // also called after each command run to reset flag values.
 func (s *InstanceState) SetupCommands() {
@@ -57,6 +73,7 @@ func (s *InstanceState) SetupCommands() {
 
 	cli := s.client
 	instanceName := s.instanceName
+	metaPath := s.metaPath
 
 	basePath := s.basePath
 
@@ -99,9 +116,24 @@ func (s *InstanceState) SetupCommands() {
 		etcd.DownloadCommand(cli, basePath),
 	)
 
+	s.mergeExtensionCommands(cmd)
+
 	// cmd.AddCommand(etcd.RawCommands(cli)...)
 
 	s.UpdateState(cmd, s, s.SetupCommands)
+}
+
+func (s *InstanceState) mergeExtensionCommands(cmd *cobra.Command) {
+	for _, ext := range s.extensions {
+		if provider, ok := ext.(InstanceCobraCommandProvider); ok {
+			s.MergeCobraCommands(cmd, provider.InstanceCobraCommands(s)...)
+		}
+		if provider, ok := ext.(InstanceFunctionCommandProvider); ok {
+			for _, receiver := range provider.InstanceFunctionCommands(s) {
+				s.MergeFunctionCommandsFrom(cmd, s, receiver)
+			}
+		}
+	}
 }
 
 type DryModeParam struct {
@@ -113,7 +145,7 @@ func (s *InstanceState) DryModeCommand(ctx context.Context, p *DryModeParam) {
 	s.SetNext(etcdTag, s.etcdState)
 }
 
-func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config) framework.State {
+func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config, extensions []Extension) framework.State {
 	var kv metakv.MetaKV
 	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
 	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
@@ -134,12 +166,14 @@ func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		ComponentRepair: repair.NewComponent(cli, config, basePath),
 		ComponentSet:    set.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
+		metaPath:        metaPath,
 		client:          kv,
 		auditFile:       file,
 
-		etcdState: etcdState,
-		config:    config,
-		basePath:  basePath,
+		etcdState:  etcdState,
+		config:     config,
+		basePath:   basePath,
+		extensions: extensions,
 	}
 
 	return state

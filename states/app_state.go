@@ -25,6 +25,8 @@ type ApplicationState struct {
 
 	// config stores configuration items
 	config *configs.Config
+
+	extensions []Extension
 }
 
 func (app *ApplicationState) Ctx() (context.Context, context.CancelFunc) {
