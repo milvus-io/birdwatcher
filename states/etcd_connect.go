@@ -64,7 +64,7 @@ func (app *ApplicationState) connectTiKV(ctx context.Context, cp *ConnectParams)
 	}
 
 	cli := kv.NewTiKV(tikvCli)
-	kvState := getKVConnectedState(app.core, cli, cp.TiKVAddr, app.config)
+	kvState := getKVConnectedState(app.core, cli, cp.TiKVAddr, app.config, app.extensions)
 	if !cp.Dry {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
@@ -85,7 +85,7 @@ func (app *ApplicationState) connectTiKV(ctx context.Context, cp *ConnectParams)
 		fmt.Fprintln(os.Stderr, "Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
 
 		// use rootPath as instanceName
-		app.SetTagNext(tikvTag, getInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config))
+		app.SetTagNext(tikvTag, getInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config, app.extensions))
 	} else {
 		fmt.Fprintln(os.Stderr, "using dry mode, ignore rootPath and metaPath")
 		// rootPath empty fall back to metastore connected state
@@ -156,7 +156,7 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	}
 
 	cli := kv.NewEtcdKV(etcdCli)
-	kvState := getKVConnectedState(app.core, cli, cp.EtcdAddr, app.config)
+	kvState := getKVConnectedState(app.core, cli, cp.EtcdAddr, app.config, app.extensions)
 	if !cp.Dry {
 		// ping etcd
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
@@ -172,7 +172,7 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 		fmt.Fprintln(os.Stderr, "Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
 
 		// use rootPath as instanceName
-		app.SetTagNext(etcdTag, getInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config))
+		app.SetTagNext(etcdTag, getInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config, app.extensions))
 	} else {
 		fmt.Fprintln(os.Stderr, "using dry mode, ignore rootPath and metaPath")
 		// rootPath empty fall back to etcd connected state
@@ -264,6 +264,7 @@ type kvConnectedState struct {
 	addr       string
 	candidates []string
 	config     *configs.Config
+	extensions []Extension
 }
 
 // SetupCommands setups the command.
@@ -275,12 +276,13 @@ func (s *kvConnectedState) SetupCommands() {
 }
 
 // getKVConnectedState returns kvConnectedState for unknown instance
-func getKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config) framework.State {
+func getKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config, extensions []Extension) framework.State {
 	state := &kvConnectedState{
-		CmdState: parent.Spawn(fmt.Sprintf("MetaStore(%s)", addr)),
-		client:   cli,
-		addr:     addr,
-		config:   config,
+		CmdState:   parent.Spawn(fmt.Sprintf("MetaStore(%s)", addr)),
+		client:     cli,
+		addr:       addr,
+		config:     config,
+		extensions: extensions,
 	}
 
 	return state
@@ -334,7 +336,7 @@ func (s *kvConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
 
 	fmt.Fprintf(os.Stderr, "Using meta path: %s/%s/\n", p.instanceName, p.MetaPath)
 
-	s.SetNext(etcdTag, getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config))
+	s.SetNext(etcdTag, getInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config, s.extensions))
 	return nil
 }
 

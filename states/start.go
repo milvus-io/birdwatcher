@@ -15,10 +15,16 @@ const (
 )
 
 // Start returns the first state - offline.
-func Start(config *configs.Config, multiStage bool) framework.State {
+func Start(config *configs.Config, multiStage bool, opts ...Option) framework.State {
 	app := &ApplicationState{
 		states: map[string]framework.State{},
 		config: config,
+	}
+
+	for _, opt := range opts {
+		if opt != nil {
+			opt(app)
+		}
 	}
 
 	app.core = framework.NewCmdState("[core]", config)

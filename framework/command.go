@@ -22,8 +22,15 @@ type FormatProvider interface {
 	GetGlobalFormat() Format
 }
 
-func parseFunctionCommands(state State) []commandItem {
-	v := reflect.ValueOf(state)
+func parseFunctionCommandsFrom(host State, receiver any) []commandItem {
+	if receiver == nil {
+		return nil
+	}
+
+	v := reflect.ValueOf(receiver)
+	if v.Kind() == reflect.Pointer && v.IsNil() {
+		return nil
+	}
 	tp := v.Type()
 
 	var commands []commandItem
@@ -35,7 +42,7 @@ func parseFunctionCommands(state State) []commandItem {
 			continue
 		}
 
-		cmd, uses, ok := parseMethod(state, mt)
+		cmd, uses, ok := parseMethodFrom(host, receiver, mt)
 		if !ok {
 			continue
 		}
@@ -49,40 +56,32 @@ func parseFunctionCommands(state State) []commandItem {
 	return commands
 }
 
-func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool) {
-	v := reflect.ValueOf(state)
+func parseMethodFrom(host State, receiver any, mt reflect.Method) (*cobra.Command, []string, bool) {
+	v := reflect.ValueOf(receiver)
 	t := mt.Type
 	var use string
 	var short string
 	var paramType reflect.Type
 
-	if t.NumIn() == 0 {
-		// shall not be reached
+	if t.NumIn() < 3 {
 		return nil, nil, false
 	}
-	if t.NumIn() > 1 {
-		// should be context.Context
-		in := t.In(1)
-		if !in.Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
-			return nil, nil, false
-		}
+	in := t.In(1)
+	if !in.Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
+		return nil, nil, false
 	}
-	if t.NumIn() > 2 {
-		// should be CmdParam
-		in := t.In(2)
-		if !in.Implements(reflect.TypeOf((*CmdParam)(nil)).Elem()) {
-			return nil, nil, false
-		}
-		cp, ok := reflect.New(in.Elem()).Interface().(CmdParam)
-		if !ok {
-			fmt.Println("conversion failed", in.Name())
-		} else {
-			paramType = in
-			use, short = cp.Desc()
-		}
+	in = t.In(2)
+	if in.Kind() != reflect.Pointer || !in.Implements(reflect.TypeOf((*CmdParam)(nil)).Elem()) {
+		return nil, nil, false
 	}
+	cp, ok := reflect.New(in.Elem()).Interface().(CmdParam)
+	if !ok {
+		fmt.Println("conversion failed", in.Name())
+		return nil, nil, false
+	}
+	paramType = in
+	use, short = cp.Desc()
 
-	cp := reflect.New(paramType.Elem()).Interface().(CmdParam)
 	fUse, fDesc := GetCmdFromFlag(cp)
 	if len(use) == 0 {
 		use = fUse
@@ -110,10 +109,14 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 			fmt.Println(err.Error())
 			return
 		}
-		ctx, cancel := state.Ctx()
+		ctx, cancel := host.Ctx()
 		defer cancel()
 
 		m := v.MethodByName(mt.Name)
+		if !m.IsValid() {
+			fmt.Println("command method not found", mt.Name)
+			return
+		}
 		results := m.Call([]reflect.Value{
 			reflect.ValueOf(ctx),
 			reflect.ValueOf(cp),
@@ -136,10 +139,7 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 				}
 				rs := result.Interface().(ResultSet)
 				// Determine output format: command param > global config > default
-				outputFormat := FormatDefault
-				if fp, ok := state.(FormatProvider); ok {
-					outputFormat = fp.GetGlobalFormat()
-				}
+				outputFormat := commandOutputFormat(host, receiver)
 				if preset, ok := rs.(*PresetResultSet); ok {
 					// If command explicitly set a format, use it
 					if preset.GetFormat() != FormatUnset {
@@ -165,6 +165,16 @@ func parseMethod(state State, mt reflect.Method) (*cobra.Command, []string, bool
 		}
 	}
 	return cmd, uses, true
+}
+
+func commandOutputFormat(host State, receiver any) Format {
+	if fp, ok := receiver.(FormatProvider); ok {
+		return fp.GetGlobalFormat()
+	}
+	if fp, ok := host.(FormatProvider); ok {
+		return fp.GetGlobalFormat()
+	}
+	return FormatDefault
 }
 
 func GetCmdFromFlag(p CmdParam) (string, string) {

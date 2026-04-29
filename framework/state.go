@@ -125,7 +125,12 @@ func (s *CmdState) SetupCommands() {
 
 // MergeFunctionCommands parses all member methods for provided state and add it into cmd.
 func (s *CmdState) MergeFunctionCommands(cmd *cobra.Command, state State) {
-	items := parseFunctionCommands(state)
+	s.MergeFunctionCommandsFrom(cmd, state, state)
+}
+
+// MergeFunctionCommandsFrom parses command methods from receiver and binds them to host state.
+func (s *CmdState) MergeFunctionCommandsFrom(cmd *cobra.Command, host State, receiver any) {
+	items := parseFunctionCommandsFrom(host, receiver)
 	for _, item := range items {
 		target := cmd
 		for _, kw := range item.kws {
