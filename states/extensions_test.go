@@ -56,6 +56,55 @@ func (r *testInstanceReceiver) FunctionCommand(ctx context.Context, p *testInsta
 	return nil
 }
 
+type testApplicationExtension struct {
+	ctx      ApplicationContext
+	receiver *testApplicationReceiver
+}
+
+func (e *testApplicationExtension) ApplicationFunctionCommands(ctx ApplicationContext) []any {
+	e.ctx = ctx
+	e.receiver = &testApplicationReceiver{}
+	return []any{e.receiver}
+}
+
+type testApplicationFunctionParam struct {
+	framework.ParamBase `use:"extension app" desc:"extension app command"`
+	Value               string `name:"value" default:"" desc:"value"`
+}
+
+type testApplicationReceiver struct {
+	called bool
+	value  string
+}
+
+func (r *testApplicationReceiver) AppCommand(ctx context.Context, p *testApplicationFunctionParam) error {
+	r.called = true
+	r.value = p.Value
+	return nil
+}
+
+func TestApplicationStateMergesExtensionFunctionCommands(t *testing.T) {
+	config := &configs.Config{}
+	ext := &testApplicationExtension{}
+	state, ok := Start(config, false, WithExtensions(ext)).(*ApplicationState)
+	require.True(t, ok)
+
+	_, _, err := state.core.RootCmd.Find([]string{"extension", "app"})
+	require.NoError(t, err)
+
+	require.Same(t, state, ext.ctx.State())
+	require.Same(t, state.core, ext.ctx.Core())
+	require.Same(t, config, ext.ctx.Config())
+	require.Len(t, ext.ctx.Extensions(), 1)
+	require.Same(t, ext, ext.ctx.Extensions()[0])
+
+	state.core.RootCmd.SetArgs([]string{"extension", "app", "--value", "ok"})
+	err = state.core.RootCmd.Execute()
+	require.NoError(t, err)
+	require.True(t, ext.receiver.called)
+	require.Equal(t, "ok", ext.receiver.value)
+}
+
 func TestInstanceStateMergesExtensionCommands(t *testing.T) {
 	config := &configs.Config{}
 	client := metakv.NewFileAuditKV(nil, nil)

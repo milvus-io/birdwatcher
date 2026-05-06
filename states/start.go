@@ -8,10 +8,15 @@ import (
 )
 
 const (
-	etcdTag   = "etcd"
-	tikvTag   = "tikv"
-	pulsarTag = "pulsar"
-	ossTag    = "oss"
+	EtcdTag   = "etcd"
+	TiKVTag   = "tikv"
+	PulsarTag = "pulsar"
+	OSSTag    = "oss"
+
+	etcdTag   = EtcdTag
+	tikvTag   = TiKVTag
+	pulsarTag = PulsarTag
+	ossTag    = OSSTag
 )
 
 // Start returns the first state - offline.

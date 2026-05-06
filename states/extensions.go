@@ -12,6 +12,18 @@ type Option func(*ApplicationState)
 
 type Extension any
 
+type ApplicationContext interface {
+	Core() *framework.CmdState
+	Config() *configs.Config
+	Extensions() []Extension
+	State() framework.State
+	SetTagNext(tag string, state framework.State)
+}
+
+type ApplicationFunctionCommandProvider interface {
+	ApplicationFunctionCommands(ctx ApplicationContext) []any
+}
+
 func WithExtensions(exts ...Extension) Option {
 	return func(app *ApplicationState) {
 		app.extensions = append(app.extensions, exts...)
