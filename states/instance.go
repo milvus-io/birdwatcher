@@ -145,7 +145,7 @@ func (s *InstanceState) DryModeCommand(ctx context.Context, p *DryModeParam) {
 	s.SetNext(etcdTag, s.etcdState)
 }
 
-func getInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config, extensions []Extension) framework.State {
+func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config, extensions []Extension) framework.State {
 	var kv metakv.MetaKV
 	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
 	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)

@@ -33,6 +33,22 @@ func (app *ApplicationState) Ctx() (context.Context, context.CancelFunc) {
 	return app.core.Ctx()
 }
 
+func (app *ApplicationState) Core() *framework.CmdState {
+	return app.core
+}
+
+func (app *ApplicationState) Config() *configs.Config {
+	return app.config
+}
+
+func (app *ApplicationState) Extensions() []Extension {
+	return app.extensions
+}
+
+func (app *ApplicationState) State() framework.State {
+	return app
+}
+
 func (app *ApplicationState) Label() string {
 	if len(app.states) == 0 {
 		return "Offline"
@@ -99,6 +115,15 @@ func (app *ApplicationState) SetupCommands() {
 	cmd := app.core.GetCmd()
 
 	app.core.UpdateState(cmd, app, app.SetupCommands)
+	for _, ext := range app.extensions {
+		provider, ok := ext.(ApplicationFunctionCommandProvider)
+		if !ok {
+			continue
+		}
+		for _, receiver := range provider.ApplicationFunctionCommands(app) {
+			app.core.MergeFunctionCommandsFrom(cmd, app, receiver)
+		}
+	}
 	for _, state := range app.states {
 		state.SetupCommands()
 	}
