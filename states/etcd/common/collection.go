@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
-	"github.com/samber/lo"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
@@ -25,6 +24,8 @@ var (
 	DBCollectionMetaPrefix = path.Join(RCPrefix, DBPrefix, CollectionInfoPrefix) // `root-coord/database/collection-info`
 	// FieldMetaPrefix is prefix for rootcoord collection fields meta
 	FieldMetaPrefix = `root-coord/fields`
+	// StructArrayFieldMetaPrefix is prefix for rootcoord collection struct array fields meta.
+	StructArrayFieldMetaPrefix = `root-coord/struct-array-fields`
 	// FunctionMetaPrefix is prefix for rootcoord function meta
 	FunctionMetaPrefix = `root-coord/functions`
 	// CollectionLoadPrefix is prefix for querycoord collection loaded in milvus v2.1.x
@@ -45,38 +46,128 @@ var (
 	CollectionTombstone = []byte{0xE2, 0x9B, 0xBC}
 )
 
-func ListCollections(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
-	prefixes := []string{
-		path.Join(basePath, CollectionMetaPrefix),
-		path.Join(basePath, DBCollectionMetaPrefix),
+const DefaultListCollectionsBulkEnrichmentThreshold = 1
+
+var (
+	collectionMetaKeySpec = MetaKeySpec{
+		Prefix: CollectionMetaPrefix,
+		Parts:  []MetaKeyPart{KeyCollectionID},
 	}
-	var results []*models.Collection
-	for _, prefix := range prefixes {
-		collections, err := ListObj2Models(ctx, cli, prefix, models.NewCollection, filters...)
-		if err != nil {
-			return nil, err
+	dbCollectionMetaKeySpec = MetaKeySpec{
+		Prefix: DBCollectionMetaPrefix,
+		Parts:  []MetaKeyPart{KeyDatabaseID, KeyCollectionID},
+	}
+)
+
+type CollectionSelector struct {
+	DatabaseID     int64
+	UseDatabaseID  bool
+	CollectionID   int64
+	CollectionName string
+	Filters        []PostFilter[models.Collection]
+
+	BulkEnrichmentThreshold *int
+}
+
+func (s CollectionSelector) legacyMetaKeyHints() MetaKeyHints {
+	return NewMetaKeyHints().WithInt64(KeyCollectionID, s.CollectionID)
+}
+
+func (s CollectionSelector) dbMetaKeyHints() MetaKeyHints {
+	return NewMetaKeyHints().
+		WithInt64If(KeyDatabaseID, s.DatabaseID, s.UseDatabaseID).
+		WithInt64(KeyCollectionID, s.CollectionID)
+}
+
+func (s CollectionSelector) Match(collection *models.Collection) bool {
+	proto := collection.GetProto()
+	if s.UseDatabaseID && proto.GetDbId() != s.DatabaseID {
+		return false
+	}
+	if s.CollectionID > 0 && proto.GetID() != s.CollectionID {
+		return false
+	}
+	if s.CollectionName != "" {
+		schema := proto.GetSchema()
+		if schema == nil || schema.GetName() != s.CollectionName {
+			return false
 		}
-		results = append(results, collections...)
+	}
+	for _, filter := range s.Filters {
+		if !filter.Match(collection) {
+			return false
+		}
+	}
+	return true
+}
+
+func (s CollectionSelector) enrichmentBulkThreshold() int {
+	if s.BulkEnrichmentThreshold == nil {
+		return DefaultListCollectionsBulkEnrichmentThreshold
+	}
+	return *s.BulkEnrichmentThreshold
+}
+
+func ListCollections(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
+	return ListCollectionsBy(ctx, cli, basePath, CollectionSelector{Filters: wrapPostFilters(filters)})
+}
+
+func ListCollectionsBy(ctx context.Context, cli kv.MetaKV, basePath string, selector CollectionSelector) ([]*models.Collection, error) {
+	results, err := ListCollectionWithoutFieldsBy(ctx, cli, basePath, selector)
+	if err != nil {
+		return nil, err
 	}
 
-	results = lo.Map(results, func(collection *models.Collection, _ int) *models.Collection {
-		collection.GetProto().GetSchema().Fields, _ = getCollectionFields(ctx, cli, basePath, collection.GetProto().GetID())
-		collection.GetProto().GetSchema().StructArrayFields, _ = getCollectionStructFields(ctx, cli, basePath, collection.GetProto().GetID())
-		collection.Functions, _ = ListCollectionFunctions(ctx, cli, basePath, collection.GetProto().GetID())
-		return collection
-	})
+	if len(results) > selector.enrichmentBulkThreshold() {
+		enrichCollectionsBulk(ctx, cli, basePath, results)
+	} else {
+		enrichCollectionsIndividually(ctx, cli, basePath, results)
+	}
 
 	return results, nil
 }
 
-func ListCollectionWithoutFields(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
-	prefixes := []string{
-		path.Join(basePath, CollectionMetaPrefix),
-		path.Join(basePath, DBCollectionMetaPrefix),
+func enrichCollectionsIndividually(ctx context.Context, cli kv.MetaKV, basePath string, collections []*models.Collection) {
+	for _, collection := range collections {
+		collection.GetProto().GetSchema().Fields, _ = getCollectionFields(ctx, cli, basePath, collection.GetProto().GetID())
+		collection.GetProto().GetSchema().StructArrayFields, _ = getCollectionStructFields(ctx, cli, basePath, collection.GetProto().GetID())
+		collection.Functions, _ = ListCollectionFunctions(ctx, cli, basePath, collection.GetProto().GetID())
 	}
+}
+
+func enrichCollectionsBulk(ctx context.Context, cli kv.MetaKV, basePath string, collections []*models.Collection) {
+	wanted := make(map[int64]struct{}, len(collections))
+	for _, collection := range collections {
+		wanted[collection.GetProto().GetID()] = struct{}{}
+	}
+
+	fields := listFieldSchemasByCollectionID(ctx, cli, ensureMetaPrefix(path.Join(basePath, FieldMetaPrefix)), wanted)
+	structFields := listStructArrayFieldSchemasByCollectionID(ctx, cli, ensureMetaPrefix(path.Join(basePath, StructArrayFieldMetaPrefix)), wanted)
+	functions := listFunctionsByCollectionID(ctx, cli, ensureMetaPrefix(path.Join(basePath, FunctionMetaPrefix)), wanted)
+
+	for _, collection := range collections {
+		collectionID := collection.GetProto().GetID()
+		collection.GetProto().GetSchema().Fields = fields[collectionID]
+		collection.GetProto().GetSchema().StructArrayFields = structFields[collectionID]
+		collection.Functions = functions[collectionID]
+	}
+}
+
+func ListCollectionWithoutFields(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Collection) bool) ([]*models.Collection, error) {
+	return ListCollectionWithoutFieldsBy(ctx, cli, basePath, CollectionSelector{Filters: wrapPostFilters(filters)})
+}
+
+func ListCollectionWithoutFieldsBy(ctx context.Context, cli kv.MetaKV, basePath string, selector CollectionSelector) ([]*models.Collection, error) {
 	var results []*models.Collection
-	for _, prefix := range prefixes {
-		collections, err := ListObj2Models(ctx, cli, prefix, models.NewCollection, filters...)
+	scans := []struct {
+		spec  MetaKeySpec
+		hints MetaKeyHints
+	}{
+		{spec: collectionMetaKeySpec, hints: selector.legacyMetaKeyHints()},
+		{spec: dbCollectionMetaKeySpec, hints: selector.dbMetaKeyHints()},
+	}
+	for _, scan := range scans {
+		collections, err := ListObj2ModelsBySpec(ctx, cli, basePath, scan.spec, scan.hints, models.NewCollection, selector)
 		if err != nil {
 			return nil, err
 		}
@@ -88,9 +179,7 @@ func ListCollectionWithoutFields(ctx context.Context, cli kv.MetaKV, basePath st
 
 // GetCollectionByIDVersion retruns collection info from etcd with provided version & id.
 func GetCollectionByIDVersion(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) (*models.Collection, error) {
-	colls, err := ListCollections(ctx, cli, basePath, func(c *models.Collection) bool {
-		return c.GetProto().GetID() == collID
-	})
+	colls, err := ListCollectionsBy(ctx, cli, basePath, CollectionSelector{CollectionID: collID})
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +197,83 @@ func getCollectionFields(ctx context.Context, cli kv.MetaKV, basePath string, co
 }
 
 func getCollectionStructFields(ctx context.Context, cli kv.MetaKV, basePath string, collID int64) ([]*schemapb.StructArrayFieldSchema, error) {
-	fields, _, err := ListProtoObjects[schemapb.StructArrayFieldSchema](ctx, cli, path.Join(basePath, fmt.Sprintf("root-coord/struct-array-fields/%d", collID)))
+	fields, _, err := ListProtoObjects[schemapb.StructArrayFieldSchema](ctx, cli, path.Join(basePath, fmt.Sprintf("%s/%d", StructArrayFieldMetaPrefix, collID)))
 	return fields, err
+}
+
+func listFieldSchemasByCollectionID(ctx context.Context, cli kv.MetaKV, prefix string, wanted map[int64]struct{}) map[int64][]*schemapb.FieldSchema {
+	keys, vals, err := cli.LoadWithPrefix(ctx, prefix)
+	if err != nil || len(keys) != len(vals) {
+		return nil
+	}
+
+	fields := make(map[int64][]*schemapb.FieldSchema)
+	for i, key := range keys {
+		collectionID, err := PathPartInt64(key, -2)
+		if err != nil {
+			continue
+		}
+		if _, ok := wanted[collectionID]; !ok {
+			continue
+		}
+
+		field := &schemapb.FieldSchema{}
+		if err := proto.Unmarshal([]byte(vals[i]), field); err != nil {
+			continue
+		}
+		fields[collectionID] = append(fields[collectionID], field)
+	}
+	return fields
+}
+
+func listStructArrayFieldSchemasByCollectionID(ctx context.Context, cli kv.MetaKV, prefix string, wanted map[int64]struct{}) map[int64][]*schemapb.StructArrayFieldSchema {
+	keys, vals, err := cli.LoadWithPrefix(ctx, prefix)
+	if err != nil || len(keys) != len(vals) {
+		return nil
+	}
+
+	fields := make(map[int64][]*schemapb.StructArrayFieldSchema)
+	for i, key := range keys {
+		collectionID, err := PathPartInt64(key, -2)
+		if err != nil {
+			continue
+		}
+		if _, ok := wanted[collectionID]; !ok {
+			continue
+		}
+
+		field := &schemapb.StructArrayFieldSchema{}
+		if err := proto.Unmarshal([]byte(vals[i]), field); err != nil {
+			continue
+		}
+		fields[collectionID] = append(fields[collectionID], field)
+	}
+	return fields
+}
+
+func listFunctionsByCollectionID(ctx context.Context, cli kv.MetaKV, prefix string, wanted map[int64]struct{}) map[int64][]*models.Function {
+	keys, vals, err := cli.LoadWithPrefix(ctx, prefix)
+	if err != nil || len(keys) != len(vals) {
+		return nil
+	}
+
+	functions := make(map[int64][]*models.Function)
+	for i, key := range keys {
+		collectionID, err := PathPartInt64(key, -2)
+		if err != nil {
+			continue
+		}
+		if _, ok := wanted[collectionID]; !ok {
+			continue
+		}
+
+		function := &schemapb.FunctionSchema{}
+		if err := proto.Unmarshal([]byte(vals[i]), function); err != nil {
+			continue
+		}
+		functions[collectionID] = append(functions[collectionID], models.NewFunction(function, key))
+	}
+	return functions
 }
 
 func FillFieldSchemaIfEmpty(cli kv.MetaKV, basePath string, collection *etcdpb.CollectionInfo) error {

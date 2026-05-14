@@ -21,8 +21,9 @@ type DatabaseParam struct {
 
 // DatabaseCommand returns show database comand.
 func (c *ComponentShow) DatabaseCommand(ctx context.Context, p *DatabaseParam) (*framework.PresetResultSet, error) {
-	dbs, err := common.ListDatabase(ctx, c.client, c.metaPath, func(db *models.Database) bool {
-		return (p.DatabaseName == "" || db.GetProto().GetName() == p.DatabaseName) && (p.DatabaseID == 0 || db.GetProto().GetId() == p.DatabaseID)
+	dbs, err := common.ListDatabaseBy(ctx, c.client, c.metaPath, common.DatabaseSelector{
+		DatabaseID:   p.DatabaseID,
+		DatabaseName: p.DatabaseName,
 	})
 	if err != nil {
 		fmt.Println("failed to list database info", err.Error())

@@ -115,6 +115,24 @@ LOOP:
 	return result, keys, nil
 }
 
+type ModelFilter[M any] interface {
+	Match(*M) bool
+}
+
+type PostFilter[M any] func(*M) bool
+
+func (f PostFilter[M]) Match(model *M) bool {
+	return f == nil || f(model)
+}
+
+func wrapPostFilters[M any](filters []func(*M) bool) []PostFilter[M] {
+	postFilters := make([]PostFilter[M], 0, len(filters))
+	for _, filter := range filters {
+		postFilters = append(postFilters, PostFilter[M](filter))
+	}
+	return postFilters
+}
+
 func ListObj2Models[T any, proto interface {
 	*T
 	protoreflect.ProtoMessage
@@ -132,4 +150,63 @@ func ListObj2Models[T any, proto interface {
 		}
 		return result, true
 	}), nil
+}
+
+func ListObj2ModelsBySpec[T any, P interface {
+	*T
+	protoreflect.ProtoMessage
+}, M any](ctx context.Context, cli kv.MetaKV, basePath string, spec MetaKeySpec, hints MetaKeyHints, convert func(P, string) *M, filters ...ModelFilter[M]) ([]*M, error) {
+	return ListObj2ModelsByTarget(ctx, cli, spec.BuildScanTarget(basePath, hints), convert, filters...)
+}
+
+func ListObj2ModelsByTarget[T any, P interface {
+	*T
+	protoreflect.ProtoMessage
+}, M any](ctx context.Context, cli kv.MetaKV, target ScanTarget, convert func(P, string) *M, filters ...ModelFilter[M]) ([]*M, error) {
+	keys, vals, err := loadScanTarget(ctx, cli, target)
+	if err != nil {
+		return nil, err
+	}
+	if len(keys) != len(vals) {
+		return nil, fmt.Errorf("error: keys and vals of different size in ListObj2ModelsByTarget:%d vs %d", len(keys), len(vals))
+	}
+
+	result := make([]*M, 0, len(vals))
+LOOP:
+	for idx, val := range vals {
+		var elem T
+		info := P(&elem)
+		err = proto.Unmarshal([]byte(val), info)
+		if err != nil {
+			if bytes.Equal([]byte(val), []byte{0xE2, 0x9B, 0xBC}) {
+				fmt.Printf("Tombstone found, key: %s\n", keys[idx])
+				continue
+			}
+			fmt.Printf("failed to unmarshal key=%s, err: %s\n", keys[idx], err.Error())
+			continue
+		}
+
+		model := convert(info, keys[idx])
+		for _, filter := range filters {
+			if !filter.Match(model) {
+				continue LOOP
+			}
+		}
+		result = append(result, model)
+	}
+	return result, nil
+}
+
+func loadScanTarget(ctx context.Context, cli kv.MetaKV, target ScanTarget) ([]string, []string, error) {
+	if !target.Exact {
+		return cli.LoadWithPrefix(ctx, target.Key)
+	}
+	val, err := cli.Load(ctx, target.Key)
+	if err == kv.ErrKeyNotFound {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return []string{target.Key}, []string{val}, nil
 }
