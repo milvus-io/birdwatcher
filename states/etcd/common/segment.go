@@ -17,16 +17,51 @@ import (
 
 var ErrReachMaxNumOfWalkSegment = errors.New("reach max number of the walked segments")
 
-func ListSegments(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
-	prefix := path.Join(basePath, DCPrefix, SegmentMetaPrefix) + "/"
+var segmentMetaKeySpec = MetaKeySpec{
+	Prefix: path.Join(DCPrefix, SegmentMetaPrefix),
+	Parts:  []MetaKeyPart{KeyCollectionID, KeyPartitionID, KeySegmentID},
+}
 
-	segments, err := ListObj2Models(ctx, cli, prefix, func(info *datapb.SegmentInfo, key string) *models.Segment {
-		return models.NewSegment(info, key, getSegmentLazyFunc(cli, basePath, info))
-	}, filters...)
-	if err != nil {
-		return nil, err
+type SegmentSelector struct {
+	CollectionID int64
+	PartitionID  int64
+	SegmentID    int64
+	Filters      []PostFilter[models.Segment]
+}
+
+func (s SegmentSelector) MetaKeyHints() MetaKeyHints {
+	return NewMetaKeyHints().
+		WithInt64(KeyCollectionID, s.CollectionID).
+		WithInt64(KeyPartitionID, s.PartitionID).
+		WithInt64(KeySegmentID, s.SegmentID)
+}
+
+func (s SegmentSelector) Match(segment *models.Segment) bool {
+	if s.CollectionID > 0 && segment.CollectionID != s.CollectionID {
+		return false
 	}
-	return segments, nil
+	if s.PartitionID > 0 && segment.PartitionID != s.PartitionID {
+		return false
+	}
+	if s.SegmentID > 0 && segment.ID != s.SegmentID {
+		return false
+	}
+	for _, filter := range s.Filters {
+		if !filter.Match(segment) {
+			return false
+		}
+	}
+	return true
+}
+
+func ListSegments(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(*models.Segment) bool) ([]*models.Segment, error) {
+	return ListSegmentsBy(ctx, cli, basePath, SegmentSelector{Filters: wrapPostFilters(filters)})
+}
+
+func ListSegmentsBy(ctx context.Context, cli kv.MetaKV, basePath string, selector SegmentSelector) ([]*models.Segment, error) {
+	return ListObj2ModelsBySpec(ctx, cli, basePath, segmentMetaKeySpec, selector.MetaKeyHints(), func(info *datapb.SegmentInfo, key string) *models.Segment {
+		return models.NewSegment(info, key, getSegmentLazyFunc(cli, basePath, info))
+	}, selector)
 }
 
 // ListSegmentsVersion list segment info as specified version.

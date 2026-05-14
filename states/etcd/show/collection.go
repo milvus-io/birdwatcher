@@ -30,49 +30,46 @@ type CollectionParam struct {
 }
 
 func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionParam) (*framework.PresetResultSet, error) {
-	var collections []*models.Collection
 	var total int64
-	var err error
-	// perform get by id to accelerate
-	if p.CollectionID > 0 {
-		var collection *models.Collection
-		collection, err = common.GetCollectionByIDVersion(ctx, c.client, c.metaPath, p.CollectionID)
-		if err == nil {
-			collections = append(collections, collection)
-		}
-	} else {
-		collections, err = common.ListCollections(ctx, c.client, c.metaPath, func(info *models.Collection) bool {
-			coll := info.GetProto()
-			if p.CollectionName != "" && coll.Schema.Name != p.CollectionName {
-				return false
-			}
-			if p.DatabaseID > -1 && coll.DbId != p.DatabaseID {
-				return false
-			}
-			if p.State != "" && !strings.EqualFold(p.State, coll.State.String()) {
-				return false
-			}
-
-			if p.WithPropertyKey != "" {
-				found := false
-				for _, prop := range coll.Properties {
-					if prop.Key == p.WithPropertyKey {
-						found = true
-						break
-					}
-				}
-				if !found {
+	collections, err := common.ListCollectionsBy(ctx, c.client, c.metaPath, common.CollectionSelector{
+		DatabaseID:     p.DatabaseID,
+		UseDatabaseID:  p.DatabaseID > -1,
+		CollectionID:   p.CollectionID,
+		CollectionName: p.CollectionName,
+		Filters: []common.PostFilter[models.Collection]{
+			func(info *models.Collection) bool {
+				coll := info.GetProto()
+				if p.State != "" && !strings.EqualFold(p.State, coll.State.String()) {
 					return false
 				}
-			}
 
-			total++
-			return true
-		})
-	}
+				if p.WithPropertyKey != "" {
+					found := false
+					for _, prop := range coll.Properties {
+						if prop.Key == p.WithPropertyKey {
+							found = true
+							break
+						}
+					}
+					if !found {
+						return false
+					}
+				}
+
+				total++
+				return true
+			},
+		},
+	})
 
 	if err != nil {
 		return nil, err
+	}
+	if p.CollectionID > 0 {
+		if len(collections) == 0 {
+			return nil, fmt.Errorf("collection %d not found", p.CollectionID)
+		}
+		collections = collections[:1]
 	}
 	channels := 0
 	healthy := 0

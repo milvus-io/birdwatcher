@@ -45,15 +45,19 @@ type segStats struct {
 
 // SegmentCommand returns show segments command.
 func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) (*framework.PresetResultSet, error) {
-	segments, err := common.ListSegments(ctx, c.client, c.metaPath, func(segment *models.Segment) bool {
-		return (p.CollectionID == 0 || segment.CollectionID == p.CollectionID) &&
-			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
-			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
-			(p.State == "" || strings.EqualFold(segment.State.String(), p.State)) &&
-			(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level)) &&
-			(p.VChannel == "" || strings.EqualFold(segment.GetInsertChannel(), p.VChannel)) &&
-			(p.Sorted == "" || strings.EqualFold(strconv.FormatBool(segment.IsSorted), p.Sorted)) &&
-			(p.StorageVersion == -1 || segment.StorageVersion == p.StorageVersion)
+	segments, err := common.ListSegmentsBy(ctx, c.client, c.metaPath, common.SegmentSelector{
+		CollectionID: p.CollectionID,
+		PartitionID:  p.PartitionID,
+		SegmentID:    p.SegmentID,
+		Filters: []common.PostFilter[models.Segment]{
+			func(segment *models.Segment) bool {
+				return (p.State == "" || strings.EqualFold(segment.State.String(), p.State)) &&
+					(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level)) &&
+					(p.VChannel == "" || strings.EqualFold(segment.GetInsertChannel(), p.VChannel)) &&
+					(p.Sorted == "" || strings.EqualFold(strconv.FormatBool(segment.IsSorted), p.Sorted)) &&
+					(p.StorageVersion == -1 || segment.StorageVersion == p.StorageVersion)
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list segments: %w", err)
