@@ -61,7 +61,6 @@ func (c *ComponentShow) CollectionCommand(ctx context.Context, p *CollectionPara
 			},
 		},
 	})
-
 	if err != nil {
 		return nil, err
 	}
