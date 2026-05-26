@@ -62,6 +62,10 @@ func (s *InstanceState) GetDistributionCommand(ctx context.Context, p *GetDistri
 			opts := []grpc.DialOption{
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithBlock(),
+				grpc.WithDefaultCallOptions(
+					grpc.MaxCallRecvMsgSize(512*1024*1024),
+					grpc.MaxCallSendMsgSize(512*1024*1024),
+				),
 			}
 
 			dialCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
