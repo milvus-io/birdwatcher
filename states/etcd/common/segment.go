@@ -103,8 +103,8 @@ func ListSegmentsBy(ctx context.Context, cli kv.MetaKV, basePath string, selecto
 // 	}
 // }
 
-func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo) func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error) {
-	return func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error) {
+func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment *datapb.SegmentInfo) func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error) {
+	return func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error) {
 		prefix := path.Join(basePath, "datacoord-meta", fmt.Sprintf("binlog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
 
 		f := func(pb func(segment *datapb.SegmentInfo, fieldID int64, logID int64) string) ([]*datapb.FieldBinlog, error) {
@@ -124,7 +124,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment *datapb.SegmentI
 			return fmt.Sprintf("ROOT_PATH/insert_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
 		})
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("statslog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
@@ -132,7 +132,7 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment *datapb.SegmentI
 			return fmt.Sprintf("ROOT_PATH/stats_log/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
 		})
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("deltalog/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID))
@@ -140,10 +140,18 @@ func getSegmentLazyFunc(cli kv.MetaKV, basePath string, segment *datapb.SegmentI
 			return fmt.Sprintf("ROOT_PATH/delta_log/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, logID)
 		})
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
-		return binlogs, statslogs, deltalogs, nil
+		prefix = path.Join(basePath, "datacoord-meta", fmt.Sprintf("%s/%d/%d/%d", SegmentBM25LogPrefix, segment.CollectionID, segment.PartitionID, segment.ID))
+		bm25Statslogs, err := f(func(segment *datapb.SegmentInfo, fieldID int64, logID int64) string {
+			return fmt.Sprintf("ROOT_PATH/bm25_stats/%d/%d/%d/%d/%d", segment.CollectionID, segment.PartitionID, segment.ID, fieldID, logID)
+		})
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		return binlogs, statslogs, deltalogs, bm25Statslogs, nil
 	}
 }
 

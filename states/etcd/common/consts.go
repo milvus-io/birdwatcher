@@ -22,6 +22,7 @@ const (
 
 	SegmentMetaPrefix      = "s"
 	SegmentStatsMetaPrefix = "statslog"
+	SegmentBM25LogPrefix   = "bm25log"
 
 	CompactionTaskPrefix = `compaction-task`
 )

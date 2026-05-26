@@ -446,8 +446,23 @@ func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 				fmt.Println("\t", logFile)
 			}
 		}
-		fmt.Println("=== Segment Total Textlog Size: ", hrSize(deltaLogSize))
-		fmt.Println("=== Segment Total Textlog Mem Size: ", hrSize(memSize))
+		fmt.Println("=== Segment Total Textlog Size: ", hrSize(textStatsSize))
+		fmt.Println("=== Segment Total Textlog Mem Size: ", hrSize(textStatsMemSize))
+
+		fmt.Println("**************************************")
+		fmt.Println("BM25 stats")
+		var bm25StatsSize int64
+		var bm25StatsMemSize int64
+		for _, bm25stats := range info.GetBm25Statslogs() {
+			for _, statsLog := range bm25stats.Binlogs {
+				bm25StatsSize += statsLog.LogSize
+				bm25StatsMemSize += statsLog.MemSize
+				fmt.Println("\t", statsLog.LogPath)
+			}
+		}
+
+		fmt.Println("=== Segment Total Bm25 Size: ", hrSize(bm25StatsSize))
+		fmt.Println("=== Segment Total Bm25 Mem Size: ", hrSize(bm25StatsMemSize))
 	}
 
 	fmt.Println("================================================================================")

@@ -114,7 +114,73 @@ func TestListSegmentsKeepsPostFilters(t *testing.T) {
 	require.EqualValues(t, 2, segments[0].ID)
 }
 
+func TestListSegmentsLazyLoadsBM25Statslogs(t *testing.T) {
+	ctx := context.Background()
+	basePath := "root"
+	cli := &segmentListKV{data: map[string]string{
+		path.Join(basePath, DCPrefix, SegmentMetaPrefix, "100", "10", "1"): mustSegmentValue(t, &datapb.SegmentInfo{ID: 1, CollectionID: 100, PartitionID: 10}),
+		path.Join(basePath, DCPrefix, SegmentBM25LogPrefix, "100", "10", "1", "101"): mustFieldBinlogValue(t, &datapb.FieldBinlog{
+			FieldID: 101,
+			Binlogs: []*datapb.Binlog{{
+				LogID:      1001,
+				LogSize:    10,
+				MemorySize: 20,
+			}},
+		}),
+	}}
+
+	segments, err := ListSegments(ctx, cli, basePath)
+	require.NoError(t, err)
+	require.Len(t, segments, 1)
+
+	bm25Statslogs := segments[0].GetBm25Statslogs()
+	require.Len(t, bm25Statslogs, 1)
+	require.EqualValues(t, 101, bm25Statslogs[0].FieldID)
+	require.Len(t, bm25Statslogs[0].Binlogs, 1)
+	require.EqualValues(t, 1001, bm25Statslogs[0].Binlogs[0].LogID)
+	require.EqualValues(t, 10, bm25Statslogs[0].Binlogs[0].LogSize)
+	require.EqualValues(t, 20, bm25Statslogs[0].Binlogs[0].MemSize)
+	require.Equal(t, "ROOT_PATH/bm25_stats/100/10/1/101/1001", bm25Statslogs[0].Binlogs[0].LogPath)
+}
+
+func TestListSegmentsKeepsInlineBM25Statslogs(t *testing.T) {
+	ctx := context.Background()
+	basePath := "root"
+	cli := &segmentListKV{data: map[string]string{
+		path.Join(basePath, DCPrefix, SegmentMetaPrefix, "100", "10", "1"): mustSegmentValue(t, &datapb.SegmentInfo{
+			ID:           1,
+			CollectionID: 100,
+			PartitionID:  10,
+			Bm25Statslogs: []*datapb.FieldBinlog{{
+				FieldID: 101,
+				Binlogs: []*datapb.Binlog{{
+					LogID:      1001,
+					LogPath:    "inline-bm25-path",
+					LogSize:    10,
+					MemorySize: 20,
+				}},
+			}},
+		}),
+	}}
+
+	segments, err := ListSegments(ctx, cli, basePath)
+	require.NoError(t, err)
+	require.Len(t, segments, 1)
+
+	bm25Statslogs := segments[0].GetBm25Statslogs()
+	require.Len(t, bm25Statslogs, 1)
+	require.Equal(t, "inline-bm25-path", bm25Statslogs[0].Binlogs[0].LogPath)
+}
+
 func mustSegmentValue(t *testing.T, info *datapb.SegmentInfo) string {
+	t.Helper()
+
+	bs, err := proto.Marshal(info)
+	require.NoError(t, err)
+	return string(bs)
+}
+
+func mustFieldBinlogValue(t *testing.T, info *datapb.FieldBinlog) string {
 	t.Helper()
 
 	bs, err := proto.Marshal(info)
