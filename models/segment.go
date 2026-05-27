@@ -15,9 +15,10 @@ type Segment struct {
 	*datapb.SegmentInfo
 
 	// field binlogs
-	binlogs   []*FieldBinlog
-	statslogs []*FieldBinlog
-	deltalogs []*FieldBinlog
+	binlogs       []*FieldBinlog
+	statslogs     []*FieldBinlog
+	deltalogs     []*FieldBinlog
+	bm25Statslogs []*FieldBinlog
 	// Semantic version
 	Version string
 
@@ -30,7 +31,7 @@ type Segment struct {
 }
 
 func NewSegment(segment *datapb.SegmentInfo, key string,
-	lazy func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error),
+	lazy func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error),
 ) *Segment {
 	s := &Segment{
 		SegmentInfo: segment,
@@ -48,14 +49,18 @@ func NewSegment(segment *datapb.SegmentInfo, key string,
 			}
 			return r
 		}
-		binlogs, statslogs, deltalogs, err := lazy()
+		binlogs, statslogs, deltalogs, bm25Statslogs, err := lazy()
 		if err != nil {
 			fmt.Println("lazy load binlog failed", err.Error())
 			return
 		}
+		if len(bm25Statslogs) == 0 {
+			bm25Statslogs = segment.GetBm25Statslogs()
+		}
 		s.binlogs = lo.Map(binlogs, mFunc)
 		s.statslogs = lo.Map(statslogs, mFunc)
 		s.deltalogs = lo.Map(deltalogs, mFunc)
+		s.bm25Statslogs = lo.Map(bm25Statslogs, mFunc)
 	}
 
 	return s
@@ -114,6 +119,15 @@ func (s *Segment) GetDeltalogs() []*FieldBinlog {
 		}
 	})
 	return s.deltalogs
+}
+
+func (s *Segment) GetBm25Statslogs() []*FieldBinlog {
+	s.loadOnce.Do(func() {
+		if s.lazyLoad != nil {
+			s.lazyLoad(s)
+		}
+	})
+	return s.bm25Statslogs
 }
 
 func (s *Segment) GetStartPosition() *msgpb.MsgPosition {
