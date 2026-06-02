@@ -1,5 +1,6 @@
 package states
 
+/*
 import (
 	"context"
 	"fmt"
@@ -109,4 +110,4 @@ func (s *pulsarAdminState) ListSubscriptionCommand(ctx context.Context, p *ListS
 		fmt.Println(subName)
 	}
 	return nil
-}
+}*/
