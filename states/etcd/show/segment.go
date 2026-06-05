@@ -325,7 +325,7 @@ const (
 func PrintSegmentInfo(info *models.Segment, detailBinlog bool) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Segment ID: %d\n", info.ID)
-	fmt.Printf("Segment State: %v", info.State)
+	fmt.Printf("Segment State: %v\t IsImporting: %t\n", info.State, info.IsImporting)
 	if info.State == commonpb.SegmentState_Dropped {
 		dropTime := time.Unix(0, int64(info.DroppedAt))
 		fmt.Printf("\tDropped Time: %s", dropTime.Format(tsPrintFormat))

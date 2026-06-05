@@ -13,6 +13,7 @@ const (
 	KeyCollectionID MetaKeyPart = "collectionID"
 	KeyPartitionID  MetaKeyPart = "partitionID"
 	KeySegmentID    MetaKeyPart = "segmentID"
+	KeySnapshotID   MetaKeyPart = "snapshotID"
 	KeyFieldID      MetaKeyPart = "fieldID"
 	KeyIndexID      MetaKeyPart = "indexID"
 	KeyJobID        MetaKeyPart = "jobID"
