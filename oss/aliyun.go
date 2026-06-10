@@ -10,11 +10,15 @@ import (
 	minioCred "github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+const (
+	aliyunOIDCTokenFileEnv   = "ALIBABA_CLOUD_OIDC_TOKEN_FILE"
+	aliyunOIDCProviderArnEnv = "ALIBABA_CLOUD_OIDC_PROVIDER_ARN"
+	aliyunRoleArnEnv         = "ALIBABA_CLOUD_ROLE_ARN"
+)
+
 var newAliyunCredential = func(cfg *credentials.Config) (Credential, error) {
 	return credentials.NewCredential(cfg)
 }
-
-const aliyunRoleArnEnv = "ALIBABA_CLOUD_ROLE_ARN"
 
 func newAliyunCredentialChain(firstHopRoleARN string, targetCfg *credentials.Config) (Credential, error) {
 	firstHopCfg := new(credentials.Config)
@@ -81,11 +85,6 @@ func newAliyunCredentialWithFactory(cfg *credentials.Config) (Credential, error)
 	}
 	return newAliyunCredentialChain(envRoleARN, cfg)
 }
-
-const (
-	aliyunOIDCTokenFileEnv   = "ALIBABA_CLOUD_OIDC_TOKEN_FILE"
-	aliyunOIDCProviderArnEnv = "ALIBABA_CLOUD_OIDC_PROVIDER_ARN"
-)
 
 type Credential interface {
 	credentials.Credential
