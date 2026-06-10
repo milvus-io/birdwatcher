@@ -3,6 +3,7 @@ package ossutil
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/minio/minio-go/v7"
@@ -28,6 +29,7 @@ func GetMinioClientFromCfg(ctx context.Context, cli kv.MetaKV, basePath string, 
 	}
 
 	var cloudProvider, addr, port, ak, sk, useIAM, useSSL, region, bucketName, rootPath string
+	var roleARN, roleSessionName, externalID, loadFrequency, aliyunRoleAuthMode string
 	found := false
 	for _, session := range sessions {
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock()}
@@ -78,6 +80,16 @@ func GetMinioClientFromCfg(ctx context.Context, cli kv.MetaKV, basePath string, 
 				useIAM = kv.GetValue()
 			case "minio.usessl":
 				useSSL = kv.GetValue()
+			case "minio.rolearn":
+				roleARN = kv.GetValue()
+			case "minio.rolesessionname":
+				roleSessionName = kv.GetValue()
+			case "minio.externalid":
+				externalID = kv.GetValue()
+			case "minio.loadfrequency":
+				loadFrequency = kv.GetValue()
+			case "minio.aliyunroleauthmode":
+				aliyunRoleAuthMode = kv.GetValue()
 			}
 		}
 		if bucketName != "" && addr != "" {
@@ -90,18 +102,29 @@ func GetMinioClientFromCfg(ctx context.Context, cli kv.MetaKV, basePath string, 
 	}
 
 	mp := oss.MinioClientParam{
-		CloudProvider: cloudProvider,
-		Region:        region,
-		Addr:          addr,
-		Port:          port,
-		AK:            ak,
-		SK:            sk,
-		UseSSL:        useSSL == "true",
-		BucketName:    bucketName,
-		RootPath:      rootPath,
+		CloudProvider:      cloudProvider,
+		Region:             region,
+		Addr:               addr,
+		Port:               port,
+		AK:                 ak,
+		SK:                 sk,
+		RoleARN:            roleARN,
+		RoleSessionName:    roleSessionName,
+		ExternalID:         externalID,
+		AliyunRoleAuthMode: aliyunRoleAuthMode,
+		UseSSL:             useSSL == "true",
+		BucketName:         bucketName,
+		RootPath:           rootPath,
 	}
 	if useIAM == "true" {
 		mp.UseIAM = true
+	}
+	if loadFrequency != "" {
+		value, err := strconv.Atoi(loadFrequency)
+		if err != nil {
+			return nil, "", "", fmt.Errorf("invalid minio.loadfrequency: %s: %w", loadFrequency, err)
+		}
+		mp.LoadFrequency = value
 	}
 	for _, p := range params {
 		p(&mp)

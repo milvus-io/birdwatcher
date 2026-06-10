@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"path"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,22 +36,67 @@ type InspectParquetParam struct {
 	ShowRowGroups       bool   `name:"showRowGroups" default:"false" desc:"print per-row-group statistics"`
 	MinioAddress        string `name:"minioAddr" default:"" desc:"override minio address"`
 	SkipBucketCheck     bool   `name:"skipBucketCheck" default:"false" desc:"skip bucket existence check"`
+	External            bool   `name:"external" default:"false" desc:"inspect parquet from external collection storage"`
+	CollectionID        int64  `name:"collection" default:"0" desc:"collection ID for external collection mode"`
+	ManifestSegmentID   int64  `name:"manifestSegment" default:"0" desc:"segment ID whose manifest files should be inspected in external mode"`
+	ExternalFile        string `name:"externalFile" default:"" desc:"single parquet object path to inspect in external mode"`
 }
 
-// InspectParquetCommand inspects parquet metadata (and optionally samples rows) from either a local
-// parquet file or from a segment's remote binlog files.
+type externalSourceSpec struct {
+	Format             string
+	CloudProvider      string
+	Region             string
+	RoleARN            string
+	ExternalID         string
+	AliyunRoleAuthMode string
+	UseSSL             *bool
+}
+
+type externalSourceLocation struct {
+	Scheme   string
+	Host     string
+	Bucket   string
+	RootPath string
+}
+
 func (s *InstanceState) InspectParquetCommand(ctx context.Context, p *InspectParquetParam) error {
+	if err := validateInspectParquetParam(p); err != nil {
+		return err
+	}
+
+	if p.External {
+		return s.inspectExternalCollectionParquet(ctx, p)
+	}
+	if p.FilePath != "" {
+		return s.inspectLocalParquet(ctx, p)
+	}
+	return s.inspectSegmentParquet(ctx, p)
+}
+
+func validateInspectParquetParam(p *InspectParquetParam) error {
+	if p.External {
+		if p.FilePath != "" || p.SegmentID != 0 {
+			return errors.New("--external cannot be used with --file or --segment")
+		}
+		if p.CollectionID == 0 {
+			return errors.New("--collection must be provided in external mode")
+		}
+		if p.ManifestSegmentID == 0 && p.ExternalFile == "" {
+			return errors.New("either --manifestSegment or --externalFile must be provided in external mode")
+		}
+		if p.ManifestSegmentID != 0 && p.ExternalFile != "" {
+			return errors.New("--manifestSegment and --externalFile are mutually exclusive in external mode")
+		}
+		return nil
+	}
+
 	if p.FilePath == "" && p.SegmentID == 0 {
 		return errors.New("either --file or --segment must be provided")
 	}
 	if p.FilePath != "" && p.SegmentID != 0 {
 		return errors.New("--file and --segment are mutually exclusive")
 	}
-
-	if p.FilePath != "" {
-		return s.inspectLocalParquet(ctx, p)
-	}
-	return s.inspectSegmentParquet(ctx, p)
+	return nil
 }
 
 func (s *InstanceState) inspectLocalParquet(ctx context.Context, p *InspectParquetParam) error {
@@ -113,9 +160,154 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 	return nil
 }
 
-// inspectV3SegmentParquet resolves parquet files via the v3 manifest (same logic as show manifest)
-// and inspects each column-group file. The FieldID filter selects column groups whose column list
-// contains the field id (stringified).
+func (s *InstanceState) inspectExternalCollectionParquet(ctx context.Context, p *InspectParquetParam) error {
+	collection, err := common.GetCollectionByIDVersion(ctx, s.client, s.basePath, p.CollectionID)
+	if err != nil {
+		return err
+	}
+	proto := collection.GetProto()
+	if proto.GetSchema().GetExternalSource() == "" {
+		return errors.Newf("collection %d does not have external source", p.CollectionID)
+	}
+
+	spec, err := parseExternalSpec(proto.GetSchema().GetExternalSpec())
+	if err != nil {
+		return err
+	}
+	externalMinioClient, externalBucketName, externalRootPath, location, err := newExternalMinioClient(ctx, proto.GetSchema().GetExternalSource(), spec, p.SkipBucketCheck)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("External Collection %d: name=%s\n", proto.GetID(), proto.GetSchema().GetName())
+	fmt.Printf("External Source: %s\n", proto.GetSchema().GetExternalSource())
+	fmt.Printf("Resolved Provider=%s Region=%s Host=%s Bucket=%s RootPath=%s\n", spec.CloudProvider, spec.Region, location.Host, externalBucketName, externalRootPath)
+
+	if p.ExternalFile != "" {
+		objectKey, err := resolveExternalObjectKey(location, p.ExternalFile)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Mode: external-file\n")
+		fmt.Printf("Object: %s\n", objectKey)
+		return inspectRemoteParquetObject(ctx, externalMinioClient, externalBucketName, objectKey, p.MetadataOnly, p.SampleRows, p.ShowRowGroups)
+	}
+
+	manifestMinioClient, manifestBucketName, manifestRootPath, err := s.GetMinioClientFromCfg(ctx, oss.WithSkipCheckBucket(p.SkipBucketCheck))
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Mode: manifest-segment\n")
+	fmt.Printf("Manifest Storage: bucket=%s rootPath=%s\n", manifestBucketName, manifestRootPath)
+	return s.inspectExternalManifestSegmentParquet(ctx, manifestMinioClient, manifestBucketName, manifestRootPath, externalMinioClient, externalBucketName, externalRootPath, location, collection, p)
+}
+
+func (s *InstanceState) inspectExternalManifestSegmentParquet(ctx context.Context, manifestMinioClient *minio.Client, manifestBucketName, manifestRootPath string, externalMinioClient *minio.Client, externalBucketName, externalRootPath string, location externalSourceLocation, collection *models.Collection, p *InspectParquetParam) error {
+	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(seg *models.Segment) bool {
+		return seg.ID == p.ManifestSegmentID
+	})
+	if err != nil {
+		return err
+	}
+	if len(segments) == 0 {
+		return errors.Newf("segment %d not found", p.ManifestSegmentID)
+	}
+	segment := segments[0]
+	if segment.GetCollectionID() != collection.GetProto().GetID() {
+		return errors.Newf("segment %d belongs to collection %d, not external collection %d", p.ManifestSegmentID, segment.GetCollectionID(), collection.GetProto().GetID())
+	}
+	if segment.GetManifestPath() == "" {
+		return errors.Newf("segment %d does not have manifest path", segment.GetID())
+	}
+
+	fmt.Printf("Manifest Segment: %d\n", segment.GetID())
+	return inspectExternalManifestParquet(ctx, manifestMinioClient, manifestBucketName, manifestRootPath, externalMinioClient, externalBucketName, externalRootPath, location, segment, p)
+}
+
+func inspectExternalManifestParquet(ctx context.Context, manifestMinioClient *minio.Client, manifestBucketName, manifestRootPath string, externalMinioClient *minio.Client, externalBucketName, externalRootPath string, location externalSourceLocation, segment *models.Segment, p *InspectParquetParam) error {
+	_ = externalRootPath
+	rawManifest := segment.GetManifestPath()
+	fmt.Printf("Manifest Raw: %s\n", rawManifest)
+
+	var manifestRef struct {
+		Ver      int    `json:"ver"`
+		BasePath string `json:"base_path"`
+	}
+	if err := json.Unmarshal([]byte(rawManifest), &manifestRef); err != nil {
+		return errors.Wrap(err, "parse manifest path JSON")
+	}
+
+	manifestBasePath := strings.ReplaceAll(manifestRef.BasePath, "ROOT_PATH", manifestRootPath)
+	manifestPath := path.Join(manifestBasePath, "_metadata", fmt.Sprintf("manifest-%d.avro", manifestRef.Ver))
+	fmt.Printf("Manifest File: %s\n", manifestPath)
+
+	obj, err := manifestMinioClient.GetObject(ctx, manifestBucketName, manifestPath, minio.GetObjectOptions{})
+	if err != nil {
+		return errors.Wrap(err, "get manifest object")
+	}
+	m, err := parseManifest(obj)
+	obj.Close()
+	if err != nil {
+		return errors.Wrap(err, "parse manifest")
+	}
+
+	fieldFilter := ""
+	if p.FieldID != 0 {
+		fieldFilter = strconv.FormatInt(p.FieldID, 10)
+	}
+
+	for i, cg := range m.ColumnGroups {
+		if fieldFilter != "" && !slices.Contains(cg.Columns, fieldFilter) {
+			continue
+		}
+		fmt.Printf("\n===== Column Group #%d | columns=%v format=%s =====\n", i, cg.Columns, cg.Format)
+		for _, f := range cg.Files {
+			filePath, err := resolveExternalManifestObjectKey(location, manifestRef.BasePath, f.Path)
+			if err != nil {
+				fmt.Printf("failed to resolve external file path %s: %s\n", f.Path, err.Error())
+				continue
+			}
+			fmt.Printf("\n----- File %s (rows: [%d, %d)) -----\n", filePath, f.StartIndex, f.EndIndex)
+			if err := inspectRemoteParquetObject(ctx, externalMinioClient, externalBucketName, filePath, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
+				fmt.Printf("failed to inspect %s: %s\n", filePath, err.Error())
+			}
+		}
+	}
+	return nil
+}
+
+func resolveExternalManifestObjectKey(location externalSourceLocation, manifestBasePath, rawPath string) (string, error) {
+	trimmed := strings.TrimSpace(rawPath)
+	if trimmed == "" {
+		return "", errors.New("manifest file path is empty")
+	}
+	if strings.Contains(trimmed, "://") {
+		return resolveExternalObjectKey(location, trimmed)
+	}
+	if strings.Contains(trimmed, "ROOT_PATH") {
+		replaced := strings.ReplaceAll(trimmed, "ROOT_PATH", location.RootPath)
+		return path.Clean(strings.TrimPrefix(replaced, "/")), nil
+	}
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	if location.RootPath == "" {
+		return path.Clean(trimmed), nil
+	}
+	if trimmed == location.RootPath || strings.HasPrefix(trimmed, location.RootPath+"/") {
+		return path.Clean(trimmed), nil
+	}
+	if manifestBasePath != "" {
+		basePath := strings.TrimPrefix(strings.TrimSpace(manifestBasePath), "/")
+		if basePath != "" {
+			dataPath := path.Join(basePath, "_data", trimmed)
+			if strings.HasPrefix(dataPath, location.RootPath+"/") {
+				return path.Clean(dataPath), nil
+			}
+		}
+	}
+	return path.Join(location.RootPath, trimmed), nil
+}
+
 func inspectV3SegmentParquet(ctx context.Context, minioClient *minio.Client, bucketName, rootPath string, segment *models.Segment, p *InspectParquetParam) error {
 	rawManifest := segment.GetManifestPath()
 	fmt.Printf("Manifest Raw: %s\n", rawManifest)
@@ -153,16 +345,30 @@ func inspectV3SegmentParquet(ctx context.Context, minioClient *minio.Client, buc
 		}
 		fmt.Printf("\n===== Column Group #%d | columns=%v format=%s =====\n", i, cg.Columns, cg.Format)
 		for _, f := range cg.Files {
-			// Manifest file paths are relative to {basePath}/_data.
 			filePath := path.Join(basePath, "_data", strings.ReplaceAll(f.Path, "ROOT_PATH", rootPath))
 			fmt.Printf("\n----- File %s (rows: [%d, %d)) -----\n", filePath, f.StartIndex, f.EndIndex)
-			// v3 manifest files are plain parquet — use storage version 2 path (direct parquet reader).
 			if err := inspectRemoteBinlog(ctx, minioClient, bucketName, filePath, 2, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
 				fmt.Printf("failed to inspect %s: %s\n", filePath, err.Error())
 			}
 		}
 	}
 	return nil
+}
+
+func inspectRemoteParquetObject(ctx context.Context, minioClient *minio.Client, bucketName, objectKey string, metadataOnly bool, sampleRows int64, showRowGroups bool) error {
+	obj, err := minioClient.GetObject(ctx, bucketName, objectKey, minio.GetObjectOptions{})
+	if err != nil {
+		return err
+	}
+	defer obj.Close()
+
+	pqReader, err := file.NewParquetReader(obj)
+	if err != nil {
+		return err
+	}
+	defer pqReader.Close()
+
+	return printParquetFile(ctx, pqReader, path.Base(objectKey), metadataOnly, sampleRows, showRowGroups)
 }
 
 func inspectRemoteBinlog(ctx context.Context, minioClient *minio.Client, bucketName, logPath string, storageVersion int64, metadataOnly bool, sampleRows int64, showRowGroups bool) error {
@@ -284,7 +490,6 @@ func arrowCellString(arr arrow.Array, idx int) string {
 	if arr.IsNull(idx) {
 		return "<null>"
 	}
-	// arrow.Array.String() renders the whole array; for per-cell use ValueStr when available.
 	type valueStr interface {
 		ValueStr(int) string
 	}
@@ -292,4 +497,189 @@ func arrowCellString(arr arrow.Array, idx int) string {
 		return v.ValueStr(idx)
 	}
 	return arr.String()
+}
+
+func parseExternalSpec(raw string) (externalSourceSpec, error) {
+	if strings.TrimSpace(raw) == "" {
+		return externalSourceSpec{}, nil
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return externalSourceSpec{}, errors.Wrap(err, "parse external spec")
+	}
+
+	spec := externalSourceSpec{
+		Format:             readMapString(payload, "format"),
+		AliyunRoleAuthMode: readMapString(payload, "aliyun_role_auth_mode"),
+	}
+	if spec.Format != "" && !strings.EqualFold(spec.Format, "parquet") {
+		return externalSourceSpec{}, errors.Newf("external collection format %s is not supported", spec.Format)
+	}
+
+	extfs, _ := payload["extfs"].(map[string]any)
+	if len(extfs) > 0 {
+		spec.CloudProvider = readMapString(extfs, "cloud_provider")
+		spec.Region = readMapString(extfs, "region")
+		spec.RoleARN = readMapString(extfs, "role_arn")
+		spec.ExternalID = readMapString(extfs, "external_id")
+		if spec.AliyunRoleAuthMode == "" {
+			spec.AliyunRoleAuthMode = readMapString(extfs, "aliyun_role_auth_mode")
+		}
+		if useSSL, ok := readMapBool(extfs, "use_ssl"); ok {
+			spec.UseSSL = &useSSL
+		}
+	}
+	return spec, nil
+}
+
+func parseExternalSource(raw string) (externalSourceLocation, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return externalSourceLocation{}, errors.Wrap(err, "parse external source")
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return externalSourceLocation{}, errors.Newf("invalid external source: %s", raw)
+	}
+	parts := strings.Split(strings.Trim(strings.TrimSpace(u.Path), "/"), "/")
+	if len(parts) == 0 || parts[0] == "" {
+		return externalSourceLocation{}, errors.Newf("external source %s does not include bucket", raw)
+	}
+	location := externalSourceLocation{
+		Scheme: u.Scheme,
+		Host:   u.Host,
+		Bucket: parts[0],
+	}
+	if len(parts) > 1 {
+		location.RootPath = path.Clean(filepath.Join(parts[1:]...))
+		if location.RootPath == "." {
+			location.RootPath = ""
+		}
+	}
+	return location, nil
+}
+
+func newExternalMinioClient(ctx context.Context, source string, spec externalSourceSpec, skipBucketCheck bool) (*minio.Client, string, string, externalSourceLocation, error) {
+	location, err := parseExternalSource(source)
+	if err != nil {
+		return nil, "", "", externalSourceLocation{}, err
+	}
+
+	provider := spec.CloudProvider
+	if provider == "" {
+		provider = inferCloudProviderFromScheme(location.Scheme)
+	}
+	if provider == "" {
+		return nil, "", "", externalSourceLocation{}, errors.Newf("unsupported external source scheme/provider: %s/%s", location.Scheme, spec.CloudProvider)
+	}
+
+	useSSL := true
+	if spec.UseSSL != nil {
+		useSSL = *spec.UseSSL
+	}
+
+	param := oss.MinioClientParam{
+		Addr:               location.Host,
+		UseSSL:             useSSL,
+		CloudProvider:      provider,
+		Region:             spec.Region,
+		RoleARN:            spec.RoleARN,
+		ExternalID:         spec.ExternalID,
+		BucketName:         location.Bucket,
+		RootPath:           location.RootPath,
+		AliyunRoleAuthMode: spec.AliyunRoleAuthMode,
+	}
+	if provider == oss.CloudProviderAliyun && param.RoleARN != "" && param.AliyunRoleAuthMode == "" {
+		param.AliyunRoleAuthMode = "oidc"
+	}
+	if param.RoleARN == "" {
+		param.UseIAM = true
+	}
+	oss.WithSkipCheckBucket(skipBucketCheck)(&param)
+
+	client, err := oss.NewMinioClient(ctx, param)
+	if err != nil {
+		return nil, "", "", externalSourceLocation{}, err
+	}
+	return client.Client, client.BucketName, client.RootPath, location, nil
+}
+
+func inferCloudProviderFromScheme(scheme string) string {
+	switch strings.ToLower(strings.TrimSpace(scheme)) {
+	case "oss":
+		return oss.CloudProviderAliyun
+	case "s3":
+		return oss.CloudProviderAWS
+	case "gs":
+		return oss.CloudProviderGCP
+	default:
+		return ""
+	}
+}
+
+func resolveExternalObjectKey(location externalSourceLocation, externalFile string) (string, error) {
+	trimmed := strings.TrimSpace(externalFile)
+	if trimmed == "" {
+		return "", errors.New("external file path is empty")
+	}
+	if strings.Contains(trimmed, "ROOT_PATH") {
+		return strings.ReplaceAll(trimmed, "ROOT_PATH", location.RootPath), nil
+	}
+	if strings.Contains(trimmed, "://") {
+		u, err := url.Parse(trimmed)
+		if err != nil {
+			return "", errors.Wrap(err, "parse external file path")
+		}
+		parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+		if len(parts) == 0 || parts[0] == "" {
+			return "", errors.Newf("external file path %s does not include bucket", trimmed)
+		}
+		if u.Host != location.Host {
+			return "", errors.Newf("external file host %s does not match external source host %s", u.Host, location.Host)
+		}
+		if parts[0] != location.Bucket {
+			return "", errors.Newf("external file bucket %s does not match external source bucket %s", parts[0], location.Bucket)
+		}
+		trimmed = filepath.Join(parts[1:]...)
+	}
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	if location.RootPath == "" {
+		return path.Clean(trimmed), nil
+	}
+	if trimmed == location.RootPath || strings.HasPrefix(trimmed, location.RootPath+"/") {
+		return path.Clean(trimmed), nil
+	}
+	return path.Join(location.RootPath, trimmed), nil
+}
+
+func readMapString(payload map[string]any, key string) string {
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	default:
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
+}
+
+func readMapBool(payload map[string]any, key string) (bool, bool) {
+	value, ok := payload[key]
+	if !ok || value == nil {
+		return false, false
+	}
+	switch v := value.(type) {
+	case bool:
+		return v, true
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(v))
+		if err != nil {
+			return false, false
+		}
+		return parsed, true
+	default:
+		return false, false
+	}
 }

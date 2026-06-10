@@ -2,6 +2,7 @@ package states
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/cockroachdb/errors"
 	"github.com/manifoldco/promptui"
@@ -74,6 +75,11 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss
 	var useIAM string
 	var useSSL string
 	var region string
+	var roleARN string
+	var roleSessionName string
+	var externalID string
+	var loadFrequency string
+	var aliyunRoleAuthMode string
 
 	for _, config := range configurations {
 		switch config.GetKey() {
@@ -97,25 +103,45 @@ func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss
 			useIAM = config.GetValue()
 		case "minio.usessl":
 			useSSL = config.GetValue()
+		case "minio.rolearn":
+			roleARN = config.GetValue()
+		case "minio.rolesessionname":
+			roleSessionName = config.GetValue()
+		case "minio.externalid":
+			externalID = config.GetValue()
+		case "minio.loadfrequency":
+			loadFrequency = config.GetValue()
+		case "minio.aliyunroleauthmode":
+			aliyunRoleAuthMode = config.GetValue()
 		}
 	}
 
 	mp := oss.MinioClientParam{
-		CloudProvider: cloudProvider,
-		Region:        region,
-		Addr:          addr,
-		Port:          port,
-		AK:            ak,
-		SK:            sk,
-
-		BucketName: bucketName,
-		RootPath:   rootPath,
+		CloudProvider:      cloudProvider,
+		Region:             region,
+		Addr:               addr,
+		Port:               port,
+		AK:                 ak,
+		SK:                 sk,
+		RoleARN:            roleARN,
+		RoleSessionName:    roleSessionName,
+		ExternalID:         externalID,
+		AliyunRoleAuthMode: aliyunRoleAuthMode,
+		BucketName:         bucketName,
+		RootPath:           rootPath,
 	}
 	if useIAM == "true" {
 		mp.UseIAM = true
 	}
 	if useSSL == "true" {
 		mp.UseSSL = true
+	}
+	if loadFrequency != "" {
+		value, err := strconv.Atoi(loadFrequency)
+		if err != nil {
+			return nil, "", "", errors.Wrapf(err, "invalid minio.loadfrequency: %s", loadFrequency)
+		}
+		mp.LoadFrequency = value
 	}
 
 	for _, param := range params {
@@ -171,7 +197,7 @@ func (s *InstanceState) GetMinioClientFromPrompt(ctx context.Context) (client *m
 
 	cloudProvider := promptui.Select{
 		Label: "Select Cloud provider",
-		Items: []string{"aws", "gcp"},
+		Items: []string{"aws", "aliyun", "gcp"},
 	}
 	_, cloudProviderResult, err := cloudProvider.Run()
 	if err != nil {
@@ -180,7 +206,7 @@ func (s *InstanceState) GetMinioClientFromPrompt(ctx context.Context) (client *m
 
 	sl := promptui.Select{
 		Label: "Select authentication method:",
-		Items: []string{"IAM", "AK/SK"},
+		Items: []string{"RoleARN", "IAM", "AK/SK"},
 	}
 	_, result, err := sl.Run()
 	if err != nil {
@@ -196,6 +222,79 @@ func (s *InstanceState) GetMinioClientFromPrompt(ctx context.Context) (client *m
 	}
 
 	switch result {
+	case "RoleARN":
+		input := promptui.Prompt{Label: "Role ARN"}
+		roleARN, err := input.Run()
+		if err != nil {
+			return nil, "", "", err
+		}
+		mp.RoleARN = roleARN
+
+		input = promptui.Prompt{Label: "Role Session Name (optional)"}
+		roleSessionName, err := input.Run()
+		if err != nil {
+			return nil, "", "", err
+		}
+		mp.RoleSessionName = roleSessionName
+
+		input = promptui.Prompt{Label: "External ID (optional)"}
+		externalID, err := input.Run()
+		if err != nil {
+			return nil, "", "", err
+		}
+		mp.ExternalID = externalID
+
+		input = promptui.Prompt{Label: "Load Frequency Seconds (optional)"}
+		loadFrequency, err := input.Run()
+		if err != nil {
+			return nil, "", "", err
+		}
+		if loadFrequency != "" {
+			value, err := strconv.Atoi(loadFrequency)
+			if err != nil {
+				return nil, "", "", errors.Wrapf(err, "invalid load frequency: %s", loadFrequency)
+			}
+			mp.LoadFrequency = value
+		}
+
+		if cloudProviderResult == oss.CloudProviderAliyun {
+			mode := promptui.Select{
+				Label: "Aliyun Role Auth Mode",
+				Items: []string{"ram", "oidc"},
+			}
+			_, aliyunRoleAuthMode, err := mode.Run()
+			if err != nil {
+				return nil, "", "", err
+			}
+			mp.AliyunRoleAuthMode = aliyunRoleAuthMode
+		}
+
+		if cloudProviderResult == oss.CloudProviderAWS {
+			mode := promptui.Select{
+				Label: "Base Credential Source",
+				Items: []string{"DefaultChain", "AK/SK"},
+			}
+			_, baseSource, err := mode.Run()
+			if err != nil {
+				return nil, "", "", err
+			}
+			if baseSource == "AK/SK" {
+				p.HideEntered = true
+				p.Mask = rune('*')
+				p.Label = "AK"
+				ak, err := p.Run()
+				if err != nil {
+					return nil, "", "", err
+				}
+				p.Label = "SK"
+				sk, err := p.Run()
+				if err != nil {
+					return nil, "", "", err
+				}
+				mp.AK = ak
+				mp.SK = sk
+			}
+		}
 	case "IAM":
 		mp.UseIAM = true
 		input := promptui.Prompt{
