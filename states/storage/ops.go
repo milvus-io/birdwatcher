@@ -9,22 +9,13 @@ import (
 	"path"
 	"strings"
 
-	"github.com/minio/minio-go/v7"
-
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 )
 
 func (s *OSSState) Stat(ctx context.Context, path string) (*models.FsStat, error) {
-	info, err := s.client.Client.StatObject(ctx, s.bucket, path, minio.StatObjectOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	result := &models.FsStat{
-		Size: info.Size,
-	}
-	return result, nil
+	return s.store.Stat(ctx, oss.ResolveObjectKey(s.rootPath, path))
 }
 
 type GetParam struct {
@@ -51,15 +42,13 @@ func (s *OSSState) GetCommand(ctx context.Context, p *GetParam) error {
 		return errors.New("cannot download root")
 	}
 
-	// List objects under the resolved path to find matching files
 	base := toListingPrefix(resolved)
-	ch := s.client.Client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{
-		Prefix:    base,
-		Recursive: true,
-	})
+	ch, err := s.store.List(ctx, base, true)
+	if err != nil {
+		return err
+	}
 
-	// Also check if the resolved path is an exact file (not a directory)
-	_, err := s.client.Client.StatObject(ctx, s.bucket, resolved, minio.StatObjectOptions{})
+	_, err = s.store.Stat(ctx, resolved)
 	isFile := err == nil
 
 	if isFile {
@@ -72,7 +61,7 @@ func (s *OSSState) GetCommand(ctx context.Context, p *GetParam) error {
 		if info.Err != nil {
 			return fmt.Errorf("list objects error: %w", info.Err)
 		}
-		if strings.HasSuffix(info.Key, "/") {
+		if info.IsDir || strings.HasSuffix(info.Key, "/") {
 			continue
 		}
 		if err := s.downloadFile(ctx, info.Key, p.TargetDir); err != nil {
@@ -89,11 +78,13 @@ func (s *OSSState) GetCommand(ctx context.Context, p *GetParam) error {
 }
 
 func (s *OSSState) downloadFile(ctx context.Context, key string, targetDir string) error {
-	obj, err := s.client.Client.GetObject(ctx, s.bucket, key, minio.GetObjectOptions{})
+	obj, err := s.store.Open(ctx, key)
 	if err != nil {
 		return fmt.Errorf("get object %s failed: %w", key, err)
 	}
-	defer obj.Close()
+	if closer, ok := obj.(io.Closer); ok {
+		defer closer.Close()
+	}
 
 	fileName := path.Base(key)
 	localPath := fileName

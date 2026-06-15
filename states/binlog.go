@@ -3,20 +3,19 @@ package states
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/cockroachdb/errors"
-	"github.com/minio/minio-go/v7"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
 	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 )
 
 // ScanBinlogs scans provided segment with delete record excluded.
-func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Client, bucketName string, rootPath string, collection *models.Collection, segment *models.Segment,
+func (s *InstanceState) ScanBinlogs(ctx context.Context, store oss.ObjectStore, rootPath string, collection *models.Collection, segment *models.Segment,
 	selectField func(fieldID int64) bool, fn func(map[int64]*binlogv1.BinlogReader),
 ) {
 	pkField, has := lo.Find(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) bool {
@@ -40,8 +39,8 @@ func (s *InstanceState) ScanBinlogs(ctx context.Context, minioClient *minio.Clie
 				continue
 			}
 			binlog := fieldBinlog.Binlogs[idx]
-			filePath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
-			object, err := minioClient.GetObject(ctx, bucketName, filePath, minio.GetObjectOptions{})
+			filePath := oss.ResolveObjectKey(rootPath, binlog.LogPath)
+			object, err := store.Open(ctx, filePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				return

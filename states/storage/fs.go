@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/minio-go/v7"
 
 	"github.com/milvus-io/birdwatcher/framework"
 )
@@ -77,14 +76,17 @@ func (s *OSSState) LsCommand(ctx context.Context, p *LsParam) error {
 	} else {
 		base = s.getBase()
 	}
-	ch := s.client.Client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{
-		Prefix:    base,
-		Recursive: false,
-	})
+	ch, err := s.store.List(ctx, base, false)
+	if err != nil {
+		return err
+	}
 
 	dc := color.New(color.FgCyan)
 	fc := color.New(color.FgGreen)
 	for info := range ch {
+		if info.Err != nil {
+			return info.Err
+		}
 		name := strings.TrimPrefix(info.Key, base)
 		c := fc
 		isDirectory := false
@@ -139,12 +141,11 @@ func (s *OSSState) CdCommand(ctx context.Context, p *CdParam) error {
 
 	// Validate the target directory exists by listing with the resolved prefix
 	listPrefix := toListingPrefix(resolved)
-	ch := s.client.Client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{
-		Prefix:    listPrefix,
-		Recursive: false,
-	})
+	ch, err := s.store.List(ctx, listPrefix, false)
+	if err != nil {
+		return err
+	}
 
-	// Check if any object exists under this prefix
 	info, ok := <-ch
 	if !ok || info.Err != nil {
 		return fmt.Errorf("folder %s not exists", p.prefix)

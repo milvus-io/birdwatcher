@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/manifoldco/promptui"
-	"github.com/minio/minio-go/v7"
 	"github.com/spf13/cobra"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
@@ -52,7 +52,7 @@ func getGarbageCollectCmd(cli kv.MetaKV, basePath string) *cobra.Command {
 				fmt.Printf("bucket %s not exists\n", bucketName)
 				return
 			}
-			garbageCollect(cli, basePath, minioClient, minioRootPath, bucketName)
+			garbageCollect(cli, basePath, oss.NewMinioObjectStoreWithBucket(minioClient, bucketName), minioRootPath)
 		},
 	}
 
@@ -66,7 +66,7 @@ const (
 	deltaLogPrefix  = `delta_log`
 )
 
-func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, minioRootPath string, bucketName string) {
+func garbageCollect(cli kv.MetaKV, basePath string, store oss.ObjectStore, minioRootPath string) {
 	segments, err := common.ListSegments(context.TODO(), cli, basePath, func(*models.Segment) bool { return true })
 	if err != nil {
 		fmt.Println("failed to list segments:", err.Error())
@@ -125,10 +125,16 @@ func garbageCollect(cli kv.MetaKV, basePath string, minioClient *minio.Client, m
 
 	counter := 0
 	for idx, prefix := range prefixes {
-		for info := range minioClient.ListObjects(context.TODO(), bucketName, minio.ListObjectsOptions{
-			Prefix:    prefix,
-			Recursive: true,
-		}) {
+		ch, err := store.List(context.TODO(), prefix, true)
+		if err != nil {
+			fmt.Fprintf(w, "failed to list prefix %q: %s\n", prefix, err.Error())
+			continue
+		}
+		for info := range ch {
+			if info.Err != nil {
+				fmt.Fprintf(w, "failed to list object under %q: %s\n", prefix, info.Err.Error())
+				continue
+			}
 			fmt.Println(info.Key)
 			counter++
 			fmt.Fprintf(w, "Processing path: \"%s\"", info.Key)

@@ -7,16 +7,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/manifoldco/promptui"
 	"github.com/minio/minio-go/v7"
-	"github.com/samber/lo"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
-	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/birdwatcher/states/mgrpc"
-	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
 )
 
 type TestMinioCfgParam struct {
@@ -39,121 +32,15 @@ func (s *InstanceState) TestMinioCfgCommand(ctx context.Context, p *TestMinioCfg
 }
 
 func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss.MinioConnectParam) (client *minio.Client, bucketName, rootPath string, err error) {
-	sessions, err := common.ListSessions(ctx, s.client, s.basePath)
+	resolved, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		return nil, "", "", err
 	}
-
-	session, found := lo.Find(sessions, func(session *models.Session) bool {
-		return session.ServerName == "rootcoord" || session.ServerName == "mixcoord"
-	})
-
-	if !found {
-		return nil, "", "", errors.New("rootcoord session not found")
+	client, ok := oss.MinioClientFromObjectStore(resolved.Store)
+	if !ok {
+		return nil, "", "", errors.New("resolved object store is not backed by minio client")
 	}
-
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
-	}
-
-	conn, err := grpc.DialContext(ctx, session.Address, opts...)
-	if err != nil {
-		return nil, "", "", errors.New("find to connect to rootcoord")
-	}
-	source := rootcoordpb.NewRootCoordClient(conn)
-
-	configurations, err := mgrpc.GetConfiguration(ctx, source, session.ServerID)
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	var cloudProvider string
-	var addr string
-	var port string
-	var ak, sk string
-	var useIAM string
-	var useSSL string
-	var region string
-	var roleARN string
-	var roleSessionName string
-	var externalID string
-	var loadFrequency string
-	var aliyunRoleAuthMode string
-
-	for _, config := range configurations {
-		switch config.GetKey() {
-		case "minio.cloudprovider":
-			cloudProvider = config.GetValue()
-		case "minio.address":
-			addr = config.GetValue()
-		case "minio.port":
-			port = config.GetValue()
-		case "minio.region":
-			region = config.GetValue()
-		case "minio.bucketname":
-			bucketName = config.GetValue()
-		case "minio.rootpath":
-			rootPath = config.GetValue()
-		case "minio.secretaccesskey":
-			sk = config.GetValue()
-		case "minio.accesskeyid":
-			ak = config.GetValue()
-		case "minio.useiam":
-			useIAM = config.GetValue()
-		case "minio.usessl":
-			useSSL = config.GetValue()
-		case "minio.rolearn":
-			roleARN = config.GetValue()
-		case "minio.rolesessionname":
-			roleSessionName = config.GetValue()
-		case "minio.externalid":
-			externalID = config.GetValue()
-		case "minio.loadfrequency":
-			loadFrequency = config.GetValue()
-		case "minio.aliyunroleauthmode":
-			aliyunRoleAuthMode = config.GetValue()
-		}
-	}
-
-	mp := oss.MinioClientParam{
-		CloudProvider:      cloudProvider,
-		Region:             region,
-		Addr:               addr,
-		Port:               port,
-		AK:                 ak,
-		SK:                 sk,
-		RoleARN:            roleARN,
-		RoleSessionName:    roleSessionName,
-		ExternalID:         externalID,
-		AliyunRoleAuthMode: aliyunRoleAuthMode,
-		BucketName:         bucketName,
-		RootPath:           rootPath,
-	}
-	if useIAM == "true" {
-		mp.UseIAM = true
-	}
-	if useSSL == "true" {
-		mp.UseSSL = true
-	}
-	if loadFrequency != "" {
-		value, err := strconv.Atoi(loadFrequency)
-		if err != nil {
-			return nil, "", "", errors.Wrapf(err, "invalid minio.loadfrequency: %s", loadFrequency)
-		}
-		mp.LoadFrequency = value
-	}
-
-	for _, param := range params {
-		param(&mp)
-	}
-
-	mClient, err := oss.NewMinioClient(ctx, mp)
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	return mClient.Client, bucketName, rootPath, nil
+	return client, resolved.BucketName, resolved.RootPath, nil
 }
 
 func (s *InstanceState) GetMinioClientFromPrompt(ctx context.Context) (client *minio.Client, bucketName, rootPath string, err error) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 )
@@ -38,6 +39,7 @@ func (s *InstanceState) VerifySegmentCommnad(ctx context.Context, p *VerifySegme
 		fmt.Println("failed to get minio access", err.Error())
 		return err
 	}
+	store := oss.NewMinioObjectStoreWithBucket(minioClient, bucketName)
 
 	total := len(segments)
 	for idx, segment := range segments {
@@ -54,8 +56,8 @@ func (s *InstanceState) VerifySegmentCommnad(ctx context.Context, p *VerifySegme
 		for _, item := range items {
 			for _, fbl := range item.fieldBinlogs {
 				for _, l := range fbl.Binlogs {
-					logPath := strings.Replace(l.LogPath, "ROOT_PATH", p.RootPath, 1)
-					_, err := minioClient.StatObject(ctx, bucketName, logPath, minio.StatObjectOptions{})
+					logPath := oss.ResolveObjectKey(p.RootPath, l.LogPath)
+					_, err := store.Stat(ctx, logPath)
 					if err != nil {
 						errResp := minio.ToErrorResponse(err)
 						fmt.Println("failed to check ", logPath, err, errResp.Code)

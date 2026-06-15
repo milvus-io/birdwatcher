@@ -11,12 +11,14 @@ import (
 
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd"
 	"github.com/milvus-io/birdwatcher/states/etcd/remove"
 	"github.com/milvus-io/birdwatcher/states/etcd/repair"
 	"github.com/milvus-io/birdwatcher/states/etcd/set"
 	"github.com/milvus-io/birdwatcher/states/etcd/show"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/birdwatcher/states/ossutil"
 )
 
 // InstanceState provides command for single milvus instance.
@@ -31,10 +33,11 @@ type InstanceState struct {
 	client       metakv.MetaKV
 	auditFile    *os.File
 
-	etcdState  framework.State
-	config     *configs.Config
-	basePath   string
-	extensions []Extension
+	etcdState           framework.State
+	config              *configs.Config
+	basePath            string
+	extensions          []Extension
+	objectStoreProvider ObjectStoreProvider
 }
 
 func (s *InstanceState) Close() {
@@ -145,7 +148,20 @@ func (s *InstanceState) DryModeCommand(ctx context.Context, p *DryModeParam) {
 	s.SetNext(etcdTag, s.etcdState)
 }
 
-func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config, extensions []Extension) framework.State {
+func (s *InstanceState) GetObjectStore(ctx context.Context, params ...oss.MinioConnectParam) (*oss.ResolvedObjectStore, error) {
+	if s.objectStoreProvider != nil {
+		resolved, err := s.objectStoreProvider.GetObjectStore(ctx, s, params...)
+		if err != nil {
+			return nil, err
+		}
+		if resolved != nil {
+			return resolved, nil
+		}
+	}
+	return ossutil.GetObjectStoreFromCfg(ctx, s.client, s.basePath, params...)
+}
+
+func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceName, metaPath string, etcdState framework.State, config *configs.Config, extensions []Extension, objectStoreProvider ObjectStoreProvider) framework.State {
 	var kv metakv.MetaKV
 	name := fmt.Sprintf("audit_%s.log", time.Now().Format("2006_0102_150405"))
 	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
@@ -170,10 +186,11 @@ func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		client:          kv,
 		auditFile:       file,
 
-		etcdState:  etcdState,
-		config:     config,
-		basePath:   basePath,
-		extensions: extensions,
+		etcdState:           etcdState,
+		config:              config,
+		basePath:            basePath,
+		extensions:          extensions,
+		objectStoreProvider: objectStoreProvider,
 	}
 
 	return state

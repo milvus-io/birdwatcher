@@ -38,14 +38,14 @@ func (s *InstanceState) DownloadSegmentCommand(ctx context.Context, p *DownloadS
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
 
-	minioClient, bucketName, _, err := s.GetMinioClientFromCfg(ctx, params...)
+	resolvedStore, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		return err
 	}
 
 	folder := fmt.Sprintf("dlsegment_%s", time.Now().Format("20060102150406"))
 	for _, segment := range segments {
-		err := downloadSegment(ctx, minioClient, bucketName, segment, folder)
+		err := downloadSegment(ctx, resolvedStore.Store, resolvedStore.RootPath, segment, folder)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func (s *InstanceState) DownloadSegmentCommand(ctx context.Context, p *DownloadS
 	return nil
 }
 
-func downloadSegment(ctx context.Context, minioClient *minio.Client, bucketName string, segment *models.Segment, folderPath string) error {
+func downloadSegment(ctx context.Context, store oss.ObjectStore, rootPath string, segment *models.Segment, folderPath string) error {
 	p := path.Join(folderPath, fmt.Sprintf("%d", segment.ID))
 	if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
 		err := os.MkdirAll(p, os.ModePerm)
@@ -75,13 +75,14 @@ func downloadSegment(ctx context.Context, minioClient *minio.Client, bucketName 
 		}
 
 		for _, binlog := range fieldBinlog.Binlogs {
-			obj, err := minioClient.GetObject(ctx, bucketName, binlog.LogPath, minio.GetObjectOptions{})
+			logPath := oss.ResolveObjectKey(rootPath, binlog.LogPath)
+			obj, err := store.Open(ctx, logPath)
 			if err != nil {
-				fmt.Printf("failed to download file bucket=\"%s\", filePath = \"%s\", err: %s\n", bucketName, binlog.LogPath, err.Error())
+				fmt.Printf("failed to download file filePath = \"%s\", err: %s\n", logPath, err.Error())
 				return err
 			}
 
-			name := path.Base(binlog.LogPath)
+			name := path.Base(logPath)
 
 			f, err := os.Create(path.Join(folder, name))
 			if err != nil {

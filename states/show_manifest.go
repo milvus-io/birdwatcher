@@ -12,9 +12,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strings"
-
-	"github.com/minio/minio-go/v7"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -64,10 +61,11 @@ func (s *InstanceState) ShowManifestCommand(ctx context.Context, p *ShowManifest
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
 
-	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, params...)
+	resolvedStore, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		return fmt.Errorf("failed to create minio client: %w", err)
 	}
+	rootPath := resolvedStore.RootPath
 
 	for _, seg := range manifestSegments {
 		rawManifest := seg.GetManifestPath()
@@ -85,18 +83,17 @@ func (s *InstanceState) ShowManifestCommand(ctx context.Context, p *ShowManifest
 			continue
 		}
 
-		basePath := strings.ReplaceAll(manifestRef.BasePath, "ROOT_PATH", rootPath)
+		basePath := oss.ResolveObjectKey(rootPath, manifestRef.BasePath)
 		manifestPath := path.Join(basePath, "_metadata", fmt.Sprintf("manifest-%d.avro", manifestRef.Ver))
 		fmt.Printf("Manifest File: %s\n", manifestPath)
 
-		obj, err := minioClient.GetObject(ctx, bucketName, manifestPath, minio.GetObjectOptions{})
+		obj, err := resolvedStore.Store.Open(ctx, manifestPath)
 		if err != nil {
 			fmt.Printf("Error getting object: %v\n\n", err)
 			continue
 		}
 
 		manifest, err := parseManifest(obj)
-		obj.Close()
 		if err != nil {
 			fmt.Printf("Error parsing manifest: %v\n\n", err)
 			continue

@@ -11,7 +11,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gosuri/uilive"
-	"github.com/minio/minio-go/v7"
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -48,18 +47,18 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 		return err
 	}
 
-	var minioClient *minio.Client
-	var bucketName, rootPath string
+	var rootPath string
 
 	params := []oss.MinioConnectParam{}
 	if p.MinioAddress != "" {
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
 
-	minioClient, bucketName, rootPath, err = s.GetMinioClientFromCfg(ctx, params...)
+	resolvedStore, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		return err
 	}
+	rootPath = resolvedStore.RootPath
 
 	type suspectCollection struct {
 		collection   *models.Collection
@@ -177,12 +176,12 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 					}
 					pqWriter = binlogv1.NewParquetWriter(susCol.collection)
 				}
-				deltalog, err := s.DownloadDeltalogs(ctx, minioClient, bucketName, rootPath, susCol.collection, segment)
+				deltalog, err := s.DownloadDeltalogs(ctx, resolvedStore.Store, rootPath, susCol.collection, segment)
 				if err != nil {
 					return err
 				}
 
-				s.ScanBinlogs(ctx, minioClient, bucketName, rootPath, susCol.collection, segment, selector, func(readers map[int64]*binlogv1.BinlogReader) {
+				s.ScanBinlogs(ctx, resolvedStore.Store, rootPath, susCol.collection, segment, selector, func(readers map[int64]*binlogv1.BinlogReader) {
 					targetIndex := partIdx[segment.PartitionID]
 					iter, err := NewBinlogIterator(susCol.collection, readers)
 					if err != nil {
@@ -283,7 +282,7 @@ func (s *InstanceState) CheckPartitionKeyCommand(ctx context.Context, p *CheckPa
 	return nil
 }
 
-func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Client, bucket, rootPath string, collection *models.Collection, segment *models.Segment) (*storage.DeltaData, error) {
+func (s *InstanceState) DownloadDeltalogs(ctx context.Context, store oss.ObjectStore, rootPath string, collection *models.Collection, segment *models.Segment) (*storage.DeltaData, error) {
 	pkField, has := lo.Find(collection.GetProto().Schema.Fields, func(field *schemapb.FieldSchema) bool {
 		return field.IsPrimaryKey
 	})
@@ -293,8 +292,8 @@ func (s *InstanceState) DownloadDeltalogs(ctx context.Context, client *minio.Cli
 	data := storage.NewDeltaData(pkField.DataType, 0)
 	for _, delFieldBinlog := range segment.GetDeltalogs() {
 		for _, binlog := range delFieldBinlog.Binlogs {
-			filePath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
-			result, err := client.GetObject(ctx, bucket, filePath, minio.GetObjectOptions{})
+			filePath := oss.ResolveObjectKey(rootPath, binlog.LogPath)
+			result, err := store.Open(ctx, filePath)
 			if err != nil {
 				fmt.Println(err.Error())
 				continue
