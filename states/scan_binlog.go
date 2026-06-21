@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/cockroachdb/errors"
-	"github.com/minio/minio-go/v7"
 	"github.com/samber/lo"
 	"go.uber.org/atomic"
 
@@ -91,11 +90,12 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
 
-	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, params...)
+	resolvedStore, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		fmt.Println("Failed to create client,", err.Error())
 		return err
 	}
+	rootPath := resolvedStore.RootPath
 
 	fmt.Printf("=== start to execute \"%s\" task with filter expresion: \"%s\" ===\n", p.Action, p.Expr)
 	fmt.Printf("=== worker num: %d, skip delete: %t ===\n", p.WorkerNum, p.IgnoreDelete)
@@ -121,8 +121,8 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	}
 
 	getObject := func(binlogPath string) (storagecommon.ReadSeeker, error) {
-		logPath := strings.ReplaceAll(binlogPath, "ROOT_PATH", rootPath)
-		return minioClient.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
+		logPath := oss.ResolveObjectKey(rootPath, binlogPath)
+		return resolvedStore.Store.Open(ctx, logPath)
 	}
 
 	l0Segments := lo.Filter(segments, func(segment *models.Segment, _ int) bool {

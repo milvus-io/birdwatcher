@@ -65,7 +65,7 @@ func (app *ApplicationState) connectTiKV(ctx context.Context, cp *ConnectParams)
 	}
 
 	cli := kv.NewTiKV(tikvCli)
-	kvState := getKVConnectedState(app.core, cli, cp.TiKVAddr, app.config, app.extensions)
+	kvState := getKVConnectedState(app.core, cli, cp.TiKVAddr, app.config, app.extensions, app.objectStoreProvider)
 	if !cp.Dry {
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
@@ -86,7 +86,7 @@ func (app *ApplicationState) connectTiKV(ctx context.Context, cp *ConnectParams)
 		fmt.Fprintln(os.Stderr, "Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
 
 		// use rootPath as instanceName
-		app.SetTagNext(tikvTag, GetInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config, app.extensions))
+		app.SetTagNext(tikvTag, GetInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config, app.extensions, app.objectStoreProvider))
 	} else {
 		fmt.Fprintln(os.Stderr, "using dry mode, ignore rootPath and metaPath")
 		// rootPath empty fall back to metastore connected state
@@ -157,7 +157,7 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 	}
 
 	cli := kv.NewEtcdKV(etcdCli)
-	kvState := getKVConnectedState(app.core, cli, cp.EtcdAddr, app.config, app.extensions)
+	kvState := getKVConnectedState(app.core, cli, cp.EtcdAddr, app.config, app.extensions, app.objectStoreProvider)
 	if !cp.Dry {
 		// ping etcd
 		ctx, cancel := context.WithTimeout(ctx, time.Second*10)
@@ -173,7 +173,7 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 		fmt.Fprintln(os.Stderr, "Using meta path:", fmt.Sprintf("%s/%s/", cp.RootPath, metaPath))
 
 		// use rootPath as instanceName
-		app.SetTagNext(etcdTag, GetInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config, app.extensions))
+		app.SetTagNext(etcdTag, GetInstanceState(app.core, cli, cp.RootPath, cp.MetaPath, kvState, app.config, app.extensions, app.objectStoreProvider))
 	} else {
 		fmt.Fprintln(os.Stderr, "using dry mode, ignore rootPath and metaPath")
 		// rootPath empty fall back to etcd connected state
@@ -261,11 +261,12 @@ func (app *ApplicationState) getTLSConfig(cp *ConnectParams) (*tls.Config, error
 
 type kvConnectedState struct {
 	*framework.CmdState
-	client     kv.MetaKV
-	addr       string
-	candidates []string
-	config     *configs.Config
-	extensions []Extension
+	client              kv.MetaKV
+	addr                string
+	candidates          []string
+	config              *configs.Config
+	extensions          []Extension
+	objectStoreProvider ObjectStoreProvider
 }
 
 // SetupCommands setups the command.
@@ -277,20 +278,21 @@ func (s *kvConnectedState) SetupCommands() {
 }
 
 // GetKVConnectedState returns kvConnectedState for unknown instance
-func GetKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config, extensions []Extension) framework.State {
+func GetKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config, extensions []Extension, objectStoreProvider ObjectStoreProvider) framework.State {
 	state := &kvConnectedState{
-		CmdState:   parent.Spawn(fmt.Sprintf("MetaStore(%s)", addr)),
-		client:     cli,
-		addr:       addr,
-		config:     config,
-		extensions: extensions,
+		CmdState:            parent.Spawn(fmt.Sprintf("MetaStore(%s)", addr)),
+		client:              cli,
+		addr:                addr,
+		config:              config,
+		extensions:          extensions,
+		objectStoreProvider: objectStoreProvider,
 	}
 
 	return state
 }
 
-func getKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config, extensions []Extension) framework.State {
-	return GetKVConnectedState(parent, cli, addr, config, extensions)
+func getKVConnectedState(parent *framework.CmdState, cli kv.MetaKV, addr string, config *configs.Config, extensions []Extension, objectStoreProvider ObjectStoreProvider) framework.State {
+	return GetKVConnectedState(parent, cli, addr, config, extensions, objectStoreProvider)
 }
 
 type FindMilvusParam struct {
@@ -341,7 +343,7 @@ func (s *kvConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
 
 	fmt.Fprintf(os.Stderr, "Using meta path: %s/%s/\n", p.instanceName, p.MetaPath)
 
-	s.SetNext(etcdTag, GetInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config, s.extensions))
+	s.SetNext(etcdTag, GetInstanceState(s.CmdState, s.client, p.instanceName, p.MetaPath, s, s.config, s.extensions, nil))
 	return nil
 }
 

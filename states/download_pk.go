@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -51,19 +50,15 @@ func (s *InstanceState) DownloadPKCommand(ctx context.Context, p *DownloadPKPara
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
 
-	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, params...)
+	resolvedStore, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		return err
 	}
 
-	return s.downloadPKs(ctx, minioClient, bucketName, rootPath, p.CollectionID, pkField.FieldID, segments, s.writeLogfile)
+	return s.downloadPKs(ctx, resolvedStore.Store, resolvedStore.RootPath, p.CollectionID, pkField.FieldID, segments)
 }
 
-func (s *InstanceState) writeLogfile(ctx context.Context, obj *minio.Object) error {
-	return nil
-}
-
-func (s *InstanceState) downloadPKs(ctx context.Context, cli *minio.Client, bucketName, rootPath string, collID int64, pkID int64, segments []*models.Segment, handler func(context.Context, *minio.Object) error) error {
+func (s *InstanceState) downloadPKs(ctx context.Context, store oss.ObjectStore, rootPath string, collID int64, pkID int64, segments []*models.Segment) error {
 	folder := fmt.Sprintf("dlpks_%s", time.Now().Format("20060102150406"))
 	err := os.Mkdir(folder, 0o777)
 	if err != nil {
@@ -86,10 +81,10 @@ func (s *InstanceState) downloadPKs(ctx context.Context, cli *minio.Client, buck
 			}
 
 			for _, binlog := range fieldBinlog.Binlogs {
-				logPath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
-				obj, err := cli.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
+				logPath := oss.ResolveObjectKey(rootPath, binlog.LogPath)
+				obj, err := store.Open(ctx, logPath)
 				if err != nil {
-					fmt.Println("failed to download file", bucketName, logPath)
+					fmt.Println("failed to download file", logPath)
 					return err
 				}
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/storage"
 )
@@ -49,13 +50,14 @@ func (app *ApplicationState) StorageAnalysisCommand(ctx context.Context, p *Stor
 			fmt.Println("fieldID:", fieldBinlog.FieldID)
 			var size int64
 			for _, binlog := range fieldBinlog.Binlogs {
-				info, err := minio.Stat(ctx, binlog.LogPath)
+				logPath := oss.ResolveObjectKey(minio.RootPath(), binlog.LogPath)
+				info, err := minio.Stat(ctx, logPath)
 				if err != nil {
 					fmt.Println("failed to stats", err.Error())
 					continue
 				}
 				if p.Detail {
-					fmt.Printf("Binlog %s size %s\n", binlog.LogPath, hrSize(info.Size))
+					fmt.Printf("Binlog %s size %s\n", logPath, hrSize(info.Size))
 				}
 				size += info.Size
 			}

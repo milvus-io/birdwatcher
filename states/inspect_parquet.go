@@ -133,16 +133,17 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 	if p.MinioAddress != "" {
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
-	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, params...)
+	resolvedStore, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		return err
 	}
+	rootPath := resolvedStore.RootPath
 
 	if segment.GetStorageVersion() >= 3 {
 		if segment.GetManifestPath() == "" {
 			return errors.Newf("segment %d storage version is %d but got empty manifest", segment.GetID(), segment.GetStorageVersion())
 		}
-		return inspectV3SegmentParquet(ctx, minioClient, bucketName, rootPath, segment, p)
+		return inspectV3SegmentParquet(ctx, resolvedStore.Store, rootPath, segment, p)
 	}
 
 	for _, fieldBinlog := range segment.GetBinlogs() {
@@ -150,9 +151,9 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 			continue
 		}
 		for _, binlog := range fieldBinlog.Binlogs {
-			logPath := strings.ReplaceAll(binlog.LogPath, "ROOT_PATH", rootPath)
+			logPath := oss.ResolveObjectKey(rootPath, binlog.LogPath)
 			fmt.Printf("\n===== Field %d | %s =====\n", fieldBinlog.FieldID, logPath)
-			if err := inspectRemoteBinlog(ctx, minioClient, bucketName, logPath, segment.StorageVersion, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
+			if err := inspectRemoteBinlog(ctx, resolvedStore.Store, logPath, segment.StorageVersion, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
 				fmt.Printf("failed to inspect %s: %s\n", logPath, err.Error())
 			}
 		}
@@ -178,6 +179,7 @@ func (s *InstanceState) inspectExternalCollectionParquet(ctx context.Context, p 
 	if err != nil {
 		return err
 	}
+	externalStore := oss.NewMinioObjectStoreWithBucket(externalMinioClient, externalBucketName)
 
 	fmt.Printf("External Collection %d: name=%s\n", proto.GetID(), proto.GetSchema().GetName())
 	fmt.Printf("External Source: %s\n", proto.GetSchema().GetExternalSource())
@@ -190,20 +192,20 @@ func (s *InstanceState) inspectExternalCollectionParquet(ctx context.Context, p 
 		}
 		fmt.Printf("Mode: external-file\n")
 		fmt.Printf("Object: %s\n", objectKey)
-		return inspectRemoteParquetObject(ctx, externalMinioClient, externalBucketName, objectKey, p.MetadataOnly, p.SampleRows, p.ShowRowGroups)
+		return inspectRemoteParquetObject(ctx, externalStore, objectKey, p.MetadataOnly, p.SampleRows, p.ShowRowGroups)
 	}
 
-	manifestMinioClient, manifestBucketName, manifestRootPath, err := s.GetMinioClientFromCfg(ctx, oss.WithSkipCheckBucket(p.SkipBucketCheck))
+	manifestStore, err := s.GetObjectStore(ctx, oss.WithSkipCheckBucket(p.SkipBucketCheck))
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("Mode: manifest-segment\n")
-	fmt.Printf("Manifest Storage: bucket=%s rootPath=%s\n", manifestBucketName, manifestRootPath)
-	return s.inspectExternalManifestSegmentParquet(ctx, manifestMinioClient, manifestBucketName, manifestRootPath, externalMinioClient, externalBucketName, externalRootPath, location, collection, p)
+	fmt.Printf("Manifest Storage: bucket=%s rootPath=%s\n", manifestStore.BucketName, manifestStore.RootPath)
+	return s.inspectExternalManifestSegmentParquet(ctx, manifestStore.Store, manifestStore.RootPath, externalStore, location, collection, p)
 }
 
-func (s *InstanceState) inspectExternalManifestSegmentParquet(ctx context.Context, manifestMinioClient *minio.Client, manifestBucketName, manifestRootPath string, externalMinioClient *minio.Client, externalBucketName, externalRootPath string, location externalSourceLocation, collection *models.Collection, p *InspectParquetParam) error {
+func (s *InstanceState) inspectExternalManifestSegmentParquet(ctx context.Context, manifestStore oss.ObjectStore, manifestRootPath string, externalStore oss.ObjectStore, location externalSourceLocation, collection *models.Collection, p *InspectParquetParam) error {
 	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(seg *models.Segment) bool {
 		return seg.ID == p.ManifestSegmentID
 	})
@@ -222,11 +224,10 @@ func (s *InstanceState) inspectExternalManifestSegmentParquet(ctx context.Contex
 	}
 
 	fmt.Printf("Manifest Segment: %d\n", segment.GetID())
-	return inspectExternalManifestParquet(ctx, manifestMinioClient, manifestBucketName, manifestRootPath, externalMinioClient, externalBucketName, externalRootPath, location, segment, p)
+	return inspectExternalManifestParquet(ctx, manifestStore, manifestRootPath, externalStore, location, segment, p)
 }
 
-func inspectExternalManifestParquet(ctx context.Context, manifestMinioClient *minio.Client, manifestBucketName, manifestRootPath string, externalMinioClient *minio.Client, externalBucketName, externalRootPath string, location externalSourceLocation, segment *models.Segment, p *InspectParquetParam) error {
-	_ = externalRootPath
+func inspectExternalManifestParquet(ctx context.Context, manifestStore oss.ObjectStore, manifestRootPath string, externalStore oss.ObjectStore, location externalSourceLocation, segment *models.Segment, p *InspectParquetParam) error {
 	rawManifest := segment.GetManifestPath()
 	fmt.Printf("Manifest Raw: %s\n", rawManifest)
 
@@ -238,16 +239,15 @@ func inspectExternalManifestParquet(ctx context.Context, manifestMinioClient *mi
 		return errors.Wrap(err, "parse manifest path JSON")
 	}
 
-	manifestBasePath := strings.ReplaceAll(manifestRef.BasePath, "ROOT_PATH", manifestRootPath)
+	manifestBasePath := oss.ResolveObjectKey(manifestRootPath, manifestRef.BasePath)
 	manifestPath := path.Join(manifestBasePath, "_metadata", fmt.Sprintf("manifest-%d.avro", manifestRef.Ver))
 	fmt.Printf("Manifest File: %s\n", manifestPath)
 
-	obj, err := manifestMinioClient.GetObject(ctx, manifestBucketName, manifestPath, minio.GetObjectOptions{})
+	obj, err := manifestStore.Open(ctx, manifestPath)
 	if err != nil {
 		return errors.Wrap(err, "get manifest object")
 	}
 	m, err := parseManifest(obj)
-	obj.Close()
 	if err != nil {
 		return errors.Wrap(err, "parse manifest")
 	}
@@ -269,7 +269,7 @@ func inspectExternalManifestParquet(ctx context.Context, manifestMinioClient *mi
 				continue
 			}
 			fmt.Printf("\n----- File %s (rows: [%d, %d)) -----\n", filePath, f.StartIndex, f.EndIndex)
-			if err := inspectRemoteParquetObject(ctx, externalMinioClient, externalBucketName, filePath, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
+			if err := inspectRemoteParquetObject(ctx, externalStore, filePath, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
 				fmt.Printf("failed to inspect %s: %s\n", filePath, err.Error())
 			}
 		}
@@ -308,7 +308,7 @@ func resolveExternalManifestObjectKey(location externalSourceLocation, manifestB
 	return path.Join(location.RootPath, trimmed), nil
 }
 
-func inspectV3SegmentParquet(ctx context.Context, minioClient *minio.Client, bucketName, rootPath string, segment *models.Segment, p *InspectParquetParam) error {
+func inspectV3SegmentParquet(ctx context.Context, store oss.ObjectStore, rootPath string, segment *models.Segment, p *InspectParquetParam) error {
 	rawManifest := segment.GetManifestPath()
 	fmt.Printf("Manifest Raw: %s\n", rawManifest)
 
@@ -320,16 +320,15 @@ func inspectV3SegmentParquet(ctx context.Context, minioClient *minio.Client, buc
 		return errors.Wrap(err, "parse manifest path JSON")
 	}
 
-	basePath := strings.ReplaceAll(manifestRef.BasePath, "ROOT_PATH", rootPath)
+	basePath := oss.ResolveObjectKey(rootPath, manifestRef.BasePath)
 	manifestPath := path.Join(basePath, "_metadata", fmt.Sprintf("manifest-%d.avro", manifestRef.Ver))
 	fmt.Printf("Manifest File: %s\n", manifestPath)
 
-	obj, err := minioClient.GetObject(ctx, bucketName, manifestPath, minio.GetObjectOptions{})
+	obj, err := store.Open(ctx, manifestPath)
 	if err != nil {
 		return errors.Wrap(err, "get manifest object")
 	}
 	m, err := parseManifest(obj)
-	obj.Close()
 	if err != nil {
 		return errors.Wrap(err, "parse manifest")
 	}
@@ -345,9 +344,9 @@ func inspectV3SegmentParquet(ctx context.Context, minioClient *minio.Client, buc
 		}
 		fmt.Printf("\n===== Column Group #%d | columns=%v format=%s =====\n", i, cg.Columns, cg.Format)
 		for _, f := range cg.Files {
-			filePath := path.Join(basePath, "_data", strings.ReplaceAll(f.Path, "ROOT_PATH", rootPath))
+			filePath := path.Join(basePath, "_data", oss.ResolveObjectKey(rootPath, f.Path))
 			fmt.Printf("\n----- File %s (rows: [%d, %d)) -----\n", filePath, f.StartIndex, f.EndIndex)
-			if err := inspectRemoteBinlog(ctx, minioClient, bucketName, filePath, 2, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
+			if err := inspectRemoteBinlog(ctx, store, filePath, 2, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
 				fmt.Printf("failed to inspect %s: %s\n", filePath, err.Error())
 			}
 		}
@@ -355,12 +354,14 @@ func inspectV3SegmentParquet(ctx context.Context, minioClient *minio.Client, buc
 	return nil
 }
 
-func inspectRemoteParquetObject(ctx context.Context, minioClient *minio.Client, bucketName, objectKey string, metadataOnly bool, sampleRows int64, showRowGroups bool) error {
-	obj, err := minioClient.GetObject(ctx, bucketName, objectKey, minio.GetObjectOptions{})
+func inspectRemoteParquetObject(ctx context.Context, store oss.ObjectStore, objectKey string, metadataOnly bool, sampleRows int64, showRowGroups bool) error {
+	obj, err := store.Open(ctx, objectKey)
 	if err != nil {
 		return err
 	}
-	defer obj.Close()
+	if closer, ok := obj.(interface{ Close() error }); ok {
+		defer closer.Close()
+	}
 
 	pqReader, err := file.NewParquetReader(obj)
 	if err != nil {
@@ -371,12 +372,11 @@ func inspectRemoteParquetObject(ctx context.Context, minioClient *minio.Client, 
 	return printParquetFile(ctx, pqReader, path.Base(objectKey), metadataOnly, sampleRows, showRowGroups)
 }
 
-func inspectRemoteBinlog(ctx context.Context, minioClient *minio.Client, bucketName, logPath string, storageVersion int64, metadataOnly bool, sampleRows int64, showRowGroups bool) error {
-	obj, err := minioClient.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
+func inspectRemoteBinlog(ctx context.Context, store oss.ObjectStore, logPath string, storageVersion int64, metadataOnly bool, sampleRows int64, showRowGroups bool) error {
+	obj, err := store.Open(ctx, logPath)
 	if err != nil {
 		return err
 	}
-	defer obj.Close()
 
 	pqReader, err := openBinlogParquet(obj, storageVersion)
 	if err != nil {

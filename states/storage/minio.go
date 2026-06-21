@@ -6,8 +6,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/minio/minio-go/v7"
-
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/autocomplete"
@@ -17,8 +15,9 @@ type OSSState struct {
 	*framework.CmdState
 
 	connectParam oss.MinioClientParam
-	client       *oss.MinioClient
+	store        oss.ObjectStore
 	bucket       string
+	rootPath     string
 	prefix       string
 }
 
@@ -43,6 +42,10 @@ func (s *OSSState) Label() string {
 
 func (s *OSSState) Close() {
 	autocomplete.UnregisterValueSuggester(minioPathSuggester)
+}
+
+func (s *OSSState) RootPath() string {
+	return s.rootPath
 }
 
 func (s *OSSState) suggestPaths(partial string) []string {
@@ -84,10 +87,10 @@ func (s *OSSState) suggestPaths(partial string) []string {
 	ctx, cancel := s.Ctx()
 	defer cancel()
 
-	ch := s.client.Client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{
-		Prefix:    listPrefix,
-		Recursive: false,
-	})
+	ch, err := s.store.List(ctx, listPrefix, false)
+	if err != nil {
+		return nil
+	}
 
 	var results []string
 	for info := range ch {
@@ -144,10 +147,11 @@ func ConnectOSS(ctx context.Context, p *ConnectOSSParam, parent *framework.CmdSt
 	}
 
 	return &OSSState{
-		client:       mClient,
+		store:        oss.NewMinioObjectStore(mClient),
 		bucket:       p.Bucket,
+		rootPath:     mp.RootPath,
 		connectParam: mp,
-		prefix:       mp.RootPath, // set current dir to rootPath if provided
+		prefix:       mp.RootPath,
 		CmdState:     parent.Spawn(fmt.Sprintf("OSS[%s](%s/%s)", p.CloudProvider, p.Bucket, p.RootPath)),
 	}, nil
 }

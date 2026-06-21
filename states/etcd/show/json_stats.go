@@ -10,10 +10,10 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/apache/arrow/go/v17/parquet/file"
 	"github.com/apache/arrow/go/v17/parquet/pqarrow"
-	"github.com/minio/minio-go/v7"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/ossutil"
 )
@@ -55,17 +55,14 @@ func (c *ComponentShow) JSONStatsCommand(ctx context.Context, p *JSONStatsParam)
 	var notBuiltSegIDs []int64
 
 	var (
-		mclient    *minio.Client
-		bucketName string
-		rootPath   string
-		ossReady   bool
+		store    oss.ObjectStore
+		rootPath string
+		ossReady bool
 	)
 
 	for _, seg := range segments {
-		// only segments matching the high-level filters are considered
 		total++
 
-		// determine built status according to field filter
 		builtForSegment := false
 		if p.FieldID != 0 {
 			if seg.JsonKeyStats != nil {
@@ -73,10 +70,8 @@ func (c *ComponentShow) JSONStatsCommand(ctx context.Context, p *JSONStatsParam)
 					builtForSegment = true
 				}
 			}
-		} else {
-			if len(seg.JsonKeyStats) > 0 {
-				builtForSegment = true
-			}
+		} else if len(seg.JsonKeyStats) > 0 {
+			builtForSegment = true
 		}
 
 		if !builtForSegment {
@@ -85,7 +80,6 @@ func (c *ComponentShow) JSONStatsCommand(ctx context.Context, p *JSONStatsParam)
 		}
 
 		built++
-
 		printedHeader := false
 		for fieldID, keyStats := range seg.JsonKeyStats {
 			if p.FieldID != 0 && p.FieldID != fieldID {
@@ -95,66 +89,57 @@ func (c *ComponentShow) JSONStatsCommand(ctx context.Context, p *JSONStatsParam)
 				fmt.Printf("Segment %d (Collection %d, Partition %d) JsonKeyStats:\n", seg.ID, seg.CollectionID, seg.PartitionID)
 				printedHeader = true
 			}
-			if p.Detail {
-				fmt.Printf("  field[%d]: version=%d files=%d mem=%d build=%d format=%d\n",
-					fieldID,
-					keyStats.GetVersion(),
-					len(keyStats.GetFiles()),
-					keyStats.GetMemorySize(),
-					keyStats.GetBuildID(),
-					keyStats.GetJsonKeyStatsDataFormat(),
-				)
-				shreddingPath := fmt.Sprintf("ROOT_PATH/json_stats/%d/%d/%d/%d/%d/%d/%d/shredding_data/0/0",
-					keyStats.GetJsonKeyStatsDataFormat(),
-					keyStats.GetBuildID(),
-					keyStats.GetVersion(),
-					seg.CollectionID,
-					seg.PartitionID,
-					seg.ID,
-					fieldID)
-				if !ossReady {
-					cli, bucket, root, err := ossutil.GetMinioClientFromCfg(ctx, c.client, c.metaPath)
-					if err != nil {
-						fmt.Printf("      [s3] skip reading (init error): %s\n", err.Error())
-					} else {
-						mclient, bucketName, rootPath = cli, bucket, root
-						ossReady = true
-					}
+
+			fmt.Printf("  field[%d]: version=%d files=%d mem=%d build=%d format=%d\n",
+				fieldID,
+				keyStats.GetVersion(),
+				len(keyStats.GetFiles()),
+				keyStats.GetMemorySize(),
+				keyStats.GetBuildID(),
+				keyStats.GetJsonKeyStatsDataFormat(),
+			)
+			if !p.Detail {
+				continue
+			}
+
+			shreddingPath := fmt.Sprintf("ROOT_PATH/json_stats/%d/%d/%d/%d/%d/%d/%d/shredding_data/0/0",
+				keyStats.GetJsonKeyStatsDataFormat(),
+				keyStats.GetBuildID(),
+				keyStats.GetVersion(),
+				seg.CollectionID,
+				seg.PartitionID,
+				seg.ID,
+				fieldID)
+			if !ossReady {
+				resolvedStore, err := ossutil.GetObjectStoreFromCfg(ctx, c.client, c.metaPath)
+				if err != nil {
+					fmt.Printf("      [s3] skip reading (init error): %s\n", err.Error())
+				} else {
+					store, rootPath = resolvedStore.Store, resolvedStore.RootPath
+					ossReady = true
 				}
-				if ossReady {
-					objKey := strings.ReplaceAll(shreddingPath, "ROOT_PATH", rootPath)
-					// Try reading meta.json first (new format)
-					// meta.json path: ROOT_PATH/json_stats/%d/%d/%d/%d/%d/%d/%d/meta.json
-					metaPath := fmt.Sprintf("ROOT_PATH/json_stats/%d/%d/%d/%d/%d/%d/%d/meta.json",
-						keyStats.GetJsonKeyStatsDataFormat(),
-						keyStats.GetBuildID(),
-						keyStats.GetVersion(),
-						seg.CollectionID,
-						seg.PartitionID,
-						seg.ID,
-						fieldID)
-					metaKey := strings.ReplaceAll(metaPath, "ROOT_PATH", rootPath)
-					if !readJSONMeta(ctx, mclient, bucketName, metaKey, p) {
-						// parquet footer summary
-						readParquetFooterSummary(ctx, mclient, bucketName, objKey)
-						// Fall back to reading from parquet metadata (old format)
-						readParquetMeta(ctx, mclient, bucketName, objKey, p)
-					}
-				}
-			} else {
-				fmt.Printf("  field[%d]: version=%d files=%d mem=%d build=%d format=%d\n",
-					fieldID,
-					keyStats.GetVersion(),
-					len(keyStats.GetFiles()),
-					keyStats.GetMemorySize(),
-					keyStats.GetBuildID(),
-					keyStats.GetJsonKeyStatsDataFormat(),
-				)
+			}
+			if !ossReady {
+				continue
+			}
+
+			objKey := oss.ResolveObjectKey(rootPath, shreddingPath)
+			metaPath := fmt.Sprintf("ROOT_PATH/json_stats/%d/%d/%d/%d/%d/%d/%d/meta.json",
+				keyStats.GetJsonKeyStatsDataFormat(),
+				keyStats.GetBuildID(),
+				keyStats.GetVersion(),
+				seg.CollectionID,
+				seg.PartitionID,
+				seg.ID,
+				fieldID)
+			metaKey := oss.ResolveObjectKey(rootPath, metaPath)
+			if !readJSONMeta(ctx, store, metaKey, p) {
+				readParquetFooterSummary(ctx, store, objKey)
+				readParquetMeta(ctx, store, objKey, p)
 			}
 		}
 	}
 
-	// summary
 	if total > 0 {
 		percent := float64(built) * 100.0 / float64(total)
 		fmt.Printf("\n--- JsonKeyStats built: %d/%d (%.2f%%)\n", built, total, percent)
@@ -167,45 +152,30 @@ func (c *ComponentShow) JSONStatsCommand(ctx context.Context, p *JSONStatsParam)
 }
 
 // readParquetFooterSummary reads last 8 bytes of parquet to show metadata length and magic
-func readParquetFooterSummary(ctx context.Context, client *minio.Client, bucket, key string) {
-	// Try stat on the exact key first
-	stat, err := client.StatObject(ctx, bucket, key, minio.StatObjectOptions{})
-	if err != nil || stat.Size < 8 {
-		// Treat as prefix, list first object under it
-		prefix := key
-		if !strings.HasSuffix(prefix, "/") {
-			prefix += "/"
-		}
-		ch := client.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true})
-		objInfo, ok := <-ch
-		if !ok || objInfo.Err != nil {
-			fmt.Printf("      [parquet] stat failed: %v, key=%s\n", err, key)
-			return
-		}
-		key = objInfo.Key
-		stat.Size = objInfo.Size
-		fmt.Printf("      [parquet] using first object under prefix: %s\n", key)
-		if stat.Size < 8 {
-			fmt.Printf("      [parquet] file too small for footer, size=%d, key=%s\n", stat.Size, key)
-			return
-		}
+func readParquetFooterSummary(ctx context.Context, store oss.ObjectStore, key string) {
+	key, size, err := resolveParquetKey(ctx, store, key)
+	if err != nil {
+		fmt.Printf("      [parquet] stat failed: %v, key=%s\n", err, key)
+		return
 	}
-	// read last 8 bytes: <metadata_len uint32 little-endian><'PAR1'>
-	opts := minio.GetObjectOptions{}
-	opts.SetRange(stat.Size-8, stat.Size-1)
-	obj, err := client.GetObject(ctx, bucket, key, opts)
+	if size < 8 {
+		fmt.Printf("      [parquet] file too small for footer, size=%d, key=%s\n", size, key)
+		return
+	}
+	obj, err := store.Open(ctx, key, oss.WithOpenRange(size-8, size-1))
 	if err != nil {
 		fmt.Printf("      [parquet] read footer failed: %s, key=%s\n", err.Error(), key)
 		return
 	}
-	defer obj.Close()
+	if closer, ok := obj.(io.Closer); ok {
+		defer closer.Close()
+	}
 	buf := make([]byte, 8)
 	n, err := io.ReadFull(obj, buf)
 	if n != 8 {
 		fmt.Printf("      [parquet] read footer bytes failed: %v, n=%d, key=%s\n", err, n, key)
 		return
 	}
-	// io.ReadFull returns EOF when exactly filled; accept it
 	magic := string(buf[4:8])
 	metaLen := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24
 	fmt.Printf("      [parquet] footer: meta_len=%d magic=%s, key=%s\n", metaLen, magic, key)
@@ -220,12 +190,14 @@ type jsonStatsMeta struct {
 }
 
 // readJSONMeta reads the meta.json file from S3 and prints layout information
-func readJSONMeta(ctx context.Context, client *minio.Client, bucket, metaKey string, p *JSONStatsParam) bool {
-	obj, err := client.GetObject(ctx, bucket, metaKey, minio.GetObjectOptions{})
+func readJSONMeta(ctx context.Context, store oss.ObjectStore, metaKey string, p *JSONStatsParam) bool {
+	obj, err := store.Open(ctx, metaKey)
 	if err != nil {
 		return false
 	}
-	defer obj.Close()
+	if closer, ok := obj.(io.Closer); ok {
+		defer closer.Close()
+	}
 
 	data, err := io.ReadAll(obj)
 	if err != nil {
@@ -252,7 +224,6 @@ func readJSONMeta(ctx context.Context, client *minio.Client, bucket, metaKey str
 func printLayoutTypeMap(mm map[string]string, p *JSONStatsParam) {
 	var nonSharedKeys []string
 	sharedCount := 0
-	// separate shared and non-shared keys
 	for k, val := range mm {
 		if p.KeyPrefix != "" && !strings.HasPrefix(k, p.KeyPrefix) {
 			continue
@@ -264,7 +235,6 @@ func printLayoutTypeMap(mm map[string]string, p *JSONStatsParam) {
 		}
 	}
 
-	// print shared keys if enabled
 	if p.PrintShared {
 		fmt.Printf("        shared keys: ")
 		first := true
@@ -286,7 +256,6 @@ func printLayoutTypeMap(mm map[string]string, p *JSONStatsParam) {
 			fmt.Println("(none)")
 		}
 	}
-	// print non-shared keys in one line
 	if len(nonSharedKeys) > 0 {
 		fmt.Printf("        non-shared keys: %s\n", strings.Join(nonSharedKeys, ", "))
 	}
@@ -295,11 +264,14 @@ func printLayoutTypeMap(mm map[string]string, p *JSONStatsParam) {
 		sharedCount, len(nonSharedKeys), totalCount)
 }
 
-func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key string, p *JSONStatsParam) {
-	obj, err := client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
+func readParquetMeta(ctx context.Context, store oss.ObjectStore, key string, p *JSONStatsParam) {
+	obj, err := store.Open(ctx, key)
 	if err != nil {
 		fmt.Printf("      [parquet] get object failed: %s, key=%s\n", err.Error(), key)
 		return
+	}
+	if closer, ok := obj.(io.Closer); ok {
+		defer closer.Close()
 	}
 	pqReader, err := file.NewParquetReader(obj)
 	if err != nil {
@@ -309,11 +281,10 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 
 	arrReader, err := pqarrow.NewFileReader(pqReader, pqarrow.ArrowReadProperties{BatchSize: 1024}, memory.DefaultAllocator)
 	if err != nil {
-		fmt.Printf("      [parquet] open pq	 file reader failed: %s, key=%s\n", err.Error(), key)
+		fmt.Printf("      [parquet] open pq\t file reader failed: %s, key=%s\n", err.Error(), key)
 		return
 	}
 
-	// Print schema elements
 	if p.ShowSchema {
 		schema, err := arrReader.Schema()
 		if err != nil {
@@ -329,18 +300,14 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 	}
 
 	kvMetaData := pqReader.MetaData().KeyValueMetadata()
-
-	// Print all metadata keys and values (except key_layout_type_map which is handled separately)
 	if kvMetaData != nil && kvMetaData.Len() > 0 {
 		fmt.Printf("      [parquet] metadata entries: %d\n", kvMetaData.Len())
 		for i := 0; i < kvMetaData.Len(); i++ {
 			key := kvMetaData.Keys()[i]
 			val := kvMetaData.Values()[i]
-			// Skip key_layout_type_map as it's processed separately below
 			if key == "key_layout_type_map" {
 				continue
 			}
-			// Special handling: row_group_metadata -> count groups by ';'
 			if key == "row_group_metadata" {
 				parts := strings.Split(val, ";")
 				cnt := 0
@@ -365,4 +332,31 @@ func readParquetMeta(ctx context.Context, client *minio.Client, bucket, key stri
 		}
 		printLayoutTypeMap(mm, p)
 	}
+}
+
+func resolveParquetKey(ctx context.Context, store oss.ObjectStore, key string) (string, int64, error) {
+	stat, err := store.Stat(ctx, key)
+	if err == nil {
+		return key, stat.Size, nil
+	}
+
+	prefix := key
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	ch, listErr := store.List(ctx, prefix, true)
+	if listErr != nil {
+		return key, 0, err
+	}
+	for objInfo := range ch {
+		if objInfo.Err != nil {
+			return key, 0, objInfo.Err
+		}
+		if objInfo.IsDir {
+			continue
+		}
+		fmt.Printf("      [parquet] using first object under prefix: %s\n", objInfo.Key)
+		return objInfo.Key, objInfo.Size, nil
+	}
+	return key, 0, err
 }

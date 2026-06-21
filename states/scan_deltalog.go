@@ -8,7 +8,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/expr-lang/expr"
-	"github.com/minio/minio-go/v7"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -78,11 +77,12 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
 
-	minioClient, bucketName, rootPath, err := s.GetMinioClientFromCfg(ctx, params...)
+	resolvedStore, err := s.GetObjectStore(ctx, params...)
 	if err != nil {
 		fmt.Println("Failed to create client,", err.Error())
 		return err
 	}
+	rootPath := resolvedStore.RootPath
 
 	fmt.Printf("=== start to execute \"%s\" task with filter expresion: \"%s\" ===\n", p.Action, p.Expr)
 
@@ -107,9 +107,9 @@ func (s *InstanceState) ScanDeltalogCommand(ctx context.Context, p *ScanDeltalog
 		}
 	}
 
-	getObject := func(binlogPath string) (*minio.Object, error) {
-		logPath := strings.ReplaceAll(binlogPath, "ROOT_PATH", rootPath)
-		return minioClient.GetObject(ctx, bucketName, logPath, minio.GetObjectOptions{})
+	getObject := func(binlogPath string) (storagecommon.ReadSeeker, error) {
+		logPath := oss.ResolveObjectKey(rootPath, binlogPath)
+		return resolvedStore.Store.Open(ctx, logPath)
 	}
 	for _, segment := range segments {
 		for _, fieldBinlogs := range segment.GetDeltalogs() {

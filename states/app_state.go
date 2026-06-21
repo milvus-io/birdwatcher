@@ -26,7 +26,8 @@ type ApplicationState struct {
 	// config stores configuration items
 	config *configs.Config
 
-	extensions []Extension
+	extensions          []Extension
+	objectStoreProvider ObjectStoreProvider
 }
 
 func (app *ApplicationState) Ctx() (context.Context, context.CancelFunc) {
@@ -115,6 +116,7 @@ func (app *ApplicationState) SetupCommands() {
 	cmd := app.core.GetCmd()
 
 	app.core.UpdateState(cmd, app, app.SetupCommands)
+	app.objectStoreProvider = resolveObjectStoreProvider(app.objectStoreProvider, app.extensions)
 	for _, ext := range app.extensions {
 		provider, ok := ext.(ApplicationFunctionCommandProvider)
 		if !ok {

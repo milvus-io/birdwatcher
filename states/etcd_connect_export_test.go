@@ -15,7 +15,7 @@ func TestGetKVConnectedStateReturnsMetastoreState(t *testing.T) {
 	core := framework.NewCmdState("[core]", config)
 	client := metakv.NewFileAuditKV(nil, nil)
 
-	state := GetKVConnectedState(core, client, "scout:2379", config, nil)
+	state := GetKVConnectedState(core, client, "scout:2379", config, nil, nil)
 	require.NotNil(t, state)
 	require.Contains(t, state.Label(), "MetaStore(scout:2379)")
 }
