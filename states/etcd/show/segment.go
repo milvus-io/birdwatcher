@@ -25,6 +25,7 @@ type SegmentParam struct {
 	Detail              bool   `name:"detail" default:"false" desc:"flags indicating whether printing detail binlog info"`
 	State               string `name:"state" default:"" desc:"target segment state"`
 	Level               string `name:"level" default:"" desc:"target segment level"`
+	StorageVersion      int64  `name:"storageVersion" default:"-1" desc:"segment storage version to filter (0/1=v1, 2=v2), -1 for all"`
 }
 
 type segStats struct {
@@ -46,7 +47,8 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			(p.PartitionID == 0 || segment.PartitionID == p.PartitionID) &&
 			(p.SegmentID == 0 || segment.ID == p.SegmentID) &&
 			(p.State == "" || strings.EqualFold(segment.State.String(), p.State)) &&
-			(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level))
+			(p.Level == "" || strings.EqualFold(segment.Level.String(), p.Level)) &&
+			(p.StorageVersion == -1 || segment.GetStorageVersion() == p.StorageVersion)
 	})
 	if err != nil {
 		fmt.Println("failed to list segments", err.Error())
@@ -59,6 +61,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 	var growing, sealed, flushed, dropped int
 	var small, other int
 	var smallCnt, otherCnt int64
+	storageVersionCount := make(map[int64]int)
 
 	collectionID2SegStats := make(map[int64]*segStats)
 	collectionID2Segments := lo.GroupBy(segments, func(s *models.Segment) int64 {
@@ -77,6 +80,7 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 			if info.State != commonpb.SegmentState_Dropped {
 				totalRC += info.NumOfRows
 				healthy++
+				storageVersionCount[info.GetStorageVersion()]++
 			}
 			switch info.State {
 			case commonpb.SegmentState_Growing:
@@ -142,6 +146,12 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
 	fmt.Printf("--- Small Segments: %d, row count: %d\t Other Segments: %d, row count: %d\n", small, smallCnt, other, otherCnt)
 	fmt.Printf("--- Total Segments: %d, row count: %d\n", healthy, totalRC)
+
+	storageVersions := lo.Keys(storageVersionCount)
+	sort.Slice(storageVersions, func(i, j int) bool { return storageVersions[i] < storageVersions[j] })
+	for _, v := range storageVersions {
+		fmt.Printf("--- StorageVersion %d: %d segments\n", v, storageVersionCount[v])
+	}
 	return nil
 }
 
