@@ -121,12 +121,13 @@ func (rs *Segments) printAsJSON() string {
 	}
 
 	type SummaryJSON struct {
-		Growing      int   `json:"growing"`
-		Sealed       int   `json:"sealed"`
-		Flushed      int   `json:"flushed"`
-		Dropped      int   `json:"dropped"`
-		TotalHealthy int   `json:"total_healthy"`
-		TotalRows    int64 `json:"total_rows"`
+		Growing              int           `json:"growing"`
+		Sealed               int           `json:"sealed"`
+		Flushed              int           `json:"flushed"`
+		Dropped              int           `json:"dropped"`
+		TotalHealthy         int           `json:"total_healthy"`
+		TotalRows            int64         `json:"total_rows"`
+		StorageVersionCounts map[int64]int `json:"storage_version_counts"`
 	}
 
 	type OutputJSON struct {
@@ -136,6 +137,7 @@ func (rs *Segments) printAsJSON() string {
 
 	var growing, sealed, flushed, dropped, healthy int
 	var totalRC int64
+	storageVersionCount := make(map[int64]int)
 
 	output := OutputJSON{
 		Segments: make([]SegmentJSON, 0, len(rs.segments)),
@@ -145,6 +147,7 @@ func (rs *Segments) printAsJSON() string {
 		if info.State != commonpb.SegmentState_Dropped {
 			totalRC += info.NumOfRows
 			healthy++
+			storageVersionCount[info.GetStorageVersion()]++
 		}
 		switch info.State {
 		case commonpb.SegmentState_Growing:
@@ -172,12 +175,13 @@ func (rs *Segments) printAsJSON() string {
 	}
 
 	output.Summary = SummaryJSON{
-		Growing:      growing,
-		Sealed:       sealed,
-		Flushed:      flushed,
-		Dropped:      dropped,
-		TotalHealthy: healthy,
-		TotalRows:    totalRC,
+		Growing:              growing,
+		Sealed:               sealed,
+		Flushed:              flushed,
+		Dropped:              dropped,
+		TotalHealthy:         healthy,
+		TotalRows:            totalRC,
+		StorageVersionCounts: storageVersionCount,
 	}
 
 	return framework.MarshalJSON(output)
@@ -192,6 +196,7 @@ func (rs *Segments) printDefault() string {
 	var growing, sealed, flushed, dropped int
 	var small, other int
 	var smallCnt, otherCnt int64
+	storageVersionCount := make(map[int64]int)
 
 	collectionID2SegStats := make(map[int64]*segStats)
 	collectionID2Segments := lo.GroupBy(rs.segments, func(s *models.Segment) int64 {
@@ -209,6 +214,7 @@ func (rs *Segments) printDefault() string {
 			if info.State != commonpb.SegmentState_Dropped {
 				totalRC += info.NumOfRows
 				healthy++
+				storageVersionCount[info.GetStorageVersion()]++
 			}
 			switch info.State {
 			case commonpb.SegmentState_Growing:
@@ -273,6 +279,12 @@ func (rs *Segments) printDefault() string {
 	fmt.Fprintf(sb, "--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
 	fmt.Fprintf(sb, "--- Small Segments: %d, row count: %d\t Other Segments: %d, row count: %d\n", small, smallCnt, other, otherCnt)
 	fmt.Fprintf(sb, "--- Total Segments: %d, row count: %d\n", healthy, totalRC)
+
+	storageVersions := lo.Keys(storageVersionCount)
+	sort.Slice(storageVersions, func(i, j int) bool { return storageVersions[i] < storageVersions[j] })
+	for _, v := range storageVersions {
+		fmt.Fprintf(sb, "--- StorageVersion %d: %d segments\n", v, storageVersionCount[v])
+	}
 	return sb.String()
 }
 
