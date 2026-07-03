@@ -19,13 +19,18 @@ import (
 type RepairL0SegmentPartitionParam struct {
 	framework.ExecutionParam `use:"repair l0-segment-partition" desc:"repair L0 segment meta whose partition id is 0"`
 
-	Collection      int64 `name:"collection" default:"0" desc:"collection id to filter with"`
-	Segment         int64 `name:"segment" default:"0" desc:"segment id to filter with"`
-	TargetPartition int64 `name:"targetPartition" default:"-1" desc:"target partition id to write into segment meta"`
+	Collection      int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	Segment         int64  `name:"segment" default:"0" desc:"segment id to filter with"`
+	TargetPartition int64  `name:"targetPartition" default:"-1" desc:"target partition id to write into segment meta"`
+	SegmentFile     string `name:"segmentFile" default:"" desc:"file containing segment ids to rollback"`
+	Rollback        bool   `name:"rollback" default:"false" desc:"rollback specified L0 segments to partition 0"`
 }
 
 // RepairL0SegmentPartitionCommand repairs dirty L0 segment metadata whose partition id is 0.
 func (c *ComponentRepair) RepairL0SegmentPartitionCommand(ctx context.Context, p *RepairL0SegmentPartitionParam) error {
+	if p.Rollback {
+		return c.rollbackL0SegmentPartition(ctx, p)
+	}
 	if p.TargetPartition == 0 {
 		return fmt.Errorf("target partition must not be 0")
 	}
@@ -61,6 +66,69 @@ func (c *ComponentRepair) RepairL0SegmentPartitionCommand(ctx context.Context, p
 		fmt.Printf("dry run L0 segment partition repair, total count: %d\n", len(segments))
 	} else {
 		fmt.Printf("repair L0 segment partition done, total count: %d\n", repaired)
+	}
+	return nil
+}
+
+func (c *ComponentRepair) rollbackL0SegmentPartition(ctx context.Context, p *RepairL0SegmentPartitionParam) error {
+	if p.SegmentFile == "" {
+		return fmt.Errorf("segmentFile is required for rollback")
+	}
+	segmentIDs, err := readSegmentIDFile(p.SegmentFile)
+	if err != nil {
+		return err
+	}
+	if len(segmentIDs) == 0 {
+		return fmt.Errorf("no segment ids found in %s", p.SegmentFile)
+	}
+
+	segments, err := common.ListSegmentsBy(ctx, c.client, c.basePath, common.SegmentSelector{
+		CollectionID: p.Collection,
+		Filters: []common.PostFilter[models.Segment]{
+			func(segment *models.Segment) bool {
+				if segment.GetLevel() != datapb.SegmentLevel_L0 {
+					return false
+				}
+				_, ok := segmentIDs[segment.GetID()]
+				return ok
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list L0 segments from file %s: %w", p.SegmentFile, err)
+	}
+	found := make(map[int64]struct{}, len(segments))
+	for _, segment := range segments {
+		found[segment.GetID()] = struct{}{}
+	}
+	if missing := missingIDs(segmentIDs, found); len(missing) > 0 {
+		return fmt.Errorf("L0 segment ids not found: %s", formatIDs(missing))
+	}
+
+	rolledBack := 0
+	skipped := 0
+	for _, segment := range segments {
+		if segment.GetPartitionID() == 0 {
+			fmt.Printf("skip L0 segment partition rollback: collectionID=%d segmentID=%d partitionID=0\n",
+				segment.GetCollectionID(), segment.GetID())
+			skipped++
+			continue
+		}
+		fmt.Printf("rollback L0 segment partition: collectionID=%d segmentID=%d oldPartitionID=%d targetPartitionID=0\n",
+			segment.GetCollectionID(), segment.GetID(), segment.GetPartitionID())
+		if !p.Run {
+			continue
+		}
+		if err := repairL0SegmentPartition(ctx, c.client, c.basePath, segment, 0); err != nil {
+			return err
+		}
+		rolledBack++
+	}
+
+	if !p.Run {
+		fmt.Printf("dry run L0 segment partition rollback, total count: %d, skipped: %d\n", len(segments)-skipped, skipped)
+	} else {
+		fmt.Printf("rollback L0 segment partition done, total count: %d, skipped: %d\n", rolledBack, skipped)
 	}
 	return nil
 }

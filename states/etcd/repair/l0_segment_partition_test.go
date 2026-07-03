@@ -2,6 +2,7 @@ package repair
 
 import (
 	"context"
+	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -174,6 +175,50 @@ func TestRepairL0SegmentPartitionAllowsCustomTargetPartition(t *testing.T) {
 	require.Contains(t, cli.data, segmentMetaKey(basePath, 100, 99, 10))
 }
 
+func TestRepairL0SegmentPartitionRollbackBySegmentFile(t *testing.T) {
+	ctx := context.Background()
+	basePath := "test-root/meta"
+	segmentFile := writeSegmentIDFile(t, "10\n")
+	cli := newL0SegmentRepairKV(t, basePath,
+		&datapb.SegmentInfo{
+			ID:           10,
+			CollectionID: 100,
+			PartitionID:  -1,
+			Level:        datapb.SegmentLevel_L0,
+		},
+		&datapb.SegmentInfo{
+			ID:           11,
+			CollectionID: 100,
+			PartitionID:  -1,
+			Level:        datapb.SegmentLevel_L0,
+		},
+	)
+	oldDeltaKey := path.Join(basePath, common.DCPrefix, "deltalog", "100", "-1", "10", "101")
+	newDeltaKey := path.Join(basePath, common.DCPrefix, "deltalog", "100", "0", "10", "101")
+	cli.data[oldDeltaKey] = "deltalog-value"
+
+	comp := &ComponentRepair{client: cli, basePath: basePath}
+	err := comp.RepairL0SegmentPartitionCommand(ctx, &RepairL0SegmentPartitionParam{
+		ExecutionParam: framework.ExecutionParam{Run: true},
+		Collection:     100,
+		SegmentFile:    segmentFile,
+		Rollback:       true,
+	})
+	require.NoError(t, err)
+
+	require.NotContains(t, cli.data, segmentMetaKey(basePath, 100, -1, 10))
+	require.Contains(t, cli.data, segmentMetaKey(basePath, 100, 0, 10))
+	require.NotContains(t, cli.data, oldDeltaKey)
+	require.Equal(t, "deltalog-value", cli.data[newDeltaKey])
+
+	patched := &datapb.SegmentInfo{}
+	require.NoError(t, proto.Unmarshal([]byte(cli.data[segmentMetaKey(basePath, 100, 0, 10)]), patched))
+	require.EqualValues(t, 0, patched.GetPartitionID())
+
+	require.Contains(t, cli.data, segmentMetaKey(basePath, 100, -1, 11))
+	require.NotContains(t, cli.data, segmentMetaKey(basePath, 100, 0, 11))
+}
+
 func newL0SegmentRepairKV(t *testing.T, basePath string, segments ...*datapb.SegmentInfo) *l0SegmentRepairKV {
 	t.Helper()
 
@@ -193,4 +238,12 @@ func segmentMetaKey(basePath string, collectionID, partitionID, segmentID int64)
 
 func formatInt64(v int64) string {
 	return strconv.FormatInt(v, 10)
+}
+
+func writeSegmentIDFile(t *testing.T, content string) string {
+	t.Helper()
+
+	file := path.Join(t.TempDir(), "segments.txt")
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+	return file
 }
