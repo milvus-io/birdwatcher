@@ -16,7 +16,6 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/birdwatcher/states/ossutil"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
@@ -75,7 +74,7 @@ func (c *ComponentRepair) RepairL0DeltalogObjectCommand(ctx context.Context, p *
 	if p.MinioAddress != "" {
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
 	}
-	resolvedStore, err := ossutil.GetObjectStoreFromCfg(ctx, c.client, c.basePath, params...)
+	resolvedStore, err := c.getObjectStore(ctx, params...)
 	if err != nil {
 		return err
 	}

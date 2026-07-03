@@ -48,6 +48,14 @@ func (s *OSSState) RootPath() string {
 	return s.rootPath
 }
 
+func (s *OSSState) ResolvedObjectStore() *oss.ResolvedObjectStore {
+	return &oss.ResolvedObjectStore{
+		Store:      s.store,
+		BucketName: s.bucket,
+		RootPath:   s.rootPath,
+	}
+}
+
 func (s *OSSState) suggestPaths(partial string) []string {
 	var listPrefix string
 	var filterPart string

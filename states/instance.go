@@ -179,7 +179,6 @@ func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		CmdState:        parent.Spawn(fmt.Sprintf("Milvus(%s)", instanceName)),
 		ComponentShow:   show.NewComponent(cli, config, instanceName, metaPath),
 		ComponentRemove: remove.NewComponent(cli, config, instanceName, metaPath),
-		ComponentRepair: repair.NewComponent(cli, config, basePath),
 		ComponentSet:    set.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
 		metaPath:        metaPath,
@@ -192,6 +191,7 @@ func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		extensions:          extensions,
 		objectStoreProvider: objectStoreProvider,
 	}
+	state.ComponentRepair = repair.NewComponent(cli, config, basePath, state.GetObjectStore)
 
 	return state
 }
