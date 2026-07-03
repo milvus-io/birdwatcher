@@ -2,7 +2,6 @@ package repair
 
 import (
 	"context"
-	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -12,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/states/kv"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
@@ -99,10 +98,8 @@ func TestRepairL0SegmentPartitionDryRunDoesNotMoveMeta(t *testing.T) {
 	)
 	oldKey := segmentMetaKey(basePath, 100, 0, 10)
 
-	comp := &ComponentRepair{client: cli, basePath: basePath}
-	err := comp.RepairL0SegmentPartitionCommand(ctx, &RepairL0SegmentPartitionParam{
-		TargetPartition: -1,
-	})
+	segments := listDirtyL0Segments(t, ctx, cli, basePath)
+	_, _, _, err := repairL0SegmentPartitions(ctx, cli, &recordingDeltalogObjectCopier{existing: map[string]struct{}{}}, "bucket-root", basePath, segments, -1, false)
 	require.NoError(t, err)
 
 	require.Contains(t, cli.data, oldKey)
@@ -128,21 +125,36 @@ func TestRepairL0SegmentPartitionMovesSegmentAndLogMeta(t *testing.T) {
 	)
 	oldDeltaKey := path.Join(basePath, common.DCPrefix, common.SegmentStatsMetaPrefix, "100", "0", "10", "101")
 	cli.data[oldDeltaKey] = "statslog-value"
+	oldDeltalogKey := path.Join(basePath, common.DCPrefix, "deltalog", "100", "0", "10", "102")
+	cli.data[oldDeltalogKey] = mustFieldBinlogValue(t, &datapb.FieldBinlog{
+		FieldID: 102,
+		Binlogs: []*datapb.Binlog{{LogID: 1001}},
+	})
 	oldSegmentKey := segmentMetaKey(basePath, 100, 0, 10)
 	newSegmentKey := segmentMetaKey(basePath, 100, -1, 10)
 	newDeltaKey := path.Join(basePath, common.DCPrefix, common.SegmentStatsMetaPrefix, "100", "-1", "10", "101")
+	newDeltalogKey := path.Join(basePath, common.DCPrefix, "deltalog", "100", "-1", "10", "102")
 
-	comp := &ComponentRepair{client: cli, basePath: basePath}
-	err := comp.RepairL0SegmentPartitionCommand(ctx, &RepairL0SegmentPartitionParam{
-		ExecutionParam:  framework.ExecutionParam{Run: true},
-		TargetPartition: -1,
-	})
+	segments := listDirtyL0Segments(t, ctx, cli, basePath)
+	copier := &recordingDeltalogObjectCopier{existing: map[string]struct{}{
+		"bucket-root/delta_log/100/0/10/1001": {},
+	}}
+	repaired, copied, skipped, err := repairL0SegmentPartitions(ctx, cli, copier, "bucket-root", basePath, segments, -1, true)
 	require.NoError(t, err)
+	require.Equal(t, 1, repaired)
+	require.Equal(t, 1, copied)
+	require.Equal(t, 0, skipped)
+	require.Equal(t, [][2]string{{
+		"bucket-root/delta_log/100/0/10/1001",
+		"bucket-root/delta_log/100/-1/10/1001",
+	}}, copier.copies)
 
 	require.NotContains(t, cli.data, oldSegmentKey)
 	require.Contains(t, cli.data, newSegmentKey)
 	require.NotContains(t, cli.data, oldDeltaKey)
 	require.Equal(t, "statslog-value", cli.data[newDeltaKey])
+	require.NotContains(t, cli.data, oldDeltalogKey)
+	require.Contains(t, cli.data, newDeltalogKey)
 
 	patched := &datapb.SegmentInfo{}
 	require.NoError(t, proto.Unmarshal([]byte(cli.data[newSegmentKey]), patched))
@@ -164,59 +176,36 @@ func TestRepairL0SegmentPartitionAllowsCustomTargetPartition(t *testing.T) {
 		},
 	)
 
-	comp := &ComponentRepair{client: cli, basePath: basePath}
-	err := comp.RepairL0SegmentPartitionCommand(ctx, &RepairL0SegmentPartitionParam{
-		ExecutionParam:  framework.ExecutionParam{Run: true},
-		TargetPartition: 99,
-	})
+	segments := listDirtyL0Segments(t, ctx, cli, basePath)
+	_, _, _, err := repairL0SegmentPartitions(ctx, cli, &recordingDeltalogObjectCopier{existing: map[string]struct{}{}}, "bucket-root", basePath, segments, 99, true)
 	require.NoError(t, err)
 
 	require.NotContains(t, cli.data, segmentMetaKey(basePath, 100, 0, 10))
 	require.Contains(t, cli.data, segmentMetaKey(basePath, 100, 99, 10))
 }
 
-func TestRepairL0SegmentPartitionRollbackBySegmentFile(t *testing.T) {
+func TestRepairL0SegmentPartitionDoesNotMoveMetaWhenDeltalogObjectMissing(t *testing.T) {
 	ctx := context.Background()
 	basePath := "test-root/meta"
-	segmentFile := writeSegmentIDFile(t, "10\n")
 	cli := newL0SegmentRepairKV(t, basePath,
 		&datapb.SegmentInfo{
 			ID:           10,
 			CollectionID: 100,
-			PartitionID:  -1,
-			Level:        datapb.SegmentLevel_L0,
-		},
-		&datapb.SegmentInfo{
-			ID:           11,
-			CollectionID: 100,
-			PartitionID:  -1,
+			PartitionID:  0,
 			Level:        datapb.SegmentLevel_L0,
 		},
 	)
-	oldDeltaKey := path.Join(basePath, common.DCPrefix, "deltalog", "100", "-1", "10", "101")
-	newDeltaKey := path.Join(basePath, common.DCPrefix, "deltalog", "100", "0", "10", "101")
-	cli.data[oldDeltaKey] = "deltalog-value"
-
-	comp := &ComponentRepair{client: cli, basePath: basePath}
-	err := comp.RepairL0SegmentPartitionCommand(ctx, &RepairL0SegmentPartitionParam{
-		ExecutionParam: framework.ExecutionParam{Run: true},
-		Collection:     100,
-		SegmentFile:    segmentFile,
-		Rollback:       true,
+	cli.data[path.Join(basePath, common.DCPrefix, "deltalog", "100", "0", "10", "101")] = mustFieldBinlogValue(t, &datapb.FieldBinlog{
+		FieldID: 101,
+		Binlogs: []*datapb.Binlog{{LogID: 1001}},
 	})
-	require.NoError(t, err)
 
-	require.NotContains(t, cli.data, segmentMetaKey(basePath, 100, -1, 10))
+	segments := listDirtyL0Segments(t, ctx, cli, basePath)
+	_, _, _, err := repairL0SegmentPartitions(ctx, cli, &recordingDeltalogObjectCopier{existing: map[string]struct{}{}}, "bucket-root", basePath, segments, -1, true)
+	require.ErrorContains(t, err, "missing source L0 deltalog objects")
+
 	require.Contains(t, cli.data, segmentMetaKey(basePath, 100, 0, 10))
-	require.NotContains(t, cli.data, oldDeltaKey)
-	require.Equal(t, "deltalog-value", cli.data[newDeltaKey])
-
-	patched := &datapb.SegmentInfo{}
-	require.NoError(t, proto.Unmarshal([]byte(cli.data[segmentMetaKey(basePath, 100, 0, 10)]), patched))
-	require.EqualValues(t, 0, patched.GetPartitionID())
-
-	require.Contains(t, cli.data, segmentMetaKey(basePath, 100, -1, 11))
-	require.NotContains(t, cli.data, segmentMetaKey(basePath, 100, 0, 11))
+	require.NotContains(t, cli.data, segmentMetaKey(basePath, 100, -1, 10))
 }
 
 func newL0SegmentRepairKV(t *testing.T, basePath string, segments ...*datapb.SegmentInfo) *l0SegmentRepairKV {
@@ -240,10 +229,16 @@ func formatInt64(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func writeSegmentIDFile(t *testing.T, content string) string {
+func listDirtyL0Segments(t *testing.T, ctx context.Context, cli *l0SegmentRepairKV, basePath string) []*models.Segment {
 	t.Helper()
 
-	file := path.Join(t.TempDir(), "segments.txt")
-	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
-	return file
+	segments, err := common.ListSegmentsBy(ctx, cli, basePath, common.SegmentSelector{
+		Filters: []common.PostFilter[models.Segment]{
+			func(segment *models.Segment) bool {
+				return segment.GetPartitionID() == 0 && segment.GetLevel() == datapb.SegmentLevel_L0
+			},
+		},
+	})
+	require.NoError(t, err)
+	return segments
 }

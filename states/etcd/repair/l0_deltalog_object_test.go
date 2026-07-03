@@ -97,6 +97,26 @@ func TestCopyL0DeltalogObjectsSkipsExistingTarget(t *testing.T) {
 	require.Empty(t, copier.copies)
 }
 
+func TestCopyL0DeltalogObjectsSkipsExistingTargetWithoutSource(t *testing.T) {
+	ctx := context.Background()
+	segment := newL0DeltalogObjectSegment(100, -1, 10, []*datapb.FieldBinlog{{
+		FieldID: 101,
+		Binlogs: []*datapb.Binlog{{LogID: 1001}},
+	}})
+	copier := &recordingDeltalogObjectCopier{
+		existing: map[string]struct{}{
+			"bucket-root/delta_log/100/-1/10/1001": {},
+		},
+	}
+
+	copied, skipped, missingObjects, err := copyL0DeltalogObjects(ctx, copier, "bucket-root", []*models.Segment{segment}, 0, -1, true)
+	require.NoError(t, err)
+	require.Equal(t, 0, copied)
+	require.Equal(t, 1, skipped)
+	require.Equal(t, 0, missingObjects)
+	require.Empty(t, copier.copies)
+}
+
 func TestCopyL0DeltalogObjectsSkipsZeroLogID(t *testing.T) {
 	ctx := context.Background()
 	segment := newL0DeltalogObjectSegment(100, -1, 10, []*datapb.FieldBinlog{{

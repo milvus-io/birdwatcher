@@ -153,22 +153,22 @@ func copyL0DeltalogObjects(
 
 				sourceKey := buildDeltalogObjectKey(rootPath, segment.GetCollectionID(), sourcePartition, segment.GetID(), binlog.LogID)
 				targetKey := buildDeltalogObjectKey(rootPath, segment.GetCollectionID(), targetPartition, segment.GetID(), binlog.LogID)
-				exists, err := copier.ObjectExists(ctx, sourceKey)
-				if err != nil {
-					return copied, skipped, missingObjects, fmt.Errorf("failed to stat source deltalog object %s: %w", sourceKey, err)
-				}
-				if !exists {
-					fmt.Printf("source deltalog object missing: segmentID=%d logID=%d key=%s\n", segment.GetID(), binlog.LogID, sourceKey)
-					missingObjects++
-					continue
-				}
-				exists, err = copier.ObjectExists(ctx, targetKey)
+				exists, err := copier.ObjectExists(ctx, targetKey)
 				if err != nil {
 					return copied, skipped, missingObjects, fmt.Errorf("failed to stat target deltalog object %s: %w", targetKey, err)
 				}
 				if exists {
 					fmt.Printf("target deltalog object exists, skip copy: segmentID=%d logID=%d key=%s\n", segment.GetID(), binlog.LogID, targetKey)
 					skipped++
+					continue
+				}
+				exists, err = copier.ObjectExists(ctx, sourceKey)
+				if err != nil {
+					return copied, skipped, missingObjects, fmt.Errorf("failed to stat source deltalog object %s: %w", sourceKey, err)
+				}
+				if !exists {
+					fmt.Printf("source deltalog object missing: segmentID=%d logID=%d key=%s\n", segment.GetID(), binlog.LogID, sourceKey)
+					missingObjects++
 					continue
 				}
 
