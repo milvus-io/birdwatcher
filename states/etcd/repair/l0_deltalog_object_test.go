@@ -2,11 +2,14 @@ package repair
 
 import (
 	"context"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
@@ -115,6 +118,81 @@ func TestBuildDeltalogObjectKey(t *testing.T) {
 	require.Equal(t, "delta_log/100/0/10/1001", buildDeltalogObjectKey("", 100, 0, 10, 1001))
 }
 
+func TestCheckL0DeltalogObjectsStreamsExpectedPartitionPath(t *testing.T) {
+	ctx := context.Background()
+	basePath := "test-root/meta"
+	cli := newL0SegmentRepairKV(t, basePath,
+		&datapb.SegmentInfo{
+			ID:           10,
+			CollectionID: 100,
+			PartitionID:  -1,
+			Level:        datapb.SegmentLevel_L0,
+		},
+		&datapb.SegmentInfo{
+			ID:           11,
+			CollectionID: 100,
+			PartitionID:  0,
+			Level:        datapb.SegmentLevel_L1,
+		},
+	)
+	cli.data[deltalogMetaKey(basePath, 100, -1, 10, 101)] = mustFieldBinlogValue(t, &datapb.FieldBinlog{
+		FieldID: 101,
+		Binlogs: []*datapb.Binlog{
+			{LogID: 1001},
+			{LogID: 1002},
+		},
+	})
+	checker := &recordingDeltalogObjectCopier{
+		existing: map[string]struct{}{
+			"bucket-root/delta_log/100/-1/10/1001": {},
+		},
+	}
+
+	summary, err := checkL0DeltalogObjects(ctx, cli, checker, basePath, "bucket-root", 0, 0)
+	require.NoError(t, err)
+	require.Equal(t, &l0DeltalogCheckSummary{
+		Segments:          1,
+		SegmentsWithDelta: 1,
+		Objects:           2,
+		Exists:            1,
+		Missing:           1,
+	}, summary)
+}
+
+func TestCheckL0DeltalogObjectsReportsNoDeltalogAndZeroLogID(t *testing.T) {
+	ctx := context.Background()
+	basePath := "test-root/meta"
+	cli := newL0SegmentRepairKV(t, basePath,
+		&datapb.SegmentInfo{
+			ID:           10,
+			CollectionID: 100,
+			PartitionID:  -1,
+			Level:        datapb.SegmentLevel_L0,
+		},
+		&datapb.SegmentInfo{
+			ID:           11,
+			CollectionID: 100,
+			PartitionID:  -1,
+			Level:        datapb.SegmentLevel_L0,
+		},
+	)
+	cli.data[deltalogMetaKey(basePath, 100, -1, 10, 101)] = mustFieldBinlogValue(t, &datapb.FieldBinlog{
+		FieldID: 101,
+		Binlogs: []*datapb.Binlog{
+			{LogID: 0},
+		},
+	})
+
+	summary, err := checkL0DeltalogObjects(ctx, cli, &recordingDeltalogObjectCopier{existing: map[string]struct{}{}}, basePath, "bucket-root", 100, 0)
+	require.NoError(t, err)
+	require.Equal(t, &l0DeltalogCheckSummary{
+		Segments:          2,
+		SegmentsWithDelta: 1,
+		ZeroLogID:         1,
+		NoDeltalog:        1,
+	}, summary)
+}
+
 func newL0DeltalogObjectSegment(collectionID, partitionID, segmentID int64, deltalogs []*datapb.FieldBinlog) *models.Segment {
 	return models.NewSegment(&datapb.SegmentInfo{
 		ID:           segmentID,
@@ -124,6 +202,19 @@ func newL0DeltalogObjectSegment(collectionID, partitionID, segmentID int64, delt
 	}, "", func() ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, []*datapb.FieldBinlog, error) {
 		return nil, nil, deltalogs, nil, nil
 	})
+}
+
+func deltalogMetaKey(basePath string, collectionID, partitionID, segmentID, fieldID int64) string {
+	return path.Join(basePath, common.DCPrefix, "deltalog",
+		formatInt64(collectionID), formatInt64(partitionID), formatInt64(segmentID), formatInt64(fieldID))
+}
+
+func mustFieldBinlogValue(t *testing.T, info *datapb.FieldBinlog) string {
+	t.Helper()
+
+	bs, err := proto.Marshal(info)
+	require.NoError(t, err)
+	return string(bs)
 }
 
 var _ deltalogObjectCopier = (*recordingDeltalogObjectCopier)(nil)
