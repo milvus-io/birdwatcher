@@ -36,11 +36,26 @@ type segStats struct {
 	binlogLogSize map[int64]int64
 	// field id => mem size
 	binlogMemSize map[int64]int64
+	deltaLogCount int64
 	deltaLogSize  int64
 	deltaMemSize  int64
 	deltaEntryNum int64
 	statsLogSize  int64
 	statsMemSize  int64
+}
+
+// segmentDeltaStats returns the deltalog file count, log size, mem size and
+// entry number of a single segment from its meta.
+func segmentDeltaStats(info *models.Segment) (count, logSize, memSize, entriesNum int64) {
+	for _, delta := range info.GetDeltalogs() {
+		count += int64(len(delta.Binlogs))
+		for _, l := range delta.Binlogs {
+			logSize += l.LogSize
+			memSize += l.MemSize
+			entriesNum += l.EntriesNum
+		}
+	}
+	return count, logSize, memSize, entriesNum
 }
 
 // SegmentCommand returns show segments command.
@@ -108,16 +123,20 @@ func (rs *Segments) PrintAs(format framework.Format) string {
 
 func (rs *Segments) printAsJSON() string {
 	type SegmentJSON struct {
-		SegmentID      int64  `json:"segment_id"`
-		CollectionID   int64  `json:"collection_id"`
-		PartitionID    int64  `json:"partition_id"`
-		State          string `json:"state"`
-		Level          string `json:"level"`
-		NumOfRows      int64  `json:"num_of_rows"`
-		MaxRowNum      int64  `json:"max_row_num"`
-		StorageVersion int64  `json:"storage_version"`
-		IsSorted       bool   `json:"is_sorted"`
-		InsertChannel  string `json:"insert_channel"`
+		SegmentID       int64  `json:"segment_id"`
+		CollectionID    int64  `json:"collection_id"`
+		PartitionID     int64  `json:"partition_id"`
+		State           string `json:"state"`
+		Level           string `json:"level"`
+		NumOfRows       int64  `json:"num_of_rows"`
+		MaxRowNum       int64  `json:"max_row_num"`
+		StorageVersion  int64  `json:"storage_version"`
+		IsSorted        bool   `json:"is_sorted"`
+		InsertChannel   string `json:"insert_channel"`
+		DeltaLogCount   int64  `json:"delta_log_count"`
+		DeltaLogSize    int64  `json:"delta_log_size"`
+		DeltaMemSize    int64  `json:"delta_mem_size"`
+		DeltaEntriesNum int64  `json:"delta_entries_num"`
 	}
 
 	type SummaryJSON struct {
@@ -128,6 +147,9 @@ func (rs *Segments) printAsJSON() string {
 		TotalHealthy         int           `json:"total_healthy"`
 		TotalRows            int64         `json:"total_rows"`
 		StorageVersionCounts map[int64]int `json:"storage_version_counts"`
+		TotalDeltaLogCount   int64         `json:"total_delta_log_count"`
+		TotalDeltaLogSize    int64         `json:"total_delta_log_size"`
+		TotalDeltaEntriesNum int64         `json:"total_delta_entries_num"`
 	}
 
 	type OutputJSON struct {
@@ -138,6 +160,7 @@ func (rs *Segments) printAsJSON() string {
 	var growing, sealed, flushed, dropped, healthy int
 	var totalRC int64
 	storageVersionCount := make(map[int64]int)
+	var totalDeltaCount, totalDeltaSize, totalDeltaEntries int64
 
 	output := OutputJSON{
 		Segments: make([]SegmentJSON, 0, len(rs.segments)),
@@ -160,17 +183,26 @@ func (rs *Segments) printAsJSON() string {
 			dropped++
 		}
 
+		deltaCount, deltaLogSize, deltaMemSize, deltaEntriesNum := segmentDeltaStats(info)
+		totalDeltaCount += deltaCount
+		totalDeltaSize += deltaLogSize
+		totalDeltaEntries += deltaEntriesNum
+
 		output.Segments = append(output.Segments, SegmentJSON{
-			SegmentID:      info.ID,
-			CollectionID:   info.CollectionID,
-			PartitionID:    info.PartitionID,
-			State:          info.State.String(),
-			Level:          info.Level.String(),
-			NumOfRows:      info.NumOfRows,
-			MaxRowNum:      info.MaxRowNum,
-			StorageVersion: info.StorageVersion,
-			IsSorted:       info.IsSorted,
-			InsertChannel:  info.InsertChannel,
+			SegmentID:       info.ID,
+			CollectionID:    info.CollectionID,
+			PartitionID:     info.PartitionID,
+			State:           info.State.String(),
+			Level:           info.Level.String(),
+			NumOfRows:       info.NumOfRows,
+			MaxRowNum:       info.MaxRowNum,
+			StorageVersion:  info.StorageVersion,
+			IsSorted:        info.IsSorted,
+			InsertChannel:   info.InsertChannel,
+			DeltaLogCount:   deltaCount,
+			DeltaLogSize:    deltaLogSize,
+			DeltaMemSize:    deltaMemSize,
+			DeltaEntriesNum: deltaEntriesNum,
 		})
 	}
 
@@ -182,6 +214,9 @@ func (rs *Segments) printAsJSON() string {
 		TotalHealthy:         healthy,
 		TotalRows:            totalRC,
 		StorageVersionCounts: storageVersionCount,
+		TotalDeltaLogCount:   totalDeltaCount,
+		TotalDeltaLogSize:    totalDeltaSize,
+		TotalDeltaEntriesNum: totalDeltaEntries,
 	}
 
 	return framework.MarshalJSON(output)
@@ -261,6 +296,15 @@ func (rs *Segments) printDefault() string {
 						}
 					}
 				}
+			case "delta":
+				count, logSize, memSize, entriesNum := segmentDeltaStats(info)
+				stats := collectionID2SegStats[collectionID]
+				stats.deltaLogCount += count
+				stats.deltaLogSize += logSize
+				stats.deltaMemSize += memSize
+				stats.deltaEntryNum += entriesNum
+				fmt.Fprintf(sb, "SegmentID: %d PartitionID: %d State: %s, Level: %s, DeltaLog Count: %d, DeltaLog Size: %s, Mem Size: %s, Delta Entries: %d\n",
+					info.ID, info.PartitionID, info.State.String(), info.Level.String(), count, hrSize(logSize), hrSize(memSize), entriesNum)
 			default: // line format
 				fmt.Fprintf(sb, "SegmentID: %d PartitionID: %d State: %s, Level: %s, Row Count:%d,  StorageVersion:%d, SchemaVersion:%d, IsSorted: %v \n",
 					info.ID, info.PartitionID, info.State.String(), info.Level.String(), info.NumOfRows, info.StorageVersion, info.SchemaVersion, info.IsSorted)
@@ -269,11 +313,17 @@ func (rs *Segments) printDefault() string {
 		if rs.format == "statistics" {
 			outputStatsToBuilder(sb, "Collection", collectionID2SegStats[collectionID])
 		}
+		if rs.format == "delta" {
+			outputDeltaStatsToBuilder(sb, "Collection", collectionID2SegStats[collectionID])
+		}
 		fmt.Fprintf(sb, "\n")
 	}
 
 	if rs.format == "statistics" {
 		outputStatsToBuilder(sb, "Total", lo.Values(collectionID2SegStats)...)
+	}
+	if rs.format == "delta" {
+		outputDeltaStatsToBuilder(sb, "Total", lo.Values(collectionID2SegStats)...)
 	}
 
 	fmt.Fprintf(sb, "--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
@@ -516,6 +566,18 @@ func outputStatsToBuilder(sb *strings.Builder, scope string, stats ...*segStats)
 	fmt.Fprintf(sb, "--- %s binlog size: %s, mem size: %s\n", scope, hrSize(totalBinlogLogSize), hrSize(totalBinlogMemSize))
 	fmt.Fprintf(sb, "--- %s deltalog size: %s, mem size: %s, delta entry number: %d\n", scope, hrSize(totalDeltaLogSize), hrSize(totalDeltaMemSize), totalDeltaEntryNum)
 	fmt.Fprintf(sb, "--- %s statslog size: %s, mem size: %s\n", scope, hrSize(totalStatsLogSize), hrSize(totalStatsMemSize))
+}
+
+func outputDeltaStatsToBuilder(sb *strings.Builder, scope string, stats ...*segStats) {
+	var totalCount, totalLogSize, totalMemSize, totalEntryNum int64
+	for _, s := range stats {
+		totalCount += s.deltaLogCount
+		totalLogSize += s.deltaLogSize
+		totalMemSize += s.deltaMemSize
+		totalEntryNum += s.deltaEntryNum
+	}
+	fmt.Fprintf(sb, "--- %s deltalog count: %d, size: %s, mem size: %s, delta entry number: %d\n",
+		scope, totalCount, hrSize(totalLogSize), hrSize(totalMemSize), totalEntryNum)
 }
 
 func printSegmentInfoToBuilder(sb *strings.Builder, info *models.Segment, detailBinlog bool) {
