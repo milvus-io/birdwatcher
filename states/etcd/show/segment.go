@@ -33,11 +33,26 @@ type segStats struct {
 	binlogLogSize map[int64]int64
 	// field id => mem size
 	binlogMemSize map[int64]int64
+	deltaLogCount int64
 	deltaLogSize  int64
 	deltaMemSize  int64
 	deltaEntryNum int64
 	statsLogSize  int64
 	statsMemSize  int64
+}
+
+// segmentDeltaStats returns the deltalog file count, log size, mem size and
+// entry number of a single segment from its meta.
+func segmentDeltaStats(info *models.Segment) (count, logSize, memSize, entriesNum int64) {
+	for _, delta := range info.GetDeltalogs() {
+		count += int64(len(delta.Binlogs))
+		for _, l := range delta.Binlogs {
+			logSize += l.LogSize
+			memSize += l.MemSize
+			entriesNum += l.EntriesNum
+		}
+	}
+	return count, logSize, memSize, entriesNum
 }
 
 // SegmentCommand returns show segments command.
@@ -128,6 +143,15 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 						}
 					}
 				}
+			case "delta":
+				count, logSize, memSize, entriesNum := segmentDeltaStats(info)
+				stats := collectionID2SegStats[collectionID]
+				stats.deltaLogCount += count
+				stats.deltaLogSize += logSize
+				stats.deltaMemSize += memSize
+				stats.deltaEntryNum += entriesNum
+				fmt.Printf("SegmentID: %d PartitionID: %d State: %s, Level: %s, DeltaLog Count: %d, DeltaLog Size: %s, Mem Size: %s, Delta Entries: %d\n",
+					info.ID, info.PartitionID, info.State.String(), info.Level.String(), count, hrSize(logSize), hrSize(memSize), entriesNum)
 			default:
 				err := fmt.Errorf("unsupport format:%s", p.Format)
 				return err
@@ -136,11 +160,17 @@ func (c *ComponentShow) SegmentCommand(ctx context.Context, p *SegmentParam) err
 		if p.Format == "statistics" {
 			outputStats("Collection", collectionID2SegStats[collectionID])
 		}
+		if p.Format == "delta" {
+			outputDeltaStats("Collection", collectionID2SegStats[collectionID])
+		}
 		fmt.Printf("\n")
 	}
 
 	if p.Format == "statistics" {
 		outputStats("Total", lo.Values(collectionID2SegStats)...)
+	}
+	if p.Format == "delta" {
+		outputDeltaStats("Total", lo.Values(collectionID2SegStats)...)
 	}
 
 	fmt.Printf("--- Growing: %d, Sealed: %d, Flushed: %d, Dropped: %d\n", growing, sealed, flushed, dropped)
@@ -183,6 +213,18 @@ func outputStats(scope string, stats ...*segStats) {
 	fmt.Printf("--- %s binlog size: %s, mem size: %s\n", scope, hrSize(totalBinlogLogSize), hrSize(totalBinlogMemSize))
 	fmt.Printf("--- %s deltalog size: %s, mem size: %s, delta entry number: %d\n", scope, hrSize(totalDeltaLogSize), hrSize(totalDeltaMemSize), totalDeltaEntryNum)
 	fmt.Printf("--- %s statslog size: %s, mem size: %s\n", scope, hrSize(totalStatsLogSize), hrSize(totalStatsMemSize))
+}
+
+func outputDeltaStats(scope string, stats ...*segStats) {
+	var totalCount, totalLogSize, totalMemSize, totalEntryNum int64
+	for _, s := range stats {
+		totalCount += s.deltaLogCount
+		totalLogSize += s.deltaLogSize
+		totalMemSize += s.deltaMemSize
+		totalEntryNum += s.deltaEntryNum
+	}
+	fmt.Printf("--- %s deltalog count: %d, size: %s, mem size: %s, delta entry number: %d\n",
+		scope, totalCount, hrSize(totalLogSize), hrSize(totalMemSize), totalEntryNum)
 }
 
 func hrSize(size int64) string {
