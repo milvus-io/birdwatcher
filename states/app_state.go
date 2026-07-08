@@ -10,6 +10,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
+	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/milvusctl"
 	"github.com/milvus-io/birdwatcher/states/storage"
 )
@@ -117,6 +118,9 @@ func (app *ApplicationState) SetupCommands() {
 
 	app.core.UpdateState(cmd, app, app.SetupCommands)
 	app.objectStoreProvider = resolveObjectStoreProvider(app.objectStoreProvider, app.extensions)
+	if app.objectStoreProvider == nil {
+		app.objectStoreProvider = app
+	}
 	for _, ext := range app.extensions {
 		provider, ok := ext.(ApplicationFunctionCommandProvider)
 		if !ok {
@@ -148,6 +152,18 @@ func (app *ApplicationState) ConnectMinioCommand(ctx context.Context, p *storage
 
 	app.SetTagNext(ossTag, state)
 	return nil
+}
+
+func (app *ApplicationState) GetObjectStore(ctx context.Context, _ InstanceContext, _ ...oss.MinioConnectParam) (*oss.ResolvedObjectStore, error) {
+	state, ok := app.states[ossTag]
+	if !ok {
+		return nil, nil
+	}
+	ossState, ok := state.(*storage.OSSState)
+	if !ok {
+		return nil, nil
+	}
+	return ossState.ResolvedObjectStore(), nil
 }
 
 func (app *ApplicationState) ConnectMilvusCommand(ctx context.Context, p *milvusctl.ConnectMilvusParam) error {
