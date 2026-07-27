@@ -36,7 +36,7 @@ type BalanceSegmentParam struct {
 	CollectionID        int64   `name:"collection" default:"0"`
 	SegmentIDs          []int64 `name:"segment" desc:"segment ids to balance"`
 	SourceNodes         []int64 `name:"srcNodes" desc:"from querynode ids"`
-	DstNodes            int64   `name:"dstNode" desc:"to querynode ids"`
+	DstNodes            []int64 `name:"dstNodes" desc:"to querynode ids, empty means let querycoord pick"`
 }
 
 func (s *queryCoordState) BalanceSegmentCommand(ctx context.Context, p *BalanceSegmentParam) error {
@@ -47,6 +47,8 @@ func (s *queryCoordState) BalanceSegmentCommand(ctx context.Context, p *BalanceS
 		CollectionID:     p.CollectionID,
 		SealedSegmentIDs: p.SegmentIDs,
 		SourceNodeIDs:    p.SourceNodes,
+		// Empty DstNodeIDs makes querycoord pick a target among all nodes of the replica.
+		DstNodeIDs: p.DstNodes,
 	}
 
 	resp, err := s.client.LoadBalance(ctx, req)
