@@ -2,6 +2,7 @@ package states
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -31,6 +32,7 @@ type InspectParquetParam struct {
 	FilePath            string `name:"file" default:"" desc:"local parquet file path to inspect"`
 	SegmentID           int64  `name:"segment" default:"0" desc:"segment ID to inspect binlogs from remote storage"`
 	FieldID             int64  `name:"field" default:"0" desc:"only inspect binlogs of this field ID (0 means all fields)"`
+	StorageVersion      string `name:"storageVersion" default:"meta" desc:"segment storage version strategy: meta, auto, or a non-negative version override"`
 	MetadataOnly        bool   `name:"metadataOnly" default:"true" desc:"print metadata only; set to false to also sample rows"`
 	SampleRows          int64  `name:"sampleRows" default:"10" desc:"number of rows to sample when metadataOnly=false"`
 	ShowRowGroups       bool   `name:"showRowGroups" default:"false" desc:"print per-row-group statistics"`
@@ -40,6 +42,38 @@ type InspectParquetParam struct {
 	CollectionID        int64  `name:"collection" default:"0" desc:"collection ID for external collection mode"`
 	ManifestSegmentID   int64  `name:"manifestSegment" default:"0" desc:"segment ID whose manifest files should be inspected in external mode"`
 	ExternalFile        string `name:"externalFile" default:"" desc:"single parquet object path to inspect in external mode"`
+}
+
+const inspectAutoStorageVersion int64 = -1 << 63
+
+type inspectStorageVersionMode int
+
+const (
+	inspectStorageVersionFromMeta inspectStorageVersionMode = iota
+	inspectStorageVersionAuto
+	inspectStorageVersionOverride
+)
+
+type inspectStorageVersionOption struct {
+	mode    inspectStorageVersionMode
+	version int64
+}
+
+func parseInspectStorageVersionOption(raw string) (inspectStorageVersionOption, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	switch value {
+	case "", "meta":
+		return inspectStorageVersionOption{mode: inspectStorageVersionFromMeta}, nil
+	case "auto":
+		return inspectStorageVersionOption{mode: inspectStorageVersionAuto}, nil
+	}
+
+	version, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || version < 0 {
+		return inspectStorageVersionOption{}, errors.Newf(
+			"invalid --storageVersion %q: expected meta, auto, or a non-negative integer", raw)
+	}
+	return inspectStorageVersionOption{mode: inspectStorageVersionOverride, version: version}, nil
 }
 
 type externalSourceSpec struct {
@@ -74,6 +108,14 @@ func (s *InstanceState) InspectParquetCommand(ctx context.Context, p *InspectPar
 }
 
 func validateInspectParquetParam(p *InspectParquetParam) error {
+	storageVersion, err := parseInspectStorageVersionOption(p.StorageVersion)
+	if err != nil {
+		return err
+	}
+	if storageVersion.mode != inspectStorageVersionFromMeta && (p.External || p.FilePath != "") {
+		return errors.New("--storageVersion can only be used with --segment")
+	}
+
 	if p.External {
 		if p.FilePath != "" || p.SegmentID != 0 {
 			return errors.New("--external cannot be used with --file or --segment")
@@ -129,6 +171,28 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 	fmt.Printf("Segment %d: collection=%d partition=%d storageVersion=%d\n",
 		segment.ID, segment.CollectionID, segment.PartitionID, segment.StorageVersion)
 
+	storageVersionOption, err := parseInspectStorageVersionOption(p.StorageVersion)
+	if err != nil {
+		return err
+	}
+	effectiveStorageVersion := segment.GetStorageVersion()
+	switch storageVersionOption.mode {
+	case inspectStorageVersionFromMeta:
+		fmt.Printf("Storage Version Strategy: meta (effective=%d)\n", effectiveStorageVersion)
+	case inspectStorageVersionOverride:
+		effectiveStorageVersion = storageVersionOption.version
+		fmt.Printf("Storage Version Strategy: override (meta=%d effective=%d)\n",
+			segment.GetStorageVersion(), effectiveStorageVersion)
+	case inspectStorageVersionAuto:
+		if segment.GetManifestPath() != "" {
+			effectiveStorageVersion = 3
+			fmt.Printf("Storage Version Strategy: auto (manifest layout detected)\n")
+		} else {
+			effectiveStorageVersion = inspectAutoStorageVersion
+			fmt.Printf("Storage Version Strategy: auto (detect each binlog object)\n")
+		}
+	}
+
 	params := []oss.MinioConnectParam{oss.WithSkipCheckBucket(p.SkipBucketCheck)}
 	if p.MinioAddress != "" {
 		params = append(params, oss.WithMinioAddr(p.MinioAddress))
@@ -139,9 +203,9 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 	}
 	rootPath := resolvedStore.RootPath
 
-	if segment.GetStorageVersion() >= 3 {
+	if effectiveStorageVersion >= 3 {
 		if segment.GetManifestPath() == "" {
-			return errors.Newf("segment %d storage version is %d but got empty manifest", segment.GetID(), segment.GetStorageVersion())
+			return errors.Newf("segment %d effective storage version is %d but got empty manifest", segment.GetID(), effectiveStorageVersion)
 		}
 		return inspectV3SegmentParquet(ctx, resolvedStore.Store, rootPath, segment, p)
 	}
@@ -153,7 +217,7 @@ func (s *InstanceState) inspectSegmentParquet(ctx context.Context, p *InspectPar
 		for _, binlog := range fieldBinlog.Binlogs {
 			logPath := oss.ResolveObjectKey(rootPath, binlog.LogPath)
 			fmt.Printf("\n===== Field %d | %s =====\n", fieldBinlog.FieldID, logPath)
-			if err := inspectRemoteBinlog(ctx, resolvedStore.Store, logPath, segment.StorageVersion, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
+			if err := inspectRemoteBinlog(ctx, resolvedStore.Store, logPath, effectiveStorageVersion, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
 				fmt.Printf("failed to inspect %s: %s\n", logPath, err.Error())
 			}
 		}
@@ -377,29 +441,59 @@ func inspectRemoteBinlog(ctx context.Context, store oss.ObjectStore, logPath str
 	if err != nil {
 		return err
 	}
+	if closer, ok := obj.(interface{ Close() error }); ok {
+		defer closer.Close()
+	}
 
-	pqReader, err := openBinlogParquet(obj, storageVersion)
+	pqReader, detectedStorageVersion, err := openBinlogParquet(obj, storageVersion)
 	if err != nil {
 		return err
 	}
 	defer pqReader.Close()
+	if storageVersion == inspectAutoStorageVersion {
+		fmt.Printf("Detected Storage Version: %d (%s)\n", detectedStorageVersion, path.Base(logPath))
+	}
 
 	return printParquetFile(ctx, pqReader, path.Base(logPath), metadataOnly, sampleRows, showRowGroups)
 }
 
-func openBinlogParquet(r storagecommon.ReadSeeker, storageVersion int64) (*file.Reader, error) {
+func openBinlogParquet(r storagecommon.ReadSeeker, storageVersion int64) (*file.Reader, int64, error) {
 	switch storageVersion {
+	case inspectAutoStorageVersion:
+		detectedStorageVersion, err := detectBinlogStorageVersion(r)
+		if err != nil {
+			return nil, 0, err
+		}
+		return openBinlogParquet(r, detectedStorageVersion)
 	case 2:
-		return file.NewParquetReader(r)
+		pqReader, err := file.NewParquetReader(r)
+		return pqReader, storageVersion, err
 	case 0, 1:
 		br, err := binlogv1.NewBinlogReader(r)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		return br.NextParquetReader()
+		pqReader, err := br.NextParquetReader()
+		return pqReader, storageVersion, err
 	default:
-		return nil, errors.Newf("unsupported storage version: %d", storageVersion)
+		return nil, 0, errors.Newf("unsupported storage version: %d", storageVersion)
 	}
+}
+
+func detectBinlogStorageVersion(r storagecommon.ReadSeeker) (int64, error) {
+	var header [4]byte
+	n, err := r.ReadAt(header[:], 0)
+	if err != nil {
+		return 0, errors.Wrapf(err, "read binlog header: got %d of %d bytes", n, len(header))
+	}
+
+	if string(header[:]) == "PAR1" {
+		return 2, nil
+	}
+	if binary.LittleEndian.Uint32(header[:]) == uint32(binlogv1.MagicNumberV1) {
+		return 0, nil
+	}
+	return 0, errors.Newf("unrecognized binlog header: %x", header)
 }
 
 func printParquetFile(ctx context.Context, pqReader *file.Reader, name string, metadataOnly bool, sampleRows int64, showRowGroups bool) error {
