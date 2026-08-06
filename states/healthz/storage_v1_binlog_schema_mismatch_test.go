@@ -76,6 +76,8 @@ func TestStorageV1BinlogSchemaMismatchCheck(t *testing.T) {
 
 		segmentKey(basePath, collectionID, partitionID, 3):     healthzProtoValue(t, &datapb.SegmentInfo{ID: 3, CollectionID: collectionID, PartitionID: partitionID, StorageVersion: 2}),
 		binlogKey(basePath, collectionID, partitionID, 3, 100): healthzProtoValue(t, &datapb.FieldBinlog{FieldID: 100}),
+
+		segmentKey(basePath, collectionID, partitionID, 4): healthzProtoValue(t, &datapb.SegmentInfo{ID: 4, CollectionID: collectionID, PartitionID: partitionID, StorageVersion: 0, Level: datapb.SegmentLevel_L0}),
 	}}
 
 	item := newStorageV1BinlogSchemaMismatch()
