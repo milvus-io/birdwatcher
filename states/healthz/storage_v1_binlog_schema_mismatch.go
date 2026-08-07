@@ -8,6 +8,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 )
 
 type StorageV1BinlogSchemaMismatch struct {
@@ -41,6 +42,9 @@ func (i *StorageV1BinlogSchemaMismatch) Check(ctx context.Context, client metakv
 
 	var results []*HealthzCheckReport
 	for _, segment := range segments {
+		if segment.GetLevel() == datapb.SegmentLevel_L0 {
+			continue
+		}
 		if segment.GetStorageVersion() != 0 && segment.GetStorageVersion() != 1 {
 			continue
 		}
