@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/minio/minio-go/v7"
@@ -19,10 +20,13 @@ type ObjectStore interface {
 }
 
 type ObjectInfo struct {
-	Key   string
-	Size  int64
-	IsDir bool
-	Err   error
+	Key          string
+	Size         int64
+	ETag         string
+	LastModified time.Time
+	VersionID    string
+	IsDir        bool
+	Err          error
 }
 
 type ResolvedObjectStore struct {
@@ -112,7 +116,12 @@ func (s *minioObjectStore) Stat(ctx context.Context, key string) (*models.FsStat
 	if err != nil {
 		return nil, err
 	}
-	return &models.FsStat{Size: info.Size}, nil
+	return &models.FsStat{
+		Size:         info.Size,
+		ETag:         info.ETag,
+		LastModified: info.LastModified,
+		VersionID:    info.VersionID,
+	}, nil
 }
 
 func (s *minioObjectStore) List(ctx context.Context, prefix string, recursive bool) (<-chan ObjectInfo, error) {
@@ -122,10 +131,13 @@ func (s *minioObjectStore) List(ctx context.Context, prefix string, recursive bo
 		defer close(result)
 		for info := range source {
 			result <- ObjectInfo{
-				Key:   info.Key,
-				Size:  info.Size,
-				IsDir: strings.HasSuffix(info.Key, "/"),
-				Err:   info.Err,
+				Key:          info.Key,
+				Size:         info.Size,
+				ETag:         info.ETag,
+				LastModified: info.LastModified,
+				VersionID:    info.VersionID,
+				IsDir:        strings.HasSuffix(info.Key, "/"),
+				Err:          info.Err,
 			}
 		}
 	}()
