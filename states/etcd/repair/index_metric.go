@@ -122,10 +122,9 @@ func writeRepairedIndex(cli kv.MetaKV, basePath string, index *indexpb.FieldInde
 
 	bs, err := proto.Marshal(index)
 	if err != nil {
-		fmt.Println("failed to marshal segment info", err.Error())
+		return fmt.Errorf("failed to marshal repaired index %d: %w", index.GetIndexInfo().GetIndexID(), err)
 	}
-	err = cli.Save(context.Background(), p, string(bs))
-	return err
+	return cli.Save(context.Background(), p, string(bs))
 }
 
 func printIndexV2(index *indexpb.FieldIndex) {
