@@ -7,7 +7,7 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/milvus-io/milvus/client/v2/milvusclient"
+	"github.com/milvus-io/milvus/client/v3/milvusclient"
 )
 
 // ErrNotImplemented is returned by ops that are reserved for v2.

@@ -8,7 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/util/message"
 )
 
 type CmpPChannelsParam struct {

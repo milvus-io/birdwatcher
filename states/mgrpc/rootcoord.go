@@ -8,7 +8,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/milvus/pkg/v2/proto/rootcoordpb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/rootcoordpb"
 )
 
 type rootCoordState struct {

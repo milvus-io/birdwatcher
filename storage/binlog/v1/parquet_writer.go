@@ -15,7 +15,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
 func ToArrowDataType(dataType models.DataType, dim int) arrow.DataType {

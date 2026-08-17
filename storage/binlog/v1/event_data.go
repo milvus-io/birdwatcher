@@ -8,7 +8,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
 const originalSizeKey = "original_size"

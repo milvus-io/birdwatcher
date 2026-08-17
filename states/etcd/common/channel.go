@@ -10,8 +10,8 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
-	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/msgpb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/datapb"
 )
 
 func ListChannelCheckpoint(ctx context.Context, cli kv.MetaKV, basePath string, filters ...func(pos *models.MsgPosition) bool) ([]*models.MsgPosition, error) {

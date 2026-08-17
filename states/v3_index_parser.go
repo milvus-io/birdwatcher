@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/milvus-io/birdwatcher/oss"
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
 const (

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/milvus-io/milvus/pkg/v2/proto/internalpb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/internalpb"
 )
 
 type UserInfo struct {

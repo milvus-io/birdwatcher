@@ -1,6 +1,6 @@
 package models
 
-import "github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+import "github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 
 type Function = ProtoWrapper[*schemapb.FunctionSchema]
 

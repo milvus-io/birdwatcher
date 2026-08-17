@@ -20,8 +20,8 @@ import (
 	"github.com/milvus-io/birdwatcher/storage"
 	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
 	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
-	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
 type CheckPartitionKeyParam struct {

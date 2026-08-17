@@ -7,7 +7,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
 func WriteChannelWatchInfo(ctx context.Context, cli kv.MetaKV, basePath string, info *models.ChannelWatch, schema *schemapb.CollectionSchema) error {

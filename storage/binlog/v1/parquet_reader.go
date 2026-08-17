@@ -4,7 +4,7 @@ import (
 	"github.com/apache/arrow/go/v17/parquet/file"
 
 	"github.com/milvus-io/birdwatcher/storage/common"
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
 type ParquetReader struct {

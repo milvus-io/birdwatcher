@@ -9,13 +9,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protowire"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
-	"github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
-	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/etcdpb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/indexpb"
 )
 
 type v3BytesReader []byte
@@ -314,12 +313,15 @@ func TestParseV3ObjectPathLayouts(t *testing.T) {
 }
 
 func TestSegmentIndexPathVersionReadsForwardCompatibleUnknownField(t *testing.T) {
-	segmentIndex := &indexpb.SegmentIndex{}
-	unknown := protowire.AppendTag(nil, 22, protowire.VarintType)
-	unknown = protowire.AppendVarint(unknown, 1)
-	segmentIndex.ProtoReflect().SetUnknown(unknown)
-
+	// index_store_path_version (field 22) is now a known field in the proto.
+	// Verify it is read from the struct field.
+	segmentIndex := &indexpb.SegmentIndex{
+		IndexStorePathVersion: indexpb.IndexStorePathVersion_INDEX_STORE_PATH_VERSION_COLLECTION_ROOTED,
+	}
 	require.Equal(t, int32(1), v3SegmentIndexPathVersion(segmentIndex))
+
+	// Default (unset) version resolves to the BUILD_ROOTED layout.
+	require.Equal(t, int32(0), v3SegmentIndexPathVersion(&indexpb.SegmentIndex{}))
 }
 
 func TestResolveV3EffectiveField(t *testing.T) {

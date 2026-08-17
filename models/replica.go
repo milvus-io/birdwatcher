@@ -1,6 +1,6 @@
 package models
 
-import "github.com/milvus-io/milvus/pkg/v2/proto/querypb"
+import "github.com/milvus-io/milvus/pkg/v3/proto/querypb"
 
 type Replica = ProtoWrapper[*querypb.Replica]
 

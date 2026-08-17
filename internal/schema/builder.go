@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/milvus-io/milvus/client/v2/entity"
+	"github.com/milvus-io/milvus/client/v3/entity"
 )
 
 type BuilderOptions struct {

@@ -11,7 +11,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
-	"github.com/milvus-io/milvus/pkg/v2/util/replicateutil"
+	"github.com/milvus-io/milvus/pkg/v3/util/replicateutil"
 )
 
 type ReplicateParam struct {

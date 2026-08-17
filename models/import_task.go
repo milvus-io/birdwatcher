@@ -1,6 +1,6 @@
 package models
 
-import "github.com/milvus-io/milvus/pkg/v2/proto/datapb"
+import "github.com/milvus-io/milvus/pkg/v3/proto/datapb"
 
 type (
 	ImportJob     = ProtoWrapper[*datapb.ImportJob]

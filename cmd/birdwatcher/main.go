@@ -12,9 +12,9 @@ import (
 	"github.com/milvus-io/birdwatcher/common"
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/states"
-	log2 "github.com/milvus-io/milvus/pkg/v2/log"
-	"github.com/milvus-io/milvus/pkg/v2/util/logutil"
-	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
+	"github.com/milvus-io/milvus/pkg/v3/mlog"
+	"github.com/milvus-io/milvus/pkg/v3/util/logutil"
+	"github.com/milvus-io/milvus/pkg/v3/util/paramtable"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	logutil.SetupLogger(&log2.Config{
+	logutil.SetupLogger(&mlog.Config{
 		Level:  "error",
 		Stdout: true,
 	})

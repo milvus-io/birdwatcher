@@ -18,8 +18,8 @@ import (
 	_ "github.com/milvus-io/birdwatcher/asap"
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	commonpb "github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
-	"github.com/milvus-io/milvus/pkg/v2/proto/streamingpb"
+	commonpb "github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/streamingpb"
 )
 
 var (

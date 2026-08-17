@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/internal/ops/gen"
-	"github.com/milvus-io/milvus/client/v2/column"
-	"github.com/milvus-io/milvus/client/v2/milvusclient"
+	"github.com/milvus-io/milvus/client/v3/column"
+	"github.com/milvus-io/milvus/client/v3/milvusclient"
 )
 
 // ColumnSpec names one column of an Insert/Upsert request. Exactly one of

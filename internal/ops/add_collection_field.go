@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	schemapkg "github.com/milvus-io/birdwatcher/internal/schema"
-	"github.com/milvus-io/milvus/client/v2/milvusclient"
+	"github.com/milvus-io/milvus/client/v3/milvusclient"
 )
 
 // AddFieldParams adds one field to an existing collection. Milvus currently
