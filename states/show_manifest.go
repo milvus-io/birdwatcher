@@ -125,7 +125,12 @@ const manifestMagic int32 = 0x4D494C56 // "MILV"
 //   - v4: ColumnGroupFile.metadata (bytes) replaced by properties (map<string,string>)
 //   - v5: added lob_files
 //   - v6: expanded Index with typed artifact metadata
-const manifestVersionV6 = 6
+const (
+	manifestVersionV3 int32 = 3
+	manifestVersionV4 int32 = 4
+	manifestVersionV5 int32 = 5
+	manifestVersionV6 int32 = 6
+)
 
 // avroOCFMagic is the 4-byte magic header for Avro Object Container Format files.
 var avroOCFMagic = []byte{'O', 'b', 'j', 0x01}
@@ -533,13 +538,13 @@ func (a *avroReader) readStatistics() (manifestStatistics, error) {
 
 // readManifestRecord decodes the Manifest record fields from Avro binary encoding.
 // Field order: column_groups, delta_logs, stats(map<string, Statistics>), indexes, lob_files
-func readManifestRecord(ar *avroReader) (*manifest, error) {
+func readManifestRecord(ar *avroReader, version int32) (*manifest, error) {
 	m := &manifest{}
 	var err error
 
 	// 1. Column groups: array<ColumnGroup>
 	m.ColumnGroups, err = readAvroArray(ar, func() (manifestColumnGroup, error) {
-		return ar.readColumnGroup(true)
+		return ar.readColumnGroup(version >= manifestVersionV4)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading column_groups: %w", err)
@@ -567,18 +572,20 @@ func readManifestRecord(ar *avroReader) (*manifest, error) {
 
 	// 4. Indexes: array<Index>
 	m.Indexes, err = readAvroArray(ar, func() (manifestIndex, error) {
-		return ar.readIndex(true)
+		return ar.readIndex(version >= manifestVersionV6)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading indexes: %w", err)
 	}
 
-	// 5. LOB files: array<LobFileInfo>
-	m.LobFiles, err = readAvroArray(ar, func() (manifestLobFileInfo, error) {
-		return ar.readLobFileInfo()
-	})
-	if err != nil {
-		return nil, fmt.Errorf("reading lob_files: %w", err)
+	// 5. LOB files: array<LobFileInfo> (v5+)
+	if version >= manifestVersionV5 {
+		m.LobFiles, err = readAvroArray(ar, func() (manifestLobFileInfo, error) {
+			return ar.readLobFileInfo()
+		})
+		if err != nil {
+			return nil, fmt.Errorf("reading lob_files: %w", err)
+		}
 	}
 
 	return m, nil
@@ -601,6 +608,11 @@ func parseAvroOCF(r io.Reader) (*manifest, error) {
 	codec := "null"
 	if codecBytes, ok := meta["avro.codec"]; ok {
 		codec = string(codecBytes)
+	}
+
+	version := manifestVersionV3
+	if schemaBytes, ok := meta["avro.schema"]; ok {
+		version = detectOCFManifestVersion(schemaBytes)
 	}
 
 	// Read 16-byte sync marker
@@ -672,15 +684,64 @@ func parseAvroOCF(r io.Reader) (*manifest, error) {
 
 	// Decode the manifest record from the accumulated block data
 	blockReader := &avroReader{r: bytes.NewReader(allData)}
-	m, err := readManifestRecord(blockReader)
+	m, err := readManifestRecord(blockReader, version)
 	if err != nil {
 		return nil, fmt.Errorf("decoding manifest record: %w", err)
 	}
 
 	m.Format = "avro_ocf"
-	m.Version = manifestVersionV6
+	m.Version = version
 
 	return m, nil
+}
+
+// detectOCFManifestVersion infers the writer version from fields added by each OCF schema revision.
+func detectOCFManifestVersion(schemaJSON []byte) int32 {
+	var schema any
+	if err := json.Unmarshal(schemaJSON, &schema); err != nil {
+		return manifestVersionV3
+	}
+	switch {
+	case avroRecordHasField(schema, "Index", "index_name"):
+		return manifestVersionV6
+	case avroRecordHasField(schema, "Manifest", "lob_files"):
+		return manifestVersionV5
+	case avroRecordHasField(schema, "ColumnGroupFile", "properties"):
+		return manifestVersionV4
+	default:
+		return manifestVersionV3
+	}
+}
+
+func avroRecordHasField(node any, recordName, fieldName string) bool {
+	switch value := node.(type) {
+	case map[string]any:
+		if name, _ := value["name"].(string); name == recordName {
+			if fields, ok := value["fields"].([]any); ok {
+				for _, field := range fields {
+					fieldMap, ok := field.(map[string]any)
+					if !ok {
+						continue
+					}
+					if name, _ := fieldMap["name"].(string); name == fieldName {
+						return true
+					}
+				}
+			}
+		}
+		for _, child := range value {
+			if avroRecordHasField(child, recordName, fieldName) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range value {
+			if avroRecordHasField(child, recordName, fieldName) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // manifestSnappyDecode decodes Avro-framed snappy data.
@@ -855,12 +916,12 @@ func parseLegacyManifest(r io.Reader) (*manifest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading version: %w", err)
 	}
-	if m.Version < 1 || (m.Version > 3 && m.Version != manifestVersionV6) {
+	if m.Version < 1 || (m.Version > manifestVersionV3 && m.Version != manifestVersionV6) {
 		return nil, fmt.Errorf("unsupported manifest version: %d (expected 1-3 or %d)", m.Version, manifestVersionV6)
 	}
 
 	// 3. Column groups: array<ColumnGroup>
-	// Raw MILV manifests keep the legacy metadata (bytes) layout at every version.
+	// Supported raw MILV versions keep the legacy metadata (bytes) layout.
 	m.ColumnGroups, err = readAvroArray(ar, func() (manifestColumnGroup, error) {
 		return ar.readColumnGroup(false)
 	})
@@ -877,7 +938,7 @@ func parseLegacyManifest(r io.Reader) (*manifest, error) {
 	}
 
 	// 5. Stats: version-dependent format
-	if m.Version >= 3 {
+	if m.Version >= manifestVersionV3 {
 		// v3: map<string, Statistics> where Statistics = {paths: array<string>, metadata: map<string,string>}
 		m.Stats, err = readAvroMap(ar, func() (*manifestStatistics, error) {
 			stat, err := ar.readStatistics()

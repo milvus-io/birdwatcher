@@ -2,6 +2,7 @@ package states
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,7 +12,7 @@ type manifestTestBinaryEncoder struct {
 	bytes.Buffer
 }
 
-const manifestTestSchemaV6 = `{
+const manifestTestSchemaTemplate = `{
   "type": "record",
   "name": "Manifest",
   "namespace": "milvus_storage",
@@ -24,7 +25,7 @@ const manifestTestSchemaV6 = `{
             {"name": "path", "type": "string"},
             {"name": "start_index", "type": "long", "default": 0},
             {"name": "end_index", "type": "long", "default": 0},
-            {"name": "properties", "type": {"type": "map", "values": "string"}, "default": {}}
+            %s
           ]
         }}},
         {"name": "format", "type": "string"}
@@ -45,7 +46,24 @@ const manifestTestSchemaV6 = `{
     }}, "default": {}},
     {"name": "indexes", "type": {"type": "array", "items": {
       "type": "record", "name": "Index", "fields": [
-        {"name": "column_name", "type": "string"},
+        %s
+      ]
+    }}, "default": []}%s
+  ]
+}`
+
+func manifestTestSchema(version int32) string {
+	columnGroupFileMetadata := `{"name": "metadata", "type": "bytes", "default": ""}`
+	if version >= manifestVersionV4 {
+		columnGroupFileMetadata = `{"name": "properties", "type": {"type": "map", "values": "string"}, "default": {}}`
+	}
+
+	indexFields := `{"name": "column_name", "type": "string"},
+        {"name": "index_type", "type": "string"},
+        {"name": "path", "type": "string"},
+        {"name": "properties", "type": {"type": "map", "values": "string"}, "default": {}}`
+	if version >= manifestVersionV6 {
+		indexFields = `{"name": "column_name", "type": "string"},
         {"name": "index_name", "type": "string", "default": ""},
         {"name": "index_type", "type": "string"},
         {"name": "path", "type": "string"},
@@ -60,9 +78,12 @@ const manifestTestSchemaV6 = `{
         {"name": "current_scalar_index_version", "type": "int", "default": 0},
         {"name": "index_store_path_version", "type": "int", "default": 0},
         {"name": "index_file_keys", "type": {"type": "array", "items": "string"}, "default": []},
-        {"name": "properties", "type": {"type": "map", "values": "string"}, "default": {}}
-      ]
-    }}, "default": []},
+        {"name": "properties", "type": {"type": "map", "values": "string"}, "default": {}}`
+	}
+
+	lobFiles := ""
+	if version >= manifestVersionV5 {
+		lobFiles = `,
     {"name": "lob_files", "type": {"type": "array", "items": {
       "type": "record", "name": "LobFileInfo", "fields": [
         {"name": "path", "type": "string"},
@@ -71,9 +92,11 @@ const manifestTestSchemaV6 = `{
         {"name": "valid_rows", "type": "long"},
         {"name": "file_size_bytes", "type": "long"}
       ]
-    }}, "default": []}
-  ]
-}`
+    }}, "default": []}`
+	}
+
+	return fmt.Sprintf(manifestTestSchemaTemplate, columnGroupFileMetadata, indexFields, lobFiles)
+}
 
 func (e *manifestTestBinaryEncoder) writeLong(value int64) {
 	encoded := uint64(value<<1) ^ uint64(value>>63)
@@ -117,12 +140,12 @@ func (e *manifestTestBinaryEncoder) writeBytes(value []byte) {
 
 func TestParseAvroOCFManifestV6(t *testing.T) {
 	var record manifestTestBinaryEncoder
-	writeManifestTestOCFPrefix(&record)
+	writeManifestTestOCFPrefix(&record, true)
 	writeManifestTestIndexV6(&record)
 	writeManifestTestLobFile(&record)
 
-	m := parseManifestTestOCF(t, record.Bytes())
-	require.Equal(t, int32(6), m.Version)
+	m := parseManifestTestOCF(t, manifestVersionV6, record.Bytes())
+	require.Equal(t, manifestVersionV6, m.Version)
 	require.Equal(t, map[string]string{"file_size": "1024"}, m.ColumnGroups[0].Files[0].Properties)
 	require.Len(t, m.Indexes, 1)
 	require.Equal(t, manifestIndex{
@@ -143,20 +166,64 @@ func TestParseAvroOCFManifestV6(t *testing.T) {
 		IndexFileKeys:             []string{"index_params", "data"},
 		Properties:                map[string]string{"M": "16", "metric_type": "COSINE"},
 	}, m.Indexes[0])
-	require.Len(t, m.LobFiles, 1)
+	require.Equal(t, []manifestLobFileInfo{{
+		Path:          "101/_data/lob.vortex",
+		FieldID:       101,
+		TotalRows:     105,
+		ValidRows:     100,
+		FileSizeBytes: 2048,
+	}}, m.LobFiles)
+}
+
+func TestParseAvroOCFManifestLegacySchemas(t *testing.T) {
+	for _, version := range []int32{manifestVersionV3, manifestVersionV4, manifestVersionV5} {
+		t.Run(fmt.Sprintf("v%d", version), func(t *testing.T) {
+			var record manifestTestBinaryEncoder
+			writeManifestTestOCFPrefix(&record, version >= manifestVersionV4)
+			writeManifestTestIndexLegacy(&record)
+			if version >= manifestVersionV5 {
+				writeManifestTestLobFile(&record)
+			}
+
+			m := parseManifestTestOCF(t, version, record.Bytes())
+			require.Equal(t, version, m.Version)
+			if version == manifestVersionV3 {
+				require.Equal(t, []byte{1, 2}, m.ColumnGroups[0].Files[0].Metadata)
+			} else {
+				require.Equal(t, map[string]string{"file_size": "1024"}, m.ColumnGroups[0].Files[0].Properties)
+			}
+			require.Equal(t, []manifestIndex{{
+				ColumnName: "embedding",
+				IndexType:  "HNSW",
+				Path:       "embedding_hnsw",
+				Properties: map[string]string{"M": "16", "metric_type": "COSINE"},
+			}}, m.Indexes)
+			if version >= manifestVersionV5 {
+				require.Equal(t, []manifestLobFileInfo{{
+					Path:          "101/_data/lob.vortex",
+					FieldID:       101,
+					TotalRows:     105,
+					ValidRows:     100,
+					FileSizeBytes: 2048,
+				}}, m.LobFiles)
+			} else {
+				require.Empty(t, m.LobFiles)
+			}
+		})
+	}
 }
 
 func TestParseLegacyManifestV6(t *testing.T) {
 	var data manifestTestBinaryEncoder
 	data.writeLong(int64(manifestMagic))
-	data.writeLong(manifestVersionV6)
+	data.writeLong(int64(manifestVersionV6))
 	writeManifestTestLegacyPrefix(&data)
 	writeManifestTestIndexV6(&data)
 	writeManifestTestLobFile(&data)
 
 	m, err := parseManifest(bytes.NewReader(data.Bytes()))
 	require.NoError(t, err)
-	require.Equal(t, int32(6), m.Version)
+	require.Equal(t, manifestVersionV6, m.Version)
 	require.Equal(t, []byte{1, 2}, m.ColumnGroups[0].Files[0].Metadata)
 	require.Len(t, m.Indexes, 1)
 	require.Equal(t, "embedding_hnsw", m.Indexes[0].IndexName)
@@ -165,14 +232,18 @@ func TestParseLegacyManifestV6(t *testing.T) {
 	require.Equal(t, int64(2048), m.LobFiles[0].FileSizeBytes)
 }
 
-func writeManifestTestOCFPrefix(data *manifestTestBinaryEncoder) {
+func writeManifestTestOCFPrefix(data *manifestTestBinaryEncoder, hasProperties bool) {
 	data.writeLong(1)
 	data.writeStringArray([]string{"embedding"})
 	data.writeLong(1)
 	data.writeString("data.parquet")
 	data.writeLong(0)
 	data.writeLong(105)
-	data.writeStringMap(map[string]string{"file_size": "1024"})
+	if hasProperties {
+		data.writeStringMap(map[string]string{"file_size": "1024"})
+	} else {
+		data.writeBytes([]byte{1, 2})
+	}
 	data.writeLong(0)
 	data.writeString("parquet")
 	data.writeLong(0)
@@ -209,6 +280,15 @@ func writeManifestTestIndexV6(data *manifestTestBinaryEncoder) {
 	data.writeLong(0)
 }
 
+func writeManifestTestIndexLegacy(data *manifestTestBinaryEncoder) {
+	data.writeLong(1)
+	data.writeString("embedding")
+	data.writeString("HNSW")
+	data.writeString("embedding_hnsw")
+	data.writeStringMap(map[string]string{"M": "16", "metric_type": "COSINE"})
+	data.writeLong(0)
+}
+
 func writeManifestTestLobFile(data *manifestTestBinaryEncoder) {
 	data.writeLong(1)
 	data.writeString("101/_data/lob.vortex")
@@ -219,14 +299,14 @@ func writeManifestTestLobFile(data *manifestTestBinaryEncoder) {
 	data.writeLong(0)
 }
 
-func parseManifestTestOCF(t *testing.T, record []byte) *manifest {
+func parseManifestTestOCF(t *testing.T, writerVersion int32, record []byte) *manifest {
 	t.Helper()
 
 	var data manifestTestBinaryEncoder
 	data.Write(avroOCFMagic)
 	data.writeLong(2)
 	data.writeString("avro.schema")
-	data.writeBytes([]byte(manifestTestSchemaV6))
+	data.writeBytes([]byte(manifestTestSchema(writerVersion)))
 	data.writeString("avro.codec")
 	data.writeBytes([]byte("null"))
 	data.writeLong(0)
