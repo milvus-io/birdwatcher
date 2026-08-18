@@ -10,6 +10,7 @@ import (
 	"github.com/milvus-io/birdwatcher/configs"
 	"github.com/milvus-io/birdwatcher/framework"
 	metakv "github.com/milvus-io/birdwatcher/states/kv"
+	"github.com/milvus-io/birdwatcher/states/storage"
 )
 
 type testExtensionMarker struct{}
@@ -105,6 +106,30 @@ func TestApplicationStateMergesExtensionFunctionCommands(t *testing.T) {
 	require.Equal(t, "ok", ext.receiver.value)
 }
 
+func TestApplicationStateProvidesConnectedOSSObjectStore(t *testing.T) {
+	config := &configs.Config{}
+	app, ok := Start(config, false).(*ApplicationState)
+	require.True(t, ok)
+	require.Same(t, app, app.objectStoreProvider)
+
+	ossState, err := storage.ConnectOSS(context.Background(), &storage.ConnectOSSParam{
+		Bucket:          "test-bucket",
+		Address:         "127.0.0.1",
+		Port:            "9000",
+		CloudProvider:   "aws",
+		RootPath:        "test-root",
+		SkipBucketCheck: true,
+	}, app.core)
+	require.NoError(t, err)
+	app.states[ossTag] = ossState
+
+	resolved, err := app.GetObjectStore(context.Background(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, resolved)
+	require.Equal(t, "test-bucket", resolved.BucketName)
+	require.Equal(t, "test-root", resolved.RootPath)
+}
+
 func TestInstanceStateMergesExtensionCommands(t *testing.T) {
 	config := &configs.Config{}
 	client := metakv.NewFileAuditKV(nil, nil)
@@ -144,4 +169,16 @@ func TestInstanceStateMergesExtensionCommands(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ext.receiver.called)
 	require.Equal(t, "ok", ext.receiver.value)
+}
+
+func TestGetInstanceStateInjectsObjectStoreProviderIntoRepair(t *testing.T) {
+	config := &configs.Config{}
+	app, ok := Start(config, false).(*ApplicationState)
+	require.True(t, ok)
+	client := metakv.NewFileAuditKV(nil, nil)
+
+	state, ok := GetInstanceState(app.core, client, "test-root", "meta", nil, config, nil, app.objectStoreProvider).(*InstanceState)
+	require.True(t, ok)
+	require.NotNil(t, state.ComponentRepair)
+	require.NotNil(t, state.ComponentRepair.ObjectStoreResolver())
 }
