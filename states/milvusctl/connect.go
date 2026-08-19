@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/milvus/client/v2/milvusclient"
+	"github.com/milvus-io/milvus/client/v3/milvusclient"
 )
 
 type ConnectMilvusParam struct {

@@ -9,7 +9,7 @@ import (
 	"github.com/x448/float16"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
 type SerdeEntry struct {

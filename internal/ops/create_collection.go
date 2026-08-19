@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	schemapkg "github.com/milvus-io/birdwatcher/internal/schema"
-	"github.com/milvus-io/milvus/client/v2/entity"
-	"github.com/milvus-io/milvus/client/v2/milvusclient"
+	"github.com/milvus-io/milvus/client/v3/entity"
+	"github.com/milvus-io/milvus/client/v3/milvusclient"
 )
 
 // CreateCollectionParams creates a collection from either an inline schema,

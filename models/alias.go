@@ -1,6 +1,6 @@
 package models
 
-import "github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
+import "github.com/milvus-io/milvus/pkg/v3/proto/etcdpb"
 
 type Alias struct {
 	Name         string

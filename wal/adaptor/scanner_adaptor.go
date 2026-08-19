@@ -8,13 +8,13 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/birdwatcher/wal/utility"
-	"github.com/milvus-io/milvus/pkg/v2/log"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/util/options"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/util/types"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/walimpls"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/walimpls/helper"
-	_ "github.com/milvus-io/milvus/pkg/v2/streaming/walimpls/impls/pulsar"
+	"github.com/milvus-io/milvus/pkg/v3/mlog"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/util/message"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/util/options"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/util/types"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/walimpls"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/walimpls/helper"
+	_ "github.com/milvus-io/milvus/pkg/v3/streaming/walimpls/impls/pulsar"
 )
 
 type ChanMessageHandler chan message.ImmutableMessage
@@ -52,8 +52,8 @@ func newScannerAdaptor(
 		readOption.MesasgeHandler = ChanMessageHandler(make(chan message.ImmutableMessage))
 	}
 	options.GetFilterFunc(readOption.MessageFilter)
-	logger := log.With(
-		log.FieldComponent("scanner"),
+	logger := mlog.With(
+		mlog.FieldComponent("scanner"),
 		zap.String("name", name),
 		zap.String("channel", l.Channel().Name),
 	)
@@ -77,7 +77,7 @@ func newScannerAdaptor(
 type scannerAdaptorImpl struct {
 	*helper.ScannerHelper
 	recovery      bool
-	logger        *log.MLogger
+	logger        *mlog.Logger
 	innerWAL      walimpls.ROWALImpls
 	readOption    ReadOption
 	filterFunc    func(message.ImmutableMessage) bool
@@ -121,9 +121,9 @@ func (s *scannerAdaptorImpl) execute() {
 	defer func() {
 		s.readOption.MesasgeHandler.Close()
 		s.Finish(nil)
-		s.logger.Info("scanner is closed")
+		s.logger.Info(s.Context(), "scanner is closed")
 	}()
-	s.logger.Info("scanner start background task")
+	s.logger.Info(s.Context(), "scanner start background task")
 
 	msgChan := make(chan message.ImmutableMessage)
 
@@ -134,24 +134,24 @@ func (s *scannerAdaptorImpl) execute() {
 		defer close(ch)
 		err := s.produceEventLoop(msgChan)
 		if errors.Is(err, context.Canceled) {
-			s.logger.Info("the produce event loop of scanner is closed")
+			s.logger.Info(s.Context(), "the produce event loop of scanner is closed")
 			return
 		}
-		s.logger.Warn("the produce event loop of scanner is closed with unexpected error", zap.Error(err))
+		s.logger.Warn(s.Context(), "the produce event loop of scanner is closed with unexpected error", zap.Error(err))
 	}()
 
 	err := s.consumeEventLoop(msgChan)
 	if errors.Is(err, context.Canceled) {
-		s.logger.Info("the consuming event loop of scanner is closed")
+		s.logger.Info(s.Context(), "the consuming event loop of scanner is closed")
 		return
 	}
-	s.logger.Warn("the consuming event loop of scanner is closed with unexpected error", zap.Error(err))
+	s.logger.Warn(s.Context(), "the consuming event loop of scanner is closed with unexpected error", zap.Error(err))
 }
 
 // produceEventLoop produces the message from the wal and write ahead buffer.
 func (s *scannerAdaptorImpl) produceEventLoop(msgChan chan<- message.ImmutableMessage) error {
 	scanner := newCatchupScanner(s.Name(), s.logger, s.innerWAL, s.readOption.DeliverPolicy, msgChan)
-	s.logger.Info("start produce loop of scanner")
+	s.logger.Info(s.Context(), "start produce loop of scanner")
 
 	return scanner.Do(s.Context())
 }
@@ -226,16 +226,16 @@ func (s *scannerAdaptorImpl) handleUpstream(msg message.ImmutableMessage) {
 	}
 	// otherwise add message into reorder buffer directly.
 	if err := s.reorderBuffer.Push(msg); err != nil {
-		s.logger.Warn("failed to push message into reorder buffer",
-			log.FieldMessage(msg),
+		s.logger.Warn(s.Context(), "failed to push message into reorder buffer",
+			mlog.FieldMessage(msg),
 			zap.Bool("tailing", isTailing),
 			zap.Error(err))
 	}
 	// Observe the filtered message.
 	if s.logger.Level().Enabled(zap.DebugLevel) {
 		// Log the message if the log level is debug.
-		s.logger.Debug("push message into reorder buffer",
-			log.FieldMessage(msg),
+		s.logger.Debug(s.Context(), "push message into reorder buffer",
+			mlog.FieldMessage(msg),
 			zap.Bool("tailing", isTailing))
 	}
 }

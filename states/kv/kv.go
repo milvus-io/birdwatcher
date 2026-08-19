@@ -21,7 +21,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
-	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
 )
 
 const (
@@ -410,7 +410,7 @@ func (kv *txnTiKV) Load(ctx context.Context, key string, opts ...LoadOption) (st
 	}
 
 	// Check if value is the empty placeholder
-	value := convertEmptyByteToString(val)
+	value := convertEmptyByteToString(val.Value)
 
 	return value, err
 }

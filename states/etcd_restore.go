@@ -17,7 +17,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
 )
 
 func restoreFromV1File(cli kv.MetaKV, rd io.Reader, header *models.BackupHeader) error {

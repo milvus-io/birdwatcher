@@ -12,7 +12,7 @@ import (
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/milvus-io/milvus/pkg/v2/proto/etcdpb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/etcdpb"
 )
 
 func ListCollectionHistory(ctx context.Context, cli kv.MetaKV, basePath string, dbID, collectionID int64) ([]*models.CollectionHistory, error) {

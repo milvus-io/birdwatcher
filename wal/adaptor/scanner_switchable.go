@@ -6,18 +6,18 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/milvus-io/milvus/pkg/v2/log"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/util/options"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/walimpls"
-	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
-	"github.com/milvus-io/milvus/pkg/v2/util/typeutil"
+	"github.com/milvus-io/milvus/pkg/v3/mlog"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/util/message"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/util/options"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/walimpls"
+	"github.com/milvus-io/milvus/pkg/v3/util/paramtable"
+	"github.com/milvus-io/milvus/pkg/v3/util/typeutil"
 )
 
 // newCatchupScanner creates a new catchup scanner.
 func newCatchupScanner(
 	scannerName string,
-	logger *log.MLogger,
+	logger *mlog.Logger,
 	innerWAL walimpls.ROWALImpls,
 	deliverPolicy options.DeliverPolicy,
 	msgChan chan<- message.ImmutableMessage,
@@ -34,7 +34,7 @@ func newCatchupScanner(
 // catchupScanner is a scanner that make a read at underlying wal, and try to catchup the writeahead buffer then switch to tailing mode.
 type catchupScanner struct {
 	scannerName   string
-	logger        *log.MLogger
+	logger        *mlog.Logger
 	innerWAL      walimpls.ROWALImpls
 	msgChan       chan<- message.ImmutableMessage
 	deliverPolicy options.DeliverPolicy
@@ -51,7 +51,7 @@ func (s *catchupScanner) Do(ctx context.Context) error {
 	}
 	err = s.consumeWithScanner(ctx, scanner)
 	if err != nil {
-		s.logger.Warn("scanner consuming was interrpurted with error, start a backoff", zap.Error(err))
+		s.logger.Warn(ctx, "scanner consuming was interrpurted with error, start a backoff", zap.Error(err))
 		return err
 	}
 	return nil
@@ -116,7 +116,7 @@ func (s *catchupScanner) createReaderWithBackoff(ctx context.Context, deliverPol
 			return nil, ctx.Err()
 		}
 		waker, nextInterval := backoffTimer.NextTimer()
-		s.logger.Warn("create underlying scanner for wal scanner, start a backoff",
+		s.logger.Warn(ctx, "create underlying scanner for wal scanner, start a backoff",
 			zap.Duration("nextInterval", nextInterval),
 			zap.Error(err),
 		)

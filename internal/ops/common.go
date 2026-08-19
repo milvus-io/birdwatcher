@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/milvus-io/milvus/client/v2/entity"
+	"github.com/milvus-io/milvus/client/v3/entity"
 )
 
 func errNoClient(op string) error {

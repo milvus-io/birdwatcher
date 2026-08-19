@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/milvus-io/birdwatcher/framework"
-	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
-	"github.com/milvus-io/milvus/client/v2/milvusclient"
+	"github.com/milvus-io/milvus-proto/go-api/v3/milvuspb"
+	"github.com/milvus-io/milvus/client/v3/milvusclient"
 )
 
 // -----------------------------------------------------------------------------

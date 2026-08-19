@@ -14,12 +14,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/states/kv"
-	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
-	"github.com/milvus-io/milvus/pkg/v2/log"
-	"github.com/milvus-io/milvus/pkg/v2/proto/streamingpb"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
-	"github.com/milvus-io/milvus/pkg/v2/streaming/walimpls/impls/wp"
-	"github.com/milvus-io/milvus/pkg/v2/util/funcutil"
+	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
+	"github.com/milvus-io/milvus/pkg/v3/mlog"
+	"github.com/milvus-io/milvus/pkg/v3/proto/streamingpb"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/util/message"
+	"github.com/milvus-io/milvus/pkg/v3/streaming/walimpls/impls/wp"
+	"github.com/milvus-io/milvus/pkg/v3/util/funcutil"
 )
 
 const (
@@ -33,7 +33,7 @@ const (
 var walNameUnmarshaler map[string]func(string) (string, error)
 
 func init() {
-	// TODO: should use milvus/pkg/v2, but there's some package dependency issue, should be fixed later.
+	// TODO: should use milvus/pkg/v3, but there's some package dependency issue, should be fixed later.
 	walNameUnmarshaler = make(map[string]func(string) (string, error))
 	walNameUnmarshaler["pulsar"] = func(b string) (string, error) {
 		bytes, err := base64.StdEncoding.DecodeString(b)
@@ -207,7 +207,7 @@ func ListWALRecoveryStorage(ctx context.Context, cli kv.MetaKV, basePath string,
 				continue
 			}
 		}
-		log.Error("error: unknown vchannel meta", zap.String("key", key))
+		mlog.Error(context.TODO(), "error: unknown vchannel meta", zap.String("key", key))
 	}
 
 	segmentsGroupByVChannel := make(map[string][]*streamingpb.SegmentAssignmentMeta)

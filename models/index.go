@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
+	"github.com/milvus-io/milvus/pkg/v3/proto/indexpb"
 )
 
 type FieldIndex = ProtoWrapper[*indexpb.FieldIndex]
