@@ -303,6 +303,7 @@ func printCollection(sb *strings.Builder, info *models.Collection) {
 	}
 	for _, structField := range info.GetProto().GetSchema().GetStructArrayFields() {
 		fmt.Fprintf(sb, " - Struct Field ID: %d \t Field Name: %s\n", structField.FieldID, structField.Name)
+		fmt.Fprintf(sb, "\t - %s\n", color.MagentaString(fmt.Sprintf("Nullable: %t", structField.Nullable)))
 		for _, field := range structField.Fields {
 			fmt.Fprintf(sb, "\t - Field ID: %d \t Field Name: %s \t Field Type: %s\n", field.FieldID, field.Name, field.DataType.String())
 			// type params
