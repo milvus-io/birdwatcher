@@ -2,7 +2,10 @@ package show
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"math"
 	"path"
 	"sort"
 	"strings"
@@ -15,6 +18,22 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/utils"
 )
+
+// droppedChannelCheckpointTimestamp is funcutil.DroppedChannelCheckpointTimestamp in
+// Milvus: the reserved value DataCoord writes into a channel checkpoint once the channel
+// is dropped. It decodes to the year 4199, so it must never be taken as a progress reading.
+const droppedChannelCheckpointTimestamp = uint64(math.MaxUint64)
+
+// usableProgress reports whether ts can be used as a reading of how far the cluster has
+// progressed. The dropped-channel sentinel and anything dated in the future are not:
+// letting either become the reference makes every other vchannel look arbitrarily stale.
+func usableProgress(ts uint64, now time.Time) bool {
+	if ts == 0 || ts == droppedChannelCheckpointTimestamp {
+		return false
+	}
+	t, _ := utils.ParseTS(ts)
+	return !t.After(now.Add(time.Minute))
+}
 
 // VChannelHealthParam is the parameter of `show vchannel-health`.
 type VChannelHealthParam struct {
@@ -36,9 +55,17 @@ type VChannelHealth struct {
 	LagMinutes float64
 	// PChannelConsumeCheckpoint is the streaming node's consume checkpoint of the pchannel (WAL is alive if it moves).
 	PChannelConsumeCheckpoint time.Time
-	DataCoordMark             string // non-removed / removed / missing
-	StreamingMeta             string // NORMAL / DROPPED / missing
-	Flags                     []string
+	// SeekPosition is the checkpoint's message ID rendered for the operator. DataCoord hands
+	// this position to the flusher through GetChannelRecoveryInfo, and the flusher starts its
+	// WAL scanner from the smallest one across the vchannels it serves: a position that has
+	// aged out of the message queue's retention keeps the flusher from starting at all.
+	SeekPosition string
+	// Dropped is true when the checkpoint holds the dropped-channel sentinel
+	// (funcutil.DroppedChannelCheckpointTimestamp), meaning the channel is gone, not stale.
+	Dropped       bool
+	DataCoordMark string // non-removed / removed / missing
+	StreamingMeta string // NORMAL / DROPPED / missing
+	Flags         []string
 }
 
 // Frozen reports whether the vchannel is flagged FROZEN.
@@ -59,8 +86,11 @@ func (c *ComponentShow) VChannelHealthCommand(ctx context.Context, p *VChannelHe
 		return nil, errors.Wrap(err, "failed to list channel checkpoints")
 	}
 	cpTS := make(map[string]uint64, len(cps))
+	cpMsgID := make(map[string][]byte, len(cps))
 	for _, cp := range cps {
-		cpTS[cp.GetProto().GetChannelName()] = cp.GetProto().GetTimestamp()
+		name := cp.GetProto().GetChannelName()
+		cpTS[name] = cp.GetProto().GetTimestamp()
+		cpMsgID[name] = cp.GetProto().GetMsgID()
 	}
 
 	// 2. Collections: vchannel -> collection, so the row can carry db.name and state.
@@ -141,21 +171,22 @@ func (c *ComponentShow) VChannelHealthCommand(ctx context.Context, p *VChannelHe
 		}
 		return physicalOf(vch)
 	}
+	now := time.Now()
 	var globalMax uint64
 	for _, ts := range cpTS {
-		if ts > globalMax {
+		if usableProgress(ts, now) && ts > globalMax {
 			globalMax = ts
 		}
 	}
 	for _, ts := range consumeCP {
-		if ts > globalMax {
+		if usableProgress(ts, now) && ts > globalMax {
 			globalMax = ts
 		}
 	}
 	// The persisted consume checkpoint is written lazily, so it can trail the channel
 	// checkpoints by minutes; the reference is therefore the newest progress known anywhere.
 	refOf := func(pch string) uint64 {
-		if cc, ok := consumeCP[pch]; ok && cc > globalMax {
+		if cc, ok := consumeCP[pch]; ok && cc > globalMax && usableProgress(cc, now) {
 			return cc
 		}
 		return globalMax
@@ -168,19 +199,27 @@ func (c *ComponentShow) VChannelHealthCommand(ctx context.Context, p *VChannelHe
 			continue
 		}
 		pch := pchOf(vch)
-		lag := float64(int64(refOf(pch)>>18)-int64(ts>>18)) / 60000.0
-		if lag < 0 {
-			lag = 0
+		dropped := ts == droppedChannelCheckpointTimestamp
+		var lag float64
+		if !dropped {
+			lag = float64(int64(refOf(pch)>>18)-int64(ts>>18)) / 60000.0
+			if lag < 0 {
+				lag = 0
+			}
 		}
 		row := &VChannelHealth{
 			VChannel:      vch,
+			Dropped:       dropped,
 			PChannel:      pch,
 			LagMinutes:    lag,
+			SeekPosition:  formatSeekPosition(cpMsgID[vch]),
 			DataCoordMark: markOrMissing(marks, vch),
 			StreamingMeta: stateOrMissing(streamState, vch),
 		}
-		row.Checkpoint, _ = utils.ParseTS(ts)
-		if cc, ok := consumeCP[pch]; ok {
+		if !dropped {
+			row.Checkpoint, _ = utils.ParseTS(ts)
+		}
+		if cc, ok := consumeCP[pch]; ok && usableProgress(cc, now) {
 			row.PChannelConsumeCheckpoint, _ = utils.ParseTS(cc)
 		}
 		if known {
@@ -204,7 +243,10 @@ func (c *ComponentShow) VChannelHealthCommand(ctx context.Context, p *VChannelHe
 		} else if row.StreamingMeta != "NORMAL" && row.StreamingMeta != "missing" {
 			row.Flags = append(row.Flags, "STREAMING_"+row.StreamingMeta)
 		}
-		if known && row.DataCoordMark != "removed" && lag > float64(p.LagMinutes) {
+		if dropped {
+			row.Flags = append(row.Flags, "DROPPED_CHECKPOINT")
+		}
+		if known && !dropped && row.DataCoordMark != "removed" && lag > float64(p.LagMinutes) {
 			row.Flags = append(row.Flags, "FROZEN")
 		}
 		if !p.All && len(row.Flags) == 0 {
@@ -234,6 +276,20 @@ func physicalOf(vchannel string) string {
 	return vchannel[:idx]
 }
 
+// formatSeekPosition renders a checkpoint message ID. An 8-byte ID is a Kafka offset
+// (kafka.SerializeKafkaID writes it little-endian), which is what an operator needs in order
+// to compare it against the topic's earliest available offset; anything else is shown as hex.
+func formatSeekPosition(msgID []byte) string {
+	switch {
+	case len(msgID) == 0:
+		return "-"
+	case len(msgID) == 8:
+		return fmt.Sprintf("%d", int64(binary.LittleEndian.Uint64(msgID)))
+	default:
+		return hex.EncodeToString(msgID)
+	}
+}
+
 func markOrMissing(marks map[string]string, vch string) string {
 	if v, ok := marks[vch]; ok {
 		return v
@@ -254,14 +310,18 @@ type VChannelHealths struct {
 }
 
 func (rs *VChannelHealths) TableHeaders() table.Row {
-	return table.Row{"VChannel", "Collection", "State", "Checkpoint (UTC)", "Lag(min)", "PCh consume-cp (UTC)", "DC mark", "Streaming meta", "Flags"}
+	return table.Row{"VChannel", "Collection", "State", "Checkpoint (UTC)", "Lag(min)", "Seek pos", "PCh consume-cp (UTC)", "DC mark", "Streaming meta", "Flags"}
 }
 
 func (rs *VChannelHealths) TableRows() []table.Row {
 	rows := make([]table.Row, 0, len(rs.Data))
 	for _, r := range rs.Data {
+		cp, lag := fmtTime(r.Checkpoint), fmt.Sprintf("%.0f", r.LagMinutes)
+		if r.Dropped {
+			cp, lag = "dropped", "-"
+		}
 		rows = append(rows, table.Row{
-			r.VChannel, r.Collection, r.CollState, fmtTime(r.Checkpoint), fmt.Sprintf("%.0f", r.LagMinutes),
+			r.VChannel, r.Collection, r.CollState, cp, lag, r.SeekPosition,
 			fmtTime(r.PChannelConsumeCheckpoint), r.DataCoordMark, r.StreamingMeta, strings.Join(r.Flags, ","),
 		})
 	}
@@ -279,13 +339,17 @@ func (rs *VChannelHealths) PrintAs(format framework.Format) string {
 			}
 		}
 		if frozen == 0 {
-			fmt.Fprintf(sb, "no FROZEN vchannel (%d rows listed)\n", len(rs.Data))
+			fmt.Fprintf(sb, "no FROZEN vchannel (%d rows listed); all times are UTC\n", len(rs.Data))
 		} else {
-			fmt.Fprintf(sb, "%d FROZEN vchannel(s): GetFlushAllState stays false while any of them exists, so flushAll and a default-strategy milvus-backup create wait forever\n", frozen)
+			fmt.Fprintf(sb, "%d FROZEN vchannel(s): GetFlushAllState stays false while any of them exists, so flushAll and a default-strategy milvus-backup create wait forever; all times are UTC\n", frozen)
 		}
 		for _, r := range rs.Data {
-			fmt.Fprintf(sb, "%s  %s (%s)  checkpoint=%s  lag=%.0fmin  pchannel-consume-cp=%s  dc-mark=%s  streaming-meta=%s  %s\n",
-				r.VChannel, r.Collection, r.CollState, fmtTime(r.Checkpoint), r.LagMinutes,
+			cp, lag := fmtTime(r.Checkpoint), fmt.Sprintf("%.0fmin", r.LagMinutes)
+			if r.Dropped {
+				cp, lag = "dropped", "-"
+			}
+			fmt.Fprintf(sb, "%s  %s (%s)  checkpoint=%s  lag=%s  seek-pos=%s  pchannel-consume-cp=%s  dc-mark=%s  streaming-meta=%s  %s\n",
+				r.VChannel, r.Collection, r.CollState, cp, lag, r.SeekPosition,
 				fmtTime(r.PChannelConsumeCheckpoint), r.DataCoordMark, r.StreamingMeta, strings.Join(r.Flags, ","))
 		}
 		return sb.String()
