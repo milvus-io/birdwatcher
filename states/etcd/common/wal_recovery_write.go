@@ -33,3 +33,28 @@ func SaveVChannelMeta(ctx context.Context, cli kv.MetaKV, basePath string, meta 
 	}
 	return cli.Save(ctx, key, string(bs))
 }
+
+// ConsumeCheckpointKey returns the etcd key holding the pchannel's consume checkpoint.
+func ConsumeCheckpointKey(basePath string, pchannel string) string {
+	return path.Join(basePath, walRecoveryStoragePrefix, pchannel, walRecoveryStorageConsumeCheckpoint)
+}
+
+// SaveConsumeCheckpoint overwrites the consume checkpoint of a pchannel.
+//
+// The checkpoint is what streamingnode reads to decide which WAL implementation
+// to open, so writing it is the commit point of any WAL switch — callers should
+// write everything else first.
+func SaveConsumeCheckpoint(ctx context.Context, cli kv.MetaKV, basePath string, pchannel string, checkpoint *streamingpb.WALCheckpoint) error {
+	data, err := proto.Marshal(checkpoint)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal consume checkpoint for pchannel %s", pchannel)
+	}
+	return cli.Save(ctx, ConsumeCheckpointKey(basePath, pchannel), string(data))
+}
+
+// SegmentAssignPrefix returns the prefix holding a pchannel's growing-segment
+// allocations. They are checkpointed against WAL offsets, so a WAL switch
+// invalidates all of them.
+func SegmentAssignPrefix(basePath string, pchannel string) string {
+	return path.Join(basePath, walRecoveryStoragePrefix, pchannel, walRecoveryStorageDirectorySegmentAssign)
+}
