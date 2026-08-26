@@ -17,6 +17,7 @@ import (
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 	"github.com/milvus-io/birdwatcher/utils"
+	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
 )
 
 // droppedChannelCheckpointTimestamp is funcutil.DroppedChannelCheckpointTimestamp in
@@ -55,6 +56,12 @@ type VChannelHealth struct {
 	LagMinutes float64
 	// PChannelConsumeCheckpoint is the streaming node's consume checkpoint of the pchannel (WAL is alive if it moves).
 	PChannelConsumeCheckpoint time.Time
+	// Unflushed counts the segments on this vchannel that still hold data DataCoord has not
+	// written out: Growing, Sealed and Flushing. Advancing a frozen checkpoint declares
+	// everything before it flushed, so a vchannel with none of these has nothing left to lose.
+	Unflushed int
+	// Flushed counts the segments on this vchannel already written out.
+	Flushed int
 	// SeekPosition is the checkpoint's message ID rendered for the operator. DataCoord hands
 	// this position to the flusher through GetChannelRecoveryInfo, and the flusher starts its
 	// WAL scanner from the smallest one across the vchannels it serves: a position that has
@@ -137,7 +144,28 @@ func (c *ComponentShow) VChannelHealthCommand(ctx context.Context, p *VChannelHe
 		}
 	}
 
-	// 4. Streaming node recovery meta, per pchannel.
+	// 4. Segments per vchannel, split into "still holds unwritten data" and "already written".
+	// This is what says whether advancing a frozen checkpoint would abandon anything: a
+	// streaming node does not create segments for a vchannel missing from its recovery meta,
+	// so a frozen vchannel with no unflushed segment has no pending data left to recover.
+	unflushed := make(map[string]int)
+	flushed := make(map[string]int)
+	if segments, err := common.ListSegments(ctx, c.client, c.metaPath); err == nil {
+		for _, seg := range segments {
+			ch := seg.GetInsertChannel()
+			if ch == "" {
+				continue
+			}
+			switch seg.GetState() {
+			case commonpb.SegmentState_Growing, commonpb.SegmentState_Sealed, commonpb.SegmentState_Flushing:
+				unflushed[ch]++
+			case commonpb.SegmentState_Flushed:
+				flushed[ch]++
+			}
+		}
+	}
+
+	// 5. Streaming node recovery meta, per pchannel.
 	pchannels := map[string]struct{}{}
 	for vch := range cpTS {
 		if ref, ok := vch2coll[vch]; ok && ref.pchannel != "" {
@@ -212,6 +240,8 @@ func (c *ComponentShow) VChannelHealthCommand(ctx context.Context, p *VChannelHe
 			Dropped:       dropped,
 			PChannel:      pch,
 			LagMinutes:    lag,
+			Unflushed:     unflushed[vch],
+			Flushed:       flushed[vch],
 			SeekPosition:  formatSeekPosition(cpMsgID[vch]),
 			DataCoordMark: markOrMissing(marks, vch),
 			StreamingMeta: stateOrMissing(streamState, vch),
@@ -245,6 +275,9 @@ func (c *ComponentShow) VChannelHealthCommand(ctx context.Context, p *VChannelHe
 		}
 		if dropped {
 			row.Flags = append(row.Flags, "DROPPED_CHECKPOINT")
+		}
+		if row.Unflushed > 0 {
+			row.Flags = append(row.Flags, "UNFLUSHED_SEGMENTS")
 		}
 		if known && !dropped && row.DataCoordMark != "removed" && lag > float64(p.LagMinutes) {
 			row.Flags = append(row.Flags, "FROZEN")
@@ -310,7 +343,7 @@ type VChannelHealths struct {
 }
 
 func (rs *VChannelHealths) TableHeaders() table.Row {
-	return table.Row{"VChannel", "Collection", "State", "Checkpoint (UTC)", "Lag(min)", "Seek pos", "PCh consume-cp (UTC)", "DC mark", "Streaming meta", "Flags"}
+	return table.Row{"VChannel", "Collection", "State", "Checkpoint (UTC)", "Lag(min)", "Unflushed", "Flushed", "Seek pos", "PCh consume-cp (UTC)", "DC mark", "Streaming meta", "Flags"}
 }
 
 func (rs *VChannelHealths) TableRows() []table.Row {
@@ -321,7 +354,7 @@ func (rs *VChannelHealths) TableRows() []table.Row {
 			cp, lag = "dropped", "-"
 		}
 		rows = append(rows, table.Row{
-			r.VChannel, r.Collection, r.CollState, cp, lag, r.SeekPosition,
+			r.VChannel, r.Collection, r.CollState, cp, lag, r.Unflushed, r.Flushed, r.SeekPosition,
 			fmtTime(r.PChannelConsumeCheckpoint), r.DataCoordMark, r.StreamingMeta, strings.Join(r.Flags, ","),
 		})
 	}
@@ -348,8 +381,8 @@ func (rs *VChannelHealths) PrintAs(format framework.Format) string {
 			if r.Dropped {
 				cp, lag = "dropped", "-"
 			}
-			fmt.Fprintf(sb, "%s  %s (%s)  checkpoint=%s  lag=%s  seek-pos=%s  pchannel-consume-cp=%s  dc-mark=%s  streaming-meta=%s  %s\n",
-				r.VChannel, r.Collection, r.CollState, cp, lag, r.SeekPosition,
+			fmt.Fprintf(sb, "%s  %s (%s)  checkpoint=%s  lag=%s  unflushed-segments=%d  flushed-segments=%d  seek-pos=%s  pchannel-consume-cp=%s  dc-mark=%s  streaming-meta=%s  %s\n",
+				r.VChannel, r.Collection, r.CollState, cp, lag, r.Unflushed, r.Flushed, r.SeekPosition,
 				fmtTime(r.PChannelConsumeCheckpoint), r.DataCoordMark, r.StreamingMeta, strings.Join(r.Flags, ","))
 		}
 		return sb.String()
