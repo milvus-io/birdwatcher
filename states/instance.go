@@ -179,11 +179,11 @@ func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 	// use audit kv
 	state := &InstanceState{
 		CmdState:        parent.Spawn(fmt.Sprintf("Milvus(%s)", instanceName)),
-		ComponentShow:   show.NewComponent(cli, config, instanceName, metaPath),
-		ComponentRemove: remove.NewComponent(cli, config, instanceName, metaPath),
-		ComponentRepair: repair.NewComponent(cli, config, basePath),
-		ComponentReset:  reset.NewComponent(cli, config, basePath),
-		ComponentSet:    set.NewComponent(cli, config, basePath),
+		ComponentShow:   show.NewComponent(kv, config, instanceName, metaPath),
+		ComponentRemove: remove.NewComponent(kv, config, instanceName, metaPath),
+		ComponentRepair: repair.NewComponent(kv, config, basePath),
+		ComponentReset:  reset.NewComponent(kv, config, basePath),
+		ComponentSet:    set.NewComponent(kv, config, basePath),
 		instanceName:    instanceName,
 		metaPath:        metaPath,
 		client:          kv,
