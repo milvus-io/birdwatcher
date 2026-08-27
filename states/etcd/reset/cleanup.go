@@ -106,8 +106,9 @@ func (c *ComponentReset) planChannelRemovals(ctx context.Context, p *ResetCheckp
 	return deletes, nil
 }
 
-// planQueryCoordTargets drops the cached query target of every collection with
-// at least one vchannel in scope.
+// planQueryCoordTargets drops cached query targets: the whole prefix on a
+// whole-instance run, otherwise every collection with at least one vchannel in
+// scope.
 //
 // querycoord recovers this cache into its in-memory current target and hands the
 // seek positions inside it straight to querynodes (TargetManager.Recover ->
@@ -119,6 +120,27 @@ func (c *ComponentReset) planChannelRemovals(ctx context.Context, p *ResetCheckp
 // A collection sharded across several pchannels keeps positions for all of them
 // in one target, so touching any one of its vchannels dirties the whole entry.
 func (c *ComponentReset) planQueryCoordTargets(ctx context.Context, p *ResetCheckpointParam) ([]plannedDelete, error) {
+	// A whole-instance run drops the entire prefix. Enumerating collections
+	// instead would miss orphan targets — a collection whose meta is already
+	// gone leaves its cached target behind, and ListCollections cannot see it.
+	prefix := path.Join(c.basePath, collectionTargetPrefix)
+	if p.PChannel == "" {
+		keys, _, err := c.client.LoadWithPrefix(ctx, prefix+"/", kv.WithKeysOnly())
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to scan %s", prefix)
+		}
+		if len(keys) == 0 {
+			return nil, nil
+		}
+		return []plannedDelete{{
+			kind:       kindQueryCoordCache,
+			key:        prefix,
+			withPrefix: true,
+			reason: fmt.Sprintf("%d cached query target(s) embed old-WAL positions; querycoord rebuilds them",
+				len(keys)),
+		}}, nil
+	}
+
 	colls, err := common.ListCollections(ctx, c.client, c.basePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list collections")
@@ -127,7 +149,7 @@ func (c *ComponentReset) planQueryCoordTargets(ctx context.Context, p *ResetChec
 	var deletes []plannedDelete
 	for _, coll := range colls {
 		id := coll.GetProto().GetID()
-		key := path.Join(c.basePath, collectionTargetPrefix, strconv.FormatInt(id, 10))
+		key := path.Join(prefix, strconv.FormatInt(id, 10))
 		if !c.anyChannelInScope(p, coll.GetProto().GetVirtualChannelNames()) {
 			continue
 		}

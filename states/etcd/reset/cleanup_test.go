@@ -138,3 +138,41 @@ func TestCleanupDryRunDeletesNothing(t *testing.T) {
 	assert.True(t, exists(t, collectionTargetKey(f.base, testCollID)))
 	assert.True(t, exists(t, channelRemovalKey(f.base, testVChannel)))
 }
+
+// TestCleanupSweepsOrphanTargetOnWholeInstanceRun pins why a whole-instance run
+// drops the whole prefix instead of enumerating collections: a collection whose
+// meta is already gone leaves its cached target behind, and ListCollections
+// cannot see it. A scoped run cannot attribute such an orphan to a pchannel, so
+// it leaves it alone.
+func TestCleanupSweepsOrphanTargetOnWholeInstanceRun(t *testing.T) {
+	const orphanCollID = int64(440000000000000099)
+
+	t.Run("whole-instance sweeps it", func(t *testing.T) {
+		f := seedCleanup(t, "cleanup-orphan-all")
+		require.NoError(t, testKV.Save(context.Background(),
+			collectionTargetKey(f.base, orphanCollID), "target"))
+
+		require.NoError(t, f.comp.ResetCheckpointCommand(context.Background(), &ResetCheckpointParam{
+			ExecutionParam: framework.ExecutionParam{Run: true},
+			TargetWAL:      "woodpecker",
+		}))
+
+		assert.False(t, exists(t, collectionTargetKey(f.base, orphanCollID)),
+			"a target with no surviving collection meta must still be swept")
+	})
+
+	t.Run("scoped run leaves it", func(t *testing.T) {
+		f := seedCleanup(t, "cleanup-orphan-scoped")
+		require.NoError(t, testKV.Save(context.Background(),
+			collectionTargetKey(f.base, orphanCollID), "target"))
+
+		require.NoError(t, f.comp.ResetCheckpointCommand(context.Background(), &ResetCheckpointParam{
+			ExecutionParam: framework.ExecutionParam{Run: true},
+			TargetWAL:      "woodpecker",
+			PChannel:       testPChannel,
+		}))
+
+		assert.True(t, exists(t, collectionTargetKey(f.base, orphanCollID)),
+			"an orphan cannot be attributed to a pchannel, so a scoped run must not guess")
+	})
+}
