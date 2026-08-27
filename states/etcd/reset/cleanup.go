@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strconv"
 
 	"github.com/cockroachdb/errors"
 
@@ -67,48 +68,108 @@ func (c *ComponentReset) planCleanup(ctx context.Context, p *ResetCheckpointPara
 		})
 	}
 
-	// Only whole-instance runs may drop these: they are not partitioned by
-	// pchannel, so removing them during a single-pchannel run would disturb
-	// channels the operator did not ask us to touch.
-	if p.PChannel == "" {
-		candidates := []plannedDelete{
-			{
-				kind:       kindChannelRemoval,
-				key:        path.Join(c.basePath, common.DCPrefix, common.ChannelRemovalPrefix),
-				withPrefix: true,
-				reason:     "stale channel removal markers would block re-watch",
-			},
-			{
-				kind:       kindQueryCoordCache,
-				key:        path.Join(c.basePath, collectionTargetPrefix),
-				withPrefix: true,
-				reason:     "cached query targets embed old-WAL positions; querycoord rebuilds them",
-			},
-		}
-		for _, d := range candidates {
-			n, err := c.countKeys(ctx, d.key)
-			if err != nil {
-				return nil, err
-			}
-			if n == 0 {
-				continue
-			}
-			d.reason = fmt.Sprintf("%d key(s); %s", n, d.reason)
-			deletes = append(deletes, d)
-		}
+	removals, err := c.planChannelRemovals(ctx, p)
+	if err != nil {
+		return nil, err
 	}
+	deletes = append(deletes, removals...)
+
+	targets, err := c.planQueryCoordTargets(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	deletes = append(deletes, targets...)
 
 	return deletes, nil
 }
 
-// countKeys reports how many keys live under a prefix, so the plan only lists
-// deletions that actually remove something.
-func (c *ComponentReset) countKeys(ctx context.Context, prefix string) (int, error) {
+// planChannelRemovals drops the removal markers of the channels in scope. The
+// markers are keyed by channel name, so --pchannel narrows them exactly.
+func (c *ComponentReset) planChannelRemovals(ctx context.Context, p *ResetCheckpointParam) ([]plannedDelete, error) {
+	prefix := path.Join(c.basePath, common.DCPrefix, common.ChannelRemovalPrefix)
 	keys, _, err := c.client.LoadWithPrefix(ctx, prefix+"/", kv.WithKeysOnly())
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to scan %s", prefix)
+		return nil, errors.Wrapf(err, "failed to scan %s", prefix)
 	}
-	return len(keys), nil
+
+	var deletes []plannedDelete
+	for _, key := range keys {
+		if !c.inScope(p, path.Base(key)) {
+			continue
+		}
+		deletes = append(deletes, plannedDelete{
+			kind:   kindChannelRemoval,
+			key:    key,
+			reason: "stale channel removal marker would block re-watch",
+		})
+	}
+	return deletes, nil
+}
+
+// planQueryCoordTargets drops the cached query target of every collection with
+// at least one vchannel in scope.
+//
+// querycoord recovers this cache into its in-memory current target and hands the
+// seek positions inside it straight to querynodes (TargetManager.Recover ->
+// task executor's req.Checkpoint). Those positions carry the old WAL's encoding
+// and decode cleanly, so nothing detects them as stale — a rewound instance would
+// seek the new MQ with old-WAL positions. Dropping the cache costs only a rebuild
+// from datacoord, which is what an ordinary restart does anyway.
+//
+// A collection sharded across several pchannels keeps positions for all of them
+// in one target, so touching any one of its vchannels dirties the whole entry.
+func (c *ComponentReset) planQueryCoordTargets(ctx context.Context, p *ResetCheckpointParam) ([]plannedDelete, error) {
+	colls, err := common.ListCollections(ctx, c.client, c.basePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list collections")
+	}
+
+	var deletes []plannedDelete
+	for _, coll := range colls {
+		id := coll.GetProto().GetID()
+		key := path.Join(c.basePath, collectionTargetPrefix, strconv.FormatInt(id, 10))
+		if !c.anyChannelInScope(p, coll.GetProto().GetVirtualChannelNames()) {
+			continue
+		}
+		// a single key, not a subtree
+		exists, err := c.keyExists(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			continue
+		}
+		deletes = append(deletes, plannedDelete{
+			kind:   kindQueryCoordCache,
+			key:    key,
+			reason: fmt.Sprintf("collection %d: cached query target embeds old-WAL positions; querycoord rebuilds it", id),
+		})
+	}
+	return deletes, nil
+}
+
+// keyExists reports whether a single key is present, so the plan only lists
+// deletions that actually remove something.
+func (c *ComponentReset) keyExists(ctx context.Context, key string) (bool, error) {
+	_, err := c.client.Load(ctx, key)
+	if err != nil {
+		if errors.Is(err, kv.ErrKeyNotFound) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to read %s", key)
+	}
+	return true, nil
+}
+
+// anyChannelInScope reports whether any of the collection's vchannels is covered
+// by --pchannel.
+func (c *ComponentReset) anyChannelInScope(p *ResetCheckpointParam, vchannels []string) bool {
+	for _, vchannel := range vchannels {
+		if c.inScope(p, vchannel) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *ComponentReset) applyCleanup(ctx context.Context, deletes []plannedDelete) error {

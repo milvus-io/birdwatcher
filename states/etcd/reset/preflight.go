@@ -53,12 +53,10 @@ func (c *ComponentReset) checkNoGrowingSegments(ctx context.Context, p *ResetChe
 // checkNoPendingBroadcast refuses to run while a DDL broadcast is half-applied.
 // Rewinding positions would replay it against a WAL that no longer has it.
 func (c *ComponentReset) checkNoPendingBroadcast(ctx context.Context) error {
+	// An instance with no streaming metadata at all — a pre-2.6 one, say — simply
+	// yields an empty list here, which passes the check below.
 	tasks, err := common.ListWalBroadcast(ctx, c.client, c.basePath)
 	if err != nil {
-		// no streaming metadata at all is fine — pre-2.6 instances have none
-		if errors.Is(err, common.ErrBroadcastTaskNotFound) {
-			return nil
-		}
 		return errors.Wrap(err, "failed to list wal broadcast tasks")
 	}
 
