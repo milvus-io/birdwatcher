@@ -13,8 +13,16 @@ import (
 )
 
 // Prefixes holding state that is only meaningful against the WAL we are leaving
-// behind. None of them carry data: they are allocations, tombstones and caches
-// that Milvus rebuilds on startup.
+// behind. Neither carries data: one is a set of growing-segment allocations that
+// can no longer be fed, the other a cache of positions Milvus rebuilds.
+//
+// datacoord's channel-removal prefix looks like a third candidate and is not.
+// Despite the name it is a two-valued flag, and MarkChannelDeleted has no callers
+// today — so every key under it is the NonRemoveFlagTomestone that MarkChannelAdded
+// writes once at collection creation. Nothing rebuilds it, and datacoord reads it
+// (ChannelExists) to decide whether to hold back GC of dropped segments whose DML
+// position is ahead of the channel checkpoint. Deleting it would silently and
+// permanently disable that guard.
 const (
 	collectionTargetPrefix = "queryCoord-Collection-Target"
 )
@@ -29,11 +37,10 @@ type plannedDelete struct {
 
 const (
 	kindSegmentAssign   = "segment-assign"
-	kindChannelRemoval  = "channel-removal"
 	kindQueryCoordCache = "querycoord-target-cache"
 )
 
-var deleteOrder = []string{kindSegmentAssign, kindChannelRemoval, kindQueryCoordCache}
+var deleteOrder = []string{kindSegmentAssign, kindQueryCoordCache}
 
 // planCleanup lists the adjacent state to drop. Growing segments are already
 // ruled out by preflight, so every segment-assign record left here is stale.
@@ -68,41 +75,12 @@ func (c *ComponentReset) planCleanup(ctx context.Context, p *ResetCheckpointPara
 		})
 	}
 
-	removals, err := c.planChannelRemovals(ctx, p)
-	if err != nil {
-		return nil, err
-	}
-	deletes = append(deletes, removals...)
-
 	targets, err := c.planQueryCoordTargets(ctx, p)
 	if err != nil {
 		return nil, err
 	}
 	deletes = append(deletes, targets...)
 
-	return deletes, nil
-}
-
-// planChannelRemovals drops the removal markers of the channels in scope. The
-// markers are keyed by channel name, so --pchannel narrows them exactly.
-func (c *ComponentReset) planChannelRemovals(ctx context.Context, p *ResetCheckpointParam) ([]plannedDelete, error) {
-	prefix := path.Join(c.basePath, common.DCPrefix, common.ChannelRemovalPrefix)
-	keys, _, err := c.client.LoadWithPrefix(ctx, prefix+"/", kv.WithKeysOnly())
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to scan %s", prefix)
-	}
-
-	var deletes []plannedDelete
-	for _, key := range keys {
-		if !c.inScope(p, path.Base(key)) {
-			continue
-		}
-		deletes = append(deletes, plannedDelete{
-			kind:   kindChannelRemoval,
-			key:    key,
-			reason: "stale channel removal marker would block re-watch",
-		})
-	}
 	return deletes, nil
 }
 

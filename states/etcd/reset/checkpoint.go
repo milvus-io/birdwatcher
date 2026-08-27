@@ -430,8 +430,10 @@ func printPlan(writes []plannedWrite, deletes []plannedDelete, pos *walPosition,
 			fmt.Printf("  [DELETE %s] %s\n      %s\n", d.kind, d.key, d.reason)
 		}
 	}
-	fmt.Printf("\nNot touched: streamingcoord pchannel assignment and channelwatch info —\n")
-	fmt.Printf("they carry no MQ position and Milvus rebuilds them on startup.\n")
+	fmt.Printf("\nNot touched: streamingcoord pchannel assignment, channelwatch info and\n")
+	fmt.Printf("channel-removal markers — they carry no MQ position. The first two are\n")
+	fmt.Printf("rebuilt on startup; channel-removal is written once at collection creation\n")
+	fmt.Printf("and never rebuilt, so removing it would permanently weaken datacoord's GC.\n")
 	if !run {
 		fmt.Printf("\ndry run: nothing written. Re-run with --run=true to apply.\n")
 		fmt.Printf("Make sure Milvus is STOPPED and you have a `backup` before applying.\n")

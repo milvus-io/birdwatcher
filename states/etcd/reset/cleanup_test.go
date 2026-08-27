@@ -97,8 +97,41 @@ func TestCleanupDropsTargetsOnWholeInstanceRun(t *testing.T) {
 
 	assert.False(t, exists(t, collectionTargetKey(f.base, testCollID)))
 	assert.False(t, exists(t, collectionTargetKey(f.base, otherCollID)))
-	assert.False(t, exists(t, channelRemovalKey(f.base, testVChannel)))
-	assert.False(t, exists(t, channelRemovalKey(f.base, otherVChannel)))
+
+	// channel-removal is NOT ours to delete — see the note in cleanup.go
+	assert.True(t, exists(t, channelRemovalKey(f.base, testVChannel)))
+	assert.True(t, exists(t, channelRemovalKey(f.base, otherVChannel)))
+}
+
+// TestCleanupNeverTouchesChannelRemoval pins a deletion that was removed after
+// review. datacoord's channel-removal prefix reads like a set of stale tombstones
+// but is really the NonRemoveFlagTomestone that MarkChannelAdded writes once at
+// collection creation; MarkChannelDeleted has no callers today. Nothing rebuilds
+// it, and datacoord reads it (ChannelExists) to hold back GC of dropped segments
+// whose DML position is ahead of the channel checkpoint — so deleting it would
+// permanently and silently weaken that guard.
+func TestCleanupNeverTouchesChannelRemoval(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		pchannel string
+	}{
+		{"whole-instance", ""},
+		{"scoped", testPChannel},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := seedCleanup(t, "cleanup-keep-removal-"+tc.name)
+
+			require.NoError(t, f.comp.ResetCheckpointCommand(context.Background(), &ResetCheckpointParam{
+				ExecutionParam: framework.ExecutionParam{Run: true},
+				TargetWAL:      "woodpecker",
+				PChannel:       tc.pchannel,
+			}))
+
+			assert.True(t, exists(t, channelRemovalKey(f.base, testVChannel)),
+				"the live channel's added-marker must survive")
+			assert.True(t, exists(t, channelRemovalKey(f.base, otherVChannel)))
+		})
+	}
 }
 
 // TestCleanupScopesTargetsToPChannel pins the fix for the stale-target bug: a
@@ -117,13 +150,8 @@ func TestCleanupScopesTargetsToPChannel(t *testing.T) {
 
 	assert.False(t, exists(t, collectionTargetKey(f.base, testCollID)),
 		"the reset collection's cached target embeds old-WAL positions and must be dropped")
-	assert.False(t, exists(t, channelRemovalKey(f.base, testVChannel)),
-		"the reset channel's removal marker must be dropped")
-
 	assert.True(t, exists(t, collectionTargetKey(f.base, otherCollID)),
 		"a collection outside --pchannel must not be touched")
-	assert.True(t, exists(t, channelRemovalKey(f.base, otherVChannel)),
-		"a channel outside --pchannel must not be touched")
 }
 
 // TestCleanupDryRunDeletesNothing guards the dry-run contract for the delete
@@ -136,7 +164,6 @@ func TestCleanupDryRunDeletesNothing(t *testing.T) {
 	}))
 
 	assert.True(t, exists(t, collectionTargetKey(f.base, testCollID)))
-	assert.True(t, exists(t, channelRemovalKey(f.base, testVChannel)))
 }
 
 // TestCleanupSweepsOrphanTargetOnWholeInstanceRun pins why a whole-instance run
