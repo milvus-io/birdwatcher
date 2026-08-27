@@ -407,8 +407,10 @@ func printPlan(writes []plannedWrite, deletes []plannedDelete, pos *walPosition,
 		fmt.Printf("  %-20s %d key(s)\n", kind, byKind[kind])
 	}
 	for _, kind := range deleteOrder {
+		// a scoped run deletes individual keys, a whole-instance one whole
+		// subtrees; saying "prefix" for both would misreport the blast radius
 		if n := countDeleteKind(deletes, kind); n > 0 {
-			fmt.Printf("  %-20s %d prefix(es) to DELETE\n", kind, n)
+			fmt.Printf("  %-20s %d %s to DELETE\n", kind, n, deleteUnit(deletes, kind))
 		}
 	}
 	fmt.Println()
@@ -465,6 +467,17 @@ func countKind(writes []plannedWrite, kind string) int {
 		}
 	}
 	return n
+}
+
+// deleteUnit names what a plan's deletions of one kind actually remove, so the
+// summary does not call a single key a prefix.
+func deleteUnit(deletes []plannedDelete, kind string) string {
+	for _, d := range deletes {
+		if d.kind == kind && d.withPrefix {
+			return "prefix(es)"
+		}
+	}
+	return "key(s)"
 }
 
 func countDeleteKind(deletes []plannedDelete, kind string) int {
