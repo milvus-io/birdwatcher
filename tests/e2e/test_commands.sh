@@ -353,6 +353,7 @@ source "${SCRIPT_DIR}/commands/test_instance.sh"
 # Optionally run repair/remove tests (dry-run mode only)
 if [[ "${RUN_WRITE_TESTS:-true}" == "true" ]]; then
     source "${SCRIPT_DIR}/commands/test_repair.sh"
+    source "${SCRIPT_DIR}/commands/test_reset.sh"
     source "${SCRIPT_DIR}/commands/test_remove.sh"
 fi
 
