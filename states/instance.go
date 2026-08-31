@@ -182,7 +182,7 @@ func GetInstanceState(parent *framework.CmdState, cli metakv.MetaKV, instanceNam
 		ComponentShow:   show.NewComponent(cli, config, instanceName, metaPath),
 		ComponentRemove: remove.NewComponent(cli, config, instanceName, metaPath),
 		ComponentRepair: repair.NewComponent(cli, config, basePath),
-		ComponentReset:  reset.NewComponent(cli, config, basePath),
+		ComponentReset:  reset.NewComponent(cli, config, basePath, instanceName),
 		ComponentSet:    set.NewComponent(cli, config, basePath),
 		instanceName:    instanceName,
 		metaPath:        metaPath,
