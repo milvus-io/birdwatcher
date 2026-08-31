@@ -102,16 +102,27 @@ func (c *ComponentReset) ResetWALCommand(ctx context.Context, p *ResetWALParam) 
 
 	if !p.Run {
 		fmt.Printf("\ndry run: nothing deleted. Re-run with --run=true to apply.\n")
-		fmt.Printf("Make sure Milvus AND the WAL service are STOPPED before applying.\n")
+		fmt.Printf("Make sure Milvus is STOPPED and the WAL service is still UP before applying.\n")
 		return nil
 	}
 
 	// Synchronous: the call returns only once every node has reclaimed its local data and the
 	// objects are gone, so "the WAL is empty" is something the next step can rely on.
-	if err := client.DeleteAllLogsSync(ctx); err != nil {
+	stats, err := client.DeleteAllLogsSync(ctx)
+	if err != nil {
 		return errors.Wrap(err, "failed to delete wal logs; re-run until it succeeds")
 	}
-	fmt.Printf("deleted %d log(s)\n", len(logs))
+	fmt.Printf("deleted %d log(s): %d object(s), %d of %d node fence(s) had local data\n",
+		stats.Logs, stats.ObjectsDeleted, stats.NodesWithLocalData, stats.NodesFenced)
+	// Deleting metadata while finding nothing on either data tier is what a wrong
+	// bucket/rootPath looks like: the node's reclaim removes a directory that is not there
+	// and the object prefix lists empty, so the run reports success either way. It is not
+	// proof of a mistake -- an already-empty WAL looks identical -- so say it and move on.
+	if stats.Logs > 0 && stats.ObjectsDeleted == 0 && stats.NodesWithLocalData == 0 {
+		fmt.Printf("\nWARNING: no data found on any tier. If this WAL was not already empty,\n")
+		fmt.Printf("         check --minio-bucket and --minio-root-path: %s/%s\n",
+			cfg.Minio.BucketName, cfg.Minio.RootPath)
+	}
 
 	if err := client.ClearMetaExceptLogIdGen(ctx); err != nil {
 		return errors.Wrap(err, "failed to clear wal metadata; re-run until it succeeds")
