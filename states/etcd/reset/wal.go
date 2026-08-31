@@ -14,6 +14,11 @@ import (
 	"github.com/milvus-io/birdwatcher/states/kv"
 )
 
+// legacyWALMetaPrefix is where woodpecker metadata lived before the prefix became
+// configurable: a top-level key, not under the instance root. Woodpecker still falls back to
+// it when it finds metadata there, so this command has to recognise it too.
+const legacyWALMetaPrefix = "woodpecker"
+
 type ResetWALParam struct {
 	framework.ExecutionParam `use:"reset wal" desc:"delete the WAL's data and metadata so the instance can be restarted onto an empty WAL. Run this BEFORE 'reset checkpoint'. MILVUS MUST BE STOPPED, but the WAL service, etcd and object storage must stay UP: the WAL nodes are what delete their own local data."`
 
@@ -82,6 +87,10 @@ func (c *ComponentReset) ResetWALCommand(ctx context.Context, p *ResetWALParam) 
 	fmt.Printf("  metadata  %s/%s\n", cfg.Etcd.RootPath, cfg.Woodpecker.Meta.Prefix)
 	if !cfg.Woodpecker.Storage.IsStorageLocal() {
 		fmt.Printf("  data      %s/%s/{logId}/\n", cfg.Minio.BucketName, cfg.Minio.RootPath)
+	}
+
+	if err := c.requireWALMetadata(ctx, cfg.Woodpecker.Meta.Prefix); err != nil {
+		return err
 	}
 
 	etcdCli := kv.MustGetETCDClient(c.client)
@@ -182,4 +191,47 @@ func buildWoodpeckerConfig(instanceName string, p *ResetWALParam) (*wpconfig.Con
 // lists empty, so every tier reports success while all of the data survives.
 func woodpeckerRootPath(milvusRootPath string) string {
 	return path.Join(milvusRootPath, "wp")
+}
+
+// requireWALMetadata refuses to run against a metadata prefix that holds no WAL.
+//
+// A wrong --meta-prefix is the most dangerous argument this command takes, because it is the
+// one mistake that produces a confident success with nothing done. Every enumeration is
+// scoped to the prefix, so a wrong one lists no logs, deletes nothing, re-seeds the
+// instance-level keys somewhere harmless, and prints "wal is empty. Next: reset checkpoint".
+// An operator who follows that instruction rewrites every position to earliest against a WAL
+// that still holds all of its data — the exact corruption this tool exists to prevent.
+//
+// The probe is the version key, which woodpecker writes at init and ClearMeta re-seeds. That
+// second part matters: it keeps a re-run of a completed clear working, which the idempotency
+// contract depends on. An instance that never started woodpecker has no key either, and
+// refusing there is right too — there is no WAL to clear.
+//
+// Woodpecker also falls back to a legacy top-level "woodpecker" prefix when it finds metadata
+// there, so that location is accepted as well rather than reported as missing.
+func (c *ComponentReset) requireWALMetadata(ctx context.Context, metaPrefix string) error {
+	configured := path.Join(c.instanceName, metaPrefix, "version")
+	found, err := c.keyExists(ctx, configured)
+	if err != nil {
+		return err
+	}
+	if found {
+		return nil
+	}
+	// woodpecker's own legacy-prefix detection, mirrored: metadata written before the prefix
+	// became configurable lives at a top-level "woodpecker", outside the instance root.
+	legacy := path.Join(legacyWALMetaPrefix, "version")
+	found, err = c.keyExists(ctx, legacy)
+	if err != nil {
+		return err
+	}
+	if found {
+		return errors.Newf("no wal metadata at %s, but found it at the legacy prefix %s. "+
+			"Run with --meta-prefix pointing at the legacy location, or migrate it first",
+			path.Join(c.instanceName, metaPrefix), legacyWALMetaPrefix)
+	}
+	return errors.Newf("no wal metadata found under %s. Check --meta-prefix (Milvus config "+
+		"woodpecker.meta.prefix) and the instance selected at connect time. Refusing to "+
+		"continue: clearing the wrong prefix reports success while the real WAL keeps its data",
+		path.Join(c.instanceName, metaPrefix))
 }

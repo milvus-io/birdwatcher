@@ -1,6 +1,7 @@
 package reset
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,4 +96,54 @@ func TestWoodpeckerRootPathIsIdempotentlyJoined(t *testing.T) {
 	// "files//wp", which lists as a different prefix in object storage.
 	assert.Equal(t, "files/wp", woodpeckerRootPath("files/"))
 	assert.Equal(t, "files/wp", woodpeckerRootPath("files"))
+}
+
+// TestRequireWALMetadataRefusesAWrongPrefix pins the guard against the most dangerous argument
+// this command takes. A wrong --meta-prefix scopes every enumeration away from the real WAL,
+// so without this the run deletes nothing, clears nothing, and still prints "wal is empty.
+// Next: reset checkpoint" — and following that instruction rewrites every position to earliest
+// against a WAL that still holds all of its data.
+func TestRequireWALMetadataRefusesAWrongPrefix(t *testing.T) {
+	ctx := context.Background()
+	const instance = "guard-configured"
+	require.NoError(t, testKV.Save(ctx, instance+"/woodpecker/version", "1"))
+	defer testKV.RemoveWithPrefix(ctx, instance)
+
+	c := NewComponent(testKV, nil, instance+"/meta", instance)
+
+	require.NoError(t, c.requireWALMetadata(ctx, "woodpecker"),
+		"the configured prefix holds metadata, so the run must proceed")
+
+	err := c.requireWALMetadata(ctx, "not-the-wal")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no wal metadata found")
+	assert.Contains(t, err.Error(), instance+"/not-the-wal",
+		"the message must name the location it looked at")
+}
+
+// TestRequireWALMetadataAllowsAnAlreadyClearedInstance keeps the idempotency contract intact:
+// ClearMeta re-seeds the version key, so re-running a completed clear must still be allowed.
+func TestRequireWALMetadataAllowsAnAlreadyClearedInstance(t *testing.T) {
+	ctx := context.Background()
+	const instance = "guard-cleared"
+	require.NoError(t, testKV.Save(ctx, instance+"/woodpecker/version", "1"))
+	require.NoError(t, testKV.Save(ctx, instance+"/woodpecker/logidgen", "42"))
+	defer testKV.RemoveWithPrefix(ctx, instance)
+
+	c := NewComponent(testKV, nil, instance+"/meta", instance)
+	assert.NoError(t, c.requireWALMetadata(ctx, "woodpecker"))
+}
+
+// TestRequireWALMetadataPointsAtTheLegacyPrefix distinguishes "there is no WAL" from "the WAL
+// is somewhere else", because the operator's next move differs.
+func TestRequireWALMetadataPointsAtTheLegacyPrefix(t *testing.T) {
+	ctx := context.Background()
+	const instance = "guard-legacy"
+	require.NoError(t, testKV.Save(ctx, legacyWALMetaPrefix+"/version", "1"))
+	defer testKV.RemoveWithPrefix(ctx, legacyWALMetaPrefix)
+
+	c := NewComponent(testKV, nil, instance+"/meta", instance)
+	err := c.requireWALMetadata(ctx, "woodpecker")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "legacy prefix")
 }
