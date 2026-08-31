@@ -36,7 +36,7 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.865
 	github.com/tikv/client-go/v2 v2.0.8-0.20260610031342-e999c1f9c7c3
 	github.com/x448/float16 v0.8.4
-	github.com/zilliztech/woodpecker v0.1.39-0.20260831073037-710016db3ee9
+	github.com/zilliztech/woodpecker v0.1.39-0.20260831090158-71359ec732d1
 	go.etcd.io/etcd/api/v3 v3.5.23
 	go.etcd.io/etcd/client/v3 v3.5.23
 	go.etcd.io/etcd/server/v3 v3.5.23
