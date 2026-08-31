@@ -124,16 +124,17 @@ func (s *InstanceState) ShowManifestCommand(ctx context.Context, p *ShowManifest
 			continue
 		}
 
-		if p.JSONOutput {
+		switch {
+		case p.JSONOutput:
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			if err := enc.Encode(manifest); err != nil {
 				fmt.Printf("Error encoding JSON: %v\n", err)
 			}
-		} else if externalStore != nil && seg.CollectionID == collectionID {
+		case externalStore != nil && seg.CollectionID == collectionID:
 			resolver := ossutil.NewManifestPathResolver(resolvedStore.Store, basePath, externalStore.Store, externalLocation)
 			printManifestWithResolver(manifest, resolver)
-		} else {
+		default:
 			printManifest(manifest)
 		}
 		fmt.Println()

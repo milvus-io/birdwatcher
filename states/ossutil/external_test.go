@@ -16,9 +16,11 @@ type resolverTestStore struct{}
 func (s *resolverTestStore) Open(ctx context.Context, key string, opts ...oss.OpenOption) (storagecommon.ReadSeeker, error) {
 	return nil, nil
 }
+
 func (s *resolverTestStore) Stat(ctx context.Context, key string) (*models.FsStat, error) {
 	return nil, nil
 }
+
 func (s *resolverTestStore) List(ctx context.Context, prefix string, recursive bool) (<-chan oss.ObjectInfo, error) {
 	return nil, nil
 }
