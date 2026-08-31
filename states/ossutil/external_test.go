@@ -268,3 +268,164 @@ func TestInferCloudProviderFromScheme(t *testing.T) {
 		})
 	}
 }
+
+func TestDeriveEndpoint(t *testing.T) {
+	tests := []struct {
+		provider string
+		region   string
+		want     string
+	}{
+		{provider: "aws", region: "us-east-1", want: "https://s3.us-east-1.amazonaws.com"},
+		{provider: "aws", region: "cn-north-1", want: "https://s3.cn-north-1.amazonaws.com.cn"},
+		{provider: "aws", region: "", want: ""},
+		{provider: "gcp", region: "", want: "https://storage.googleapis.com"},
+		{provider: "aliyun", region: "cn-hangzhou", want: "https://oss-cn-hangzhou.aliyuncs.com"},
+		{provider: "aliyun", region: "", want: ""},
+		{provider: "tencent", region: "ap-guangzhou", want: "https://cos.ap-guangzhou.myqcloud.com"},
+		{provider: "huawei", region: "cn-north-4", want: "https://obs.cn-north-4.myhuaweicloud.com"},
+		{provider: "azure", region: "public", want: "core.windows.net"},
+		{provider: "azure", region: "china", want: "core.chinacloudapi.cn"},
+		{provider: "azure", region: "", want: ""},
+		{provider: "unknown", region: "us-east-1", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.provider+"/"+tt.region, func(t *testing.T) {
+			if got := DeriveEndpoint(tt.provider, tt.region); got != tt.want {
+				t.Fatalf("DeriveEndpoint(%q, %q) = %q, want %q", tt.provider, tt.region, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsCloudEndpointHost(t *testing.T) {
+	tests := []struct {
+		host string
+		want bool
+	}{
+		{host: "s3.us-east-1.amazonaws.com", want: true},
+		{host: "storage.googleapis.com", want: true},
+		{host: "oss-cn-hangzhou.aliyuncs.com", want: true},
+		{host: "cos.ap-guangzhou.myqcloud.com", want: true},
+		{host: "myacct.core.windows.net", want: true},
+		{host: "my-bucket", want: false},
+		{host: "localhost:9000", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.host, func(t *testing.T) {
+			if got := IsCloudEndpointHost(tt.host); got != tt.want {
+				t.Fatalf("IsCloudEndpointHost(%q) = %v, want %v", tt.host, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveExternalSourceAWSForm(t *testing.T) {
+	// s3://bucket/key with AWS cloud_provider + region: host is the bucket,
+	// endpoint is derived.
+	location, err := ResolveExternalSource("s3://my-bucket/root/file", ExternalSourceSpec{
+		CloudProvider: "aws",
+		Region:        "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("ResolveExternalSource() error = %v", err)
+	}
+	if location.Form != LocationFormAWS {
+		t.Fatalf("expected AWS form, got %v", location.Form)
+	}
+	if location.Bucket != "my-bucket" {
+		t.Fatalf("unexpected bucket: %s", location.Bucket)
+	}
+	if location.RootPath != "root/file" {
+		t.Fatalf("unexpected root path: %s", location.RootPath)
+	}
+	if location.Address != "https://s3.us-east-1.amazonaws.com" {
+		t.Fatalf("unexpected address: %s", location.Address)
+	}
+}
+
+func TestResolveExternalSourceMilvusForm(t *testing.T) {
+	// oss://endpoint/bucket/key stays Milvus form regardless of spec.
+	location, err := ResolveExternalSource("oss://oss-cn-hangzhou.aliyuncs.com/test-oss-0815/testlake/parquet",
+		ExternalSourceSpec{CloudProvider: "aliyun", Region: "cn-hangzhou"})
+	if err != nil {
+		t.Fatalf("ResolveExternalSource() error = %v", err)
+	}
+	if location.Form != LocationFormMilvus {
+		t.Fatalf("expected Milvus form, got %v", location.Form)
+	}
+	if location.Bucket != "test-oss-0815" {
+		t.Fatalf("unexpected bucket: %s", location.Bucket)
+	}
+	if location.RootPath != "testlake/parquet" {
+		t.Fatalf("unexpected root path: %s", location.RootPath)
+	}
+	if location.Address != "oss-cn-hangzhou.aliyuncs.com" {
+		t.Fatalf("unexpected address: %s", location.Address)
+	}
+}
+
+func TestResolveExternalSourceCloudEndpointHostStaysMilvus(t *testing.T) {
+	// s3://s3.amazonaws.com/bucket/key: host is a known cloud endpoint, so it
+	// stays Milvus form even with a regional spec.
+	location, err := ResolveExternalSource("s3://s3.amazonaws.com/my-bucket/key",
+		ExternalSourceSpec{CloudProvider: "aws", Region: "us-east-1"})
+	if err != nil {
+		t.Fatalf("ResolveExternalSource() error = %v", err)
+	}
+	if location.Form != LocationFormMilvus {
+		t.Fatalf("expected Milvus form, got %v", location.Form)
+	}
+	if location.Bucket != "my-bucket" {
+		t.Fatalf("unexpected bucket: %s", location.Bucket)
+	}
+}
+
+func TestResolveExternalObjectKeyAWSForm(t *testing.T) {
+	location := ExternalSourceLocation{
+		Scheme:   "s3",
+		Host:     "my-bucket",
+		Bucket:   "my-bucket",
+		RootPath: "root",
+		Address:  "https://s3.us-east-1.amazonaws.com",
+		Form:     LocationFormAWS,
+	}
+
+	tests := []struct {
+		name string
+		file string
+		want string
+	}{
+		{
+			name: "absolute aws uri",
+			file: "s3://my-bucket/root/data/part-0001.parquet",
+			want: "root/data/part-0001.parquet",
+		},
+		{
+			name: "relative path",
+			file: "data/part-0002.parquet",
+			want: "root/data/part-0002.parquet",
+		},
+		{
+			name: "mismatched bucket",
+			file: "s3://other-bucket/root/data.parquet",
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ResolveExternalObjectKey(location, tt.file)
+			if tt.want == "" {
+				if err == nil {
+					t.Fatalf("expected error for %q, got key %q", tt.file, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ResolveExternalObjectKey() error = %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("ResolveExternalObjectKey() = %s, want %s", got, tt.want)
+			}
+		})
+	}
+}

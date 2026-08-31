@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -22,16 +23,20 @@ import (
 	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/birdwatcher/storage/tasks"
 	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
+	"github.com/milvus-io/milvus/pkg/v3/common"
+	"github.com/milvus-io/milvus/pkg/v3/util/typeutil"
 )
 
 // scanExternalSegment scans an external collection segment by reading its
-// manifest and iterating the column group files. Files are routed to the
-// internal or external object store per-file (a single manifest may mix
-// external data files and internal function-output files such as sparse
-// vectors generated from varchar columns).
+// manifest and merging the column-group files by global row offset into
+// logical rows. A single manifest may mix external data files and internal
+// function-output files (e.g. sparse vectors generated from varchar columns),
+// each covering overlapping row ranges in separate column groups.
 //
-// filters are applied per row, matching the binlog scan path contract
-// (filter.Match(pk, ts, values)).
+// The virtual PK (segmentID + global row offset) is derived rather than read
+// from any file. Filters are applied per logical row, matching the binlog scan
+// path contract (filter.Match(pk, ts, values)), and Scan is invoked exactly
+// once per logical row.
 func scanExternalSegment(ctx context.Context,
 	internalStore oss.ObjectStore,
 	internalRootPath string,
@@ -74,27 +79,28 @@ func scanExternalSegment(ctx context.Context,
 
 	resolver := ossutil.NewManifestPathResolver(internalStore, manifestBasePath, externalStore, externalLocation)
 
-	// fieldID => manifest column name
+	// fieldID => manifest column name for the output fields
 	field2Column := buildExternalColumnMap(schema, fields)
 
-	pkSchema, ok := getPKSchema(schema)
-	if !ok {
-		return errors.New("pk field not found in schema")
+	// Resolve every manifest column-group file and its store up front. Any
+	// resolution failure (e.g. invalid ARN, missing bucket) aborts the scan
+	// instead of silently producing partial results.
+	//
+	// Each column group's files tile the segment's logical row space: within a
+	// group, file rows are attributed to segment-global offsets by accumulating
+	// the manifest row ranges ([start, end) within the file). Different column
+	// groups (external data vs internal function outputs) independently cover
+	// the same [0, totalRows) and are merged by segment-global offset below.
+	type resolvedFile struct {
+		store        oss.ObjectStore
+		key          string
+		col2Field    map[string]int64
+		startIdx     int64 // file-local start row (manifest range)
+		endIdx       int64 // file-local end row (manifest range)
+		globalOffset int64 // segment-global start offset of this file's rows
 	}
-
-	var pk storagecommon.PrimaryKey
-	switch pkSchema.GetDataType() {
-	case schemapb.DataType_Int64:
-		pk = &storagecommon.Int64PrimaryKey{}
-	case schemapb.DataType_VarChar:
-		pk = &storagecommon.VarCharPrimaryKey{}
-	default:
-		return errors.Newf("unsupported primary key type %s", pkSchema.GetDataType().String())
-	}
-
-	batchIdx := 0
+	var files []resolvedFile
 	for _, cg := range m.ColumnGroups {
-		// map manifest column names in this group to output field IDs
 		col2Field := make(map[string]int64)
 		usable := false
 		for _, colName := range cg.Columns {
@@ -106,18 +112,100 @@ func scanExternalSegment(ctx context.Context,
 		if !usable {
 			continue
 		}
-
+		var groupOffset int64
 		for _, f := range cg.Files {
 			store, objectKey, _, err := resolver.Resolve(f.Path, "_data")
 			if err != nil {
-				fmt.Printf("failed to resolve manifest file path %s: %s\n", f.Path, err.Error())
-				continue
+				return errors.Wrapf(err, "resolve manifest file path %s", f.Path)
 			}
-			if err := scanExternalParquetFile(ctx, store, objectKey, col2Field, fields, pk, filters, scanTask, segment.GetID(), batchIdx); err != nil {
-				fmt.Printf("failed to scan %s: %s\n", objectKey, err.Error())
-				continue
+			files = append(files, resolvedFile{
+				store:        store,
+				key:          objectKey,
+				col2Field:    col2Field,
+				startIdx:     f.StartIndex,
+				endIdx:       f.EndIndex,
+				globalOffset: groupOffset,
+			})
+			if f.EndIndex > f.StartIndex {
+				groupOffset += f.EndIndex - f.StartIndex
 			}
-			batchIdx++
+		}
+	}
+	if len(files) == 0 {
+		return nil
+	}
+
+	// Scan every file and merge rows by segment-global offset, so overlapping
+	// column groups contribute their columns to the same logical rows.
+	valuesByOffset := make(map[int64]map[int64]any)
+	for _, rf := range files {
+		if err := scanExternalParquetFile(ctx, rf.store, rf.key, rf.col2Field, fields, rf.startIdx, rf.endIdx, rf.globalOffset, valuesByOffset); err != nil {
+			return err
+		}
+	}
+
+	offsets := make([]int64, 0, len(valuesByOffset))
+	for offset := range valuesByOffset {
+		offsets = append(offsets, offset)
+	}
+	sort.Slice(offsets, func(i, j int) bool { return offsets[i] < offsets[j] })
+
+	pkSchema, ok := getPKSchema(schema)
+	if !ok {
+		return errors.New("pk field not found in schema")
+	}
+	virtualPK := pkSchema.GetName() == common.VirtualPKFieldName
+
+	var pk storagecommon.PrimaryKey
+	switch pkSchema.GetDataType() {
+	case schemapb.DataType_Int64:
+		pk = &storagecommon.Int64PrimaryKey{}
+	case schemapb.DataType_VarChar:
+		pk = &storagecommon.VarCharPrimaryKey{}
+	default:
+		return errors.Newf("unsupported primary key type %s", pkSchema.GetDataType().String())
+	}
+
+	batchInfo := &storagecommon.BatchInfo{
+		SegmentID: segment.GetID(),
+	}
+	for _, offset := range offsets {
+		values := valuesByOffset[offset]
+
+		if virtualPK {
+			pk.SetValue(typeutil.GetVirtualPK(segment.GetID(), offset))
+		} else {
+			pkv, ok := values[pkSchema.GetFieldID()]
+			if !ok {
+				return errors.Newf("primary key field %s not found for row %d of segment %d", pkSchema.GetName(), offset, segment.GetID())
+			}
+			pk.SetValue(pkv)
+		}
+
+		ts := int64(0)
+		if v, ok := values[1]; ok {
+			if tsv, ok := v.(int64); ok {
+				ts = tsv
+			}
+		}
+
+		matched := true
+		for _, filter := range filters {
+			match, err := filter.Match(pk, ts, values)
+			if err != nil {
+				return err
+			}
+			if !match {
+				matched = false
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+
+		if err := scanTask.Scan(pk, batchInfo, int(offset), values); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -150,18 +238,23 @@ func getPKSchema(schema *schemapb.CollectionSchema) (*schemapb.FieldSchema, bool
 	return nil, false
 }
 
-// scanExternalParquetFile reads one parquet object and feeds every row into the
-// scan task. values is keyed by field ID; PK and timestamp are set when present.
+// scanExternalParquetFile reads one parquet object and accumulates, per
+// segment-global row offset, the requested field values keyed by field ID.
+//
+// The manifest entry carries a file-local row window [startIdx, endIdx): the
+// same physical parquet can be split into multiple fragments, each contributing
+// a disjoint window. Only rows in that window are attributed to the segment,
+// starting at segment-global offset globalOffset (the file's tiled position
+// within its column group). Null cells are represented as `fieldID: nil` (not
+// omitted); a non-null cell that cannot be deserialized to the requested Milvus
+// type returns an explicit error instead of being silently dropped.
 func scanExternalParquetFile(ctx context.Context,
 	store oss.ObjectStore,
 	objectKey string,
 	col2Field map[string]int64,
 	fields map[int64]*schemapb.FieldSchema,
-	pk storagecommon.PrimaryKey,
-	filters []storage.EntryFilter,
-	scanTask tasks.ScanTask,
-	segmentID int64,
-	batchIdx int,
+	startIdx, endIdx, globalOffset int64,
+	valuesByOffset map[int64]map[int64]any,
 ) error {
 	obj, err := store.Open(ctx, objectKey)
 	if err != nil {
@@ -187,11 +280,8 @@ func scanExternalParquetFile(ctx context.Context,
 	}
 	defer rr.Release()
 
-	batchInfo := &storagecommon.BatchInfo{
-		SegmentID: segmentID,
-		BatchIdx:  batchIdx,
-	}
-
+	fileRow := int64(0)
+	globalRow := globalOffset
 	for rr.Next() {
 		rec := rr.Record()
 		if rec == nil {
@@ -205,8 +295,18 @@ func scanExternalParquetFile(ctx context.Context,
 
 		rows := int(rec.NumRows())
 		for row := 0; row < rows; row++ {
-			values := make(map[int64]any)
-			valueSet := false
+			if fileRow < startIdx {
+				fileRow++
+				continue
+			}
+			if fileRow >= endIdx {
+				return nil
+			}
+			values := valuesByOffset[globalRow]
+			if values == nil {
+				values = make(map[int64]any)
+				valuesByOffset[globalRow] = values
+			}
 			for colName, fid := range col2Field {
 				idx, ok := colIdxByName[colName]
 				if !ok {
@@ -217,52 +317,27 @@ func scanExternalParquetFile(ctx context.Context,
 					continue
 				}
 				arr := rec.Column(idx)
-				if arr == nil || arr.IsNull(row) {
+				if arr == nil {
+					continue
+				}
+				if arr.IsNull(row) {
+					values[fid] = nil
 					continue
 				}
 				val, ok := deserializeParquetCell(arr, row, fieldSchema.GetDataType())
 				if !ok {
-					continue
+					return errors.Newf(
+						"cannot deserialize non-null cell for field %s (id %d, type %s) at row %d of %s",
+						fieldSchema.GetName(), fid, fieldSchema.GetDataType().String(), row, objectKey)
 				}
 				values[fid] = val
-				valueSet = true
-				if fieldSchema.GetIsPrimaryKey() {
-					pk.SetValue(val)
-				}
 			}
-			if !valueSet {
-				continue
-			}
-
-			ts := int64(0)
-			if v, ok := values[1]; ok {
-				if tsv, ok := v.(int64); ok {
-					ts = tsv
-				}
-			}
-
-			matched := true
-			for _, filter := range filters {
-				match, err := filter.Match(pk, ts, values)
-				if err != nil {
-					return err
-				}
-				if !match {
-					matched = false
-					break
-				}
-			}
-			if !matched {
-				continue
-			}
-
-			if err := scanTask.Scan(pk, batchInfo, row, values); err != nil {
-				return err
-			}
+			fileRow++
+			globalRow++
 		}
 	}
 	if err := rr.Err(); err != nil && !errors.Is(err, io.EOF) {
-		return err
+		return errors.Wrapf(err, "read parquet %s", objectKey)
 	}
 	return nil
 }
