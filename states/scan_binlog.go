@@ -15,6 +15,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/ossutil"
 	"github.com/milvus-io/birdwatcher/storage"
 	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/birdwatcher/storage/tasks"
@@ -97,6 +98,22 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	}
 	rootPath := resolvedStore.RootPath
 
+	// External collections: build the external store with credentials from the
+	// collection (role_arn / external_id / ...) instead of minio configuration.
+	// A single manifest may mix external data files with internal function
+	// output files (e.g. sparse vectors from varchar), so we route per-file.
+	external := isExternalCollection(collection)
+	var externalStore *oss.ResolvedObjectStore
+	var externalLocation ossutil.ExternalSourceLocation
+	if external {
+		externalStore, externalLocation, err = ossutil.NewResolvedExternalObjectStoreFromCollection(ctx, collection, p.SkipBucketCheck)
+		if err != nil {
+			fmt.Println("Failed to create external store,", err.Error())
+			return err
+		}
+		fmt.Printf("External Source: %s\n", collection.GetProto().GetSchema().GetExternalSource())
+	}
+
 	fmt.Printf("=== start to execute \"%s\" task with filter expresion: \"%s\" ===\n", p.Action, p.Expr)
 	fmt.Printf("=== worker num: %d, skip delete: %t ===\n", p.WorkerNum, p.IgnoreDelete)
 
@@ -121,6 +138,15 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 	}
 
 	getObject := func(binlogPath string) (storagecommon.ReadSeeker, error) {
+		if external && externalStore != nil {
+			if isExternalPath(binlogPath) {
+				key, err := ossutil.ResolveExternalObjectKey(externalLocation, binlogPath)
+				if err != nil {
+					return nil, err
+				}
+				return externalStore.Store.Open(ctx, key)
+			}
+		}
 		logPath := oss.ResolveObjectKey(rootPath, binlogPath)
 		return resolvedStore.Store.Open(ctx, logPath)
 	}
@@ -173,6 +199,23 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 		filters := []storage.EntryFilter{loEntryFilter, deltalogFilter}
 		if exprFilter != nil {
 			filters = append(filters, exprFilter)
+		}
+
+		// External collections store data in manifest-referenced files that may
+		// mix external source files and internal function-output files. Route
+		// them through the manifest resolver instead of the binlog iterator.
+		if external && externalStore != nil && segment.GetManifestPath() != "" {
+			return scanExternalSegment(ctx,
+				resolvedStore.Store,
+				rootPath,
+				externalStore.Store,
+				externalLocation,
+				segment,
+				collection.GetProto().GetSchema(),
+				fields,
+				filters,
+				scanTask,
+			)
 		}
 
 		iter := storage.NewSegmentIterator(segment,

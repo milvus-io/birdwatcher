@@ -17,6 +17,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	"github.com/milvus-io/birdwatcher/states/ossutil"
 	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
 )
 
@@ -67,6 +68,30 @@ func (s *InstanceState) ShowManifestCommand(ctx context.Context, p *ShowManifest
 	}
 	rootPath := resolvedStore.RootPath
 
+	// External collections: build the external store with credentials from the
+	// collection (role_arn / external_id / ...) instead of minio configuration.
+	// Resolve the collection by --collection, or fall back to the first manifest
+	// segment when only --segment is given.
+	var externalStore *oss.ResolvedObjectStore
+	var externalLocation ossutil.ExternalSourceLocation
+	var collection *models.Collection
+	collectionID := p.CollectionID
+	if collectionID == 0 && len(manifestSegments) > 0 {
+		collectionID = manifestSegments[0].CollectionID
+	}
+	if collectionID != 0 {
+		collection, err = common.GetCollectionByIDVersion(ctx, s.client, s.basePath, collectionID)
+		if err != nil {
+			return err
+		}
+		if collection.GetProto().GetSchema().GetExternalSource() != "" {
+			externalStore, externalLocation, err = ossutil.NewResolvedExternalObjectStoreFromCollection(ctx, collection, p.SkipBucketCheck)
+			if err != nil {
+				return fmt.Errorf("failed to create external store: %w", err)
+			}
+		}
+	}
+
 	for _, seg := range manifestSegments {
 		rawManifest := seg.GetManifestPath()
 		fmt.Printf("=== Segment %d (Collection: %d, Partition: %d) ===\n", seg.ID, seg.CollectionID, seg.PartitionID)
@@ -105,6 +130,9 @@ func (s *InstanceState) ShowManifestCommand(ctx context.Context, p *ShowManifest
 			if err := enc.Encode(manifest); err != nil {
 				fmt.Printf("Error encoding JSON: %v\n", err)
 			}
+		} else if externalStore != nil && seg.CollectionID == collectionID {
+			resolver := ossutil.NewManifestPathResolver(resolvedStore.Store, basePath, externalStore.Store, externalLocation)
+			printManifestWithResolver(manifest, resolver)
 		} else {
 			printManifest(manifest)
 		}
@@ -112,6 +140,98 @@ func (s *InstanceState) ShowManifestCommand(ctx context.Context, p *ShowManifest
 	}
 
 	return nil
+}
+
+// printManifestWithResolver prints manifest entries annotated with the storage
+// backend and the resolved object key for each file. It supports manifests that
+// mix external data files with internal function-output files.
+func printManifestWithResolver(m *manifest, resolver *ossutil.ManifestPathResolver) {
+	fmt.Printf("Format:  %s\n", m.Format)
+	if m.Format == "legacy_milv" {
+		fmt.Printf("Magic:   0x%08X (%q)\n", m.Magic, m.MagicStr)
+	}
+	fmt.Printf("Version: %d\n", m.Version)
+
+	fmt.Printf("\nColumn Groups (%d):\n", len(m.ColumnGroups))
+	for i, cg := range m.ColumnGroups {
+		fmt.Printf("\n  --- Column Group #%d ---\n", i)
+		fmt.Printf("  Format:  %s\n", cg.Format)
+		fmt.Printf("  Columns: %v\n", cg.Columns)
+		fmt.Printf("  Files (%d):\n", len(cg.Files))
+		for j, f := range cg.Files {
+			_, key, backend, err := resolver.Resolve(f.Path, "_data")
+			fmt.Printf("    [%d] Path: %s\n", j, f.Path)
+			fmt.Printf("        Range: [%d, %d)\n", f.StartIndex, f.EndIndex)
+			if err != nil {
+				fmt.Printf("        Resolve Error: %v\n", err)
+			} else {
+				fmt.Printf("        Backend: %s  Object Key: %s\n", backend, key)
+			}
+			if len(f.Properties) > 0 {
+				fmt.Printf("        Properties:\n")
+				for pk, pv := range f.Properties {
+					fmt.Printf("          %s: %s\n", pk, pv)
+				}
+			}
+		}
+	}
+
+	fmt.Printf("\nDelta Logs (%d):\n", len(m.DeltaLogs))
+	for i, dl := range m.DeltaLogs {
+		_, key, backend, err := resolver.Resolve(dl.Path, "_delta")
+		if err != nil {
+			fmt.Printf("  [%d] Path: %s  Type: %s  NumEntries: %d  (Resolve Error: %v)\n",
+				i, dl.Path, dl.Type, dl.NumEntries, err)
+		} else {
+			fmt.Printf("  [%d] Path: %s  Type: %s  NumEntries: %d  Backend: %s  Object Key: %s\n",
+				i, dl.Path, dl.Type, dl.NumEntries, backend, key)
+		}
+	}
+
+	if len(m.Stats) > 0 {
+		fmt.Printf("\nStats (%d keys):\n", len(m.Stats))
+		for k, stat := range m.Stats {
+			fmt.Printf("  %s:\n", k)
+			fmt.Printf("    Paths:\n")
+			for _, p := range stat.Paths {
+				_, key, backend, err := resolver.Resolve(p, "_stats")
+				if err != nil {
+					fmt.Printf("      - %s (Resolve Error: %v)\n", p, err)
+				} else {
+					fmt.Printf("      - %s  Backend: %s  Object Key: %s\n", p, backend, key)
+				}
+			}
+		}
+	}
+
+	if len(m.Indexes) > 0 {
+		fmt.Printf("\nIndexes (%d):\n", len(m.Indexes))
+		for i, idx := range m.Indexes {
+			fmt.Printf("  [%d] Column: %s  Type: %s\n", i, idx.ColumnName, idx.IndexType)
+			if idx.Path != "" {
+				_, key, backend, err := resolver.Resolve(idx.Path, "_index")
+				if err != nil {
+					fmt.Printf("      Path: %s (Resolve Error: %v)\n", idx.Path, err)
+				} else {
+					fmt.Printf("      Path: %s  Backend: %s  Object Key: %s\n", idx.Path, backend, key)
+				}
+			}
+		}
+	}
+
+	if len(m.LobFiles) > 0 {
+		fmt.Printf("\nLOB Files (%d):\n", len(m.LobFiles))
+		for i, lob := range m.LobFiles {
+			_, key, backend, err := resolver.Resolve(lob.Path, "../lobs")
+			if err != nil {
+				fmt.Printf("  [%d] Path: %s  FieldID: %d  Rows: %d/%d  Size: %d (Resolve Error: %v)\n",
+					i, lob.Path, lob.FieldID, lob.ValidRows, lob.TotalRows, lob.FileSizeBytes, err)
+			} else {
+				fmt.Printf("  [%d] Path: %s  FieldID: %d  Rows: %d/%d  Size: %d  Backend: %s  Object Key: %s\n",
+					i, lob.Path, lob.FieldID, lob.ValidRows, lob.TotalRows, lob.FileSizeBytes, backend, key)
+			}
+		}
+	}
 }
 
 // Manifest parsing types and logic (Avro binary encoding)
