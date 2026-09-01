@@ -543,7 +543,7 @@ func ResolveExternalObjectKey(location ExternalSourceLocation, externalFile stri
 			if parts[0] != location.Bucket {
 				return "", fmt.Errorf("external file bucket %s does not match external source bucket %s", parts[0], location.Bucket)
 			}
-			trimmed = strings.Join(parts[1:], "/")
+			trimmed = path.Join(parts[1:]...)
 		}
 	}
 	trimmed = strings.TrimPrefix(trimmed, "/")
