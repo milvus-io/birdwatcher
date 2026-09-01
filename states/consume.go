@@ -3,9 +3,11 @@ package states
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/cockroachdb/errors"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -25,10 +27,19 @@ type ConsumeParam struct {
 	Topic               string `name:"topic" default:"" desc:"topic to consume"`
 	ShardName           string `name:"shard_name" default:"" desc:"shard name(vchannel name) to filter with"`
 	Detail              bool   `name:"detail" default:"false" desc:"print msg detail"`
-	ManualID            int64  `name:"manual_id" default:"0" desc:"manual id"`
+	ManualID            string `name:"manual-id" default:"" desc:"manual id"`
+	OutputFile          string `name:"output-file" default:"" desc:"output file"`
 }
 
 func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) error {
+	of := os.Stdout
+	if p.OutputFile != "" {
+		var err error
+		if of, err = os.OpenFile(p.OutputFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err != nil {
+			return err
+		}
+	}
+
 	var messageID ifc.MessageID
 	switch p.StartPosition {
 	case "cp":
@@ -94,15 +105,20 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 			fmt.Printf("%s ", msgType)
 			switch msgType {
 			case commonpb.MsgType_Insert, commonpb.MsgType_Delete:
+				msgID := msg.ID()
 				v, err := ParseMsg(header.GetBase().GetMsgType(), msg.Payload())
 				if err != nil {
 					fmt.Println(err.Error())
 				}
 				if p.ShardName == "" || v.GetShardName() == p.ShardName {
+					fmt.Fprintf(of, "MsgID: %s, Shard: %s\n", msgID.String(), v.GetShardName())
 					if p.Detail {
-						fmt.Print(v)
+						if s, err := protojson.Marshal(v); err == nil {
+							fmt.Fprintln(of, string(s))
+						} else {
+							fmt.Fprintln(of, err.Error())
+						}
 					} else {
-						fmt.Print(v.GetShardName())
 						err := ValidateMsg(msgType, msg.Payload())
 						if err != nil {
 							fmt.Println(err.Error())
@@ -111,7 +127,7 @@ func (s *InstanceState) ConsumeCommand(ctx context.Context, p *ConsumeParam) err
 				}
 			default:
 			}
-			fmt.Println()
+			fmt.Fprintln(of)
 		}
 		if eq, _ := msg.ID().Equal(latestID.Serialize()); eq {
 			break
