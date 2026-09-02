@@ -16,7 +16,7 @@ import (
 
 // legacyWALMetaPrefix is where woodpecker metadata lived before the prefix became
 // configurable: a top-level key, not under the instance root. Woodpecker still falls back to
-// it when it finds metadata there, so this command has to recognise it too.
+// it when it finds metadata there, so this command has to recognize it too.
 const legacyWALMetaPrefix = "woodpecker"
 
 type ResetWALParam struct {
