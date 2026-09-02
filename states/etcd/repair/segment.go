@@ -246,8 +246,7 @@ func writeRepairedSegment(cli kv.MetaKV, basePath string, segment *datapb.Segmen
 
 	bs, err := proto.Marshal(segment)
 	if err != nil {
-		fmt.Println("failed to marshal segment info", err.Error())
+		return fmt.Errorf("failed to marshal repaired segment %d: %w", segment.GetID(), err)
 	}
-	err = cli.Save(context.Background(), p, string(bs))
-	return err
+	return cli.Save(context.Background(), p, string(bs))
 }
