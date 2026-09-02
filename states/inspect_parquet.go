@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"path"
 	"slices"
 	"strconv"
@@ -24,6 +25,7 @@ import (
 	"github.com/milvus-io/birdwatcher/states/ossutil"
 	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
 	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
+	"github.com/milvus-io/milvus/pkg/v3/util/externalspec"
 )
 
 type InspectParquetParam struct {
@@ -75,12 +77,54 @@ func parseInspectStorageVersionOption(raw string) (inspectStorageVersionOption, 
 	return inspectStorageVersionOption{mode: inspectStorageVersionOverride, version: version}, nil
 }
 
-// externalSourceSpec is the parsed external collection specification.
-// It is an alias of ossutil.ExternalSourceSpec; kept for compatibility.
-type externalSourceSpec = ossutil.ExternalSourceSpec
+type externalSourceSpec struct {
+	Format                  string
+	Extfs                   map[string]string
+	CloudProvider           string
+	Region                  string
+	RoleARN                 string
+	RoleSessionName         string
+	ExternalID              string
+	AliyunRoleAuthMode      string
+	AccessKeyID             string
+	AccessKeyValue          string
+	IAMEndpoint             string
+	BucketName              string
+	GCPTargetServiceAccount string
+	AzureClientID           string
+	AzureTenantID           string
+	AzureCredentialEndpoint string
+	SSLCACert               string
+	UseIAM                  bool
+	Anonymous               bool
+	UseSSL                  *bool
+	UseVirtualHost          *bool
+	LoadFrequency           int
+}
 
-// externalSourceLocation is the parsed external_source URI.
-type externalSourceLocation = ossutil.ExternalSourceLocation
+type externalSourceLocation struct {
+	Scheme       string
+	SourceHost   string
+	Host         string
+	Bucket       string
+	RootPath     string
+	HostIsBucket bool
+}
+
+func toOSSUtilExternalSourceLocation(location externalSourceLocation) ossutil.ExternalSourceLocation {
+	form := ossutil.LocationFormMilvus
+	if location.HostIsBucket {
+		form = ossutil.LocationFormAWS
+	}
+	return ossutil.ExternalSourceLocation{
+		Scheme:   location.Scheme,
+		Host:     location.SourceHost,
+		Bucket:   location.Bucket,
+		RootPath: location.RootPath,
+		Address:  location.Host,
+		Form:     form,
+	}
+}
 
 func (s *InstanceState) InspectParquetCommand(ctx context.Context, p *InspectParquetParam) error {
 	if err := validateInspectParquetParam(p); err != nil {
@@ -228,6 +272,9 @@ func (s *InstanceState) inspectExternalCollectionParquet(ctx context.Context, p 
 	if err != nil {
 		return err
 	}
+	if spec.Format != "" && spec.Format != externalspec.FormatParquet {
+		return errors.Newf("inspect-parquet does not support external format %s", spec.Format)
+	}
 	externalMinioClient, externalBucketName, externalRootPath, location, err := newExternalMinioClient(ctx, proto.GetSchema().GetExternalSource(), spec, p.SkipBucketCheck)
 	if err != nil {
 		return err
@@ -235,7 +282,7 @@ func (s *InstanceState) inspectExternalCollectionParquet(ctx context.Context, p 
 	externalStore := oss.NewMinioObjectStoreWithBucket(externalMinioClient, externalBucketName)
 
 	fmt.Printf("External Collection %d: name=%s\n", proto.GetID(), proto.GetSchema().GetName())
-	fmt.Printf("External Source: %s\n", proto.GetSchema().GetExternalSource())
+	fmt.Printf("External Source: %s\n", redactExternalVectorSource(proto.GetSchema().GetExternalSource()))
 	fmt.Printf("Resolved Provider=%s Region=%s Host=%s Bucket=%s RootPath=%s\n", spec.CloudProvider, spec.Region, location.Host, externalBucketName, externalRootPath)
 
 	if p.ExternalFile != "" {
@@ -300,6 +347,9 @@ func inspectExternalManifestParquet(ctx context.Context, manifestStore oss.Objec
 	if err != nil {
 		return errors.Wrap(err, "get manifest object")
 	}
+	if closer, ok := obj.(interface{ Close() error }); ok {
+		defer closer.Close()
+	}
 	m, err := parseManifest(obj)
 	if err != nil {
 		return errors.Wrap(err, "parse manifest")
@@ -310,7 +360,12 @@ func inspectExternalManifestParquet(ctx context.Context, manifestStore oss.Objec
 		fieldFilter = strconv.FormatInt(p.FieldID, 10)
 	}
 
-	resolver := ossutil.NewManifestPathResolver(manifestStore, manifestBasePath, externalStore, location)
+	resolver := ossutil.NewManifestPathResolver(
+		manifestStore,
+		manifestBasePath,
+		externalStore,
+		toOSSUtilExternalSourceLocation(location),
+	)
 
 	for i, cg := range m.ColumnGroups {
 		if fieldFilter != "" && !slices.Contains(cg.Columns, fieldFilter) {
@@ -320,7 +375,10 @@ func inspectExternalManifestParquet(ctx context.Context, manifestStore oss.Objec
 		for _, f := range cg.Files {
 			store, filePath, backend, err := resolver.Resolve(f.Path, "_data")
 			if err != nil {
-				fmt.Printf("failed to resolve manifest file path %s: %s\n", f.Path, err.Error())
+				fmt.Printf("failed to resolve manifest file path %s: %s\n",
+					redactExternalVectorObjectKey(f.Path),
+					sanitizeExternalVectorInspectionError(err, f.Path),
+				)
 				continue
 			}
 			fmt.Printf("\n----- File %s (rows: [%d, %d)) backend=%s -----\n", filePath, f.StartIndex, f.EndIndex, backend)
@@ -330,6 +388,37 @@ func inspectExternalManifestParquet(ctx context.Context, manifestStore oss.Objec
 		}
 	}
 	return nil
+}
+
+func resolveExternalManifestObjectKey(location externalSourceLocation, manifestBasePath, rawPath string) (string, error) {
+	trimmed := strings.TrimSpace(rawPath)
+	if trimmed == "" {
+		return "", errors.New("manifest file path is empty")
+	}
+	if strings.Contains(trimmed, "://") {
+		return resolveExternalObjectKey(location, trimmed)
+	}
+	if strings.Contains(trimmed, "ROOT_PATH") {
+		replaced := strings.ReplaceAll(trimmed, "ROOT_PATH", location.RootPath)
+		return path.Clean(strings.TrimPrefix(replaced, "/")), nil
+	}
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	if location.RootPath == "" {
+		return path.Clean(trimmed), nil
+	}
+	if trimmed == location.RootPath || strings.HasPrefix(trimmed, location.RootPath+"/") {
+		return path.Clean(trimmed), nil
+	}
+	if manifestBasePath != "" {
+		basePath := strings.TrimPrefix(strings.TrimSpace(manifestBasePath), "/")
+		if basePath != "" {
+			dataPath := path.Join(basePath, "_data", trimmed)
+			if strings.HasPrefix(dataPath, location.RootPath+"/") {
+				return path.Clean(dataPath), nil
+			}
+		}
+	}
+	return path.Join(location.RootPath, trimmed), nil
 }
 
 func inspectV3SegmentParquet(ctx context.Context, store oss.ObjectStore, rootPath string, segment *models.Segment, p *InspectParquetParam) error {
@@ -554,37 +643,435 @@ func arrowCellString(arr arrow.Array, idx int) string {
 }
 
 func parseExternalSpec(raw string) (externalSourceSpec, error) {
-	return ossutil.ParseExternalSpec(raw)
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return externalSourceSpec{}, nil
+	}
+	normalized, aliyunRoleAuthMode, err := extractAliyunRoleAuthMode(trimmed)
+	if err != nil {
+		return externalSourceSpec{}, err
+	}
+	parsed, err := externalspec.ParseExternalSpec(normalized)
+	if err != nil {
+		return externalSourceSpec{}, err
+	}
+	if parsed.Format != "" && parsed.Format != externalspec.FormatParquet &&
+		parsed.Format != externalspec.FormatLanceTable {
+		return externalSourceSpec{}, errors.Newf("external collection format %s is not supported", parsed.Format)
+	}
+
+	extfs := parsed.Extfs
+	spec := externalSourceSpec{
+		Format:                  parsed.Format,
+		Extfs:                   extfs,
+		CloudProvider:           strings.ToLower(extfs[externalspec.ExtfsKeyCloudProvider]),
+		Region:                  extfs[externalspec.ExtfsKeyRegion],
+		RoleARN:                 extfs[externalspec.ExtfsKeyRoleARN],
+		RoleSessionName:         extfs[externalspec.ExtfsKeySessionName],
+		ExternalID:              extfs[externalspec.ExtfsKeyExternalID],
+		AliyunRoleAuthMode:      aliyunRoleAuthMode,
+		AccessKeyID:             extfs[externalspec.ExtfsKeyAccessKeyID],
+		AccessKeyValue:          extfs[externalspec.ExtfsKeyAccessKeyValue],
+		IAMEndpoint:             extfs[externalspec.ExtfsKeyIAMEndpoint],
+		BucketName:              extfs[externalspec.ExtfsKeyBucketName],
+		GCPTargetServiceAccount: extfs[externalspec.ExtfsKeyGCPTargetServiceAccount],
+		AzureClientID:           extfs["azure_client_id"],
+		AzureTenantID:           extfs["azure_tenant_id"],
+		AzureCredentialEndpoint: extfs["azure_credential_endpoint"],
+		SSLCACert:               extfs[externalspec.ExtfsKeySSLCACert],
+		UseIAM:                  extfs[externalspec.ExtfsKeyUseIAM] == "true",
+		Anonymous:               extfs[externalspec.ExtfsKeyAnonymous] == "true",
+	}
+	if rawUseSSL, ok := extfs[externalspec.ExtfsKeyUseSSL]; ok {
+		useSSL := rawUseSSL == "true"
+		spec.UseSSL = &useSSL
+	}
+	if rawUseVirtualHost, ok := extfs[externalspec.ExtfsKeyUseVirtualHost]; ok {
+		useVirtualHost := rawUseVirtualHost == "true"
+		spec.UseVirtualHost = &useVirtualHost
+	}
+	if rawLoadFrequency := extfs[externalspec.ExtfsKeyLoadFrequency]; rawLoadFrequency != "" {
+		loadFrequency, err := strconv.Atoi(rawLoadFrequency)
+		if err != nil || loadFrequency <= 0 {
+			return externalSourceSpec{}, errors.Newf(
+				"extfs.%s must be a positive integer, got %q",
+				externalspec.ExtfsKeyLoadFrequency,
+				rawLoadFrequency,
+			)
+		}
+		spec.LoadFrequency = loadFrequency
+	}
+	return spec, nil
 }
 
-func parseExternalSource(raw string) (externalSourceLocation, error) {
-	return ossutil.ParseExternalSource(raw)
+// extractAliyunRoleAuthMode preserves the legacy Birdwatcher extension while
+// allowing the remaining spec to use Milvus' canonical parser. Older metadata
+// may store the field either at the top level or inside extfs; the top-level
+// value takes precedence, matching the previous parser.
+func extractAliyunRoleAuthMode(raw string) (string, string, error) {
+	const key = "aliyun_role_auth_mode"
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return "", "", errors.Wrap(err, "parse external spec")
+	}
+
+	readMode := func(value json.RawMessage) (string, error) {
+		if len(value) == 0 {
+			return "", nil
+		}
+		var mode string
+		if err := json.Unmarshal(value, &mode); err != nil {
+			return "", errors.Wrapf(err, "%s must be a string", key)
+		}
+		return strings.ToLower(strings.TrimSpace(mode)), nil
+	}
+
+	mode, err := readMode(payload[key])
+	if err != nil {
+		return "", "", err
+	}
+	if rawExtfs, ok := payload["extfs"]; ok && len(rawExtfs) > 0 && string(rawExtfs) != "null" {
+		var extfs map[string]json.RawMessage
+		if err := json.Unmarshal(rawExtfs, &extfs); err != nil {
+			return "", "", errors.Wrap(err, "parse external spec extfs")
+		}
+		if rawMode, ok := extfs[key]; ok {
+			if mode == "" {
+				mode, err = readMode(rawMode)
+				if err != nil {
+					return "", "", err
+				}
+			}
+			delete(extfs, key)
+			normalizedExtfs, err := json.Marshal(extfs)
+			if err != nil {
+				return "", "", errors.Wrap(err, "normalize external spec extfs")
+			}
+			payload["extfs"] = normalizedExtfs
+		}
+	}
+
+	normalized, err := json.Marshal(payload)
+	if err != nil {
+		return "", "", errors.Wrap(err, "normalize external spec")
+	}
+	return string(normalized), mode, nil
+}
+
+func parseExternalSource(raw string, spec externalSourceSpec) (externalSourceLocation, error) {
+	if err := externalspec.ValidateExternalSource(raw); err != nil {
+		return externalSourceLocation{}, errors.New(sanitizeExternalVectorInspectionError(err, raw))
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return externalSourceLocation{}, errors.Wrap(err, "parse external source")
+	}
+	scheme := strings.ToLower(u.Scheme)
+	provider := spec.CloudProvider
+	if scheme == externalspec.SchemeMinIO && provider == "" {
+		provider = externalspec.CloudProviderMinIO
+	}
+	derivedEndpoint := externalspec.DeriveEndpoint(provider, spec.Region)
+	derivedHost, err := endpointHost(derivedEndpoint)
+	if err != nil {
+		return externalSourceLocation{}, err
+	}
+	hostIsBucket := !externalspec.IsCloudEndpointHost(u.Host) &&
+		derivedHost != "" && !strings.EqualFold(derivedHost, u.Host)
+
+	location := externalSourceLocation{
+		Scheme:       scheme,
+		SourceHost:   u.Host,
+		Host:         u.Host,
+		HostIsBucket: hostIsBucket,
+	}
+	pathValue := strings.Trim(strings.TrimSpace(u.Path), "/")
+	if hostIsBucket {
+		location.Host = derivedHost
+		location.Bucket = u.Host
+		location.RootPath = cleanExternalRootPath(pathValue)
+	} else {
+		parts := strings.Split(pathValue, "/")
+		if pathValue != "" {
+			location.Bucket = parts[0]
+			if len(parts) > 1 {
+				location.RootPath = cleanExternalRootPath(path.Join(parts[1:]...))
+			}
+		}
+		if spec.BucketName != "" {
+			location.Bucket = spec.BucketName
+		}
+	}
+	if location.Bucket == "" {
+		return externalSourceLocation{}, errors.Newf(
+			"external source %s does not include bucket", redactExternalVectorObjectKey(raw))
+	}
+	return location, nil
 }
 
 func newExternalMinioClient(ctx context.Context, source string, spec externalSourceSpec, skipBucketCheck bool) (*minio.Client, string, string, externalSourceLocation, error) {
-	store, location, err := ossutil.NewResolvedExternalObjectStore(ctx, source, spec, skipBucketCheck)
+	param, location, err := buildExternalMinioClientParam(source, spec, skipBucketCheck)
 	if err != nil {
 		return nil, "", "", externalSourceLocation{}, err
 	}
-	client, ok := oss.MinioClientFromObjectStore(store.Store)
-	if !ok {
-		return nil, "", "", externalSourceLocation{}, errors.New("external object store is not backed by minio client")
+	client, err := oss.NewMinioClient(ctx, param)
+	if err != nil {
+		return nil, "", "", externalSourceLocation{}, err
 	}
-	return client, store.BucketName, store.RootPath, location, nil
+	return client.Client, client.BucketName, client.RootPath, location, nil
 }
 
-func inferCloudProviderFromScheme(scheme string) string {
-	return ossutil.InferCloudProviderFromScheme(scheme)
+func externalSourceLocationForSpec(source string, spec externalSourceSpec) (externalSourceLocation, error) {
+	if err := externalspec.ValidateExtfsComplete(source, spec.Extfs); err != nil {
+		if !usesLegacyExternalSpec(spec) {
+			return externalSourceLocation{}, errors.New(
+				sanitizeExternalVectorInspectionError(err, source))
+		}
+		return parseLegacyExternalSource(source)
+	}
+	return parseExternalSource(source, spec)
+}
+
+func buildExternalMinioClientParam(source string, spec externalSourceSpec, skipBucketCheck bool) (oss.MinioClientParam, externalSourceLocation, error) {
+	if err := externalspec.ValidateExtfsComplete(source, spec.Extfs); err != nil {
+		if !usesLegacyExternalSpec(spec) {
+			return oss.MinioClientParam{}, externalSourceLocation{}, errors.New(
+				sanitizeExternalVectorInspectionError(err, source))
+		}
+		return buildLegacyExternalMinioClientParam(source, spec, skipBucketCheck)
+	}
+	location, err := parseExternalSource(source, spec)
+	if err != nil {
+		return oss.MinioClientParam{}, externalSourceLocation{}, err
+	}
+	provider := spec.CloudProvider
+	if location.Scheme == externalspec.SchemeMinIO && provider == "" {
+		provider = externalspec.CloudProviderMinIO
+	}
+	if provider == externalspec.CloudProviderAzure {
+		return oss.MinioClientParam{}, externalSourceLocation{}, errors.New(
+			"extfs.cloud_provider=azure is not supported by Birdwatcher object storage client",
+		)
+	}
+	if spec.RoleARN != "" && provider != externalspec.CloudProviderAWS &&
+		provider != externalspec.CloudProviderMinIO &&
+		provider != externalspec.CloudProviderAliyun {
+		return oss.MinioClientParam{}, externalSourceLocation{}, errors.Newf(
+			"extfs.role_arn is not supported for cloud provider %s by Birdwatcher object storage client",
+			provider,
+		)
+	}
+	if spec.GCPTargetServiceAccount != "" {
+		return oss.MinioClientParam{}, externalSourceLocation{}, errors.New(
+			"extfs.gcp_target_service_account is not supported by Birdwatcher object storage client",
+		)
+	}
+	if spec.SSLCACert != "" {
+		return oss.MinioClientParam{}, externalSourceLocation{}, errors.New(
+			"extfs.ssl_ca_cert is not supported by Birdwatcher object storage client",
+		)
+	}
+
+	useSSL := location.Scheme != externalspec.SchemeMinIO
+	if spec.UseSSL != nil {
+		useSSL = *spec.UseSSL
+	}
+	param := oss.MinioClientParam{
+		Addr:               location.Host,
+		AK:                 spec.AccessKeyID,
+		SK:                 spec.AccessKeyValue,
+		UseIAM:             spec.UseIAM,
+		Anonymous:          spec.Anonymous,
+		IAMEndpoint:        spec.IAMEndpoint,
+		UseSSL:             useSSL,
+		UseVirtualHost:     spec.UseVirtualHost,
+		CloudProvider:      provider,
+		Region:             spec.Region,
+		RoleARN:            spec.RoleARN,
+		RoleSessionName:    spec.RoleSessionName,
+		ExternalID:         spec.ExternalID,
+		AliyunRoleAuthMode: spec.AliyunRoleAuthMode,
+		LoadFrequency:      spec.LoadFrequency,
+		BucketName:         location.Bucket,
+		RootPath:           location.RootPath,
+	}
+	if provider == oss.CloudProviderAliyun && param.RoleARN != "" && param.AliyunRoleAuthMode == "" {
+		param.AliyunRoleAuthMode = "oidc"
+	}
+	oss.WithSkipCheckBucket(skipBucketCheck)(&param)
+	return param, location, nil
+}
+
+func usesLegacyExternalSpec(spec externalSourceSpec) bool {
+	return spec.Extfs == nil
+}
+
+func buildLegacyExternalMinioClientParam(source string, spec externalSourceSpec, skipBucketCheck bool) (oss.MinioClientParam, externalSourceLocation, error) {
+	location, err := parseLegacyExternalSource(source)
+	if err != nil {
+		return oss.MinioClientParam{}, externalSourceLocation{}, err
+	}
+	provider := spec.CloudProvider
+	if provider == "" {
+		provider = inferLegacyCloudProviderFromScheme(location.Scheme)
+	}
+	if provider == "" {
+		return oss.MinioClientParam{}, externalSourceLocation{}, errors.Newf(
+			"unsupported external source scheme/provider: %s/%s",
+			location.Scheme,
+			spec.CloudProvider,
+		)
+	}
+
+	useSSL := location.Scheme != externalspec.SchemeMinIO
+	if spec.UseSSL != nil {
+		useSSL = *spec.UseSSL
+	}
+	param := oss.MinioClientParam{
+		Addr:               location.Host,
+		AK:                 spec.AccessKeyID,
+		SK:                 spec.AccessKeyValue,
+		UseIAM:             spec.UseIAM,
+		Anonymous:          spec.Anonymous,
+		IAMEndpoint:        spec.IAMEndpoint,
+		UseSSL:             useSSL,
+		UseVirtualHost:     spec.UseVirtualHost,
+		CloudProvider:      provider,
+		Region:             spec.Region,
+		RoleARN:            spec.RoleARN,
+		RoleSessionName:    spec.RoleSessionName,
+		ExternalID:         spec.ExternalID,
+		AliyunRoleAuthMode: spec.AliyunRoleAuthMode,
+		LoadFrequency:      spec.LoadFrequency,
+		BucketName:         location.Bucket,
+		RootPath:           location.RootPath,
+	}
+	if provider == oss.CloudProviderAliyun && param.RoleARN != "" && param.AliyunRoleAuthMode == "" {
+		param.AliyunRoleAuthMode = "oidc"
+	}
+	if param.RoleARN == "" && param.AK == "" && param.SK == "" && !param.Anonymous {
+		param.UseIAM = true
+	}
+	oss.WithSkipCheckBucket(skipBucketCheck)(&param)
+	return param, location, nil
+}
+
+func parseLegacyExternalSource(raw string) (externalSourceLocation, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return externalSourceLocation{}, errors.Wrap(err, "parse external source")
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return externalSourceLocation{}, errors.Newf(
+			"invalid external source: %s", redactExternalVectorObjectKey(raw))
+	}
+	parts := strings.Split(strings.Trim(strings.TrimSpace(u.Path), "/"), "/")
+	if len(parts) == 0 || parts[0] == "" {
+		return externalSourceLocation{}, errors.Newf(
+			"external source %s does not include bucket", redactExternalVectorObjectKey(raw))
+	}
+	location := externalSourceLocation{
+		Scheme:     strings.ToLower(u.Scheme),
+		SourceHost: u.Host,
+		Host:       u.Host,
+		Bucket:     parts[0],
+	}
+	if len(parts) > 1 {
+		location.RootPath = cleanExternalRootPath(path.Join(parts[1:]...))
+	}
+	return location, nil
+}
+
+func inferLegacyCloudProviderFromScheme(scheme string) string {
+	switch strings.ToLower(strings.TrimSpace(scheme)) {
+	case externalspec.SchemeOSS:
+		return oss.CloudProviderAliyun
+	case externalspec.SchemeS3, externalspec.SchemeS3A, externalspec.SchemeAWS:
+		return oss.CloudProviderAWS
+	case externalspec.SchemeGS, externalspec.SchemeGCS:
+		return oss.CloudProviderGCP
+	case externalspec.SchemeMinIO:
+		return oss.CloudProviderMinio
+	default:
+		return ""
+	}
+}
+
+func endpointHost(endpoint string) (string, error) {
+	if endpoint == "" {
+		return "", nil
+	}
+	if !strings.Contains(endpoint, "://") {
+		return strings.Trim(endpoint, "/"), nil
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil || u.Host == "" {
+		return "", errors.Newf("invalid derived external endpoint %q", endpoint)
+	}
+	return u.Host, nil
+}
+
+func cleanExternalRootPath(value string) string {
+	cleaned := path.Clean(strings.Trim(value, "/"))
+	if cleaned == "." {
+		return ""
+	}
+	return cleaned
 }
 
 func resolveExternalObjectKey(location externalSourceLocation, externalFile string) (string, error) {
-	return ossutil.ResolveExternalObjectKey(location, externalFile)
-}
-
-func readMapString(payload map[string]any, key string) string {
-	return ossutil.ReadMapString(payload, key)
-}
-
-func readMapBool(payload map[string]any, key string) (bool, bool) {
-	return ossutil.ReadMapBool(payload, key)
+	trimmed := strings.TrimSpace(externalFile)
+	if trimmed == "" {
+		return "", errors.New("external file path is empty")
+	}
+	if strings.Contains(trimmed, "ROOT_PATH") {
+		return strings.ReplaceAll(trimmed, "ROOT_PATH", location.RootPath), nil
+	}
+	if strings.Contains(trimmed, "://") {
+		u, err := url.Parse(trimmed)
+		if err != nil {
+			return "", errors.Wrap(err, "parse external file path")
+		}
+		if location.HostIsBucket {
+			if u.Host != location.Bucket {
+				return "", errors.Newf(
+					"external file bucket %s does not match external source bucket %s",
+					u.Host,
+					location.Bucket,
+				)
+			}
+			trimmed = strings.Trim(u.Path, "/")
+		} else {
+			parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+			if len(parts) == 0 || parts[0] == "" {
+				return "", errors.Newf(
+					"external file path %s does not include bucket",
+					redactExternalVectorObjectKey(trimmed),
+				)
+			}
+			if u.Host != location.SourceHost {
+				return "", errors.Newf(
+					"external file host %s does not match external source host %s",
+					u.Host,
+					location.SourceHost,
+				)
+			}
+			if parts[0] != location.Bucket {
+				return "", errors.Newf(
+					"external file bucket %s does not match external source bucket %s",
+					parts[0],
+					location.Bucket,
+				)
+			}
+			trimmed = path.Join(parts[1:]...)
+		}
+	}
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	if location.RootPath == "" {
+		return path.Clean(trimmed), nil
+	}
+	if trimmed == location.RootPath || strings.HasPrefix(trimmed, location.RootPath+"/") {
+		return path.Clean(trimmed), nil
+	}
+	return path.Join(location.RootPath, trimmed), nil
 }

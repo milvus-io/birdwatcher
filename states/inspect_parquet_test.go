@@ -2,11 +2,43 @@ package states
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"strings"
 	"testing"
 
+	"github.com/milvus-io/birdwatcher/models"
+	"github.com/milvus-io/birdwatcher/oss"
 	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
+	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
+	"github.com/milvus-io/milvus/pkg/v3/proto/datapb"
 )
+
+type closeTrackingReadSeeker struct {
+	*bytes.Reader
+	closed bool
+}
+
+func (r *closeTrackingReadSeeker) Close() error {
+	r.closed = true
+	return nil
+}
+
+type singleObjectStore struct {
+	object storagecommon.ReadSeeker
+}
+
+func (s *singleObjectStore) Open(context.Context, string, ...oss.OpenOption) (storagecommon.ReadSeeker, error) {
+	return s.object, nil
+}
+
+func (*singleObjectStore) Stat(context.Context, string) (*models.FsStat, error) {
+	return nil, nil
+}
+
+func (*singleObjectStore) List(context.Context, string, bool) (<-chan oss.ObjectInfo, error) {
+	return nil, nil
+}
 
 func TestValidateInspectParquetParam(t *testing.T) {
 	tests := []struct {
@@ -180,7 +212,10 @@ func TestParseExternalSpec(t *testing.T) {
 			"external_id": "ext-123",
 			"region": "cn-hangzhou",
 			"role_arn": "acs:ram::1:role/demo",
-			"use_ssl": true
+			"session_name": "birdwatcher-test",
+			"use_ssl": "true",
+			"use_virtual_host": "true",
+			"load_frequency": "3600"
 		}
 	}`
 
@@ -203,35 +238,170 @@ func TestParseExternalSpec(t *testing.T) {
 	if spec.ExternalID != "ext-123" {
 		t.Fatalf("unexpected external id: %s", spec.ExternalID)
 	}
+	if spec.RoleSessionName != "birdwatcher-test" {
+		t.Fatalf("unexpected role session name: %s", spec.RoleSessionName)
+	}
 	if spec.UseSSL == nil || !*spec.UseSSL {
 		t.Fatalf("expected use_ssl=true, got %#v", spec.UseSSL)
+	}
+	if spec.UseVirtualHost == nil || !*spec.UseVirtualHost {
+		t.Fatal("expected use_virtual_host=true")
+	}
+	if spec.LoadFrequency != 3600 {
+		t.Fatalf("unexpected load frequency: %d", spec.LoadFrequency)
+	}
+}
+
+func TestParseExternalSpecPreservesAliyunRoleAuthMode(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{
+			name: "top level",
+			raw: `{
+				"format":"parquet",
+				"aliyun_role_auth_mode":"ram",
+				"extfs":{
+					"cloud_provider":"aliyun",
+					"region":"cn-hangzhou",
+					"role_arn":"acs:ram::1:role/demo",
+					"aliyun_role_auth_mode":"oidc"
+				}
+			}`,
+		},
+		{
+			name: "legacy extfs extension",
+			raw: `{
+				"format":"parquet",
+				"extfs":{
+					"cloud_provider":"aliyun",
+					"region":"cn-hangzhou",
+					"role_arn":"acs:ram::1:role/demo",
+					"aliyun_role_auth_mode":"ram"
+				}
+			}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			spec, err := parseExternalSpec(test.raw)
+			if err != nil {
+				t.Fatalf("parseExternalSpec() error = %v", err)
+			}
+			if spec.AliyunRoleAuthMode != "ram" {
+				t.Fatalf("AliyunRoleAuthMode = %q, want ram", spec.AliyunRoleAuthMode)
+			}
+			if _, ok := spec.Extfs["aliyun_role_auth_mode"]; ok {
+				t.Fatal("legacy extension must not be forwarded to canonical extfs validation")
+			}
+
+			param, _, err := buildExternalMinioClientParam(
+				"s3://oss-cn-hangzhou.aliyuncs.com/test-bucket/testlake/parquet",
+				spec,
+				true,
+			)
+			if err != nil {
+				t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+			}
+			if param.AliyunRoleAuthMode != "ram" {
+				t.Fatalf("AliyunRoleAuthMode = %q, want ram", param.AliyunRoleAuthMode)
+			}
+		})
+	}
+}
+
+func TestBuildExternalMinioClientParamDefaultsAliyunRoleMode(t *testing.T) {
+	spec, err := parseExternalSpec(`{
+		"format":"parquet",
+		"extfs":{
+			"cloud_provider":"aliyun",
+			"region":"cn-hangzhou",
+			"role_arn":"acs:ram::1:role/demo"
+		}
+	}`)
+	if err != nil {
+		t.Fatalf("parseExternalSpec() error = %v", err)
+	}
+	param, _, err := buildExternalMinioClientParam(
+		"s3://oss-cn-hangzhou.aliyuncs.com/test-bucket/testlake/parquet",
+		spec,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+	}
+	if param.AliyunRoleAuthMode != "oidc" {
+		t.Fatalf("AliyunRoleAuthMode = %q, want oidc", param.AliyunRoleAuthMode)
 	}
 }
 
 func TestParseExternalSource(t *testing.T) {
-	location, err := parseExternalSource("oss://oss-cn-hangzhou.aliyuncs.com/test-oss-0815/testlake/parquet")
-	if err != nil {
-		t.Fatalf("parseExternalSource() error = %v", err)
+	tests := []struct {
+		name         string
+		source       string
+		spec         externalSourceSpec
+		wantHost     string
+		wantBucket   string
+		wantRoot     string
+		hostIsBucket bool
+	}{
+		{
+			name:       "milvus form cloud endpoint",
+			source:     "oss://oss-cn-hangzhou.aliyuncs.com/test-oss-0815/testlake/parquet",
+			spec:       externalSourceSpec{CloudProvider: "aliyun", Region: "cn-hangzhou"},
+			wantHost:   "oss-cn-hangzhou.aliyuncs.com",
+			wantBucket: "test-oss-0815",
+			wantRoot:   "testlake/parquet",
+		},
+		{
+			name:         "aws form",
+			source:       "s3://customer-bucket/testlake/parquet",
+			spec:         externalSourceSpec{CloudProvider: "aws", Region: "eu-west-2"},
+			wantHost:     "s3.eu-west-2.amazonaws.com",
+			wantBucket:   "customer-bucket",
+			wantRoot:     "testlake/parquet",
+			hostIsBucket: true,
+		},
+		{
+			name:       "minio form",
+			source:     "minio://localhost:9000/test-bucket/testlake/parquet",
+			spec:       externalSourceSpec{CloudProvider: "minio"},
+			wantHost:   "localhost:9000",
+			wantBucket: "test-bucket",
+			wantRoot:   "testlake/parquet",
+		},
+		{
+			name:       "s3 scheme with minio provider",
+			source:     "s3://custom.example:9000/test-bucket/testlake/parquet",
+			spec:       externalSourceSpec{CloudProvider: "minio"},
+			wantHost:   "custom.example:9000",
+			wantBucket: "test-bucket",
+			wantRoot:   "testlake/parquet",
+		},
 	}
-	if location.Scheme != "oss" {
-		t.Fatalf("unexpected scheme: %s", location.Scheme)
-	}
-	if location.Host != "oss-cn-hangzhou.aliyuncs.com" {
-		t.Fatalf("unexpected host: %s", location.Host)
-	}
-	if location.Bucket != "test-oss-0815" {
-		t.Fatalf("unexpected bucket: %s", location.Bucket)
-	}
-	if location.RootPath != "testlake/parquet" {
-		t.Fatalf("unexpected root path: %s", location.RootPath)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			location, err := parseExternalSource(tt.source, tt.spec)
+			if err != nil {
+				t.Fatalf("parseExternalSource() error = %v", err)
+			}
+			if location.Host != tt.wantHost || location.Bucket != tt.wantBucket ||
+				location.RootPath != tt.wantRoot || location.HostIsBucket != tt.hostIsBucket {
+				t.Fatalf("parseExternalSource() = %#v", location)
+			}
+		})
 	}
 }
 
 func TestResolveExternalObjectKey(t *testing.T) {
 	location := externalSourceLocation{
-		Host:     "oss-cn-hangzhou.aliyuncs.com",
-		Bucket:   "test-oss-0815",
-		RootPath: "testlake/parquet",
+		SourceHost: "oss-cn-hangzhou.aliyuncs.com",
+		Host:       "oss-cn-hangzhou.aliyuncs.com",
+		Bucket:     "test-oss-0815",
+		RootPath:   "testlake/parquet",
 	}
 
 	tests := []struct {
@@ -266,5 +436,280 @@ func TestResolveExternalObjectKey(t *testing.T) {
 				t.Fatalf("resolveExternalObjectKey() = %s, want %s", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestResolveExternalObjectKey_AWSForm(t *testing.T) {
+	location, err := parseExternalSource(
+		"s3://customer-bucket/testlake/parquet",
+		externalSourceSpec{CloudProvider: "aws", Region: "eu-west-2"},
+	)
+	if err != nil {
+		t.Fatalf("parseExternalSource() error = %v", err)
+	}
+
+	got, err := resolveExternalObjectKey(
+		location,
+		"s3://customer-bucket/testlake/parquet/part-0001.parquet",
+	)
+	if err != nil {
+		t.Fatalf("resolveExternalObjectKey() error = %v", err)
+	}
+	if got != "testlake/parquet/part-0001.parquet" {
+		t.Fatalf("resolveExternalObjectKey() = %s", got)
+	}
+}
+
+func TestBuildExternalMinioClientParam(t *testing.T) {
+	spec, err := parseExternalSpec(`{
+		"format":"parquet",
+		"extfs":{
+			"cloud_provider":"aws",
+			"region":"eu-west-2",
+			"access_key_id":"test-ak",
+			"access_key_value":"test-sk",
+			"iam_endpoint":"http://169.254.169.254",
+			"use_ssl":"true",
+			"use_virtual_host":"true"
+		}
+	}`)
+	if err != nil {
+		t.Fatalf("parseExternalSpec() error = %v", err)
+	}
+
+	param, location, err := buildExternalMinioClientParam(
+		"s3://customer-bucket/testlake/parquet",
+		spec,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+	}
+	if param.Addr != "s3.eu-west-2.amazonaws.com" ||
+		param.BucketName != "customer-bucket" ||
+		param.RootPath != "testlake/parquet" {
+		t.Fatalf("unexpected storage location: location=%#v", location)
+	}
+	if param.AK != "test-ak" || param.SK != "test-sk" || !param.UseSSL {
+		t.Fatal("static credentials or SSL settings were not propagated")
+	}
+	if param.UseVirtualHost == nil || !*param.UseVirtualHost {
+		t.Fatal("use_virtual_host was not propagated")
+	}
+}
+
+func TestBuildExternalMinioClientParam_LegacyFallback(t *testing.T) {
+	spec, err := parseExternalSpec("")
+	if err != nil {
+		t.Fatalf("parseExternalSpec() error = %v", err)
+	}
+
+	param, location, err := buildExternalMinioClientParam(
+		"s3://legacy-endpoint/legacy-bucket/root/path",
+		spec,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+	}
+	if location.Host != "legacy-endpoint" || location.Bucket != "legacy-bucket" ||
+		location.RootPath != "root/path" {
+		t.Fatalf("unexpected legacy storage location: %#v", location)
+	}
+	if param.CloudProvider != "aws" || !param.UseIAM || !param.UseSSL {
+		t.Fatalf("unexpected legacy client parameters: %#v", param)
+	}
+}
+
+func TestBuildExternalMinioClientParamRejectsIncompleteExtfs(t *testing.T) {
+	spec, err := parseExternalSpec(`{
+		"format":"parquet",
+		"extfs":{
+			"cloud_provider":"aws",
+			"region":"eu-west-2",
+			"access_key_id":"test-ak"
+		}
+	}`)
+	if err != nil {
+		t.Fatalf("parseExternalSpec() error = %v", err)
+	}
+
+	_, _, err = buildExternalMinioClientParam(
+		"s3://customer-bucket/testlake/parquet",
+		spec,
+		true,
+	)
+	if err == nil || !strings.Contains(err.Error(), "must be set together") {
+		t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+	}
+}
+
+func TestBuildExternalMinioClientParam_AuthAndMinioModes(t *testing.T) {
+	t.Run("iam", func(t *testing.T) {
+		spec, err := parseExternalSpec(`{
+			"format":"parquet",
+			"extfs":{
+				"cloud_provider":"aws",
+				"region":"eu-west-2",
+				"use_iam":"true",
+				"iam_endpoint":"http://169.254.169.254",
+				"use_virtual_host":"false"
+			}
+		}`)
+		if err != nil {
+			t.Fatalf("parseExternalSpec() error = %v", err)
+		}
+
+		param, _, err := buildExternalMinioClientParam(
+			"s3://customer-bucket/testlake/parquet",
+			spec,
+			true,
+		)
+		if err != nil {
+			t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+		}
+		if !param.UseIAM || param.IAMEndpoint != "http://169.254.169.254" {
+			t.Fatal("IAM settings were not propagated")
+		}
+		if param.UseVirtualHost == nil || *param.UseVirtualHost {
+			t.Fatal("path-style bucket lookup was not propagated")
+		}
+	})
+
+	t.Run("minio", func(t *testing.T) {
+		spec, err := parseExternalSpec(`{
+			"format":"parquet",
+			"extfs":{
+				"cloud_provider":"minio",
+				"access_key_id":"minio-ak",
+				"access_key_value":"minio-sk"
+			}
+		}`)
+		if err != nil {
+			t.Fatalf("parseExternalSpec() error = %v", err)
+		}
+
+		param, _, err := buildExternalMinioClientParam(
+			"minio://localhost:9000/test-bucket/testlake/parquet",
+			spec,
+			true,
+		)
+		if err != nil {
+			t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+		}
+		if param.CloudProvider != "minio" || param.Addr != "localhost:9000" ||
+			param.BucketName != "test-bucket" || param.UseSSL {
+			t.Fatal("MinIO source settings were not propagated")
+		}
+		if param.UseVirtualHost != nil {
+			t.Fatal("unspecified use_virtual_host must preserve the provider default")
+		}
+	})
+
+	t.Run("aliyun provider default", func(t *testing.T) {
+		spec, err := parseExternalSpec(`{
+			"format":"parquet",
+			"extfs":{
+				"cloud_provider":"aliyun",
+				"region":"cn-hangzhou",
+				"access_key_id":"aliyun-ak",
+				"access_key_value":"aliyun-sk"
+			}
+		}`)
+		if err != nil {
+			t.Fatalf("parseExternalSpec() error = %v", err)
+		}
+
+		param, _, err := buildExternalMinioClientParam(
+			"s3://oss-cn-hangzhou.aliyuncs.com/test-bucket/testlake/parquet",
+			spec,
+			true,
+		)
+		if err != nil {
+			t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+		}
+		if param.CloudProvider != "aliyun" || param.UseVirtualHost != nil {
+			t.Fatal("unspecified use_virtual_host must preserve Aliyun DNS bucket lookup")
+		}
+	})
+
+	t.Run("anonymous", func(t *testing.T) {
+		spec, err := parseExternalSpec(`{
+			"format":"parquet",
+			"extfs":{
+				"cloud_provider":"aws",
+				"region":"eu-west-2",
+				"anonymous":"true"
+			}
+		}`)
+		if err != nil {
+			t.Fatalf("parseExternalSpec() error = %v", err)
+		}
+
+		param, _, err := buildExternalMinioClientParam(
+			"s3://public-bucket/testlake/parquet",
+			spec,
+			true,
+		)
+		if err != nil {
+			t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+		}
+		if !param.Anonymous || param.AK != "" || param.SK != "" {
+			t.Fatal("anonymous credential mode was not propagated")
+		}
+	})
+
+	t.Run("role arn", func(t *testing.T) {
+		spec, err := parseExternalSpec(`{
+			"format":"parquet",
+			"extfs":{
+				"cloud_provider":"aws",
+				"region":"eu-west-2",
+				"role_arn":"arn:aws:iam::123456789012:role/test",
+				"session_name":"birdwatcher-test",
+				"external_id":"external-test"
+			}
+		}`)
+		if err != nil {
+			t.Fatalf("parseExternalSpec() error = %v", err)
+		}
+
+		param, _, err := buildExternalMinioClientParam(
+			"s3://customer-bucket/testlake/parquet",
+			spec,
+			true,
+		)
+		if err != nil {
+			t.Fatalf("buildExternalMinioClientParam() error = %v", err)
+		}
+		if param.RoleARN == "" || param.RoleSessionName != "birdwatcher-test" ||
+			param.ExternalID != "external-test" || param.UseIAM {
+			t.Fatal("role ARN credential mode was not propagated independently from IAM")
+		}
+	})
+}
+
+func TestInspectExternalManifestParquetClosesManifestObject(t *testing.T) {
+	object := &closeTrackingReadSeeker{Reader: bytes.NewReader([]byte("invalid manifest"))}
+	store := &singleObjectStore{object: object}
+	segment := &models.Segment{SegmentInfo: &datapb.SegmentInfo{
+		ID:           10,
+		ManifestPath: `{"ver":1,"base_path":"files"}`,
+	}}
+
+	err := inspectExternalManifestParquet(
+		context.Background(),
+		store,
+		"root",
+		nil,
+		externalSourceLocation{},
+		segment,
+		&InspectParquetParam{},
+	)
+	if err == nil {
+		t.Fatal("inspectExternalManifestParquet() expected manifest parse error")
+	}
+	if !object.closed {
+		t.Fatal("inspectExternalManifestParquet() did not close the manifest object")
 	}
 }
