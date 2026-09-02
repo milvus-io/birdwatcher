@@ -147,3 +147,50 @@ func TestRequireWALMetadataPointsAtTheLegacyPrefix(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "legacy prefix")
 }
+
+// TestBuildDeleteOptionsRejectsBadInput pins that a mistyped flag fails loudly. The Go API
+// tolerates a zero value because that is what an uninitialised struct field looks like; here
+// the value came from a person typing it, and quietly substituting a default would hide the
+// typo behind a run that appears to have honored it.
+func TestBuildDeleteOptionsRejectsBadInput(t *testing.T) {
+	base := func() *ResetWALParam {
+		return &ResetWALParam{MarkAttempts: 3, MarkAttemptTimeout: "2m"}
+	}
+
+	opts, err := buildDeleteOptions(base())
+	require.NoError(t, err)
+	assert.Len(t, opts, 2, "attempts and timeout, with skipping left off")
+
+	p := base()
+	p.SkipUnreachableNodes = true
+	opts, err = buildDeleteOptions(p)
+	require.NoError(t, err)
+	assert.Len(t, opts, 3, "skipping is only added when asked for")
+
+	p = base()
+	p.MarkAttemptTimeout = "2 minutes"
+	_, err = buildDeleteOptions(p)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mark-attempt-timeout")
+
+	p = base()
+	p.MarkAttemptTimeout = "0s"
+	_, err = buildDeleteOptions(p)
+	require.Error(t, err, "a zero timeout would switch off the bound it exists to provide")
+
+	p = base()
+	p.MarkAttempts = 0
+	_, err = buildDeleteOptions(p)
+	require.Error(t, err, "zero attempts means retry forever in the retry helper")
+}
+
+// TestResiduePathMatchesTheNodeLayout pins the hint against the node's own localLogDataDir
+// layout, {storage.rootPath}/{bucket}/{rootPath}/{logId}. The whole point of printing it is
+// that an operator can paste it into a shell on the node.
+func TestResiduePathMatchesTheNodeLayout(t *testing.T) {
+	r := residuePath{nodeStorageRoot: "/woodpecker/data", bucket: "milvus-bucket", rootPath: "file/wp"}
+
+	assert.Equal(t, "/woodpecker/data/milvus-bucket/file/wp/17/", r.forLogs([]int64{17}))
+	assert.Equal(t, "/woodpecker/data/milvus-bucket/file/wp/{17, 19, 23}/",
+		r.forLogs([]int64{17, 19, 23}))
+}

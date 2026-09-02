@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	wpconfig "github.com/zilliztech/woodpecker/common/config"
@@ -38,6 +41,14 @@ type ResetWALParam struct {
 	MinioUseSSL    bool   `name:"minio-use-ssl" default:"false" desc:"connect to object storage over TLS"`
 	MinioBucket    string `name:"minio-bucket" default:"a-bucket" desc:"object storage bucket holding the WAL data"`
 	MinioRootPath  string `name:"minio-root-path" default:"files" desc:"Milvus's minio.rootPath, copied verbatim from milvus.yaml; the woodpecker \"/wp\" suffix is added automatically"`
+
+	// How hard to try before a node counts as unreachable, and what to do then. Only the
+	// node-local tier needs these: object storage and metadata are reachable independently
+	// of any node, so they keep the all-or-nothing contract.
+	MarkAttempts         int64  `name:"mark-attempts" default:"3" desc:"how many times to ask one node to mark a log deleted before it counts as unreachable; only transport failures are retried"`
+	MarkAttemptTimeout   string `name:"mark-attempt-timeout" default:"2m" desc:"timeout for ONE such attempt, e.g. 2m / 90s; raise it when nodes hold large un-compacted tails"`
+	SkipUnreachableNodes bool   `name:"skip-unreachable-nodes" default:"false" desc:"DANGEROUS: finish the clear without nodes that stayed unreachable, leaving their staged data behind. Read the printed report before using it"`
+	NodeStorageRoot      string `name:"node-storage-root" default:"/woodpecker/data" desc:"woodpecker.storage.rootPath on the WAL nodes; used only to print where skipped nodes' leftover data lives"`
 }
 
 // ResetWALCommand empties an instance's write-ahead log.
@@ -57,7 +68,8 @@ type ResetWALParam struct {
 //	start milvus
 //
 // The WAL service must stay up. Its nodes hold the staged local copy of the log, and only a
-// node can delete its own disk — the command fences each one and waits for it to reclaim.
+// node can delete its own disk — the command marks the log deleted on each one and waits
+// for it to reclaim.
 // With the WAL service down, the fan-out cannot resolve any node and the command refuses
 // rather than deleting the metadata that would let anyone find that data later.
 //
@@ -115,14 +127,22 @@ func (c *ComponentReset) ResetWALCommand(ctx context.Context, p *ResetWALParam) 
 		return nil
 	}
 
+	deleteOpts, err := buildDeleteOptions(p)
+	if err != nil {
+		return err
+	}
+
 	// Synchronous: the call returns only once every node has reclaimed its local data and the
 	// objects are gone, so "the WAL is empty" is something the next step can rely on.
-	stats, err := client.DeleteAllLogsSync(ctx)
+	stats, err := client.DeleteAllLogsSync(ctx, deleteOpts...)
+	printDeleteStats(stats, len(logs), residuePath{
+		nodeStorageRoot: p.NodeStorageRoot,
+		bucket:          cfg.Minio.BucketName,
+		rootPath:        cfg.Minio.RootPath,
+	})
 	if err != nil {
-		return errors.Wrap(err, "failed to delete wal logs; re-run until it succeeds")
+		return annotateDeleteFailure(err, p)
 	}
-	fmt.Printf("deleted %d log(s): %d object(s), %d of %d node fence(s) had local data\n",
-		stats.Logs, stats.ObjectsDeleted, stats.NodesWithLocalData, stats.NodesFenced)
 	// Deleting metadata while finding nothing on either data tier is what a wrong
 	// bucket/rootPath looks like: the node's reclaim removes a directory that is not there
 	// and the object prefix lists empty, so the run reports success either way. It is not
@@ -234,4 +254,123 @@ func (c *ComponentReset) requireWALMetadata(ctx context.Context, metaPrefix stri
 		"woodpecker.meta.prefix) and the instance selected at connect time. Refusing to "+
 		"continue: clearing the wrong prefix reports success while the real WAL keeps its data",
 		path.Join(c.instanceName, metaPrefix))
+}
+
+// buildDeleteOptions turns the command's flags into woodpecker delete options.
+//
+// A malformed duration is rejected rather than defaulted. The Go API tolerates a zero value
+// because that is what an uninitialised struct field looks like, but here the value came from
+// a person typing it, and silently substituting a default would hide the typo behind a run
+// that appears to honor it.
+func buildDeleteOptions(p *ResetWALParam) ([]wp.DeleteOption, error) {
+	timeout, err := time.ParseDuration(p.MarkAttemptTimeout)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid --mark-attempt-timeout %q: expected a duration such as 2m or 90s",
+			p.MarkAttemptTimeout)
+	}
+	if timeout <= 0 {
+		return nil, errors.Newf("invalid --mark-attempt-timeout %q: must be positive", p.MarkAttemptTimeout)
+	}
+	if p.MarkAttempts <= 0 {
+		return nil, errors.Newf("invalid --mark-attempts %d: must be at least 1", p.MarkAttempts)
+	}
+
+	opts := []wp.DeleteOption{
+		wp.WithMarkAttempts(uint(p.MarkAttempts)),
+		wp.WithMarkAttemptTimeout(timeout),
+	}
+	if p.SkipUnreachableNodes {
+		opts = append(opts, wp.WithSkipUnreachableNodes())
+	}
+	return opts, nil
+}
+
+// printDeleteStats reports what each tier actually gave up, including on the failure path.
+//
+// Printing before the error is checked is deliberate: a delete that got through fourteen of
+// seventeen logs and then hit an unreachable node has done real, durable work, and an
+// operator deciding what to do next needs to see it. Returning the error alone would hide it.
+func printDeleteStats(stats wp.DeleteStats, attempted int, residue residuePath) {
+	fmt.Printf("deleted %d of %d log(s): %d object(s), %d of %d node(s) had local data\n",
+		stats.Logs, attempted, stats.ObjectsDeleted, stats.NodesWithLocalData, stats.NodesMarked)
+	printSkippedNodes(stats, residue)
+}
+
+// printSkippedNodes spells out the residue a skipped node keeps, in enough detail to act on.
+//
+// Nothing will ever reclaim this data on its own: the metadata that referenced it is gone, and
+// the node never received the delete mark that would trigger its own cleanup. It is harmless —
+// logId never repeats, so a future log cannot land in the same directory — but "harmless" and
+// "worth reclaiming" are different questions, and only the operator can tell scrap hardware
+// from a node that is coming back.
+func printSkippedNodes(stats wp.DeleteStats, residue residuePath) {
+	if len(stats.SkippedNodes) == 0 {
+		return
+	}
+	nodes := make([]string, 0, len(stats.SkippedNodes))
+	for node := range stats.SkippedNodes {
+		nodes = append(nodes, node)
+	}
+	sort.Strings(nodes)
+
+	fmt.Printf("\nSKIPPED %d node(s) that never accepted the delete mark.\n", len(nodes))
+	fmt.Printf("Their staged data for these logs stays on disk and nothing will reclaim it:\n")
+	for _, node := range nodes {
+		logIDs := append([]int64(nil), stats.SkippedNodes[node]...)
+		sort.Slice(logIDs, func(i, j int) bool { return logIDs[i] < logIDs[j] })
+		fmt.Printf("  %s\n", node)
+		fmt.Printf("    log(s) %s\n", joinInt64s(logIDs))
+		fmt.Printf("    under  %s\n", residue.forLogs(logIDs))
+	}
+	fmt.Printf("Safe to leave if the node is scrap: log ids never repeat, so a future log\n")
+	fmt.Printf("cannot reuse those directories. Reclaim the space by hand if it comes back.\n")
+}
+
+func joinInt64s(values []int64) string {
+	parts := make([]string, len(values))
+	for i, v := range values {
+		parts[i] = strconv.FormatInt(v, 10)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// annotateDeleteFailure replaces "retry and hope" with the routes that actually exist.
+//
+// A node that is permanently gone can never accept the delete mark, so re-running alone will
+// fail identically forever. The quorum recorded in a segment's metadata is never rewritten, so
+// the node stays in the set for every log it served — but the mark is addressed by host:port,
+// which is why a replacement at the same address resolves it. In a Kubernetes StatefulSet that
+// address is stable, so recreating the pod is usually all it takes.
+func annotateDeleteFailure(err error, p *ResetWALParam) error {
+	if p.SkipUnreachableNodes {
+		return errors.Wrap(err, "failed to delete wal logs")
+	}
+	fmt.Printf("\nIf a node is unreachable, re-running alone will not help: it stays in the\n")
+	fmt.Printf("quorum of every log it served, and that record is never rewritten.\n")
+	fmt.Printf("  - node coming back, or replaceable at the same host:port (a StatefulSet pod\n")
+	fmt.Printf("    keeps its address) -- restore it and re-run\n")
+	fmt.Printf("  - node gone for good -- re-run with --skip-unreachable-nodes and read the\n")
+	fmt.Printf("    report it prints\n")
+	return errors.Wrap(err, "failed to delete wal logs")
+}
+
+// residuePath renders where a skipped node's leftover data sits on that node's disk.
+//
+// The layout mirrors the node's own localLogDataDir: {storage.rootPath}/{bucket}/{rootPath}/
+// {logId}. Every part but the first is known from the flags this command already needs; the
+// storage root is the node's own configuration, which is why --node-storage-root exists. It
+// affects nothing but this line — getting it wrong misprints a hint, it does not misdirect a
+// delete.
+type residuePath struct {
+	nodeStorageRoot string
+	bucket          string
+	rootPath        string
+}
+
+func (r residuePath) forLogs(logIDs []int64) string {
+	base := path.Join(r.nodeStorageRoot, r.bucket, r.rootPath)
+	if len(logIDs) == 1 {
+		return fmt.Sprintf("%s/%d/", base, logIDs[0])
+	}
+	return fmt.Sprintf("%s/{%s}/", base, joinInt64s(logIDs))
 }
