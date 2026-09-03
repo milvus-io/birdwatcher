@@ -94,6 +94,17 @@ func NewResolvedObjectStore(ctx context.Context, mp oss.MinioClientParam, params
 			p(&mp)
 		}
 	}
+	if strings.EqualFold(mp.CloudProvider, oss.CloudProviderAzure) {
+		store, err := oss.NewAzureObjectStore(ctx, mp)
+		if err != nil {
+			return nil, err
+		}
+		return &oss.ResolvedObjectStore{
+			Store:      store,
+			BucketName: mp.BucketName,
+			RootPath:   mp.RootPath,
+		}, nil
+	}
 	m, err := oss.NewMinioClient(ctx, mp)
 	if err != nil {
 		return nil, err

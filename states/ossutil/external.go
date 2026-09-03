@@ -6,34 +6,41 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
+	"github.com/milvus-io/milvus/pkg/v3/util/externalspec"
 )
 
 // ExternalSourceSpec is the parsed external collection specification
 // (schema.ExternalSpec). extfs keys mirror milvus
 // pkg/util/externalspec/specutil.ExtfsKey*.
 type ExternalSourceSpec struct {
-	Format             string
-	CloudProvider      string
-	Region             string
-	RoleARN            string
-	RoleSessionName    string
-	ExternalID         string
-	AliyunRoleAuthMode string
-	AK                 string
-	SK                 string
-	UseIAM             bool
-	IAMEndpoint        string
-	UseSSL             *bool
-	Anonymous          bool
-	BucketName         string
-	StorageType        string
-	LoadFrequency      int
+	Format                  string
+	Extfs                   map[string]string
+	CloudProvider           string
+	Region                  string
+	RoleARN                 string
+	RoleSessionName         string
+	ExternalID              string
+	AliyunRoleAuthMode      string
+	AccessKeyID             string
+	AccessKeyValue          string
+	UseIAM                  bool
+	IAMEndpoint             string
+	UseSSL                  *bool
+	UseVirtualHost          *bool
+	Anonymous               bool
+	BucketName              string
+	StorageType             string
+	GCPTargetServiceAccount string
+	SSLCACert               string
+	LoadFrequency           int
+	AzureClientID           string
+	AzureTenantID           string
+	AzureCredentialEndpoint string
 }
 
 // LocationForm distinguishes the two accepted external_source URI shapes,
@@ -56,7 +63,7 @@ type ExternalSourceLocation struct {
 	Bucket   string
 	RootPath string
 	// Address is the storage endpoint used to build the object store client:
-	// the URI host for the Milvus form, or DeriveEndpoint(provider, region)
+	// the URI host for the Milvus form, or externalspec.DeriveEndpoint(provider, region)
 	// for the AWS form.
 	Address string
 	Form    LocationForm
@@ -79,52 +86,196 @@ func parseExternalSpec(raw string, validateFormat bool) (ExternalSourceSpec, err
 		return ExternalSourceSpec{}, nil
 	}
 
-	var payload map[string]any
-	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-		return ExternalSourceSpec{}, fmt.Errorf("parse external spec: %w", err)
+	normalized, extensions, err := extractExternalSpecExtensions(raw)
+	if err != nil {
+		return ExternalSourceSpec{}, err
+	}
+	parsed, err := externalspec.ParseExternalSpec(normalized)
+	if err != nil {
+		return ExternalSourceSpec{}, err
+	}
+	if validateFormat && parsed.Format != "" && parsed.Format != externalspec.FormatParquet {
+		return ExternalSourceSpec{}, fmt.Errorf("external collection format %s is not supported", parsed.Format)
 	}
 
+	extfs := parsed.Extfs
 	spec := ExternalSourceSpec{
-		Format:             ReadMapString(payload, "format"),
-		AliyunRoleAuthMode: ReadMapString(payload, "aliyun_role_auth_mode"),
+		Format:                  parsed.Format,
+		Extfs:                   extfs,
+		CloudProvider:           strings.ToLower(strings.TrimSpace(extfs[externalspec.ExtfsKeyCloudProvider])),
+		Region:                  extfs[externalspec.ExtfsKeyRegion],
+		RoleARN:                 extfs[externalspec.ExtfsKeyRoleARN],
+		RoleSessionName:         extfs[externalspec.ExtfsKeySessionName],
+		ExternalID:              extfs[externalspec.ExtfsKeyExternalID],
+		AliyunRoleAuthMode:      extensions.aliyunRoleAuthMode,
+		AccessKeyID:             extfs[externalspec.ExtfsKeyAccessKeyID],
+		AccessKeyValue:          extfs[externalspec.ExtfsKeyAccessKeyValue],
+		UseIAM:                  extfs[externalspec.ExtfsKeyUseIAM] == "true",
+		IAMEndpoint:             extfs[externalspec.ExtfsKeyIAMEndpoint],
+		Anonymous:               extfs[externalspec.ExtfsKeyAnonymous] == "true",
+		BucketName:              extfs[externalspec.ExtfsKeyBucketName],
+		StorageType:             extfs[externalspec.ExtfsKeyStorageType],
+		GCPTargetServiceAccount: extfs[externalspec.ExtfsKeyGCPTargetServiceAccount],
+		SSLCACert:               extfs[externalspec.ExtfsKeySSLCACert],
+		AzureClientID:           extensions.azureClientID,
+		AzureTenantID:           extensions.azureTenantID,
+		AzureCredentialEndpoint: extensions.azureCredentialEndpoint,
 	}
-	if validateFormat && spec.Format != "" && !strings.EqualFold(spec.Format, "parquet") {
-		return ExternalSourceSpec{}, fmt.Errorf("external collection format %s is not supported", spec.Format)
+	if rawUseSSL, ok := extfs[externalspec.ExtfsKeyUseSSL]; ok {
+		useSSL := rawUseSSL == "true"
+		spec.UseSSL = &useSSL
 	}
-
-	extfs, _ := payload["extfs"].(map[string]any)
-	if len(extfs) > 0 {
-		spec.CloudProvider = ReadMapString(extfs, "cloud_provider")
-		spec.Region = ReadMapString(extfs, "region")
-		spec.RoleARN = ReadMapString(extfs, "role_arn")
-		spec.RoleSessionName = ReadMapString(extfs, "session_name")
-		spec.ExternalID = ReadMapString(extfs, "external_id")
-		spec.AK = ReadMapString(extfs, "access_key_id")
-		spec.SK = ReadMapString(extfs, "access_key_value")
-		spec.IAMEndpoint = ReadMapString(extfs, "iam_endpoint")
-		spec.BucketName = ReadMapString(extfs, "bucket_name")
-		spec.StorageType = ReadMapString(extfs, "storage_type")
-		if spec.AliyunRoleAuthMode == "" {
-			spec.AliyunRoleAuthMode = ReadMapString(extfs, "aliyun_role_auth_mode")
+	if rawUseVirtualHost, ok := extfs[externalspec.ExtfsKeyUseVirtualHost]; ok {
+		useVirtualHost := rawUseVirtualHost == "true"
+		spec.UseVirtualHost = &useVirtualHost
+	}
+	if rawLoadFrequency := extfs[externalspec.ExtfsKeyLoadFrequency]; rawLoadFrequency != "" {
+		loadFrequency, err := strconv.Atoi(rawLoadFrequency)
+		if err != nil || loadFrequency <= 0 {
+			return ExternalSourceSpec{}, fmt.Errorf(
+				"extfs.%s must be a positive integer, got %q",
+				externalspec.ExtfsKeyLoadFrequency,
+				rawLoadFrequency,
+			)
 		}
-		if useIAM, ok := ReadMapBool(extfs, "use_iam"); ok {
-			spec.UseIAM = useIAM
-		}
-		if anonymous, ok := ReadMapBool(extfs, "anonymous"); ok {
-			spec.Anonymous = anonymous
-		}
-		if useSSL, ok := ReadMapBool(extfs, "use_ssl"); ok {
-			spec.UseSSL = &useSSL
-		}
-		if lf := ReadMapString(extfs, "load_frequency"); lf != "" {
-			v, err := strconv.Atoi(lf)
-			if err != nil {
-				return ExternalSourceSpec{}, fmt.Errorf("invalid extfs.load_frequency %q: %w", lf, err)
-			}
-			spec.LoadFrequency = v
-		}
+		spec.LoadFrequency = loadFrequency
 	}
 	return spec, nil
+}
+
+type externalSpecExtensions struct {
+	aliyunRoleAuthMode      string
+	azureClientID           string
+	azureTenantID           string
+	azureCredentialEndpoint string
+}
+
+// extractExternalSpecExtensions removes fields that are newer than the pinned
+// Milvus parser, then returns them separately for Birdwatcher's storage layer.
+// Aliyun role mode may also appear at the top level in legacy metadata.
+func extractExternalSpecExtensions(raw string) (string, externalSpecExtensions, error) {
+	const aliyunRoleAuthModeKey = "aliyun_role_auth_mode"
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return "", externalSpecExtensions{}, fmt.Errorf("parse external spec: %w", err)
+	}
+
+	readString := func(field string, value json.RawMessage) (string, error) {
+		if len(value) == 0 {
+			return "", nil
+		}
+		var result string
+		if err := json.Unmarshal(value, &result); err != nil {
+			return "", fmt.Errorf("%s must be a string: %w", field, err)
+		}
+		return strings.TrimSpace(result), nil
+	}
+	readMode := func(value json.RawMessage) (string, error) {
+		result, err := readString(aliyunRoleAuthModeKey, value)
+		return strings.ToLower(result), err
+	}
+
+	extensions := externalSpecExtensions{}
+	mode, err := readMode(payload[aliyunRoleAuthModeKey])
+	if err != nil {
+		return "", externalSpecExtensions{}, err
+	}
+	extensions.aliyunRoleAuthMode = mode
+	if rawExtfs, ok := payload["extfs"]; ok && len(rawExtfs) > 0 && string(rawExtfs) != "null" {
+		var extfs map[string]json.RawMessage
+		if err := json.Unmarshal(rawExtfs, &extfs); err != nil {
+			return "", externalSpecExtensions{}, fmt.Errorf("parse external spec extfs: %w", err)
+		}
+		if rawMode, ok := extfs[aliyunRoleAuthModeKey]; ok {
+			if extensions.aliyunRoleAuthMode == "" {
+				extensions.aliyunRoleAuthMode, err = readMode(rawMode)
+				if err != nil {
+					return "", externalSpecExtensions{}, err
+				}
+			}
+			delete(extfs, aliyunRoleAuthModeKey)
+		}
+		for field, target := range map[string]*string{
+			"azure_client_id":           &extensions.azureClientID,
+			"azure_tenant_id":           &extensions.azureTenantID,
+			"azure_credential_endpoint": &extensions.azureCredentialEndpoint,
+		} {
+			if rawValue, ok := extfs[field]; ok {
+				*target, err = readString(field, rawValue)
+				if err != nil {
+					return "", externalSpecExtensions{}, err
+				}
+				delete(extfs, field)
+			}
+		}
+		normalizedExtfs, err := json.Marshal(extfs)
+		if err != nil {
+			return "", externalSpecExtensions{}, fmt.Errorf("normalize external spec extfs: %w", err)
+		}
+		payload["extfs"] = normalizedExtfs
+	}
+
+	normalized, err := json.Marshal(payload)
+	if err != nil {
+		return "", externalSpecExtensions{}, fmt.Errorf("normalize external spec: %w", err)
+	}
+	return string(normalized), extensions, nil
+}
+
+// ValidateExternalStorageSpec validates the shared external storage contract,
+// including Birdwatcher's Azure credential broker extension.
+func ValidateExternalStorageSpec(source string, spec ExternalSourceSpec) error {
+	if !hasAzureCredentialBrokerSpec(spec) {
+		return externalspec.ValidateExtfsComplete(source, spec.Extfs)
+	}
+	if err := externalspec.ValidateExternalSource(source); err != nil {
+		return err
+	}
+	u, err := url.Parse(source)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(u.Scheme, externalspec.SchemeAzure) ||
+		!strings.EqualFold(spec.CloudProvider, externalspec.CloudProviderAzure) {
+		return fmt.Errorf("Azure credential broker requires scheme=azure and extfs.cloud_provider=azure")
+	}
+	required := []struct {
+		name  string
+		value string
+	}{
+		{name: "access_key_id", value: spec.AccessKeyID},
+		{name: "region", value: spec.Region},
+		{name: "azure_client_id", value: spec.AzureClientID},
+		{name: "azure_tenant_id", value: spec.AzureTenantID},
+		{name: "azure_credential_endpoint", value: spec.AzureCredentialEndpoint},
+	}
+	for _, field := range required {
+		if field.value == "" {
+			return fmt.Errorf("extfs.%s is required for Azure credential broker mode", field.name)
+		}
+	}
+	if spec.AccessKeyValue != "" || spec.RoleARN != "" || spec.UseIAM ||
+		spec.GCPTargetServiceAccount != "" || spec.Anonymous {
+		return fmt.Errorf("Azure credential broker cannot be combined with another credential mode")
+	}
+	endpoint, err := url.Parse(spec.AzureCredentialEndpoint)
+	if err != nil || endpoint.Host == "" ||
+		(endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+		return fmt.Errorf("extfs.azure_credential_endpoint must be a valid HTTP(S) URL")
+	}
+	return nil
+}
+
+// IsLegacyExternalSpec reports whether an external collection predates the
+// self-contained extfs storage configuration. An explicitly empty extfs object
+// is equivalent to an omitted one; Azure broker extensions are self-contained
+// even after their fields are removed from the canonical extfs map.
+func IsLegacyExternalSpec(spec ExternalSourceSpec) bool {
+	return len(spec.Extfs) == 0 && !hasAzureCredentialBrokerSpec(spec)
+}
+
+func hasAzureCredentialBrokerSpec(spec ExternalSourceSpec) bool {
+	return spec.AzureClientID != "" || spec.AzureTenantID != "" || spec.AzureCredentialEndpoint != ""
 }
 
 // ParseExternalSource parses the external_source URI into scheme / host /
@@ -144,7 +295,7 @@ func ParseExternalSource(raw string) (ExternalSourceLocation, error) {
 		return ExternalSourceLocation{}, fmt.Errorf("external source %s does not include bucket", raw)
 	}
 	location := ExternalSourceLocation{
-		Scheme:   u.Scheme,
+		Scheme:   strings.ToLower(u.Scheme),
 		Host:     u.Host,
 		Bucket:   parts[0],
 		RootPath: "",
@@ -152,7 +303,7 @@ func ParseExternalSource(raw string) (ExternalSourceLocation, error) {
 		Form:     LocationFormMilvus,
 	}
 	if len(parts) > 1 {
-		location.RootPath = path.Clean(filepath.Join(parts[1:]...))
+		location.RootPath = path.Join(parts[1:]...)
 		if location.RootPath == "." {
 			location.RootPath = ""
 		}
@@ -163,9 +314,9 @@ func ParseExternalSource(raw string) (ExternalSourceLocation, error) {
 // ResolveExternalSource applies the two-form URI contract on top of
 // ParseExternalSource. It mirrors milvus-storage's Layer-3 swap decision:
 //
-//	derived := DeriveEndpoint(spec.CloudProvider, spec.Region)
+//	derived := externalspec.DeriveEndpoint(spec.CloudProvider, spec.Region)
 //	if derived != "" && StripURIScheme(derived) != host &&
-//	   !IsCloudEndpointHost(host) {
+//	   !externalspec.IsCloudEndpointHost(host) {
 //	    // AWS form: host is the bucket, endpoint is derived
 //	}
 //
@@ -177,13 +328,18 @@ func ResolveExternalSource(raw string, spec ExternalSourceSpec) (ExternalSourceL
 		return ExternalSourceLocation{}, err
 	}
 
-	derived := DeriveEndpoint(spec.CloudProvider, spec.Region)
-	if derived != "" && StripURIScheme(derived) != location.Host && !IsCloudEndpointHost(location.Host) {
+	derived := externalspec.DeriveEndpoint(spec.CloudProvider, spec.Region)
+	derivedAddress := StripURIScheme(derived)
+	if derivedAddress != "" && !strings.EqualFold(derivedAddress, location.Host) &&
+		!externalspec.IsCloudEndpointHost(location.Host) {
 		// AWS form: host is the bucket, path is the key (may be empty).
 		location.Form = LocationFormAWS
 		location.Bucket = location.Host
-		trimmed := strings.TrimPrefix(strings.TrimSpace(raw), location.Scheme+"://"+location.Host)
-		trimmed = strings.TrimPrefix(trimmed, "/")
+		u, err := url.Parse(raw)
+		if err != nil {
+			return ExternalSourceLocation{}, fmt.Errorf("parse external source: %w", err)
+		}
+		trimmed := strings.TrimPrefix(u.Path, "/")
 		if trimmed != "" {
 			location.RootPath = path.Clean(trimmed)
 			if location.RootPath == "." {
@@ -192,7 +348,7 @@ func ResolveExternalSource(raw string, spec ExternalSourceSpec) (ExternalSourceL
 		} else {
 			location.RootPath = ""
 		}
-		location.Address = derived
+		location.Address = derivedAddress
 	}
 	return location, nil
 }
@@ -205,78 +361,6 @@ func StripURIScheme(addr string) string {
 		}
 	}
 	return addr
-}
-
-// IsCloudEndpointHost reports whether host belongs to a known cloud provider
-// endpoint family (i.e. the URI is Milvus-form regardless of the derived
-// endpoint). Mirrors milvus externalspec.IsCloudEndpointHost.
-func IsCloudEndpointHost(host string) bool {
-	h := strings.ToLower(host)
-	suffixes := []string{
-		".amazonaws.com", ".amazonaws.com.cn",
-		".googleapis.com",
-		".aliyuncs.com",
-		".myqcloud.com",
-		".myhuaweicloud.com",
-		".core.windows.net", ".core.chinacloudapi.cn",
-		".core.usgovcloudapi.net", ".core.cloudapi.de",
-	}
-	for _, s := range suffixes {
-		if strings.HasSuffix(h, s) {
-			return true
-		}
-	}
-	return false
-}
-
-// DeriveEndpoint returns the cloud endpoint for a provider/region pair, or ""
-// when it cannot be derived (empty region, unknown provider). Mirrors milvus
-// externalspec.DeriveEndpoint.
-func DeriveEndpoint(cloudProvider, region string) string {
-	cp := strings.ToLower(cloudProvider)
-	switch cp {
-	case "aws":
-		if region == "" {
-			return ""
-		}
-		if strings.HasPrefix(region, "cn-") {
-			return "https://s3." + region + ".amazonaws.com.cn"
-		}
-		return "https://s3." + region + ".amazonaws.com"
-	case "gcp":
-		return "https://storage.googleapis.com"
-	case "aliyun":
-		if region == "" {
-			return ""
-		}
-		return "https://oss-" + region + ".aliyuncs.com"
-	case "tencent":
-		if region == "" {
-			return ""
-		}
-		return "https://cos." + region + ".myqcloud.com"
-	case "huawei":
-		if region == "" {
-			return ""
-		}
-		return "https://obs." + region + ".myhuaweicloud.com"
-	case "azure":
-		r := strings.ToLower(region)
-		if r == "" {
-			return ""
-		}
-		if strings.HasPrefix(r, "china") {
-			return "core.chinacloudapi.cn"
-		}
-		if strings.HasPrefix(r, "usgov") || strings.HasPrefix(r, "usdod") {
-			return "core.usgovcloudapi.net"
-		}
-		if strings.HasPrefix(r, "germany") {
-			return "core.cloudapi.de"
-		}
-		return "core.windows.net"
-	}
-	return ""
 }
 
 // InferCloudProviderFromScheme infers the cloud provider from the URI scheme.
@@ -292,6 +376,8 @@ func InferCloudProviderFromScheme(scheme string) string {
 		return oss.CloudProviderTencent
 	case "obs":
 		return oss.CloudProviderHuawei
+	case "azure":
+		return oss.CloudProviderAzure
 	default:
 		return ""
 	}
@@ -306,12 +392,17 @@ func NewResolvedExternalObjectStore(
 	spec ExternalSourceSpec,
 	skipBucketCheck bool,
 ) (*oss.ResolvedObjectStore, ExternalSourceLocation, error) {
+	if !IsLegacyExternalSpec(spec) {
+		if err := ValidateExternalStorageSpec(source, spec); err != nil {
+			return nil, ExternalSourceLocation{}, err
+		}
+	}
 	location, err := ResolveExternalSource(source, spec)
 	if err != nil {
 		return nil, ExternalSourceLocation{}, err
 	}
 
-	provider := spec.CloudProvider
+	provider := strings.ToLower(strings.TrimSpace(spec.CloudProvider))
 	if provider == "" {
 		provider = InferCloudProviderFromScheme(location.Scheme)
 	}
@@ -335,31 +426,49 @@ func NewResolvedExternalObjectStore(
 	}
 
 	param := oss.MinioClientParam{
-		Addr:               addr,
-		UseSSL:             useSSL,
-		CloudProvider:      provider,
-		Region:             spec.Region,
-		AK:                 spec.AK,
-		SK:                 spec.SK,
-		UseIAM:             spec.UseIAM,
-		IAMEndpoint:        spec.IAMEndpoint,
-		RoleARN:            spec.RoleARN,
-		RoleSessionName:    spec.RoleSessionName,
-		ExternalID:         spec.ExternalID,
-		LoadFrequency:      spec.LoadFrequency,
-		AliyunRoleAuthMode: spec.AliyunRoleAuthMode,
-		BucketName:         bucket,
-		RootPath:           location.RootPath,
+		Addr:                         addr,
+		UseSSL:                       useSSL,
+		CloudProvider:                provider,
+		Region:                       spec.Region,
+		AK:                           spec.AccessKeyID,
+		SK:                           spec.AccessKeyValue,
+		UseIAM:                       spec.UseIAM,
+		Anonymous:                    spec.Anonymous,
+		IAMEndpoint:                  spec.IAMEndpoint,
+		UseVirtualHost:               spec.UseVirtualHost,
+		RoleARN:                      spec.RoleARN,
+		RoleSessionName:              spec.RoleSessionName,
+		ExternalID:                   spec.ExternalID,
+		LoadFrequency:                spec.LoadFrequency,
+		AliyunRoleAuthMode:           spec.AliyunRoleAuthMode,
+		AzureClientID:                spec.AzureClientID,
+		AzureTenantID:                spec.AzureTenantID,
+		AzureCredentialEndpoint:      spec.AzureCredentialEndpoint,
+		AzureRequestTimeoutMs:        3000,
+		DisableAzureConnectionString: provider == oss.CloudProviderAzure,
+		BucketName:                   bucket,
+		RootPath:                     location.RootPath,
 	}
 	if provider == oss.CloudProviderAliyun && param.RoleARN != "" && param.AliyunRoleAuthMode == "" {
 		param.AliyunRoleAuthMode = "oidc"
 	}
 	// Fallback to IAM chain when no explicit role arn / static key is present.
-	if param.RoleARN == "" && param.AK == "" && param.SK == "" && !spec.Anonymous {
+	if param.RoleARN == "" && param.AK == "" && param.SK == "" && !param.Anonymous {
 		param.UseIAM = true
 	}
 	oss.WithSkipCheckBucket(skipBucketCheck)(&param)
 
+	if provider == oss.CloudProviderAzure {
+		store, err := oss.NewAzureObjectStore(ctx, param)
+		if err != nil {
+			return nil, ExternalSourceLocation{}, err
+		}
+		return &oss.ResolvedObjectStore{
+			Store:      store,
+			BucketName: param.BucketName,
+			RootPath:   param.RootPath,
+		}, location, nil
+	}
 	client, err := oss.NewMinioClient(ctx, param)
 	if err != nil {
 		return nil, ExternalSourceLocation{}, err
@@ -554,36 +663,4 @@ func ResolveExternalObjectKey(location ExternalSourceLocation, externalFile stri
 		return path.Clean(trimmed), nil
 	}
 	return path.Join(location.RootPath, trimmed), nil
-}
-
-func ReadMapString(payload map[string]any, key string) string {
-	value, ok := payload[key]
-	if !ok || value == nil {
-		return ""
-	}
-	switch v := value.(type) {
-	case string:
-		return strings.TrimSpace(v)
-	default:
-		return strings.TrimSpace(fmt.Sprint(v))
-	}
-}
-
-func ReadMapBool(payload map[string]any, key string) (bool, bool) {
-	value, ok := payload[key]
-	if !ok || value == nil {
-		return false, false
-	}
-	switch v := value.(type) {
-	case bool:
-		return v, true
-	case string:
-		parsed, err := strconv.ParseBool(strings.TrimSpace(v))
-		if err != nil {
-			return false, false
-		}
-		return parsed, true
-	default:
-		return false, false
-	}
 }

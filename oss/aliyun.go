@@ -159,7 +159,7 @@ func buildAliyunRoleCredentialConfig(p MinioClientParam) (*credentials.Config, e
 	case "oidc":
 		oidcTokenFile := os.Getenv(aliyunOIDCTokenFileEnv)
 		oidcProviderArn := os.Getenv(aliyunOIDCProviderArnEnv)
-		fmt.Printf("Aliyun OIDC credential params: %s=%q %s=%q role_arn=%q\n", aliyunOIDCTokenFileEnv, oidcTokenFile, aliyunOIDCProviderArnEnv, oidcProviderArn, p.RoleARN)
+		fmt.Fprintf(os.Stderr, "Aliyun OIDC credential params: %s=%q %s=%q role_arn=%q\n", aliyunOIDCTokenFileEnv, oidcTokenFile, aliyunOIDCProviderArnEnv, oidcProviderArn, p.RoleARN)
 		if oidcTokenFile == "" || oidcProviderArn == "" {
 			return nil, errors.New("aliyun oidc role mode requires ALIBABA_CLOUD_OIDC_TOKEN_FILE and ALIBABA_CLOUD_OIDC_PROVIDER_ARN")
 		}

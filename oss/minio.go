@@ -3,6 +3,7 @@ package oss
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -17,24 +18,33 @@ const (
 	CloudProviderAzure   = "azure"
 	CloudProviderTencent = "tencent"
 	CloudProviderHuawei  = "huawei"
+	CloudProviderMinio   = "minio"
 )
 
 type MinioClientParam struct {
-	Addr          string
-	Port          string
-	AK            string
-	SK            string
-	UseIAM        bool
-	IAMEndpoint   string
-	UseSSL        bool
-	CloudProvider string
-	Region        string
+	Addr           string
+	Port           string
+	AK             string
+	SK             string
+	UseIAM         bool
+	Anonymous      bool
+	IAMEndpoint    string
+	UseSSL         bool
+	UseVirtualHost *bool
+	CloudProvider  string
+	Region         string
 
 	RoleARN            string
 	RoleSessionName    string
 	ExternalID         string
 	LoadFrequency      int
 	AliyunRoleAuthMode string
+
+	AzureClientID                string
+	AzureTenantID                string
+	AzureCredentialEndpoint      string
+	AzureRequestTimeoutMs        int64
+	DisableAzureConnectionString bool
 
 	BucketName string
 	RootPath   string
@@ -200,7 +210,7 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 
 	var err error
 	switch p.CloudProvider {
-	case CloudProviderAWS:
+	case CloudProviderAWS, CloudProviderMinio:
 		err = processMinioAwsOptions(p, opts)
 	case CloudProviderGCP:
 		// adhoc to remove port of gcs address to let minio-go know it's gcs
@@ -215,30 +225,39 @@ func NewMinioClient(ctx context.Context, p MinioClientParam) (*MinioClient, erro
 	case CloudProviderHuawei:
 		err = processMinioHuaweiOptions(p, opts)
 	case CloudProviderAzure:
-		// TODO support azure
-		fallthrough
+		return nil, errors.New("azure storage requires the ObjectStore API")
 	default:
 		return nil, errors.Newf("Cloud provider %s not supported yet", p.CloudProvider)
 	}
 	if err != nil {
 		return nil, err
 	}
+	if p.Anonymous {
+		opts.Creds = credentials.NewStaticV4("", "", "")
+	}
+	if p.UseVirtualHost != nil {
+		if *p.UseVirtualHost {
+			opts.BucketLookup = minio.BucketLookupDNS
+		} else {
+			opts.BucketLookup = minio.BucketLookupPath
+		}
+	}
 
-	fmt.Printf("Start to connect to oss endpoint: %s\n", endpoint)
+	fmt.Fprintf(os.Stderr, "Start to connect to oss endpoint: %s\n", endpoint)
 	client, err := minio.New(endpoint, opts)
 	if err != nil {
-		fmt.Println("new client failed: ", err.Error())
+		fmt.Fprintln(os.Stderr, "new client failed: ", err.Error())
 		return nil, err
 	}
 
-	fmt.Println("Connection successful!")
+	fmt.Fprintln(os.Stderr, "Connection successful!")
 
 	if p.skipCheckBucket {
-		fmt.Println("Skip bucket existence check...")
+		fmt.Fprintln(os.Stderr, "Skip bucket existence check...")
 	} else {
 		ok, err := client.BucketExists(ctx, p.BucketName)
 		if err != nil {
-			fmt.Printf("check bucket %s exists failed: %s\n", p.BucketName, err.Error())
+			fmt.Fprintf(os.Stderr, "check bucket %s exists failed: %s\n", p.BucketName, err.Error())
 			return nil, err
 		}
 		if !ok {
