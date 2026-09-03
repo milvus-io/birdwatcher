@@ -27,6 +27,14 @@ birdwatcher_wkafka:
 	@mkdir -p bin
 	@CGO_ENABLED=1 go build -o bin/birdwatcher_wkafka -tags WKAFKA cmd/birdwatcher/main.go
 
+birdwatcher_lance:
+	@echo "Compiling birdwatcher with Lance support"
+	@test -n "$(MILVUS_STORAGE_PKG_CONFIG_PATH)" || \
+		(echo "MILVUS_STORAGE_PKG_CONFIG_PATH must point to the directory containing milvus-storage.pc" && exit 1)
+	@mkdir -p bin
+	@PKG_CONFIG_PATH="$(MILVUS_STORAGE_PKG_CONFIG_PATH):$(PKG_CONFIG_PATH)" \
+		CGO_ENABLED=1 go build -o bin/birdwatcher_lance -tags LANCE cmd/birdwatcher/main.go
+
 getdeps:
 	@mkdir -p $(INSTALL_PATH)
 	@if [ -z "$(INSTALL_GOLANGCI_LINT)" ]; then \
