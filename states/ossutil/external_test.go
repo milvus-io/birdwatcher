@@ -2,12 +2,34 @@ package ossutil
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"testing"
 
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 )
+
+func TestNewResolvedObjectStoreAzure(t *testing.T) {
+	accountKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
+	t.Setenv("AZURE_STORAGE_CONNECTION_STRING", fmt.Sprintf(
+		"DefaultEndpointsProtocol=http;AccountName=test;AccountKey=%s;BlobEndpoint=http://127.0.0.1:1/test;",
+		accountKey,
+	))
+
+	resolved, err := NewResolvedObjectStore(t.Context(), oss.MinioClientParam{
+		CloudProvider: oss.CloudProviderAzure,
+		BucketName:    "container",
+		RootPath:      "root/path",
+	}, oss.WithSkipCheckBucket(true))
+	if err != nil {
+		t.Fatalf("NewResolvedObjectStore() error = %v", err)
+	}
+	if resolved.Store == nil || resolved.BucketName != "container" || resolved.RootPath != "root/path" {
+		t.Fatalf("NewResolvedObjectStore() = %#v", resolved)
+	}
+}
 
 // resolverTestStore is a minimal oss.ObjectStore stub for path-routing tests.
 // It is never opened, only passed through by ManifestPathResolver.
@@ -113,11 +135,11 @@ func TestParseExternalSpecFullKeys(t *testing.T) {
 			"external_id": "ext-123",
 			"access_key_id": "AKIA",
 			"access_key_value": "secret",
-			"use_iam": false,
+			"use_iam": "false",
 			"iam_endpoint": "https://sts.example.com",
 			"bucket_name": "override-bucket",
 			"storage_type": "remote",
-			"use_ssl": true,
+			"use_ssl": "true",
 			"load_frequency": "3600"
 		}
 	}`
@@ -144,8 +166,8 @@ func TestParseExternalSpecFullKeys(t *testing.T) {
 	if spec.ExternalID != "ext-123" {
 		t.Fatalf("unexpected external id: %s", spec.ExternalID)
 	}
-	if spec.AK != "AKIA" || spec.SK != "secret" {
-		t.Fatalf("unexpected access keys: %q/%q", spec.AK, spec.SK)
+	if spec.AccessKeyID != "AKIA" || spec.AccessKeyValue != "secret" {
+		t.Fatalf("unexpected access keys: %q/%q", spec.AccessKeyID, spec.AccessKeyValue)
 	}
 	if spec.UseIAM {
 		t.Fatalf("expected use_iam=false")
@@ -167,6 +189,76 @@ func TestParseExternalSpecFullKeys(t *testing.T) {
 	}
 }
 
+func TestNewResolvedExternalObjectStoreAzureAnonymous(t *testing.T) {
+	spec, err := ParseExternalSpec(`{
+		"format":"parquet",
+		"extfs":{
+			"cloud_provider":"Azure",
+			"anonymous":"true"
+		}
+	}`)
+	if err != nil {
+		t.Fatalf("ParseExternalSpec() error = %v", err)
+	}
+	if spec.CloudProvider != oss.CloudProviderAzure {
+		t.Fatalf("cloud provider = %q, want %q", spec.CloudProvider, oss.CloudProviderAzure)
+	}
+
+	resolved, location, err := NewResolvedExternalObjectStore(
+		t.Context(),
+		"azure://account.blob.core.windows.net/container/root/path",
+		spec,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("NewResolvedExternalObjectStore() error = %v", err)
+	}
+	if resolved.Store == nil || resolved.BucketName != "container" || resolved.RootPath != "root/path" {
+		t.Fatalf("resolved store = %#v", resolved)
+	}
+	if location.Address != "account.blob.core.windows.net" || location.Bucket != "container" {
+		t.Fatalf("location = %#v", location)
+	}
+}
+
+func TestNewResolvedExternalObjectStoreAzureBroker(t *testing.T) {
+	spec, err := ParseExternalSpec(`{
+		"format":"parquet",
+		"extfs":{
+			"cloud_provider":"azure",
+			"region":"westus3",
+			"access_key_id":"storage-account",
+			"azure_client_id":"client-id",
+			"azure_tenant_id":"tenant-id",
+			"azure_credential_endpoint":"https://broker.example.com/v1/credentials/assume-role",
+			"load_frequency":"3600"
+		}
+	}`)
+	if err != nil {
+		t.Fatalf("ParseExternalSpec() error = %v", err)
+	}
+	if spec.AzureClientID != "client-id" || spec.AzureTenantID != "tenant-id" ||
+		spec.AzureCredentialEndpoint != "https://broker.example.com/v1/credentials/assume-role" {
+		t.Fatalf("Azure broker spec = %#v", spec)
+	}
+
+	resolved, location, err := NewResolvedExternalObjectStore(
+		t.Context(),
+		"azure://core.windows.net/container/root/path",
+		spec,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("NewResolvedExternalObjectStore() error = %v", err)
+	}
+	if resolved.Store == nil || resolved.BucketName != "container" || resolved.RootPath != "root/path" {
+		t.Fatalf("resolved store = %#v", resolved)
+	}
+	if location.Address != "core.windows.net" || location.Bucket != "container" || location.RootPath != "root/path" {
+		t.Fatalf("location = %#v", location)
+	}
+}
+
 func TestParseExternalSpecEmpty(t *testing.T) {
 	spec, err := ParseExternalSpec("")
 	if err != nil {
@@ -174,6 +266,53 @@ func TestParseExternalSpecEmpty(t *testing.T) {
 	}
 	if spec.Format != "" {
 		t.Fatalf("unexpected format: %s", spec.Format)
+	}
+}
+
+func TestIsLegacyExternalSpec(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{
+			name: "omitted extfs",
+			raw:  `{"format":"parquet"}`,
+			want: true,
+		},
+		{
+			name: "empty extfs",
+			raw:  `{"format":"parquet","extfs":{}}`,
+			want: true,
+		},
+		{
+			name: "configured extfs",
+			raw:  `{"format":"parquet","extfs":{"cloud_provider":"aws"}}`,
+			want: false,
+		},
+		{
+			name: "Azure broker extensions",
+			raw: `{
+				"format":"parquet",
+				"extfs":{
+					"azure_client_id":"client-id",
+					"azure_tenant_id":"tenant-id",
+					"azure_credential_endpoint":"https://broker.example.com/credentials"
+				}
+			}`,
+			want: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			spec, err := ParseExternalSpec(test.raw)
+			if err != nil {
+				t.Fatalf("ParseExternalSpec() error = %v", err)
+			}
+			if got := IsLegacyExternalSpec(spec); got != test.want {
+				t.Fatalf("IsLegacyExternalSpec() = %t, want %t", got, test.want)
+			}
+		})
 	}
 }
 
@@ -269,56 +408,6 @@ func TestInferCloudProviderFromScheme(t *testing.T) {
 	}
 }
 
-func TestDeriveEndpoint(t *testing.T) {
-	tests := []struct {
-		provider string
-		region   string
-		want     string
-	}{
-		{provider: "aws", region: "us-east-1", want: "https://s3.us-east-1.amazonaws.com"},
-		{provider: "aws", region: "cn-north-1", want: "https://s3.cn-north-1.amazonaws.com.cn"},
-		{provider: "aws", region: "", want: ""},
-		{provider: "gcp", region: "", want: "https://storage.googleapis.com"},
-		{provider: "aliyun", region: "cn-hangzhou", want: "https://oss-cn-hangzhou.aliyuncs.com"},
-		{provider: "aliyun", region: "", want: ""},
-		{provider: "tencent", region: "ap-guangzhou", want: "https://cos.ap-guangzhou.myqcloud.com"},
-		{provider: "huawei", region: "cn-north-4", want: "https://obs.cn-north-4.myhuaweicloud.com"},
-		{provider: "azure", region: "public", want: "core.windows.net"},
-		{provider: "azure", region: "china", want: "core.chinacloudapi.cn"},
-		{provider: "azure", region: "", want: ""},
-		{provider: "unknown", region: "us-east-1", want: ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.provider+"/"+tt.region, func(t *testing.T) {
-			if got := DeriveEndpoint(tt.provider, tt.region); got != tt.want {
-				t.Fatalf("DeriveEndpoint(%q, %q) = %q, want %q", tt.provider, tt.region, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestIsCloudEndpointHost(t *testing.T) {
-	tests := []struct {
-		host string
-		want bool
-	}{
-		{host: "s3.us-east-1.amazonaws.com", want: true},
-		{host: "storage.googleapis.com", want: true},
-		{host: "oss-cn-hangzhou.aliyuncs.com", want: true},
-		{host: "cos.ap-guangzhou.myqcloud.com", want: true},
-		{host: "myacct.core.windows.net", want: true},
-		{host: "my-bucket", want: false},
-		{host: "localhost:9000", want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.host, func(t *testing.T) {
-			if got := IsCloudEndpointHost(tt.host); got != tt.want {
-				t.Fatalf("IsCloudEndpointHost(%q) = %v, want %v", tt.host, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestResolveExternalSourceAWSForm(t *testing.T) {
 	// s3://bucket/key with AWS cloud_provider + region: host is the bucket,
 	// endpoint is derived.
@@ -338,7 +427,7 @@ func TestResolveExternalSourceAWSForm(t *testing.T) {
 	if location.RootPath != "root/file" {
 		t.Fatalf("unexpected root path: %s", location.RootPath)
 	}
-	if location.Address != "https://s3.us-east-1.amazonaws.com" {
+	if location.Address != "s3.us-east-1.amazonaws.com" {
 		t.Fatalf("unexpected address: %s", location.Address)
 	}
 }
@@ -386,7 +475,7 @@ func TestResolveExternalObjectKeyAWSForm(t *testing.T) {
 		Host:     "my-bucket",
 		Bucket:   "my-bucket",
 		RootPath: "root",
-		Address:  "https://s3.us-east-1.amazonaws.com",
+		Address:  "s3.us-east-1.amazonaws.com",
 		Form:     LocationFormAWS,
 	}
 
