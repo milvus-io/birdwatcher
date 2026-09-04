@@ -133,3 +133,31 @@ func (s *MilvusctlState) CreateIndexCommand(ctx context.Context, p *CreateIndexP
 		},
 	})
 }
+
+// -----------------------------------------------------------------------------
+// recreate index
+
+type RecreateIndexParam struct {
+	framework.ExecutionParam `use:"recreate index" desc:"drop and recreate a field index (dry-run by default)"`
+	Collection               string `name:"collection" default:"" desc:"collection name" valuesSuggester:"milvus-collection"`
+	Field                    string `name:"field" default:"" desc:"field name" valuesSuggester:"milvus-field"`
+	IndexName                string `name:"index-name" default:"" desc:"index name (required when the field has multiple indexes)" valuesSuggester:"milvus-index"`
+	AutoIndex                bool   `name:"auto-index" default:"false" desc:"recreate with AUTOINDEX and preserve only the current metric type"`
+	ReleaseAndLoad           bool   `name:"release-and-load" default:"false" desc:"release before dropping the index and reload with server-default settings after recreation"`
+	ConfirmDefaultLoad       bool   `name:"confirm-default-load" default:"false" desc:"acknowledge that reload uses server-default settings"`
+}
+
+func (s *MilvusctlState) RecreateIndexCommand(ctx context.Context, p *RecreateIndexParam) error {
+	if p.Collection == "" || p.Field == "" {
+		return fmt.Errorf("--collection and --field are required")
+	}
+	return s.executeOp(ctx, &ops.RecreateIndexParams{
+		Collection:         p.Collection,
+		Field:              p.Field,
+		IndexName:          p.IndexName,
+		AutoIndex:          p.AutoIndex,
+		ReleaseAndLoad:     p.ReleaseAndLoad,
+		ConfirmDefaultLoad: p.ConfirmDefaultLoad,
+		DryRun:             p.IsDryRun(),
+	})
+}
