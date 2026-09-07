@@ -237,7 +237,7 @@ func ValidateExternalStorageSpec(source string, spec ExternalSourceSpec) error {
 	}
 	if !strings.EqualFold(u.Scheme, externalspec.SchemeAzure) ||
 		!strings.EqualFold(spec.CloudProvider, externalspec.CloudProviderAzure) {
-		return fmt.Errorf("Azure credential broker requires scheme=azure and extfs.cloud_provider=azure")
+		return fmt.Errorf("azure credential broker requires scheme=azure and extfs.cloud_provider=azure")
 	}
 	required := []struct {
 		name  string
@@ -256,7 +256,7 @@ func ValidateExternalStorageSpec(source string, spec ExternalSourceSpec) error {
 	}
 	if spec.AccessKeyValue != "" || spec.RoleARN != "" || spec.UseIAM ||
 		spec.GCPTargetServiceAccount != "" || spec.Anonymous {
-		return fmt.Errorf("Azure credential broker cannot be combined with another credential mode")
+		return fmt.Errorf("azure credential broker cannot be combined with another credential mode")
 	}
 	endpoint, err := url.Parse(spec.AzureCredentialEndpoint)
 	if err != nil || endpoint.Host == "" ||

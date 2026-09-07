@@ -1034,11 +1034,12 @@ func classifyExternalVectorArray(values arrow.Array, fieldType schemapb.DataType
 		}
 		actualWidth := int64(typed.DataType().(*arrow.FixedSizeBinaryType).ByteWidth)
 		for i := 0; i < typed.Len(); i++ {
-			if typed.IsNull(i) {
+			switch {
+			case typed.IsNull(i):
 				counts.RowNullRows++
-			} else if actualWidth != expectedWidth {
+			case actualWidth != expectedWidth:
 				counts.InvalidLengthRows++
-			} else {
+			default:
 				counts.ValidRows++
 			}
 		}
@@ -1080,10 +1081,10 @@ func classifyExternalVectorList(values array.ListLike, fieldType schemapb.DataTy
 			continue
 		}
 		valid := countValidChildValues(child, start, end)
-		switch {
-		case valid == length:
+		switch valid {
+		case length:
 			counts.ValidRows++
-		case valid == 0:
+		case 0:
 			counts.FullNullRows++
 		default:
 			counts.PartialNullRows++
@@ -1099,11 +1100,12 @@ func classifyVariableBinaryVector(length int, isNull func(int) bool, valueLength
 		return counts, err
 	}
 	for i := 0; i < length; i++ {
-		if isNull(i) {
+		switch {
+		case isNull(i):
 			counts.RowNullRows++
-		} else if valueLength(i) != expectedWidth {
+		case valueLength(i) != expectedWidth:
 			counts.InvalidLengthRows++
-		} else {
+		default:
 			counts.ValidRows++
 		}
 	}

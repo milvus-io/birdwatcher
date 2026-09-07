@@ -749,6 +749,7 @@ func countVectorValidityBitmap(totalRows uint64, bitmap []byte) (uint64, error) 
 
 	fullBytes := totalRows / 8
 	var validRows uint64
+	// #nosec G602 -- fullBytes <= requiredBytes <= len(bitmap), checked above.
 	for _, value := range bitmap[:int(fullBytes)] {
 		validRows += uint64(bits.OnesCount8(value))
 	}

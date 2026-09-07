@@ -137,6 +137,7 @@ func newAzureRedactingTransport() policy.Transporter {
 }
 
 func (t *azureRedactingTransport) Do(request *http.Request) (*http.Response, error) {
+	// #nosec G704 -- Azure SDK requests target the operator-configured storage endpoint.
 	response, err := t.client.Do(request)
 	if err == nil {
 		return response, nil

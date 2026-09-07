@@ -320,6 +320,7 @@ func TestAzureSASBrokerRefreshFallback(t *testing.T) {
 	defer server.Close()
 
 	newBroker := func(expiresAt time.Time) *azureSASBroker {
+		// #nosec G101 -- This broker uses a synthetic SAS token for cache tests.
 		return &azureSASBroker{
 			config:     azureSASBrokerConfig{endpoint: server.URL},
 			httpClient: server.Client(),
@@ -337,6 +338,7 @@ func TestAzureSASBrokerRefreshFallback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("getToken() error = %v", err)
 		}
+		// #nosec G101 -- Expected synthetic SAS token, not a credential.
 		if token != "sv=1&sig=cached" {
 			t.Fatalf("getToken() = %q", token)
 		}
@@ -368,6 +370,7 @@ func TestAzureSASBrokerPolicy(t *testing.T) {
 		response.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(response).Encode(map[string]any{
 			"success": true,
+			// #nosec G101 -- Synthetic broker response used only by the test server.
 			"credentials": map[string]string{
 				"tempAk":       "account",
 				"sessionToken": "?sv=1&sig=encoded%2Bsignature%3D",
@@ -426,6 +429,7 @@ func TestAzureSASBrokerPolicy(t *testing.T) {
 }
 
 func TestAzureSASBrokerPolicyRejectsIncompleteConfig(t *testing.T) {
+	// #nosec G101 -- Placeholder account and client identifiers for validation tests.
 	_, err := newAzureSASBrokerPolicy(MinioClientParam{
 		AK:                      "account",
 		Region:                  "westus3",
@@ -468,7 +472,7 @@ func newAzureObjectStoreTestServer(t *testing.T, content []byte, lastModified ti
     %s
   </Blobs>
   <NextMarker></NextMarker>
-</EnumerationResults>`, request.URL.Scheme+request.URL.Host, lastModified.Format(http.TimeFormat), len(content), prefix)
+</EnumerationResults>`, "https://account.blob.core.windows.net", lastModified.Format(http.TimeFormat), len(content), prefix)
 			return
 		}
 

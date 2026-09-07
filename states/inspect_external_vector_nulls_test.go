@@ -589,6 +589,7 @@ func TestBuildLancePropertyValuesForwardsAzureBroker(t *testing.T) {
 			Bucket:   "container",
 			RootPath: "dataset",
 		},
+		// #nosec G101 -- Placeholder Azure configuration for property forwarding tests.
 		externalSourceSpec{
 			CloudProvider:           "azure",
 			Region:                  "westus3",
@@ -603,6 +604,7 @@ func TestBuildLancePropertyValuesForwardsAzureBroker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildLancePropertyValues() error = %v", err)
 	}
+	// #nosec G101 -- Expected placeholder Azure properties, not credentials.
 	for key, want := range map[string]string{
 		"extfs.birdwatcher.cloud_provider":            "azure",
 		"extfs.birdwatcher.address":                   "core.windows.net",
