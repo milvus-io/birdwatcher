@@ -51,7 +51,19 @@ func (c *FileAuditKV) Save(ctx context.Context, key, value string) error {
 }
 
 func (c *FileAuditKV) MultiSave(ctx context.Context, keys, values []string) error {
-	return errors.New("not implemented")
+	if len(keys) != len(values) {
+		return errors.Newf("keys and values length mismatch, keys: %d, values: %d", len(keys), len(values))
+	}
+	c.writeHeader(models.AuditOpType_OpPut, int32(len(keys)))
+	err := c.cli.MultiSave(ctx, keys, values)
+	if err == nil {
+		c.writeHeader(models.AuditOpType_OpPutBefore, int32(len(keys)))
+		for i, key := range keys {
+			c.writeKeyValue(key, values[i])
+		}
+	}
+	c.writeHeader(models.AuditOpType_OpPutAfter, int32(len(keys)))
+	return err
 }
 
 func (c *FileAuditKV) Remove(ctx context.Context, key string) error {
