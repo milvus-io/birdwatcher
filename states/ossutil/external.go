@@ -92,7 +92,10 @@ func parseExternalSpec(raw string, validateFormat bool) (ExternalSourceSpec, err
 	}
 	parsed, err := externalspec.ParseExternalSpec(normalized)
 	if err != nil {
-		return ExternalSourceSpec{}, err
+		parsed, err = parseCompatibleExternalSpec(normalized)
+		if err != nil {
+			return ExternalSourceSpec{}, err
+		}
 	}
 	if validateFormat && parsed.Format != "" && parsed.Format != externalspec.FormatParquet {
 		return ExternalSourceSpec{}, fmt.Errorf("external collection format %s is not supported", parsed.Format)
@@ -141,6 +144,43 @@ func parseExternalSpec(raw string, validateFormat bool) (ExternalSourceSpec, err
 		spec.LoadFrequency = loadFrequency
 	}
 	return spec, nil
+}
+
+// parseCompatibleExternalSpec reads persisted metadata that predates or is newer
+// than the pinned Milvus parser. Unknown extfs keys are retained; storage and
+// command-specific validation still runs after parsing.
+func parseCompatibleExternalSpec(raw string) (*externalspec.ExternalSpec, error) {
+	var payload struct {
+		Format string                     `json:"format"`
+		Extfs  map[string]json.RawMessage `json:"extfs"`
+	}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return nil, fmt.Errorf("parse external spec: %w", err)
+	}
+	parsed := &externalspec.ExternalSpec{
+		Format: strings.ToLower(strings.TrimSpace(payload.Format)),
+		Extfs:  make(map[string]string, len(payload.Extfs)),
+	}
+	if parsed.Format == "" {
+		parsed.Format = externalspec.FormatParquet
+	}
+	for key, rawValue := range payload.Extfs {
+		var value string
+		if err := json.Unmarshal(rawValue, &value); err != nil {
+			value = string(rawValue)
+		}
+		switch key {
+		case externalspec.ExtfsKeyUseIAM, externalspec.ExtfsKeyUseSSL,
+			externalspec.ExtfsKeyUseVirtualHost, externalspec.ExtfsKeyAnonymous:
+			boolean, err := strconv.ParseBool(strings.TrimSpace(value))
+			if err != nil {
+				return nil, fmt.Errorf("extfs.%s must be a boolean", key)
+			}
+			value = strconv.FormatBool(boolean)
+		}
+		parsed.Extfs[key] = value
+	}
+	return parsed, nil
 }
 
 type externalSpecExtensions struct {

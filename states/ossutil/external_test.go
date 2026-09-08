@@ -231,7 +231,9 @@ func TestNewResolvedExternalObjectStoreAzureBroker(t *testing.T) {
 			"azure_client_id":"client-id",
 			"azure_tenant_id":"tenant-id",
 			"azure_credential_endpoint":"https://broker.example.com/v1/credentials/assume-role",
-			"load_frequency":"3600"
+			"load_frequency":"3600",
+			"use_ssl":true,
+			"future_option":"enabled"
 		}
 	}`)
 	if err != nil {
@@ -516,5 +518,59 @@ func TestResolveExternalObjectKeyAWSForm(t *testing.T) {
 				t.Fatalf("ResolveExternalObjectKey() = %s, want %s", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestParseExternalSpecCompatibleMetadata(t *testing.T) {
+	for _, raw := range []string{
+		`{"format":"parquet","extfs":{"use_iam":true,"use_ssl":false,"anonymous":false,"use_virtual_host":true,"load_frequency":3600}}`,
+		`{"format":"PARQUET","extfs":{"use_iam":"TRUE","use_ssl":"false","anonymous":"false","use_virtual_host":"true","load_frequency":"3600"}}`,
+	} {
+		spec, err := ParseExternalSpec(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if spec.Format != "parquet" || !spec.UseIAM || spec.Anonymous || spec.UseSSL == nil || *spec.UseSSL ||
+			spec.UseVirtualHost == nil || !*spec.UseVirtualHost || spec.LoadFrequency != 3600 {
+			t.Fatalf("incorrect normalized properties: %+v", spec)
+		}
+		if spec.Extfs["use_iam"] != "true" || spec.Extfs["use_ssl"] != "false" {
+			t.Fatalf("boolean properties were not normalized: %v", spec.Extfs)
+		}
+	}
+}
+
+func TestParseExternalSpecUnknownKeys(t *testing.T) {
+	spec, err := ParseExternalSpec(`{"extfs":{"cloud_provider":"aws","region":"us-east-1","use_iam":true,"future_option":"enabled","future_object":{"enabled":true}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Format != "parquet" || spec.CloudProvider != "aws" || spec.Region != "us-east-1" ||
+		spec.Extfs["future_option"] != "enabled" || spec.Extfs["future_object"] != `{"enabled":true}` {
+		t.Fatalf("metadata was not preserved: %+v", spec)
+	}
+	if IsLegacyExternalSpec(spec) {
+		t.Fatal("configured extfs must not fall back to local storage credentials")
+	}
+	if err := ValidateExternalStorageSpec("s3://bucket/data", spec); err != nil {
+		t.Fatalf("unknown keys blocked storage validation: %v", err)
+	}
+}
+
+func TestParseExternalSpecCompatibilityValidation(t *testing.T) {
+	for _, raw := range []string{
+		`{"extfs":[]}`,
+		`{"format":12}`,
+		`{"extfs":{"use_ssl":"invalid"}}`,
+		`{"format":"lance-table","extfs":{"future_option":true}}`,
+		`{"extfs":{"load_frequency":-1,"future_option":true}}`,
+	} {
+		if _, err := ParseExternalSpec(raw); err == nil {
+			t.Fatalf("expected error for %s", raw)
+		}
+	}
+	spec, err := ParseExternalSpecLoose(`{"format":"future-format","extfs":{"future_option":true}}`)
+	if err != nil || spec.Format != "future-format" || spec.Extfs["future_option"] != "true" {
+		t.Fatalf("loose parsing failed: %+v, %v", spec, err)
 	}
 }
