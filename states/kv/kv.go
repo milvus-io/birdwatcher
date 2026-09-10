@@ -18,6 +18,8 @@ import (
 	"github.com/tikv/client-go/v2/txnkv"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
@@ -42,7 +44,19 @@ const (
 var (
 	EmptyValueByte = []byte(EmptyValueString)
 	ErrKeyNotFound = errors.New("key not found")
+
+	// ErrGetStreamUnsupported is returned by MetaKV.GetStream for backends that
+	// do not support the streaming range API (e.g. TiKV).
+	ErrGetStreamUnsupported = errors.New("GetStream is not supported by this backend")
 )
+
+// RangeStreamChunk is a chunk of keys returned by MetaKV.GetStream. Err carries
+// a terminal stream error when non-nil.
+type RangeStreamChunk struct {
+	Keys [][]byte
+	More bool
+	Err  error
+}
 
 // MetaKV contains base operations of kv. Include save, load and remove etc.
 type MetaKV interface {
@@ -55,6 +69,7 @@ type MetaKV interface {
 	removeWithPrevKV(ctx context.Context, key string) (*mvccpb.KeyValue, error)
 	removeWithPrefixAndPrevKV(ctx context.Context, prefix string) ([]*mvccpb.KeyValue, error)
 	GetAllRootPath(ctx context.Context) ([]string, error)
+	GetStream(ctx context.Context, key string, opts ...clientv3.OpOption) (<-chan RangeStreamChunk, error)
 	BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision bool, batchSize int64) error
 	WalkWithPrefix(ctx context.Context, prefix string, paginationSize int, fn func([]byte, []byte) error) error
 	Close()
@@ -179,7 +194,92 @@ func (kv *etcdKV) removeWithPrefixAndPrevKV(ctx context.Context, prefix string) 
 	return resp.PrevKvs, err
 }
 
+// GetStream streams keys in ascending order starting at key via the etcd
+// RangeStream RPC (etcd >= 3.7). The stream is delivered in chunks; the caller
+// must drain the returned channel and check each chunk's Err field for a
+// terminal error. Returns ErrGetStreamUnsupported on backends without support.
+func (kv *etcdKV) GetStream(ctx context.Context, key string, opts ...clientv3.OpOption) (<-chan RangeStreamChunk, error) {
+	stream, err := kv.client.GetStream(ctx, key, opts...)
+	if err != nil {
+		return nil, err
+	}
+	ch := make(chan RangeStreamChunk, 1)
+	go func() {
+		defer close(ch)
+		for resp := range stream {
+			chunk := RangeStreamChunk{}
+			if resp.Err() != nil {
+				chunk.Err = resp.Err()
+			} else {
+				for _, kv := range resp.Kvs {
+					chunk.Keys = append(chunk.Keys, kv.Key)
+				}
+				chunk.More = resp.More
+			}
+			ch <- chunk
+		}
+	}()
+	return ch, nil
+}
+
+// GetAllRootPath enumerates all possible root paths. It prefers the streaming
+// Range API and falls back to the legacy unary pagination when the connected
+// etcd server does not support the RangeStream RPC.
 func (kv *etcdKV) GetAllRootPath(ctx context.Context) ([]string, error) {
+	apps, err := kv.getRootPathsStream(ctx)
+	if err == nil {
+		return apps, nil
+	}
+	if !isRangeStreamUnsupported(err) {
+		return nil, err
+	}
+	return kv.getRootPathsUnary(ctx)
+}
+
+func isRangeStreamUnsupported(err error) bool {
+	return errors.Is(err, ErrGetStreamUnsupported) || status.Code(err) == codes.Unimplemented
+}
+
+// getRootPathsStream enumerates root paths with one RangeStream request per
+// first-level prefix. On etcd >= 3.7 each request stops the in-memory index
+// traversal right after the requested limit, so the cost is proportional to
+// the number of prefixes instead of the whole keyspace.
+func (kv *etcdKV) getRootPathsStream(ctx context.Context) ([]string, error) {
+	var apps []string
+	current := ""
+	for {
+		stream, err := kv.GetStream(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for chunk := range stream {
+			if chunk.Err != nil {
+				return nil, chunk.Err
+			}
+			if len(chunk.Keys) == 0 {
+				continue
+			}
+			key := string(chunk.Keys[0])
+			parts := strings.Split(key, "/")
+			if parts[0] != "" {
+				apps = append(apps, parts[0])
+			}
+			// next key, since '0' is the next ascii char of '/'
+			current = parts[0] + "0"
+			found = true
+		}
+		if !found {
+			break
+		}
+	}
+	return apps, nil
+}
+
+// getRootPathsUnary is the legacy root path enumeration using unary Range
+// requests. Each request walks the remaining in-memory index on the server,
+// which is expensive on large shared etcd clusters; kept for etcd < 3.7.
+func (kv *etcdKV) getRootPathsUnary(ctx context.Context) ([]string, error) {
 	var apps []string
 	current := ""
 	for {
@@ -187,8 +287,8 @@ func (kv *etcdKV) GetAllRootPath(ctx context.Context) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, kv := range resp.Kvs {
-			key := string(kv.Key)
+		for _, kvs := range resp.Kvs {
+			key := string(kvs.Key)
 			parts := strings.Split(key, "/")
 			if parts[0] != "" {
 				apps = append(apps, parts[0])
@@ -572,6 +672,11 @@ func (kv *txnTiKV) GetAllRootPath(ctx context.Context) ([]string, error) {
 		}
 	}
 	return apps, nil
+}
+
+// GetStream is not supported by the TiKV backend.
+func (kv *txnTiKV) GetStream(ctx context.Context, key string, opts ...clientv3.OpOption) (<-chan RangeStreamChunk, error) {
+	return nil, ErrGetStreamUnsupported
 }
 
 func (kv *txnTiKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision bool, batchSize int64) error {

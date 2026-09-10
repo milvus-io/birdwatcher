@@ -9,9 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestTiKVLoad(te *testing.T) {
@@ -331,4 +334,10 @@ func TestBackupKV(t *testing.T) {
 		err = kv.BackupKV("r1", "testr1", w, false, 100)
 		assert.NoError(t, err)
 	}
+}
+
+func TestIsRangeStreamUnsupported(t *testing.T) {
+	require.False(t, isRangeStreamUnsupported(errors.New("boom")))
+	require.True(t, isRangeStreamUnsupported(ErrGetStreamUnsupported))
+	require.True(t, isRangeStreamUnsupported(status.Error(codes.Unimplemented, "unknown method RangeStream for service etcdserverpb.KV")))
 }

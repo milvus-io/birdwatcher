@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/protoadapt"
 
@@ -78,6 +79,10 @@ func (f *fakeMetaKV) removeWithPrefixAndPrevKV(ctx context.Context, prefix strin
 
 func (f *fakeMetaKV) GetAllRootPath(ctx context.Context) ([]string, error) {
 	return nil, nil
+}
+
+func (f *fakeMetaKV) GetStream(ctx context.Context, key string, opts ...clientv3.OpOption) (<-chan RangeStreamChunk, error) {
+	return nil, ErrGetStreamUnsupported
 }
 
 func (f *fakeMetaKV) BackupKV(base, prefix string, w *bufio.Writer, ignoreRevision bool, batchSize int64) error {
