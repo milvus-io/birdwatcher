@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/spf13/pflag"
 	"github.com/tikv/client-go/v2/config"
 	"github.com/tikv/client-go/v2/txnkv"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -102,6 +103,7 @@ func (app *ApplicationState) readEnv(cp *ConnectParams) {
 	}
 	if cp.RootPath == "by-dev" && os.Getenv("MILVUS_ROOT_PATH") != "" {
 		cp.RootPath = os.Getenv("MILVUS_ROOT_PATH")
+		cp.rootPathFromEnv = true
 		fmt.Println("using env MILVUS_ROOT_PATH,", cp.RootPath)
 	}
 }
@@ -142,7 +144,7 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 
 	cli := kv.NewEtcdKV(etcdCli)
 
-	if cp.Auto {
+	if cp.Auto && !cp.rootPathProvided() {
 		candidates, err := findMilvusInstance(ctx, cli)
 		if err != nil {
 			return err
@@ -156,6 +158,8 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 			fmt.Println("failed to find rootPath candidate")
 			return nil
 		}
+	} else if cp.Auto {
+		fmt.Fprintln(os.Stderr, "rootPath provided explicitly, skip auto detection")
 	}
 
 	kvState := getKVConnectedState(app.core, cli, cp.EtcdAddr, app.config, app.extensions, app.objectStoreProvider)
@@ -207,6 +211,26 @@ type ConnectParams struct {
 	TiKVAddr      string `name:"tikv" default:"127.0.0.1:2389" desc:"the tikv endpoint to connect"`
 
 	Auto bool `name:"auto" default:"false" desc:"auto detect rootPath if possible"`
+
+	// unexported runtime state
+	flagSet         *pflag.FlagSet
+	rootPathFromEnv bool
+}
+
+// SetFlagSet implements framework.FlagSetAware to keep the parsed flagset,
+// enabling detection of whether rootPath was explicitly provided by the user.
+func (cp *ConnectParams) SetFlagSet(fs *pflag.FlagSet) {
+	cp.flagSet = fs
+}
+
+// rootPathProvided reports whether the user explicitly provided a rootPath via
+// flag or environment variable; when so, auto detection should be skipped to
+// avoid scanning the whole etcd keyspace.
+func (cp *ConnectParams) rootPathProvided() bool {
+	if cp.rootPathFromEnv {
+		return true
+	}
+	return cp.flagSet != nil && cp.flagSet.Changed("rootPath")
 }
 
 func (app *ApplicationState) getTLSConfig(cp *ConnectParams) (*tls.Config, error) {

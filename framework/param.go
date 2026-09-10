@@ -1,9 +1,20 @@
 package framework
 
+import (
+	"github.com/spf13/pflag"
+)
+
 // CmdParam is the interface definition for command parameter.
 type CmdParam interface {
 	ParseArgs(args []string) error
 	Desc() (string, string)
+}
+
+// FlagSetAware is an optional interface for CmdParam implementations that need
+// access to the parsed pflag.FlagSet, e.g. to detect whether a flag was
+// explicitly set by the user.
+type FlagSetAware interface {
+	SetFlagSet(fs *pflag.FlagSet)
 }
 
 // ParamBase implmenet CmdParam when empty args parser.
