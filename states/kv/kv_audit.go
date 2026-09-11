@@ -9,6 +9,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/protoadapt"
 
@@ -111,6 +112,10 @@ func (c *FileAuditKV) removeWithPrefixAndPrevKV(ctx context.Context, prefix stri
 
 func (c *FileAuditKV) GetAllRootPath(ctx context.Context) ([]string, error) {
 	return c.cli.GetAllRootPath(ctx)
+}
+
+func (c *FileAuditKV) GetStream(ctx context.Context, key string, opts ...clientv3.OpOption) (<-chan RangeStreamChunk, error) {
+	return c.cli.GetStream(ctx, key, opts...)
 }
 
 func (c *FileAuditKV) Close() {

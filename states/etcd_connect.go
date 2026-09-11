@@ -140,8 +140,10 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 		return errors.Wrap(err, "failed to connect to etcd")
 	}
 
+	cli := kv.NewEtcdKV(etcdCli)
+
 	if cp.Auto {
-		candidates, err := findMilvusInstance(ctx, etcdCli)
+		candidates, err := findMilvusInstance(ctx, cli)
 		if err != nil {
 			return err
 		}
@@ -156,7 +158,6 @@ func (app *ApplicationState) connectEtcd(ctx context.Context, cp *ConnectParams)
 		}
 	}
 
-	cli := kv.NewEtcdKV(etcdCli)
 	kvState := getKVConnectedState(app.core, cli, cp.EtcdAddr, app.config, app.extensions, app.objectStoreProvider)
 	if !cp.Dry {
 		// ping etcd
@@ -347,31 +348,21 @@ func (s *kvConnectedState) UseCommand(ctx context.Context, p *UseParam) error {
 	return nil
 }
 
-// findMilvusInstance iterate all possible rootPath
-func findMilvusInstance(ctx context.Context, cli clientv3.KV) ([]string, error) {
-	var apps []string
-	current := ""
-	for {
-		resp, err := cli.Get(ctx, current, clientv3.WithKeysOnly(), clientv3.WithLimit(1), clientv3.WithFromKey())
-		if err != nil {
-			return nil, err
-		}
-		for _, kv := range resp.Kvs {
-			key := string(kv.Key)
-			parts := strings.Split(key, "/")
-			if parts[0] != "" && parts[0] != "woodpecker" { // skip woodpecker prefix
-				apps = append(apps, parts[0])
-			}
-			// next key, since '0' is the next ascii char of '/'
-			current = parts[0] + "0"
-		}
-
-		if !resp.More {
-			break
+// findMilvusInstance enumerates possible root paths, skipping the reserved
+// woodpecker namespace. Uses the streaming Range API when the server supports
+// it and falls back to the legacy scan otherwise.
+func findMilvusInstance(ctx context.Context, cli kv.MetaKV) ([]string, error) {
+	apps, err := cli.GetAllRootPath(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, 0, len(apps))
+	for _, app := range apps {
+		if app != "woodpecker" { // skip woodpecker prefix
+			result = append(result, app)
 		}
 	}
-
-	return apps, nil
+	return result, nil
 }
 
 func (s *kvConnectedState) Close() {
