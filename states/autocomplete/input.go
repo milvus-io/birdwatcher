@@ -1,6 +1,7 @@
 package autocomplete
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/samber/lo"
@@ -22,9 +23,13 @@ func parseInput(input string) inputResult {
 		// next part is flag value
 		// just set last comp cValue
 		if currentFlagValue {
-			comps[len(comps)-1].cValue = part
+			if !strings.HasPrefix(part, "-") || isNegativeNumber(part) {
+				comps[len(comps)-1].cValue = part
+				currentFlagValue = false
+				continue
+			}
+			// A new flag means the previous flag was boolean or omitted its value.
 			currentFlagValue = false
-			continue
 		}
 		// is flag
 		if strings.HasPrefix(part, "-") {
@@ -76,4 +81,12 @@ func parseInput(input string) inputResult {
 		parts: comps,
 		state: is,
 	}
+}
+
+func isNegativeNumber(value string) bool {
+	if !strings.HasPrefix(value, "-") {
+		return false
+	}
+	_, err := strconv.ParseFloat(value, 64)
+	return err == nil
 }
