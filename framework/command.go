@@ -109,6 +109,9 @@ func parseMethodFrom(host State, receiver any, mt reflect.Method) (*cobra.Comman
 			fmt.Println(err.Error())
 			return
 		}
+		if fsa, ok := cp.(FlagSetAware); ok {
+			fsa.SetFlagSet(cmd.Flags())
+		}
 		ctx, cancel := host.Ctx()
 		defer cancel()
 
