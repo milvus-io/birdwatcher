@@ -3,6 +3,7 @@ package states
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 
 	"github.com/milvus-io/birdwatcher/configs"
@@ -33,4 +34,34 @@ func TestExportedStateTags(t *testing.T) {
 	require.Equal(t, "tikv", TiKVTag)
 	require.Equal(t, "pulsar", PulsarTag)
 	require.Equal(t, "oss", OSSTag)
+}
+
+func TestConnectParamsRootPathProvided(t *testing.T) {
+	t.Run("flag not set", func(t *testing.T) {
+		cp := &ConnectParams{}
+		fs := pflag.NewFlagSet("connect", pflag.ContinueOnError)
+		fs.String("rootPath", "by-dev", "")
+		require.NoError(t, fs.Parse(nil))
+		cp.SetFlagSet(fs)
+		require.False(t, cp.rootPathProvided())
+	})
+
+	t.Run("flag set explicitly", func(t *testing.T) {
+		cp := &ConnectParams{}
+		fs := pflag.NewFlagSet("connect", pflag.ContinueOnError)
+		fs.String("rootPath", "by-dev", "")
+		require.NoError(t, fs.Parse([]string{"--rootPath", "tenant-a"}))
+		cp.SetFlagSet(fs)
+		require.True(t, cp.rootPathProvided())
+	})
+
+	t.Run("env provided", func(t *testing.T) {
+		cp := &ConnectParams{rootPathFromEnv: true}
+		require.True(t, cp.rootPathProvided())
+	})
+
+	t.Run("no flagset", func(t *testing.T) {
+		cp := &ConnectParams{}
+		require.False(t, cp.rootPathProvided())
+	})
 }
