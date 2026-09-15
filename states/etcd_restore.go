@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gosuri/uilive"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/models"
@@ -141,41 +141,48 @@ func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph *models.PartHeader) (
 
 	batchNum := 10
 	ch := make(chan []*commonpb.KeyDataPair, 10)
-	errCh := make(chan error, 1)
 
-	go func() {
+	g, gCtx := errgroup.WithContext(context.Background())
+
+	g.Go(func() error {
 		defer close(ch)
 		batch := make([]*commonpb.KeyDataPair, 0, batchNum)
+		// best-effort: hand off whatever was already read, even when the loop
+		// below returns early because of a read error or cancellation.
 		defer func() {
 			if len(batch) > 0 {
-				ch <- batch
+				select {
+				case ch <- batch:
+				case <-gCtx.Done():
+				}
 			}
 		}()
 		var lastPrint time.Time
 		for {
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			default:
+			}
+
 			bsRead, err := io.ReadFull(rd, lb) // rd.Read(lb)
 			// all file read
 			if err == io.EOF {
-				// return meta["instance"], nil
-				errCh <- nil
-				return
+				return nil
 			}
 			if err != nil {
 				fmt.Println("failed to read file:", err.Error())
-				errCh <- err
-				return
+				return err
 			}
 			if bsRead < 8 {
 				fmt.Printf("fail to read next length %d instead of 8 read\n", bsRead)
-				errCh <- errors.New("invalid file format")
-				return
+				return errors.New("invalid file format")
 			}
 
 			nextBytes = binary.LittleEndian.Uint64(lb)
 			// stopper found
 			if nextBytes == 0 {
-				errCh <- nil
-				return
+				return nil
 			}
 			bs = make([]byte, nextBytes)
 
@@ -183,13 +190,11 @@ func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph *models.PartHeader) (
 			bsRead, err = io.ReadFull(rd, bs)
 			if err != nil {
 				fmt.Println("failed to read next kv data", err.Error())
-				errCh <- err
-				return
+				return err
 			}
 			if uint64(bsRead) != nextBytes {
 				fmt.Printf("bytesRead(%d)is not equal to nextBytes(%d)\n", bsRead, nextBytes)
-				errCh <- errors.New("bad file format")
-				return
+				return errors.New("bad file format")
 			}
 
 			entry := &commonpb.KeyDataPair{}
@@ -202,8 +207,12 @@ func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph *models.PartHeader) (
 
 			batch = append(batch, entry)
 			if len(batch) >= batchNum {
-				ch <- batch
-				batch = make([]*commonpb.KeyDataPair, 0, batchNum)
+				select {
+				case ch <- batch:
+					batch = make([]*commonpb.KeyDataPair, 0, batchNum)
+				case <-gCtx.Done():
+					return gCtx.Err()
+				}
 			}
 			i++
 			progress := i * 100 / int(cnt)
@@ -213,14 +222,11 @@ func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph *models.PartHeader) (
 				lastPrint = time.Now()
 			}
 		}
-	}()
+	})
 
-	var wg sync.WaitGroup
 	workerNum := 3
-	wg.Add(workerNum)
-	for i := 0; i < workerNum; i++ {
-		go func() {
-			defer wg.Done()
+	for w := 0; w < workerNum; w++ {
+		g.Go(func() error {
 			for batch := range ch {
 				keys := make([]string, 0, len(batch))
 				values := make([]string, 0, len(batch))
@@ -228,23 +234,19 @@ func restoreEtcdFromBackV2(cli kv.MetaKV, rd io.Reader, ph *models.PartHeader) (
 					keys = append(keys, entry.Key)
 					values = append(values, string(entry.Data))
 				}
-				func() {
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-					defer cancel()
 
-					err = cli.MultiSave(ctx, keys, values)
-					// _, err := cli.Txn(ctx).If().Then(ops...).Commit()
-					if err != nil {
-						fmt.Println(err.Error())
-					}
-				}()
+				saveCtx, cancel := context.WithTimeout(gCtx, time.Second*3)
+				err := cli.MultiSave(saveCtx, keys, values)
+				cancel()
+				if err != nil {
+					return err
+				}
 			}
-		}()
+			return nil
+		})
 	}
 
-	err = <-errCh
-	wg.Wait()
-	if err != nil {
+	if err := g.Wait(); err != nil {
 		return "", err
 	}
 
