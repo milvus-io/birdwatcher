@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -69,28 +70,39 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 	ch := make(chan pprofResult, len(sessions))
 	signal := make(chan error, 1)
 
+	var failedNodes []string
+
 	go func() {
 		for result := range ch {
-			if result.err != nil {
-				fmt.Println()
-			}
 			session := result.sessions[0]
 			serverName := session.ServerName
 			// set to mixture if there are multiple sessions in group
 			if len(result.sessions) > 1 {
 				serverName = "mixture"
 			}
-			tw.WriteHeader(&tar.Header{
+
+			if result.err != nil {
+				fmt.Printf("failed to fetch %s pprof from %s-%d: %s\n", p.Type, serverName, session.ServerID, result.err.Error())
+				failedNodes = append(failedNodes, fmt.Sprintf("%s-%d", serverName, session.ServerID))
+				continue
+			}
+
+			err := tw.WriteHeader(&tar.Header{
 				Typeflag: tar.TypeReg,
 
 				Name: fmt.Sprintf("%s_%d_%s", serverName, session.ServerID, p.Type),
 				Size: int64(len(result.data)),
 				Mode: 0o600,
 			})
+			if err != nil {
+				signal <- err
+				continue
+			}
 
 			_, err = tw.Write(result.data)
 			if err != nil {
 				signal <- err
+				continue
 			}
 
 			fmt.Printf("%s pprof from %s-%d fetched, added into archive file\n", p.Type, serverName, session.ServerID)
@@ -122,6 +134,13 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 				ch <- result
 				return
 			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				result.err = errors.Newf("unexpected status code %d from %s", resp.StatusCode, url)
+				ch <- result
+				return
+			}
 
 			bs, err := io.ReadAll(resp.Body)
 			if err != nil {
@@ -144,6 +163,9 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 	}
 
 	fmt.Printf("pprof metrics fetch done, write to archive file %s\n", filePath)
+	if len(failedNodes) > 0 {
+		fmt.Printf("failed to fetch %s pprof from %d node(s): %s\n", p.Type, len(failedNodes), strings.Join(failedNodes, ", "))
+	}
 
 	return nil
 }
