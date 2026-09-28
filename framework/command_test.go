@@ -108,6 +108,33 @@ func TestMergeFunctionCommandsFromPrefersReceiverFormat(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("format:%d", FormatJSON), strings.TrimSpace(output))
 }
 
+type testTypoParam struct {
+	ParamBase `use:"typo" desc:"typo command"`
+}
+
+type testTypoReceiver struct{}
+
+func (r *testTypoReceiver) TypoCommnad(ctx context.Context, p *testTypoParam) error { return nil }
+
+func (r *testTypoReceiver) RealCommand(ctx context.Context, p *testTypoParam) error { return nil }
+
+func (r *testTypoReceiver) NotACommand() {}
+
+func TestFindMissingCommandSuffixDetectsTypo(t *testing.T) {
+	got := FindMissingCommandSuffix(&testTypoReceiver{})
+	require.Equal(t, []string{"TypoCommnad"}, got)
+}
+
+func TestFindMissingCommandSuffixCleanReceiver(t *testing.T) {
+	got := FindMissingCommandSuffix(&testExternalReceiver{})
+	require.Empty(t, got)
+}
+
+func TestFindMissingCommandSuffixNilReceiver(t *testing.T) {
+	require.Empty(t, FindMissingCommandSuffix(nil))
+	require.Empty(t, FindMissingCommandSuffix((*testTypoReceiver)(nil)))
+}
+
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 

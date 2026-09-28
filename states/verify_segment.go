@@ -18,12 +18,12 @@ import (
 type VerifySegmentParam struct {
 	framework.ParamBase `use:"verify-segment" desc:"Verify segment file matches storage"`
 
-	CollectionID int64
-	RootPath     string
-	Fix          bool
+	CollectionID int64  `name:"collection" default:"0" desc:"collection id to verify"`
+	RootPath     string `name:"rootPath" default:"" desc:"storage root path override"`
+	Fix          bool   `name:"fix" default:"false" desc:"remove segment log path entries that fail verification"`
 }
 
-func (s *InstanceState) VerifySegmentCommnad(ctx context.Context, p *VerifySegmentParam) error {
+func (s *InstanceState) VerifySegmentCommand(ctx context.Context, p *VerifySegmentParam) error {
 	fmt.Printf(`Using %s as storage rootPath, change by "--rootPath" flag if needed`, p.RootPath)
 
 	segments, err := common.ListSegments(ctx, s.client, s.basePath, func(seg *models.Segment) bool {

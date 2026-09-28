@@ -56,22 +56,52 @@ func parseFunctionCommandsFrom(host State, receiver any) []commandItem {
 	return commands
 }
 
-func parseMethodFrom(host State, receiver any, mt reflect.Method) (*cobra.Command, []string, bool) {
-	v := reflect.ValueOf(receiver)
+func commandParamType(mt reflect.Method) (reflect.Type, bool) {
 	t := mt.Type
-	var use string
-	var short string
-	var paramType reflect.Type
-
 	if t.NumIn() < 3 {
-		return nil, nil, false
+		return nil, false
 	}
 	in := t.In(1)
 	if !in.Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
-		return nil, nil, false
+		return nil, false
 	}
 	in = t.In(2)
 	if in.Kind() != reflect.Pointer || !in.Implements(reflect.TypeOf((*CmdParam)(nil)).Elem()) {
+		return nil, false
+	}
+	return in, true
+}
+
+func FindMissingCommandSuffix(receiver any) []string {
+	if receiver == nil {
+		return nil
+	}
+	v := reflect.ValueOf(receiver)
+	if v.Kind() == reflect.Pointer && v.IsNil() {
+		return nil
+	}
+	tp := v.Type()
+
+	var missing []string
+	for i := 0; i < v.NumMethod(); i++ {
+		mt := tp.Method(i)
+		if strings.HasSuffix(mt.Name, "Command") {
+			continue
+		}
+		if _, ok := commandParamType(mt); ok {
+			missing = append(missing, mt.Name)
+		}
+	}
+	return missing
+}
+
+func parseMethodFrom(host State, receiver any, mt reflect.Method) (*cobra.Command, []string, bool) {
+	v := reflect.ValueOf(receiver)
+	var use string
+	var short string
+
+	in, ok := commandParamType(mt)
+	if !ok {
 		return nil, nil, false
 	}
 	cp, ok := reflect.New(in.Elem()).Interface().(CmdParam)
@@ -79,7 +109,7 @@ func parseMethodFrom(host State, receiver any, mt reflect.Method) (*cobra.Comman
 		fmt.Println("conversion failed", in.Name())
 		return nil, nil, false
 	}
-	paramType = in
+	paramType := in
 	use, short = cp.Desc()
 
 	fUse, fDesc := GetCmdFromFlag(cp)
