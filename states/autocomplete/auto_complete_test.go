@@ -2,6 +2,7 @@ package autocomplete
 
 import (
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -132,6 +133,41 @@ func TestNamedValueSuggester(t *testing.T) {
 		result := SuggestInputCommands("paint --color r", commands)
 		assert.Contains(t, result, "red")
 	})
+}
+
+func TestContextValueSuggester(t *testing.T) {
+	RegisterValueSuggester("test-fields", ContextValueSuggestFunc(func(partial string, ctx ValueSuggestionContext) []string {
+		if ctx.FlagValues["collection"] != "books" {
+			return nil
+		}
+		values := []string{"book_id", "book_vector"}
+		var result []string
+		for _, value := range values {
+			if strings.HasPrefix(value, partial) {
+				result = append(result, value)
+			}
+		}
+		return result
+	}))
+	defer UnregisterValueSuggester("test-fields")
+
+	recreateCmd := &cobra.Command{Use: "recreate"}
+	indexCmd := makeCmd("index", func(fs *pflag.FlagSet) {
+		fs.Bool("auto-index", false, "use AUTOINDEX")
+		fs.String("collection", "", "collection name")
+		fs.String("field", "", "field name")
+		_ = fs.SetAnnotation("field", "valuesSuggester", []string{"test-fields"})
+	})
+	recreateCmd.AddCommand(indexCmd)
+
+	result := SuggestInputCommands(
+		"recreate index --auto-index --collection books --field book_",
+		[]*cobra.Command{recreateCmd},
+	)
+	assert.Equal(t, map[string]string{
+		"book_id":     "",
+		"book_vector": "",
+	}, result)
 }
 
 func TestValueSuggesterRegistry(t *testing.T) {
