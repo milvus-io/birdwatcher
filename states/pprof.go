@@ -20,6 +20,11 @@ import (
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
 )
 
+// pprofFetchTimeout bounds each per-node fetch so a node that accepts the
+// connection but never responds cannot hang the command. It must exceed the
+// 30s default duration of the "profile" type.
+var pprofFetchTimeout = 2 * time.Minute
+
 type PprofParam struct {
 	framework.ParamBase `use:"pprof" desc:"get pprof from online components"`
 	Type                string `name:"type" default:"goroutine" desc:"pprof metric type to fetch"`
@@ -127,8 +132,17 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 			// TODO add auto detection from configuration API
 			url := fmt.Sprintf("http://%s:%d/debug/pprof/%s?debug=0", addr, p.Port, p.Type)
 
+			reqCtx, cancel := context.WithTimeout(ctx, pprofFetchTimeout)
+			defer cancel()
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
+			if err != nil {
+				result.err = err
+				ch <- result
+				return
+			}
+
 			// #nosec
-			resp, err := http.Get(url)
+			resp, err := (&http.Client{Timeout: pprofFetchTimeout}).Do(req)
 			if err != nil {
 				result.err = err
 				ch <- result
