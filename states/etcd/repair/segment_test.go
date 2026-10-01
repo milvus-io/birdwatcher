@@ -1,9 +1,13 @@
 package repair
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
+	"io"
 	"net/url"
+	"os"
 	"path"
 	"sync"
 	"testing"
@@ -12,10 +16,12 @@ import (
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	"go.etcd.io/etcd/server/v3/embed"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/protoadapt"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -180,7 +186,12 @@ func importRepairEtcd(t *testing.T) kv.MetaKV {
 }
 
 func TestImportJobRepair_CreateOnlyAndReadback(t *testing.T) {
-	cli := importRepairEtcd(t)
+	raw := importRepairEtcd(t)
+	file, err := os.CreateTemp(t.TempDir(), "audit-*.log")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = file.Close() })
+	// Normal instance connections use an audit wrapper around the live etcd KV.
+	cli := kv.NewFileAuditKV(raw, file)
 	coll := models.NewCollection(importMarkerCollection(), "collection")
 	m := mockey.Mock(common.GetCollectionByIDVersion).Return(coll, nil).Build()
 	defer m.UnPatch()
@@ -194,8 +205,9 @@ func TestImportJobRepair_CreateOnlyAndReadback(t *testing.T) {
 	host.MergeFunctionCommandsFrom(root, host, c)
 	root.SetArgs([]string{"repair", "import-job", "--job", "692", "--collection", "684"})
 	require.NoError(t, root.Execute())
-	_, err := cli.Load(ctx, key)
+	_, err = cli.Load(ctx, key)
 	require.ErrorIs(t, err, kv.ErrKeyNotFound, "dry run must not write")
+	require.Empty(t, importRepairAuditRecords(t, file), "dry run must not emit writes")
 	before := time.Now()
 	root.SetArgs([]string{"repair", "import-job", "--job", "692", "--collection", "684", "--run"})
 	require.NoError(t, root.Execute())
@@ -214,6 +226,22 @@ func TestImportJobRepair_CreateOnlyAndReadback(t *testing.T) {
 	after, err := cli.Load(ctx, key)
 	require.NoError(t, err)
 	require.Equal(t, value, after)
+	records := importRepairAuditRecords(t, file)
+	require.Len(t, records, 4)
+	for i, op := range map[int]models.AuditOpType{0: models.AuditOpType_OpPut, 1: models.AuditOpType_OpPutBefore, 3: models.AuditOpType_OpPutAfter} {
+		header := &models.AuditHeader{}
+		require.NoError(t, proto.Unmarshal(records[i], header))
+		require.EqualValues(t, op, header.OpType)
+	}
+	entry := &mvccpb.KeyValue{}
+	require.NoError(t, proto.Unmarshal(records[2], protoadapt.MessageV2Of(entry)))
+	require.Equal(t, key, string(entry.Key))
+	require.Equal(t, value, string(entry.Value))
+	require.ErrorContains(t, kv.CreateEtcdKeyIfAbsent(ctx, cli, key, "overwrite"), "refusing to overwrite")
+	require.Len(t, importRepairAuditRecords(t, file), 6, "failed create must not record a successful put")
+	after, err = cli.Load(ctx, key)
+	require.NoError(t, err)
+	require.Equal(t, value, after)
 
 	var wg sync.WaitGroup
 	results := make(chan error, 2)
@@ -221,7 +249,7 @@ func TestImportJobRepair_CreateOnlyAndReadback(t *testing.T) {
 		wg.Add(1)
 		go func(value string) {
 			defer wg.Done()
-			results <- kv.CreateEtcdKeyIfAbsent(ctx, cli, "race/key", value)
+			results <- kv.CreateEtcdKeyIfAbsent(ctx, raw, "race/key", value)
 		}(value)
 	}
 	wg.Wait()
@@ -292,4 +320,22 @@ func TestImportJobRepair_ErrorBoundaries(t *testing.T) {
 			}
 		})
 	}
+}
+
+func importRepairAuditRecords(t *testing.T, file *os.File) [][]byte {
+	t.Helper()
+	data, err := os.ReadFile(file.Name())
+	require.NoError(t, err)
+	reader := bytes.NewReader(data)
+	var records [][]byte
+	for reader.Len() > 0 {
+		var size uint64
+		require.NoError(t, binary.Read(reader, binary.LittleEndian, &size))
+		require.LessOrEqual(t, size, uint64(reader.Len()))
+		record := make([]byte, size)
+		_, err := io.ReadFull(reader, record)
+		require.NoError(t, err)
+		records = append(records, record)
+	}
+	return records
 }
