@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,65 @@ type PprofParam struct {
 	framework.ParamBase `use:"pprof" desc:"get pprof from online components"`
 	Type                string `name:"type" default:"goroutine" desc:"pprof metric type to fetch"`
 	Port                int64  `name:"port" default:"9091" desc:"metrics port milvus component is using"`
+}
+
+// pprofResult carries one node's fetch outcome to the archive writer.
+type pprofResult struct {
+	id       int64
+	sessions []*models.Session
+	data     []byte
+	err      error
+}
+
+// fetchPprofData performs a single pprof HTTP GET. It enforces a 2xx status and
+// always closes the response body, so a non-2xx response (an error page served
+// with 200 is not the concern here; a 404/500 is) is reported as an error
+// instead of being archived as if it were real profile data, and the
+// underlying connection is never leaked.
+func fetchPprofData(url string) ([]byte, error) {
+	// #nosec
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, errors.Errorf("unexpected HTTP status %d from %s", resp.StatusCode, url)
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+// writePprofArchiveEntry writes a successful fetch into the tar archive. It
+// returns skipped=true and writes nothing when the fetch failed, so a failed
+// node never leaves a 0-byte entry that is indistinguishable from a genuine
+// empty response.
+func writePprofArchiveEntry(tw *tar.Writer, result pprofResult, pprofType string) (skipped bool, err error) {
+	if result.err != nil {
+		return true, result.err
+	}
+
+	session := result.sessions[0]
+	serverName := session.ServerName
+	// set to mixture if there are multiple sessions in group
+	if len(result.sessions) > 1 {
+		serverName = "mixture"
+	}
+
+	hdr := &tar.Header{
+		Typeflag: tar.TypeReg,
+		Name:     fmt.Sprintf("%s_%d_%s", serverName, session.ServerID, pprofType),
+		Size:     int64(len(result.data)),
+		Mode:     0o600,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		return false, err
+	}
+	if _, err := tw.Write(result.data); err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) error {
@@ -59,41 +119,37 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 		return session.ServerID
 	})
 
-	type pprofResult struct {
-		id       int64
-		sessions []*models.Session
-		data     []byte
-		err      error
-	}
-
 	ch := make(chan pprofResult, len(sessions))
 	signal := make(chan error, 1)
 
+	// failed collects the identities of nodes whose fetch failed, so the
+	// command can print a final summary instead of silently discarding them.
+	var failed []string
+
 	go func() {
 		for result := range ch {
-			if result.err != nil {
-				fmt.Println()
-			}
 			session := result.sessions[0]
 			serverName := session.ServerName
-			// set to mixture if there are multiple sessions in group
 			if len(result.sessions) > 1 {
 				serverName = "mixture"
 			}
-			tw.WriteHeader(&tar.Header{
-				Typeflag: tar.TypeReg,
+			nodeID := fmt.Sprintf("%s-%d", serverName, session.ServerID)
 
-				Name: fmt.Sprintf("%s_%d_%s", serverName, session.ServerID, p.Type),
-				Size: int64(len(result.data)),
-				Mode: 0o600,
-			})
-
-			_, err = tw.Write(result.data)
-			if err != nil {
-				signal <- err
+			// A failed fetch must not be archived: skip the entry, report the
+			// real error with the node's identity, and never print the
+			// "fetched, added into archive file" success line for it.
+			skipped, werr := writePprofArchiveEntry(tw, result, p.Type)
+			if skipped {
+				fmt.Printf("failed to fetch %s pprof from %s: %v\n", p.Type, nodeID, werr)
+				failed = append(failed, nodeID)
+				continue
+			}
+			if werr != nil {
+				signal <- werr
+				continue
 			}
 
-			fmt.Printf("%s pprof from %s-%d fetched, added into archive file\n", p.Type, serverName, session.ServerID)
+			fmt.Printf("%s pprof from %s fetched, added into archive file\n", p.Type, nodeID)
 		}
 		close(signal)
 	}()
@@ -115,15 +171,7 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 			// TODO add auto detection from configuration API
 			url := fmt.Sprintf("http://%s:%d/debug/pprof/%s?debug=0", addr, p.Port, p.Type)
 
-			// #nosec
-			resp, err := http.Get(url)
-			if err != nil {
-				result.err = err
-				ch <- result
-				return
-			}
-
-			bs, err := io.ReadAll(resp.Body)
+			bs, err := fetchPprofData(url)
 			if err != nil {
 				result.err = err
 				ch <- result
@@ -144,6 +192,11 @@ func (s *InstanceState) GetPprofCommand(ctx context.Context, p *PprofParam) erro
 	}
 
 	fmt.Printf("pprof metrics fetch done, write to archive file %s\n", filePath)
+
+	if len(failed) > 0 {
+		return errors.Errorf("pprof fetch failed for %d node(s), skipped in archive: %s",
+			len(failed), strings.Join(failed, ", "))
+	}
 
 	return nil
 }
