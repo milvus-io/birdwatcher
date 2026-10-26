@@ -61,9 +61,15 @@ func (p OSSOverrideParam) ConnectParams() ([]MinioConnectParam, error) {
 		value string
 		apply func(string) MinioConnectParam
 	}{
-		{p.Port, WithPort}, {p.CloudProvider, WithCloudProvider}, {p.Region, WithRegion},
-		{p.BucketName, WithBucketName}, {p.RootPath, WithRootPath}, {p.IAMEndpoint, WithIAMEndpoint},
-		{p.RoleARN, WithRoleARN}, {p.RoleSessionName, WithRoleSessionName}, {p.ExternalID, WithExternalID},
+		{p.Port, WithPort},
+		{p.CloudProvider, WithCloudProvider},
+		{p.Region, WithRegion},
+		{p.BucketName, WithBucketName},
+		{p.RootPath, WithRootPath},
+		{p.IAMEndpoint, WithIAMEndpoint},
+		{p.RoleARN, WithRoleARN},
+		{p.RoleSessionName, WithRoleSessionName},
+		{p.ExternalID, WithExternalID},
 		{p.AliyunRoleAuthMode, WithAliyunRoleAuthMode},
 	} {
 		if option.value != "" {

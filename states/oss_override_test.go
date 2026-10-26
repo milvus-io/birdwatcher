@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/milvus-io/birdwatcher/configs"
-	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/milvus-io/birdwatcher/configs"
+	"github.com/milvus-io/birdwatcher/framework"
 )
 
 type scanBinlogFlagReceiver struct{ param *ScanBinlogParams }
