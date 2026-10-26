@@ -35,6 +35,37 @@ type ResolvedObjectStore struct {
 	RootPath   string
 }
 
+// NewResolvedObjectStore applies the given connect params on top of mp, builds
+// a client and wraps it into a ResolvedObjectStore. Azure cloud provider uses
+// the azure object store, other providers use the minio client.
+func NewResolvedObjectStore(ctx context.Context, mp MinioClientParam, params ...MinioConnectParam) (*ResolvedObjectStore, error) {
+	for _, p := range params {
+		if p != nil {
+			p(&mp)
+		}
+	}
+	if strings.EqualFold(mp.CloudProvider, CloudProviderAzure) {
+		store, err := NewAzureObjectStore(ctx, mp)
+		if err != nil {
+			return nil, err
+		}
+		return &ResolvedObjectStore{
+			Store:      store,
+			BucketName: mp.BucketName,
+			RootPath:   mp.RootPath,
+		}, nil
+	}
+	m, err := NewMinioClient(ctx, mp)
+	if err != nil {
+		return nil, err
+	}
+	return &ResolvedObjectStore{
+		Store:      NewMinioObjectStore(m),
+		BucketName: m.BucketName,
+		RootPath:   m.RootPath,
+	}, nil
+}
+
 type openSettings struct {
 	rangeSet bool
 	start    int64

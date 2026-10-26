@@ -89,31 +89,7 @@ func NewMinioClientParamFromConfigurations(configurations []*commonpb.KeyValuePa
 }
 
 func NewResolvedObjectStore(ctx context.Context, mp oss.MinioClientParam, params ...oss.MinioConnectParam) (*oss.ResolvedObjectStore, error) {
-	for _, p := range params {
-		if p != nil {
-			p(&mp)
-		}
-	}
-	if strings.EqualFold(mp.CloudProvider, oss.CloudProviderAzure) {
-		store, err := oss.NewAzureObjectStore(ctx, mp)
-		if err != nil {
-			return nil, err
-		}
-		return &oss.ResolvedObjectStore{
-			Store:      store,
-			BucketName: mp.BucketName,
-			RootPath:   mp.RootPath,
-		}, nil
-	}
-	m, err := oss.NewMinioClient(ctx, mp)
-	if err != nil {
-		return nil, err
-	}
-	return &oss.ResolvedObjectStore{
-		Store:      oss.NewMinioObjectStore(m),
-		BucketName: m.BucketName,
-		RootPath:   m.RootPath,
-	}, nil
+	return oss.NewResolvedObjectStore(ctx, mp, params...)
 }
 
 func NewResolvedObjectStoreFromConfigurations(ctx context.Context, configurations []*commonpb.KeyValuePair, params ...oss.MinioConnectParam) (*oss.ResolvedObjectStore, error) {
