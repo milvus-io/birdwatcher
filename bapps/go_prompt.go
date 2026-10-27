@@ -148,7 +148,7 @@ func (a *PromptApp) promptExecute(in string) {
 	// recovery normal output
 	os.Stdout = stdout
 	// back to normal mode
-	a.historyHelper.AddLog(in)
+	a.historyHelper.AddLog(framework.RedactCommand(in))
 	a.sugguestHistory = false
 
 	if err != nil {
