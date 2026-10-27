@@ -20,6 +20,7 @@ import (
 	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/birdwatcher/storage/tasks"
 	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
+	milvuscommon "github.com/milvus-io/milvus/pkg/v3/common"
 	"github.com/milvus-io/milvus/pkg/v3/proto/datapb"
 )
 
@@ -107,6 +108,9 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 		}
 		if distinctField == nil {
 			return nil, errors.Newf("count-distinct field %q not found in collection %d", p.Field, p.CollectionID)
+		}
+		if distinctField.GetName() == milvuscommon.VirtualPKFieldName {
+			return nil, errors.Newf("count-distinct does not support the virtual PK field %q; the virtual PK is derived from row offsets and is not a readable column", distinctField.GetName())
 		}
 		scanTask, err = tasks.NewCountDistinctTask(distinctField)
 		if err != nil {

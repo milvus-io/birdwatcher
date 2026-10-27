@@ -20,6 +20,7 @@ import (
 	storagemanifest "github.com/milvus-io/birdwatcher/storage/manifest"
 	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
+	"github.com/milvus-io/milvus/pkg/v3/common"
 	"github.com/milvus-io/milvus/pkg/v3/proto/datapb"
 )
 
@@ -180,6 +181,16 @@ func TestScanBinlogCountDistinctValidatesArgumentsAndType(t *testing.T) {
 			require.Empty(t, store.opens)
 		})
 	}
+}
+
+func TestScanBinlogCountDistinctRejectsVirtualPK(t *testing.T) {
+	s, store, _ := newScanCommandFixture(t)
+	data, err := proto.Marshal(&schemapb.FieldSchema{FieldID: 100, Name: common.VirtualPKFieldName, IsPrimaryKey: true, DataType: schemapb.DataType_Int64})
+	require.NoError(t, err)
+	s.client.(*scanFixtureKV).data["root/root-coord/fields/1/100"] = string(data)
+	_, err = s.ScanBinlogCommand(context.Background(), &ScanBinlogParams{CollectionID: 1, Action: "count-distinct", Field: common.VirtualPKFieldName, WorkerNum: 1})
+	require.ErrorContains(t, err, "does not support the virtual PK field")
+	require.Empty(t, store.opens)
 }
 
 func TestScanBinlogCountDistinctFillsAbsentDefaultAndNull(t *testing.T) {
