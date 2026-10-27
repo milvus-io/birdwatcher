@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 
 	binlogv1 "github.com/milvus-io/birdwatcher/storage/binlog/v1"
@@ -44,6 +45,11 @@ func (dl *DeleteLog) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	for _, key := range []string{"pkType", "pk", "ts"} {
+		if messageMap[key] == nil {
+			return fmt.Errorf("deltalog entry is missing %s", key)
+		}
+	}
 
 	err = json.Unmarshal(*messageMap["pkType"], &dl.PkType)
 	if err != nil {
@@ -55,6 +61,8 @@ func (dl *DeleteLog) UnmarshalJSON(data []byte) error {
 		dl.Pk = &common.Int64PrimaryKey{}
 	case schemapb.DataType_VarChar:
 		dl.Pk = &common.VarCharPrimaryKey{}
+	default:
+		return fmt.Errorf("unsupported deltalog primary key type %d", dl.PkType)
 	}
 
 	err = json.Unmarshal(*messageMap["pk"], dl.Pk)

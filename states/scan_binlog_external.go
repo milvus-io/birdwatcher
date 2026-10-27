@@ -64,7 +64,7 @@ func scanExternalSegment(ctx context.Context,
 	manifestBasePath := oss.ResolveObjectKey(internalRootPath, manifestRef.BasePath)
 	manifestPath := path.Join(manifestBasePath, "_metadata", fmt.Sprintf("manifest-%d.avro", manifestRef.Ver))
 
-	obj, err := internalStore.Open(ctx, manifestPath)
+	obj, err := openScanObject(ctx, internalStore, manifestPath)
 	if err != nil {
 		return errors.Wrapf(err, "get manifest object %s", manifestPath)
 	}
@@ -131,6 +131,7 @@ func scanExternalSegment(ctx context.Context,
 			}
 		}
 	}
+	storagecommon.ScanDebug(ctx, "external.files.selected files=%d groups=%d", len(files), len(m.ColumnGroups))
 	if len(files) == 0 {
 		return nil
 	}
@@ -256,7 +257,7 @@ func scanExternalParquetFile(ctx context.Context,
 	startIdx, endIdx, globalOffset int64,
 	valuesByOffset map[int64]map[int64]any,
 ) error {
-	obj, err := store.Open(ctx, objectKey)
+	obj, err := openScanObject(ctx, store, objectKey)
 	if err != nil {
 		return errors.Wrapf(err, "open object %s", objectKey)
 	}
@@ -282,7 +283,7 @@ func scanExternalParquetFile(ctx context.Context,
 
 	fileRow := int64(0)
 	globalRow := globalOffset
-	for rr.Next() {
+	for storagecommon.NextScanRecord(ctx, rr, "external.parquet.next file=%q file_row=%d", storagecommon.ScanLogPath(objectKey), fileRow) {
 		rec := rr.Record()
 		if rec == nil {
 			continue
@@ -293,6 +294,7 @@ func scanExternalParquetFile(ctx context.Context,
 			colIdxByName[rec.ColumnName(i)] = i
 		}
 
+		storagecommon.ScanDebug(ctx, "external.batch file=%q rows=%d file_row=%d", storagecommon.ScanLogPath(objectKey), rec.NumRows(), fileRow)
 		rows := int(rec.NumRows())
 		for row := 0; row < rows; row++ {
 			if fileRow < startIdx {
