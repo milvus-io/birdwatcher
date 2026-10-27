@@ -17,14 +17,14 @@ type TestMinioCfgParam struct {
 	// *MinioConnectParam
 	oss.OSSOverrideParam
 	MinioAddress  string `name:"minioAddress"`
-	MinioPasswd   string `name:"minioPassword"`
-	MinioUserName string `name:"minioUsername"`
+	MinioPasswd   string `name:"minioPassword" secret:"true"`
+	MinioUserName string `name:"minioUsername" secret:"true"`
 }
 
 type MinioConnectParam struct {
 	MinioAddress  string `name:"minioAddress"`
-	MinioPasswd   string `name:"minioPassword"`
-	MinioUserName string `name:"minioUsername"`
+	MinioPasswd   string `name:"minioPassword" secret:"true"`
+	MinioUserName string `name:"minioUsername" secret:"true"`
 }
 
 func (s *InstanceState) TestMinioCfgCommand(ctx context.Context, p *TestMinioCfgParam) error {

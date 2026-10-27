@@ -63,7 +63,7 @@ func (app *ApplicationState) Label() string {
 }
 
 func (app *ApplicationState) Process(cmd string) (framework.State, error) {
-	app.config.Log("[INFO] begin to process command", cmd)
+	app.config.Log("[INFO] begin to process command", framework.RedactCommand(cmd))
 	app.core.Process(cmd)
 	// perform sub state transfer
 	for key, state := range app.states {

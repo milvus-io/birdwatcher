@@ -16,8 +16,8 @@ type OSSOverrideParam struct {
 	LoadFrequency      string `name:"loadFrequency" default:"" desc:"override internal OSS credential reload interval (seconds)"`
 	OSSStandalone      bool   `name:"ossStandalone" default:"false" desc:"build internal OSS client from flags without fetching component configuration"`
 	Port               string `name:"port" default:"" desc:"override internal OSS port"`
-	AccessKeyID        string `name:"accessKeyID" default:"" desc:"override internal OSS access key ID"`
-	SecretAccessKey    string `name:"secretAccessKey" default:"" desc:"override internal OSS secret access key"`
+	AccessKeyID        string `name:"accessKeyID" default:"" desc:"override internal OSS access key ID" secret:"true"`
+	SecretAccessKey    string `name:"secretAccessKey" default:"" desc:"override internal OSS secret access key" secret:"true"`
 	UseIAM             string `name:"useIAM" default:"" desc:"override internal OSS IAM: true or false (omitted inherits config)"`
 	UseSSL             string `name:"useSSL" default:"" desc:"override internal OSS TLS: true or false (omitted inherits config)"`
 	CloudProvider      string `name:"cloudProvider" default:"" desc:"override internal OSS provider: aws, gcp, aliyun, tencent, huawei"`

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 
 	"github.com/milvus-io/birdwatcher/configs"
@@ -150,4 +151,74 @@ func captureStdout(t *testing.T, fn func()) string {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 	return string(out)
+}
+
+func TestRedactCommand(t *testing.T) {
+	registerSecretFlag("accessKeyID")
+	registerSecretFlag("secretAccessKey")
+	registerSecretFlag("api-key")
+	registerSecretFlag("password")
+	for _, tc := range []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "space separated secret flags",
+			input:    "scan-binlog --accessKeyID AK123 --secretAccessKey sk456 --collection 123",
+			expected: "scan-binlog --accessKeyID [REDACTED] --secretAccessKey [REDACTED] --collection 123",
+		},
+		{
+			name:     "inline secret flag values",
+			input:    "connect milvus --api-key=abc123 --address localhost:19530",
+			expected: "connect milvus --api-key=[REDACTED] --address localhost:19530",
+		},
+		{
+			name:     "non-secret flags untouched",
+			input:    "show collection --collection 10 --verbose",
+			expected: "show collection --collection 10 --verbose",
+		},
+		{
+			name:     "mixed inline and space forms",
+			input:    "connect milvus --api-key=abc --password pw --tls=true",
+			expected: "connect milvus --api-key=[REDACTED] --password [REDACTED] --tls=true",
+		},
+		{
+			name:     "secret flag without value at end",
+			input:    "scan-binlog --accessKeyID",
+			expected: "scan-binlog --accessKeyID",
+		},
+		{
+			name:     "empty input",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "command without secret flags",
+			input:    "debug commands",
+			expected: "debug commands",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, RedactCommand(tc.input))
+		})
+	}
+}
+
+type testSecretParam struct {
+	ParamBase `use:"secret-cmd" desc:"command with secret flags"`
+	AccessKey string `name:"accessKeyID" default:"" secret:"true"`
+	Bucket    string `name:"bucketName" default:""`
+}
+
+func TestSetupFlagsRegistersSecretTags(t *testing.T) {
+	cp := &testSecretParam{}
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	setupFlags(cp, flags)
+
+	require.True(t, isSecretFlag("accessKeyID"))
+	require.False(t, isSecretFlag("bucketName"))
+
+	input := "secret-cmd --accessKeyID AK123 --bucketName bucket"
+	require.Equal(t, "secret-cmd --accessKeyID [REDACTED] --bucketName bucket", RedactCommand(input))
 }

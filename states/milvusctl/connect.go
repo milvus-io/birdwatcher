@@ -12,8 +12,8 @@ type ConnectMilvusParam struct {
 	framework.ParamBase `use:"connect milvus" desc:"connect to a Milvus instance"`
 	Address             string `name:"address" default:"localhost:19530" desc:"Milvus server address (host:port)"`
 	Username            string `name:"username" default:"" desc:"auth username"`
-	Password            string `name:"password" default:"" desc:"auth password"`
-	APIKey              string `name:"api-key" default:"" desc:"API key (overrides user/pass)"`
+	Password            string `name:"password" default:"" desc:"auth password" secret:"true"`
+	APIKey              string `name:"api-key" default:"" desc:"API key (overrides user/pass)" secret:"true"`
 	DB                  string `name:"db" default:"" desc:"database name"`
 	TLS                 bool   `name:"tls" default:"false" desc:"enable TLS"`
 	Timeout             string `name:"timeout" default:"10s" desc:"dial timeout, e.g. 10s / 500ms; 0 disables"`
