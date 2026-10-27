@@ -15,20 +15,27 @@ import (
 type TestMinioCfgParam struct {
 	framework.ParamBase `use:"test-minio-cfg"`
 	// *MinioConnectParam
+	oss.OSSOverrideParam
 	MinioAddress  string `name:"minioAddress"`
-	MinioPasswd   string `name:"minioPassword"`
-	MinioUserName string `name:"minioUsername"`
+	MinioPasswd   string `name:"minioPassword" secret:"true"`
+	MinioUserName string `name:"minioUsername" secret:"true"`
 }
 
 type MinioConnectParam struct {
 	MinioAddress  string `name:"minioAddress"`
-	MinioPasswd   string `name:"minioPassword"`
-	MinioUserName string `name:"minioUsername"`
+	MinioPasswd   string `name:"minioPassword" secret:"true"`
+	MinioUserName string `name:"minioUsername" secret:"true"`
 }
 
 func (s *InstanceState) TestMinioCfgCommand(ctx context.Context, p *TestMinioCfgParam) error {
-	_, _, _, err := s.GetMinioClientFromCfg(ctx)
-	return err
+	resolved, err := oss.NewResolvedObjectStoreWithOverrides(ctx, p.OSSOverrideParam, p.MinioAddress, false, s.GetObjectStore)
+	if err != nil {
+		return err
+	}
+	if _, ok := oss.MinioClientFromObjectStore(resolved.Store); !ok {
+		return errors.New("resolved object store is not backed by minio client")
+	}
+	return nil
 }
 
 func (s *InstanceState) GetMinioClientFromCfg(ctx context.Context, params ...oss.MinioConnectParam) (client *minio.Client, bucketName, rootPath string, err error) {

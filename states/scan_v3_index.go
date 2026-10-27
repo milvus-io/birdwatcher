@@ -26,17 +26,18 @@ import (
 
 type ScanV3IndexParams struct {
 	framework.DataSetParam `use:"scan-v3-index" desc:"scan scalar index V3 files and diagnose schema/path/meta mismatches" alias:"scan-scalar-index-v3"`
-	CollectionID           int64  `name:"collection" default:"0" desc:"collection id to filter with"`
-	PartitionID            int64  `name:"partition" default:"0" desc:"partition id to filter with"`
-	SegmentID              int64  `name:"segment" default:"0" desc:"segment id to filter with"`
-	FieldID                int64  `name:"field" default:"0" desc:"field id to filter with"`
-	IndexID                int64  `name:"indexID" default:"0" desc:"collection index id to filter with"`
-	BuildID                int64  `name:"buildID" default:"0" desc:"index build id to filter with"`
-	MinioAddress           string `name:"minioAddr" default:"" desc:"override minio address"`
-	SkipBucketCheck        bool   `name:"skipBucketCheck" default:"false" desc:"skip bucket existence check due to permission restrictions"`
-	WorkerNum              int64  `name:"workerNum" default:"8" desc:"concurrent range-read workers"`
-	OnlyIssues             bool   `name:"onlyIssues" default:"true" desc:"only output objects with findings"`
-	IncludeDeleted         bool   `name:"includeDeleted" default:"false" desc:"include deleted SegmentIndex metadata"`
+	oss.OSSOverrideParam
+	CollectionID    int64  `name:"collection" default:"0" desc:"collection id to filter with"`
+	PartitionID     int64  `name:"partition" default:"0" desc:"partition id to filter with"`
+	SegmentID       int64  `name:"segment" default:"0" desc:"segment id to filter with"`
+	FieldID         int64  `name:"field" default:"0" desc:"field id to filter with"`
+	IndexID         int64  `name:"indexID" default:"0" desc:"collection index id to filter with"`
+	BuildID         int64  `name:"buildID" default:"0" desc:"index build id to filter with"`
+	MinioAddress    string `name:"minioAddr" default:"" desc:"override minio address"`
+	SkipBucketCheck bool   `name:"skipBucketCheck" default:"false" desc:"skip bucket existence check due to permission restrictions"`
+	WorkerNum       int64  `name:"workerNum" default:"8" desc:"concurrent range-read workers"`
+	OnlyIssues      bool   `name:"onlyIssues" default:"true" desc:"only output objects with findings"`
+	IncludeDeleted  bool   `name:"includeDeleted" default:"false" desc:"include deleted SegmentIndex metadata"`
 }
 
 type V3IndexScanRecord struct {
@@ -209,11 +210,7 @@ func (s *InstanceState) ScanV3IndexCommand(ctx context.Context, p *ScanV3IndexPa
 	if err != nil {
 		return nil, err
 	}
-	params := []oss.MinioConnectParam{oss.WithSkipCheckBucket(p.SkipBucketCheck)}
-	if p.MinioAddress != "" {
-		params = append(params, oss.WithMinioAddr(p.MinioAddress))
-	}
-	resolvedStore, err := s.GetObjectStore(ctx, params...)
+	resolvedStore, err := oss.NewResolvedObjectStoreWithOverrides(ctx, p.OSSOverrideParam, p.MinioAddress, p.SkipBucketCheck, s.GetObjectStore)
 	if err != nil {
 		return nil, err
 	}

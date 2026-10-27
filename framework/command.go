@@ -17,6 +17,66 @@ type commandItem struct {
 	cmd *cobra.Command
 }
 
+// secretFlags records the names of flags whose values must be masked in
+// command logs. It is populated at command setup time from the `secret:"true"`
+// struct tag.
+var secretFlags = make(map[string]struct{})
+
+// registerSecretFlag marks a flag name as sensitive so its value is masked.
+func registerSecretFlag(name string) {
+	if name != "" {
+		secretFlags[name] = struct{}{}
+	}
+}
+
+// isSecretFlag reports whether the flag name carries a sensitive value.
+func isSecretFlag(name string) bool {
+	_, ok := secretFlags[name]
+	return ok
+}
+
+// RedactCommand masks the values of registered secret flags in a raw command
+// string so credentials never reach logs. Supports both `--flag value` and
+// `--flag=value` forms.
+func RedactCommand(cmd string) string {
+	if len(secretFlags) == 0 {
+		return cmd
+	}
+	fields := strings.Fields(cmd)
+	if len(fields) == 0 {
+		return cmd
+	}
+	const redacted = "[REDACTED]"
+	out := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); i++ {
+		field := fields[i]
+		if !strings.HasPrefix(field, "--") {
+			out = append(out, field)
+			continue
+		}
+		name := strings.TrimPrefix(field, "--")
+		inline := false
+		if eq := strings.IndexByte(name, '='); eq >= 0 {
+			inline = true
+			name = name[:eq]
+		}
+		if !isSecretFlag(name) {
+			out = append(out, field)
+			continue
+		}
+		if inline {
+			out = append(out, "--"+name+"="+redacted)
+			continue
+		}
+		out = append(out, field)
+		if i+1 < len(fields) {
+			i++
+			out = append(out, redacted)
+		}
+	}
+	return strings.Join(out, " ")
+}
+
 // FormatProvider is an optional interface for states that provide global output format.
 type FormatProvider interface {
 	GetGlobalFormat() Format
@@ -330,6 +390,9 @@ func setupFlagsRecursive(v reflect.Value, flags *pflag.FlagSet) {
 			}
 			if suggesterTag := f.Tag.Get("valuesSuggester"); suggesterTag != "" {
 				_ = flags.SetAnnotation(name, "valuesSuggester", []string{suggesterTag})
+			}
+			if f.Tag.Get("secret") == "true" {
+				registerSecretFlag(name)
 			}
 		}
 	}

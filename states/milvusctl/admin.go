@@ -18,7 +18,7 @@ type GcPauseParam struct {
 	Seconds             int64  `name:"seconds" default:"60" desc:"pause duration in seconds"`
 	CollectionID        int64  `name:"collection-id" default:"0" desc:"optional collection id to scope the pause"`
 	Addr                string `name:"addr" default:"" desc:"proxy management HTTP address; defaults to deriving from current connection"`
-	APIKey              string `name:"apikey" default:"" desc:"optional API key, sent as Bearer token"`
+	APIKey              string `name:"apikey" default:"" desc:"optional API key, sent as Bearer token" secret:"true"`
 }
 
 func (s *MilvusctlState) GcPauseCommand(ctx context.Context, p *GcPauseParam) error {
@@ -42,7 +42,7 @@ type GcResumeParam struct {
 	framework.ParamBase `use:"gc resume" desc:"resume datacoord garbage collection"`
 	Ticket              string `name:"ticket" default:"" desc:"ticket returned by gc pause (optional for backward compat)"`
 	Addr                string `name:"addr" default:"" desc:"proxy management HTTP address; defaults to deriving from current connection"`
-	APIKey              string `name:"apikey" default:"" desc:"optional API key, sent as Bearer token"`
+	APIKey              string `name:"apikey" default:"" desc:"optional API key, sent as Bearer token" secret:"true"`
 }
 
 func (s *MilvusctlState) GcResumeCommand(ctx context.Context, p *GcResumeParam) error {

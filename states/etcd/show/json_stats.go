@@ -20,6 +20,7 @@ import (
 
 // JSONStatsParam defines parameters for `show json-stats` command.
 type JSONStatsParam struct {
+	oss.OSSOverrideParam
 	framework.ParamBase `use:"show json-stats" desc:"display json key stats from datacoord meta"`
 	CollectionID        int64  `name:"collection" default:"0" desc:"collection id to filter with"`
 	PartitionID         int64  `name:"partition" default:"0" desc:"partition id to filter with"`
@@ -30,6 +31,8 @@ type JSONStatsParam struct {
 	ShowSchema          bool   `name:"show-schema" default:"false" desc:"print schema"`
 	KeyPrefix           string `name:"prefix" default:"" desc:"filter json keys by prefix when parsing layout map"`
 	PrintShared         bool   `name:"print-shared" default:"true" desc:"print shared keys data layout"`
+	MinioAddress        string `name:"minioAddr" default:"" desc:"override internal OSS address"`
+	SkipBucketCheck     bool   `name:"skipBucketCheck" default:"false" desc:"skip bucket existence check"`
 }
 
 // JSONStatsCommand implements `show json-stats` using etcd meta (same source as show segment).
@@ -111,7 +114,9 @@ func (c *ComponentShow) JSONStatsCommand(ctx context.Context, p *JSONStatsParam)
 				seg.ID,
 				fieldID)
 			if !ossReady {
-				resolvedStore, err := ossutil.GetObjectStoreFromCfg(ctx, c.client, c.metaPath)
+				resolvedStore, err := oss.NewResolvedObjectStoreWithOverrides(ctx, p.OSSOverrideParam, p.MinioAddress, p.SkipBucketCheck, func(ctx context.Context, params ...oss.MinioConnectParam) (*oss.ResolvedObjectStore, error) {
+					return ossutil.GetObjectStoreFromCfg(ctx, c.client, c.metaPath, params...)
+				})
 				if err != nil {
 					fmt.Printf("      [s3] skip reading (init error): %s\n", err.Error())
 				} else {

@@ -25,6 +25,7 @@ import (
 )
 
 type ScanBinlogParams struct {
+	oss.OSSOverrideParam
 	framework.DataSetParam `use:"scan-binlog" desc:"scan binlog to check data"`
 	CollectionID           int64    `name:"collection" default:"0"`
 	PartitionID            int64    `name:"partition" default:"0"`
@@ -95,12 +96,7 @@ func (s *InstanceState) ScanBinlogCommand(ctx context.Context, p *ScanBinlogPara
 		return nil, err
 	}
 
-	params := []oss.MinioConnectParam{oss.WithSkipCheckBucket(p.SkipBucketCheck)}
-	if p.MinioAddress != "" {
-		params = append(params, oss.WithMinioAddr(p.MinioAddress))
-	}
-
-	resolvedStore, err := s.GetObjectStore(ctx, params...)
+	resolvedStore, err := oss.NewResolvedObjectStoreWithOverrides(ctx, p.OSSOverrideParam, p.MinioAddress, p.SkipBucketCheck, s.GetObjectStore)
 	if err != nil {
 		fmt.Println("Failed to create client,", err.Error())
 		return nil, err

@@ -168,7 +168,7 @@ func (s *CmdState) Suggestions(input string) map[string]string {
 
 // Process is the main entry for processing command.
 func (s *CmdState) Process(cmd string) (State, error) {
-	s.Log(s.label, "processing command:", cmd)
+	s.Log(s.label, "processing command:", RedactCommand(cmd))
 	args := strings.Split(cmd, " ")
 
 	target, _, err := s.RootCmd.Find(args)

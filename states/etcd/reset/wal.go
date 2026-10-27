@@ -36,8 +36,8 @@ type ResetWALParam struct {
 
 	MinioAddress   string `name:"minio-address" default:"localhost" desc:"object storage host"`
 	MinioPort      int64  `name:"minio-port" default:"9000" desc:"object storage port"`
-	MinioAccessKey string `name:"minio-access-key" default:"minioadmin" desc:"object storage access key"`
-	MinioSecretKey string `name:"minio-secret-key" default:"minioadmin" desc:"object storage secret key"`
+	MinioAccessKey string `name:"minio-access-key" default:"minioadmin" desc:"object storage access key" secret:"true"`
+	MinioSecretKey string `name:"minio-secret-key" default:"minioadmin" desc:"object storage secret key" secret:"true"`
 	MinioUseSSL    bool   `name:"minio-use-ssl" default:"false" desc:"connect to object storage over TLS"`
 	MinioBucket    string `name:"minio-bucket" default:"a-bucket" desc:"object storage bucket holding the WAL data"`
 	MinioRootPath  string `name:"minio-root-path" default:"files" desc:"Milvus's minio.rootPath, copied verbatim from milvus.yaml; the woodpecker \"/wp\" suffix is added automatically"`
