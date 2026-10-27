@@ -25,6 +25,7 @@ import (
 	"github.com/milvus-io/birdwatcher/models"
 	"github.com/milvus-io/birdwatcher/oss"
 	"github.com/milvus-io/birdwatcher/states/etcd/common"
+	storagecommon "github.com/milvus-io/birdwatcher/storage/common"
 	"github.com/milvus-io/milvus-proto/go-api/v3/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 	"github.com/milvus-io/milvus/pkg/v3/util/externalspec"
@@ -454,7 +455,7 @@ func externalVectorRangesForSegment(ctx context.Context, manifestStore oss.Objec
 	}
 	manifestBasePath := oss.ResolveObjectKey(manifestRootPath, manifestRef.BasePath)
 	manifestPath := path.Join(manifestBasePath, "_metadata", fmt.Sprintf("manifest-%d.avro", manifestRef.Ver))
-	obj, err := manifestStore.Open(ctx, manifestPath)
+	obj, err := openScanObject(ctx, manifestStore, manifestPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "open manifest %s", manifestPath)
 	}
@@ -751,7 +752,7 @@ func inspectExternalVectorNullObject(ctx context.Context, store oss.ObjectStore,
 		return objectResult
 	}
 
-	obj, err := store.Open(ctx, job.ObjectKey)
+	obj, err := openScanObject(ctx, store, job.ObjectKey)
 	if err != nil {
 		return failAll(err)
 	}
@@ -865,7 +866,7 @@ func inspectExternalVectorNullObject(ctx context.Context, store oss.ObjectStore,
 			return failAll(err)
 		}
 		streamOffset := rowGroupStarts[rowGroup]
-		for rr.Next() {
+		for storagecommon.NextScanRecord(ctx, rr, "external.vector.arrow.next") {
 			record := rr.Record()
 			if record.NumCols() != 1 {
 				rr.Release()

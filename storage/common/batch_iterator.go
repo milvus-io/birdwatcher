@@ -1,12 +1,20 @@
 package common
 
 import (
+	"io"
+
 	"github.com/milvus-io/birdwatcher/models"
 )
 
 type BatchInfo struct {
 	SegmentID int64
 	BatchIdx  int
+
+	// Manifest readers report segment-global and per-field physical offsets.
+	// FileOffsets are the first row of this record batch in each source file.
+	ManifestPath  string
+	SegmentOffset int64
+	FileOffsets   map[int64]int64
 
 	// field/groupID => ReadSeeker
 	Output map[int64]ReadSeeker
@@ -34,6 +42,11 @@ func (sbi *SegmentBatchIterator) NextBatch() (batchInfo *BatchInfo, err error) {
 	for fieldID, binlogPath := range targetFields {
 		rs, err := sbi.translator(binlogPath)
 		if err != nil {
+			for _, source := range output {
+				if closer, ok := source.(io.Closer); ok {
+					closer.Close()
+				}
+			}
 			return nil, err
 		}
 

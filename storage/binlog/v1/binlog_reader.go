@@ -166,6 +166,9 @@ func (reader *BinlogReader) NextParquetReader() (*file.Reader, error) {
 	}
 
 	next := int(header.EventLength - header.GetMemoryUsageInBytes() - insertEventData.GetEventDataFixPartSize())
+	if next <= 0 {
+		return nil, fmt.Errorf("invalid binlog event payload length %d", next)
+	}
 
 	data := make([]byte, next)
 	if _, err := io.ReadFull(reader.reader, data); err != nil {

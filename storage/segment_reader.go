@@ -14,6 +14,12 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/v3/schemapb"
 )
 
+// SegmentRecordReader returns borrowed batches valid until the next Next or Close.
+type SegmentRecordReader interface {
+	Next(context.Context) (common.RecordBatch, *common.BatchInfo, error)
+	Close() error
+}
+
 type SegmentBinlogRecordReader struct {
 	common.LogBatchIterator
 
@@ -32,11 +38,16 @@ func (crr *SegmentBinlogRecordReader) nextRecordReader(ctx context.Context) erro
 	}
 
 	for i, br := range crr.brs {
+		end := common.ScanOperation(ctx, "legacy.arrow.open reader=%d", i)
 		cr, err := br.NextRecordReader(ctx)
+		end(err)
 		if err != nil {
 			return err
 		}
 
+		if crr.rrs[i] != nil {
+			crr.rrs[i].Release()
+		}
 		crr.rrs[i] = cr
 	}
 	return nil
@@ -55,22 +66,13 @@ func (crr *SegmentBinlogRecordReader) iterateNext(ctx context.Context) error {
 	}
 
 	// EOF, iterator to next batch
-	if crr.brs != nil {
-		for _, er := range crr.brs {
-			if er != nil {
-				er.Close()
-			}
-		}
-	}
-	if crr.rrs != nil {
-		for _, rr := range crr.rrs {
-			if rr != nil {
-				rr.Release()
-			}
-		}
+	if err := crr.Close(); err != nil {
+		return err
 	}
 
+	end := common.ScanOperation(ctx, "legacy.next_file_batch")
 	batchInfo, err := crr.NextBatch()
+	end(err)
 	if err != nil {
 		return err
 	}
@@ -80,8 +82,10 @@ func (crr *SegmentBinlogRecordReader) iterateNext(ctx context.Context) error {
 	crr.rrs = make([]array.RecordReader, 0, len(batchInfo.Output))
 	crr.brs = make([]binlog.BinlogReader, 0, len(batchInfo.Output))
 
-	for _, readSeeker := range batchInfo.Output {
+	for groupID, readSeeker := range batchInfo.Output {
+		end := common.ScanOperation(ctx, "legacy.reader.init batch=%d field_group=%d storage_version=%d", batchInfo.BatchIdx, groupID, crr.storageVersion)
 		reader, err := binlog.NewBinlogReader(crr.storageVersion, readSeeker)
+		end(err)
 		if err != nil {
 			return err
 		}
@@ -102,7 +106,9 @@ func (crr *SegmentBinlogRecordReader) iterateNext(ctx context.Context) error {
 		// select columns if possible
 		reader.SelectFields(crr.outputFields)
 
+		end = common.ScanOperation(ctx, "legacy.arrow.open batch=%d field_group=%d fields=%v", batchInfo.BatchIdx, groupID, crr.outputFields)
 		rr, err := reader.NextRecordReader(ctx)
+		end(err)
 		if err != nil {
 			return err
 		}
@@ -128,7 +134,10 @@ func (crr *SegmentBinlogRecordReader) Next(ctx context.Context) (common.RecordBa
 			mapping := br.GetMapping()
 			rr := crr.rrs[i]
 
-			if !rr.Next() {
+			if !common.NextScanRecord(ctx, rr, "legacy.arrow.next batch=%d reader=%d", crr.currentBatch.BatchIdx, i) {
+				if err := rr.Err(); err != nil && !errors.Is(err, io.EOF) {
+					return nil, err
+				}
 				return nil, io.EOF
 			}
 
@@ -143,6 +152,7 @@ func (crr *SegmentBinlogRecordReader) Next(ctx context.Context) (common.RecordBa
 				}
 			}
 		}
+		common.ScanDebug(ctx, "legacy.batch.ready batch=%d fields=%v", crr.currentBatch.BatchIdx, index)
 		return common.NewCompositeRecordBatch(index, recs), nil
 	}
 
@@ -176,7 +186,20 @@ func (crr *SegmentBinlogRecordReader) Close() error {
 			}
 		}
 	}
-	return nil
+	crr.brs = nil
+	crr.rrs = nil
+	var err error
+	if crr.currentBatch != nil {
+		for _, source := range crr.currentBatch.Output {
+			if closer, ok := source.(io.Closer); ok {
+				if closeErr := closer.Close(); err == nil {
+					err = closeErr
+				}
+			}
+		}
+		crr.currentBatch = nil
+	}
+	return err
 }
 
 func NewSegmentReader(segment *models.Segment, selectedFields []int64, translator func(binlog string) (common.ReadSeeker, error)) (*SegmentBinlogRecordReader, error) {

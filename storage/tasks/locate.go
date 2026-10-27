@@ -23,7 +23,12 @@ func (t *LocateTask) Scan(pk common.PrimaryKey, batchInfo *common.BatchInfo, off
 	for fieldID, value := range values {
 		fmt.Printf("field %d: %v\n", fieldID, value)
 	}
-	fmt.Printf("binlog batch %d, pk binlog %s\n", batchInfo.BatchIdx, batchInfo.TargetBinlogs[t.pkField.FieldID])
+	if batchInfo.ManifestPath != "" {
+		fmt.Printf("manifest %s, segment offset %d, pk file %s, file offset %d\n", batchInfo.ManifestPath,
+			int64(offset), batchInfo.TargetBinlogs[t.pkField.FieldID], batchInfo.FileOffsets[t.pkField.FieldID]+int64(offset)-batchInfo.SegmentOffset)
+	} else {
+		fmt.Printf("binlog batch %d, pk binlog %s\n", batchInfo.BatchIdx, batchInfo.TargetBinlogs[t.pkField.FieldID])
+	}
 
 	return nil
 }
