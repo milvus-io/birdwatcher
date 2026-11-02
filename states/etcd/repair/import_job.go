@@ -22,8 +22,10 @@ import (
 	"github.com/milvus-io/milvus/pkg/v3/proto/internalpb"
 )
 
+var renderImportJobPreview = protojson.MarshalOptions{Indent: "  "}.Marshal
+
 type ImportJobParam struct {
-	framework.ExecutionParam `use:"repair import-job" desc:"recreate a GCed, proven-completed import job as a terminal marker for CommitImport replay"`
+	framework.ExecutionParam `use:"repair import-job" desc:"recreate a GCed, proven-completed import job as a terminal marker for CommitImport replay; writes require live etcd (audit wrappers supported; TiKV unsupported). Verify target ImportJob metadata and CommitImport replay compatibility before use"`
 	JobID                    int64    `name:"job" default:"0" desc:"original completed import job ID"`
 	CollectionID             int64    `name:"collection" default:"0" desc:"original collection ID; must still exist"`
 	VChannels                []string `name:"vchannel" desc:"override marker channels; defaults to all current collection vchannels"`
@@ -56,10 +58,11 @@ func (c *ComponentRepair) ImportJobCommand(ctx context.Context, p *ImportJobPara
 		return errors.Wrap(err, "marshal import job")
 	}
 	// Encoding succeeds before any write; JSON is a preview, not the stored format.
-	detail, err := protojson.MarshalOptions{Indent: "  "}.Marshal(job)
+	detail, err := renderImportJobPreview(job)
 	if err != nil {
 		return errors.Wrap(err, "render import job preview")
 	}
+	fmt.Println("WARNING: Verify the target uses compatible ImportJob metadata, Completed state (wire value 5), channel completion and cleanup timestamp semantics. Target compatibility is not detected automatically.")
 	fmt.Printf("Key: %s\nCompleted terminal marker (original tasks/files are not restored):\n%s\n", key, detail)
 	if !p.Run {
 		fmt.Println("dry run, nothing written. Re-run with --run to create the missing key.")

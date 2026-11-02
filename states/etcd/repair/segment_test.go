@@ -19,7 +19,6 @@ import (
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	"go.etcd.io/etcd/server/v3/embed"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/v3client"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/protoadapt"
 
@@ -311,10 +310,17 @@ func TestImportJobRepair_ErrorBoundaries(t *testing.T) {
 			case "marshal":
 				coll.GetProto().Schema.Name = "\xff"
 			case "preview":
-				preview := mockey.Mock(protojson.MarshalOptions.Marshal).Return(nil, failure).Build()
+				preview := mockey.MockValue(&renderImportJobPreview).To(func(proto.Message) ([]byte, error) {
+					return nil, failure
+				})
 				defer preview.UnPatch()
 			}
-			require.Error(t, c.ImportJobCommand(ctx, p))
+			err := c.ImportJobCommand(ctx, p)
+			require.Error(t, err)
+			if scenario == "preview" {
+				require.ErrorContains(t, err, "render import job preview")
+				require.ErrorIs(t, err, failure)
+			}
 			if scenario != "readback" && scenario != "mismatch" && scenario != "create" {
 				require.Zero(t, create.Times(), "validation and preview errors must not write")
 			}
