@@ -414,9 +414,17 @@ func TestSegmentIndexTypePlan(t *testing.T) {
 	for key, value := range updates {
 		s.Entries[key].Value = []byte(value)
 	}
-	_, updates, _, err = segmentTypePlan(s, p)
+	_, updates, preview, err = segmentTypePlan(s, p)
 	require.NoError(t, err)
 	require.Empty(t, updates, "same type is idempotent")
+	require.Empty(t, preview, "already-correct records are omitted from the preview")
+	p.SegmentID = 0
+	_, updates, preview, err = segmentTypePlan(s, p)
+	require.NoError(t, err)
+	require.Len(t, updates, 1)
+	require.Equal(t, "segment=2 index=200 build=1002 type=\"\" -> \"HNSW\"\n", preview,
+		"mixed plans preview only the record that would change")
+	p.SegmentID = 1
 	p.IndexType = "DISKANN"
 	_, updates, _, err = segmentTypePlan(s, p)
 	require.NoError(t, err)

@@ -155,10 +155,10 @@ func planSegmentIndexTypeRepair(snapshot *kv.EtcdRepairSnapshot, p *SegmentIndex
 			return nil, nil, "", fmt.Errorf("build %d is manifest-owned or has an unsupported path version", index.GetBuildID())
 		}
 		selected++
-		fmt.Fprintf(&preview, "segment=%d index=%d build=%d type=%q -> %q\n", index.GetSegmentID(), index.GetIndexID(), index.GetBuildID(), index.GetIndexType(), p.IndexType)
 		if index.GetIndexType() == p.IndexType {
 			continue
 		}
+		fmt.Fprintf(&preview, "segment=%d index=%d build=%d type=%q -> %q\n", index.GetSegmentID(), index.GetIndexID(), index.GetBuildID(), index.GetIndexType(), p.IndexType)
 		// Mutate the decoded message to retain every other field, including unknown fields.
 		index.IndexType = p.IndexType
 		value, err := proto.Marshal(index)
@@ -175,6 +175,7 @@ func planSegmentIndexTypeRepair(snapshot *kv.EtcdRepairSnapshot, p *SegmentIndex
 }
 
 // Birdwatcher's pinned SegmentInfo predates Milvus's bool manifest_has_index = 40.
+// Definition: https://github.com/milvus-io/milvus/blob/c28dbdfd41f1833ef98ace98c8886fdf5bbc3584/pkg/proto/data_coord.proto#L494
 // Read that wire field without replacing the protobuf dependency or losing unknowns.
 func segmentHasManifestIndexes(segment *datapb.SegmentInfo) (bool, error) {
 	if field := segment.ProtoReflect().Descriptor().Fields().ByName("manifest_has_index"); field != nil {
