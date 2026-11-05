@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/birdwatcher/framework"
@@ -107,11 +106,7 @@ func planSegmentIndexTypeRepair(snapshot *kv.EtcdRepairSnapshot, p *SegmentIndex
 		if segment.GetState() == commonpb.SegmentState_Dropped {
 			continue
 		}
-		hasManifestIndexes, err := segmentHasManifestIndexes(segment)
-		if err != nil {
-			return nil, nil, "", err
-		}
-		if hasManifestIndexes {
+		if segment.GetManifestHasIndex() {
 			return nil, nil, "", fmt.Errorf("segment %d has manifest indexes; etcd-only repair refused", segment.GetID())
 		}
 		segmentKeys[segment.GetID()] = key
@@ -172,35 +167,4 @@ func planSegmentIndexTypeRepair(snapshot *kv.EtcdRepairSnapshot, p *SegmentIndex
 		return nil, nil, "", fmt.Errorf("no eligible finished segment index artifacts found")
 	}
 	return dependencies, updates, preview.String(), nil
-}
-
-// Birdwatcher's pinned SegmentInfo predates Milvus's bool manifest_has_index = 40.
-// Definition: https://github.com/milvus-io/milvus/blob/c28dbdfd41f1833ef98ace98c8886fdf5bbc3584/pkg/proto/data_coord.proto#L494
-// Read that wire field without replacing the protobuf dependency or losing unknowns.
-func segmentHasManifestIndexes(segment *datapb.SegmentInfo) (bool, error) {
-	if field := segment.ProtoReflect().Descriptor().Fields().ByName("manifest_has_index"); field != nil {
-		return segment.ProtoReflect().Get(field).Bool(), nil
-	}
-	unknown := segment.ProtoReflect().GetUnknown()
-	marked := false
-	for len(unknown) > 0 {
-		number, typ, n := protowire.ConsumeTag(unknown)
-		if n < 0 {
-			return false, protowire.ParseError(n)
-		}
-		unknown = unknown[n:]
-		n = protowire.ConsumeFieldValue(number, typ, unknown)
-		if n < 0 {
-			return false, protowire.ParseError(n)
-		}
-		if number == 40 {
-			value, size := protowire.ConsumeVarint(unknown)
-			if typ != protowire.VarintType || size < 0 || value > 1 {
-				return false, fmt.Errorf("invalid manifest_has_index marker for segment %d", segment.GetID())
-			}
-			marked = marked || value != 0
-		}
-		unknown = unknown[n:]
-	}
-	return marked, nil
 }

@@ -25,10 +25,6 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/protoadapt"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/milvus-io/birdwatcher/framework"
 	"github.com/milvus-io/birdwatcher/models"
@@ -432,7 +428,7 @@ func TestSegmentIndexTypePlan(t *testing.T) {
 }
 
 func TestSegmentIndexTypePlan_Rejections(t *testing.T) {
-	for _, scenario := range []string{"missing-index", "bad-definition", "deleted-index", "wrong-index", "bad-segment", "wrong-segment", "partition-mismatch", "missing-segment", "not-flushed", "manifest", "bad-marker", "bad-build", "wrong-build", "manifest-layout", "unknown-layout", "no-files", "deleted-build", "in-progress", "dropped", "absent-selection", "other-index"} {
+	for _, scenario := range []string{"missing-index", "bad-definition", "deleted-index", "wrong-index", "bad-segment", "wrong-segment", "partition-mismatch", "missing-segment", "not-flushed", "manifest", "bad-build", "wrong-build", "manifest-layout", "unknown-layout", "no-files", "deleted-build", "in-progress", "dropped", "absent-selection", "other-index"} {
 		t.Run(scenario, func(t *testing.T) {
 			p, values := segmentTypeFixture(t)
 			p.SegmentID = 2
@@ -453,9 +449,7 @@ func TestSegmentIndexTypePlan_Rejections(t *testing.T) {
 			case "not-flushed":
 				segment.State = commonpb.SegmentState_Importing
 			case "manifest":
-				segment.ProtoReflect().SetUnknown(protowire.AppendVarint(protowire.AppendTag(nil, 40, protowire.VarintType), 1))
-			case "bad-marker":
-				segment.ProtoReflect().SetUnknown(protowire.AppendBytes(protowire.AppendTag(nil, 40, protowire.BytesType), []byte("bad")))
+				segment.ManifestHasIndex = true
 			case "wrong-build":
 				build.CollectionID++
 			case "manifest-layout":
@@ -569,7 +563,7 @@ func TestSegmentIndexTypeCommand_ManifestRejectsWholeScope(t *testing.T) {
 	seg := &datapb.SegmentInfo{}
 	key := "meta/datacoord-meta/s/100/10/2"
 	require.NoError(t, proto.Unmarshal([]byte(values[key]), seg))
-	seg.ProtoReflect().SetUnknown(protowire.AppendVarint(protowire.AppendTag(nil, 40, protowire.VarintType), 1))
+	seg.ManifestHasIndex = true
 	value, err := proto.Marshal(seg)
 	require.NoError(t, err)
 	values[key] = string(value)
@@ -662,32 +656,6 @@ func TestSegmentIndexTypeCAS(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestSegmentManifestIndexMarker(t *testing.T) {
-	for _, tc := range []struct {
-		raw     []byte
-		marked  bool
-		invalid bool
-	}{
-		{nil, false, false},
-		{protowire.AppendVarint(protowire.AppendTag(nil, 40, protowire.VarintType), 0), false, false},
-		{protowire.AppendVarint(protowire.AppendTag(nil, 40, protowire.VarintType), 1), true, false},
-		{protowire.AppendVarint(protowire.AppendTag(nil, 40, protowire.VarintType), 2), false, true},
-		{protowire.AppendVarint(protowire.AppendTag(nil, 99, protowire.VarintType), 1), false, false},
-		{[]byte{0xff}, false, true},
-		{protowire.AppendTag(nil, 40, protowire.VarintType), false, true},
-	} {
-		seg := &datapb.SegmentInfo{}
-		seg.ProtoReflect().SetUnknown(tc.raw)
-		marked, err := segmentHasManifestIndexes(seg)
-		if tc.invalid {
-			require.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			require.Equal(t, tc.marked, marked)
-		}
-	}
-}
-
 func TestSegmentIndexTypePlan_RemainingBoundaries(t *testing.T) {
 	p, values := segmentTypeFixture(t)
 	seg := &datapb.SegmentInfo{}
@@ -770,23 +738,6 @@ func TestSegmentIndexTypeCAS_ReadbackFailure(t *testing.T) {
 			require.Equal(t, "new", stored, "readback failure must not trigger a rollback or duplicate write")
 		})
 	}
-}
-
-func TestSegmentManifestIndexMarker_KnownDescriptor(t *testing.T) {
-	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
-		Name: proto.String("marker.proto"), Syntax: proto.String("proto3"),
-		MessageType: []*descriptorpb.DescriptorProto{{Name: proto.String("SegmentInfo"), Field: []*descriptorpb.FieldDescriptorProto{{
-			Name: proto.String("manifest_has_index"), Number: proto.Int32(40), Type: descriptorpb.FieldDescriptorProto_TYPE_BOOL.Enum(),
-		}}}},
-	}, nil)
-	require.NoError(t, err)
-	message := dynamicpb.NewMessage(file.Messages().Get(0))
-	message.Set(message.Descriptor().Fields().ByNumber(40), protoreflect.ValueOfBool(true))
-	m := mockey.Mock((*datapb.SegmentInfo).ProtoReflect).Return(message.ProtoReflect()).Build()
-	defer m.UnPatch()
-	marked, err := segmentHasManifestIndexes(&datapb.SegmentInfo{})
-	require.NoError(t, err)
-	require.True(t, marked)
 }
 
 func TestSegmentIndexTypeCAS_PartialFailureAndResume(t *testing.T) {
