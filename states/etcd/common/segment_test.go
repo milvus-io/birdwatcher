@@ -49,6 +49,16 @@ func (s *segmentListKV) LoadWithPrefix(ctx context.Context, prefix string, opts 
 	return keys, values, nil
 }
 
+func (s *segmentListKV) Save(ctx context.Context, key, value string) error {
+	s.data[key] = value
+	return nil
+}
+
+func (s *segmentListKV) Remove(ctx context.Context, key string) error {
+	delete(s.data, key)
+	return nil
+}
+
 func TestListSegmentsByUsesCollectionPrefix(t *testing.T) {
 	ctx := context.Background()
 	basePath := "root"
