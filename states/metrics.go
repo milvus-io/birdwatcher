@@ -56,6 +56,7 @@ func fetchInstanceMetrics(session *models.Session) ([]byte, []byte, error) {
 	}
 
 	metricsBs, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,6 +69,7 @@ func fetchInstanceMetrics(session *models.Session) ([]byte, []byte, error) {
 	}
 
 	defaultMetricsBs, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		return nil, nil, err
 	}
