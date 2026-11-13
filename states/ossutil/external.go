@@ -704,3 +704,43 @@ func ResolveExternalObjectKey(location ExternalSourceLocation, externalFile stri
 	}
 	return path.Join(location.RootPath, trimmed), nil
 }
+
+// ResolveExternalObjectURI resolves a complete URI without applying RootPath.
+// Both bucket and endpoint URI forms may refer to the same configured store.
+// The minio scheme explicitly selects endpoint form when the host is ambiguous.
+func ResolveExternalObjectURI(location ExternalSourceLocation, raw string) (string, error) {
+	uri := strings.TrimSpace(raw)
+	u, err := url.Parse(uri)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("external file requires a complete object URI")
+	}
+	if u.User != nil || u.ForceQuery || u.RawQuery != "" || strings.Contains(uri, "#") {
+		return "", fmt.Errorf("external object URI must not contain user info, a query, or a fragment")
+	}
+	endpoint := location.Address
+	if endpoint == "" && location.Form == LocationFormMilvus {
+		endpoint = location.Host
+	}
+	matchesEndpoint := u.Host == endpoint
+	matchesBucket := u.Host == location.Bucket
+	explicitEndpoint := strings.EqualFold(u.Scheme, "minio")
+	if matchesEndpoint && matchesBucket && !explicitEndpoint {
+		return "", fmt.Errorf("ambiguous external object URI: host matches both endpoint and bucket; use minio://endpoint/bucket/key for endpoint form")
+	}
+	key := strings.TrimPrefix(u.EscapedPath(), "/")
+	if explicitEndpoint || !matchesBucket {
+		if !matchesEndpoint {
+			return "", fmt.Errorf("external file host does not match the configured endpoint or bucket")
+		}
+		bucket, rest, _ := strings.Cut(key, "/")
+		bucket, err = url.PathUnescape(bucket)
+		if err != nil || bucket != location.Bucket {
+			return "", fmt.Errorf("external file bucket does not match the configured bucket")
+		}
+		key = rest
+	}
+	if key == "" {
+		return "", fmt.Errorf("external object URI does not include an object key")
+	}
+	return url.PathUnescape(key)
+}
