@@ -2,6 +2,7 @@ package states
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -71,28 +73,22 @@ func readTarEntries(t *testing.T, path string) map[string][]byte {
 	return entries
 }
 
-// captureStdout runs fn while redirecting os.Stdout and returns what was written.
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	orig := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = orig }()
-
-	outCh := make(chan string, 1)
-	go func() {
-		bs, _ := io.ReadAll(r)
-		outCh <- string(bs)
-	}()
-
-	fn()
-	require.NoError(t, w.Close())
-	return <-outCh
+// runPprof runs the pprof fetch with the archive written to dir and all
+// progress/failure messages captured in a buffer, so tests never touch the
+// process-wide working directory or os.Stdout and can run in parallel.
+func runPprof(s *InstanceState, p *PprofParam, dir string, timeout time.Duration) (string, error) {
+	var buf bytes.Buffer
+	err := s.fetchPprof(context.Background(), p, pprofFetchOptions{
+		outputDir: dir,
+		out:       &buf,
+		timeout:   timeout,
+	})
+	return buf.String(), err
 }
 
 func TestGetPprofCommandSkipsUnreachableNode(t *testing.T) {
+	t.Parallel()
+
 	// a fake pprof endpoint that returns real data for the "good" node.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("REAL-GOROUTINE-DUMP-DATA"))
@@ -116,19 +112,14 @@ func TestGetPprofCommandSkipsUnreachableNode(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	t.Chdir(dir)
-
-	var cmdErr error
-	out := captureStdout(t, func() {
-		cmdErr = s.GetPprofCommand(context.Background(), &PprofParam{Type: "goroutine", Port: port})
-	})
+	out, cmdErr := runPprof(s, &PprofParam{Type: "goroutine", Port: port}, dir, defaultPprofFetchTimeout)
 	require.NoError(t, cmdErr)
 
 	files, err := os.ReadDir(dir)
 	require.NoError(t, err)
 	require.Len(t, files, 1, "expected exactly one archive file to be created")
 
-	entries := readTarEntries(t, files[0].Name())
+	entries := readTarEntries(t, filepath.Join(dir, files[0].Name()))
 
 	// the unreachable node must not produce a fabricated archive entry.
 	_, hasFailedEntry := entries["nodeB_2_goroutine"]
@@ -144,6 +135,8 @@ func TestGetPprofCommandSkipsUnreachableNode(t *testing.T) {
 }
 
 func TestGetPprofCommandTreatsNonOKStatusAsFailure(t *testing.T) {
+	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("<html>error page</html>"))
@@ -163,19 +156,14 @@ func TestGetPprofCommandTreatsNonOKStatusAsFailure(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	t.Chdir(dir)
-
-	var cmdErr error
-	out := captureStdout(t, func() {
-		cmdErr = s.GetPprofCommand(context.Background(), &PprofParam{Type: "goroutine", Port: port})
-	})
+	out, cmdErr := runPprof(s, &PprofParam{Type: "goroutine", Port: port}, dir, defaultPprofFetchTimeout)
 	require.NoError(t, cmdErr)
 
 	files, err := os.ReadDir(dir)
 	require.NoError(t, err)
 	require.Len(t, files, 1)
 
-	entries := readTarEntries(t, files[0].Name())
+	entries := readTarEntries(t, filepath.Join(dir, files[0].Name()))
 	require.Empty(t, entries, "a non-2xx response must not be archived as real profile data")
 
 	require.Contains(t, out, "unexpected status code 500")
@@ -183,6 +171,8 @@ func TestGetPprofCommandTreatsNonOKStatusAsFailure(t *testing.T) {
 }
 
 func TestGetPprofCommandTimesOutOnHungNode(t *testing.T) {
+	t.Parallel()
+
 	release := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -192,10 +182,6 @@ func TestGetPprofCommandTimesOutOnHungNode(t *testing.T) {
 	}))
 	defer srv.Close()
 	defer close(release)
-
-	old := pprofFetchTimeout
-	pprofFetchTimeout = 200 * time.Millisecond
-	defer func() { pprofFetchTimeout = old }()
 
 	_, portStr, err := net.SplitHostPort(srv.Listener.Addr().String())
 	require.NoError(t, err)
@@ -207,19 +193,22 @@ func TestGetPprofCommandTimesOutOnHungNode(t *testing.T) {
 		client:   &pprofTestKV{sessions: []*models.Session{session}},
 		basePath: "by-dev/meta",
 	}
-	t.Chdir(t.TempDir())
+	dir := t.TempDir()
 
-	var cmdErr error
-	done := make(chan string, 1)
+	type runResult struct {
+		out string
+		err error
+	}
+	done := make(chan runResult, 1)
 	go func() {
-		done <- captureStdout(t, func() {
-			cmdErr = s.GetPprofCommand(context.Background(), &PprofParam{Type: "goroutine", Port: port})
-		})
+		out, err := runPprof(s, &PprofParam{Type: "goroutine", Port: port}, dir, 200*time.Millisecond)
+		done <- runResult{out: out, err: err}
 	}()
 
 	select {
-	case out := <-done:
-		require.NoError(t, cmdErr)
+	case res := <-done:
+		require.NoError(t, res.err)
+		out := res.out
 		require.Contains(t, out, "failed to fetch goroutine pprof from nodeA-1")
 	case <-time.After(10 * time.Second):
 		t.Fatal("GetPprofCommand did not return for a hung node")
