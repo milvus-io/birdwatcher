@@ -361,7 +361,8 @@ func inspectExternalManifestParquet(ctx context.Context, manifestStore oss.Objec
 		toOSSUtilExternalSourceLocation(location),
 	)
 
-	failedFiles := 0
+	pathResolutionFailures := 0
+	inspectionFailures := 0
 	matchedGroups := 0
 	for i, cg := range m.ColumnGroups {
 		if p.FieldID != 0 && !slices.Contains(cg.Columns, fieldColumn) {
@@ -385,21 +386,21 @@ func inspectExternalManifestParquet(ctx context.Context, manifestStore oss.Objec
 					redactExternalVectorObjectKey(f.Path),
 					sanitizeExternalVectorInspectionError(err, f.Path),
 				)
-				failedFiles++
+				pathResolutionFailures++
 				continue
 			}
 			fmt.Printf("\n----- File %s (fragment rows: [%d, %d)) backend=%s -----\n", filePath, f.StartIndex, f.EndIndex, backend)
 			if err := inspectRemoteParquetObject(ctx, store, filePath, p.MetadataOnly, p.SampleRows, p.ShowRowGroups); err != nil {
 				fmt.Printf("failed to inspect %s: %s\n", redactExternalVectorObjectKey(filePath), sanitizeExternalVectorInspectionError(err, filePath))
-				failedFiles++
+				inspectionFailures++
 			}
 		}
 	}
 	if p.FieldID != 0 && matchedGroups == 0 {
 		return errors.Newf("field %d has no matching column group in the manifest", p.FieldID)
 	}
-	if failedFiles != 0 {
-		return errors.Newf("failed to inspect %d manifest files", failedFiles)
+	if pathResolutionFailures != 0 || inspectionFailures != 0 {
+		return errors.Newf("manifest file failures: %d path resolution, %d inspection", pathResolutionFailures, inspectionFailures)
 	}
 	return nil
 }

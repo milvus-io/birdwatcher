@@ -723,24 +723,42 @@ func ResolveExternalObjectURI(location ExternalSourceLocation, raw string) (stri
 	}
 	matchesEndpoint := u.Host == endpoint
 	matchesBucket := u.Host == location.Bucket
-	explicitEndpoint := strings.EqualFold(u.Scheme, "minio")
-	if matchesEndpoint && matchesBucket && !explicitEndpoint {
-		return "", fmt.Errorf("ambiguous external object URI: host matches both endpoint and bucket; use minio://endpoint/bucket/key for endpoint form")
+	requireEndpoint := strings.EqualFold(u.Scheme, "minio") || !matchesBucket
+	if requireEndpoint && !matchesEndpoint {
+		return "", fmt.Errorf("external file host does not match the configured endpoint or bucket")
 	}
 	key := strings.TrimPrefix(u.EscapedPath(), "/")
-	if explicitEndpoint || !matchesBucket {
-		if !matchesEndpoint {
-			return "", fmt.Errorf("external file host does not match the configured endpoint or bucket")
-		}
+	ambiguous := false
+	if matchesEndpoint {
 		bucket, rest, _ := strings.Cut(key, "/")
-		bucket, err = url.PathUnescape(bucket)
-		if err != nil || bucket != location.Bucket {
-			return "", fmt.Errorf("external file bucket does not match the configured bucket")
+		bucket, err := url.PathUnescape(bucket)
+		bucketMatches := err == nil && bucket == location.Bucket
+		if requireEndpoint {
+			if !bucketMatches {
+				return "", fmt.Errorf("external file bucket does not match the configured bucket")
+			}
+			key = rest
+		} else {
+			ambiguous = bucketMatches && rest != ""
 		}
-		key = rest
 	}
 	if key == "" {
 		return "", fmt.Errorf("external object URI does not include an object key")
 	}
-	return url.PathUnescape(key)
+	key, err = url.PathUnescape(key)
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(key, "/") || strings.Contains(key, "//") {
+		return "", fmt.Errorf("external object key must not contain a leading slash or repeated slashes")
+	}
+	for segment := range strings.SplitSeq(key, "/") {
+		if segment == ".." {
+			return "", fmt.Errorf("external object key must not contain a '..' path segment")
+		}
+	}
+	if ambiguous {
+		return "", fmt.Errorf("ambiguous external object URI: both bucket and endpoint forms are valid; use minio://endpoint/bucket/key for endpoint form")
+	}
+	return key, nil
 }

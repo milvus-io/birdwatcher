@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/milvus-io/birdwatcher/models"
@@ -587,9 +588,15 @@ func TestResolveExternalObjectURI(t *testing.T) {
 		}{
 			{"s3://warehouse/table/data/part.parquet", "table/data/part.parquet"},
 			{"s3://storage.example:9000/warehouse/table/data/part.parquet", "table/data/part.parquet"},
-			{"s3://warehouse/ROOT_PATH/a//../b.parquet", "ROOT_PATH/a//../b.parquet"},
-			{"s3://warehouse//data/a%3Fb%23c%25.parquet", "/data/a?b#c%.parquet"},
+			{"s3://warehouse/ROOT_PATH/data.parquet", "ROOT_PATH/data.parquet"},
+			{"s3://warehouse/data/a%3Fb%23c%25.parquet", "data/a?b#c%.parquet"},
 			{"s3://warehouse/data/a%2Fb.parquet", "data/a/b.parquet"},
+			{"s3://warehouse/data/a..b.parquet", "data/a..b.parquet"},
+			{"s3://warehouse//data/part.parquet", ""},
+			{"s3://warehouse/data//part.parquet", ""},
+			{"s3://warehouse/data/../part.parquet", ""},
+			{"s3://warehouse/data/%2Fpart.parquet", ""},
+			{"s3://storage.example:9000/warehouse/data/%2e%2e/part.parquet", ""},
 			{"data/part.parquet", ""},
 			{"ROOT_PATH/part.parquet", ""},
 			{"//warehouse/data/part.parquet", ""},
@@ -626,9 +633,23 @@ func TestResolveExternalObjectURI(t *testing.T) {
 func TestResolveExternalObjectURIAmbiguousHost(t *testing.T) {
 	for _, form := range []LocationForm{LocationFormAWS, LocationFormMilvus} {
 		location := ExternalSourceLocation{Form: form, Host: "minio", Address: "minio", Bucket: "minio"}
-		for _, uri := range []string{"s3://minio/minio/data.parquet", "s3://minio/data.parquet"} {
-			if _, err := ResolveExternalObjectURI(location, uri); err == nil {
-				t.Errorf("ambiguous URI %q must fail regardless of source form", uri)
+		for _, uri := range []string{"s3://minio/minio/data.parquet", "s3://minio/%6Dinio/data.parquet"} {
+			if _, err := ResolveExternalObjectURI(location, uri); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+				t.Errorf("URI %q: got %v, want ambiguity error", uri, err)
+			}
+		}
+		for _, tt := range []struct {
+			uri  string
+			want string
+		}{
+			{"s3://minio/data.parquet", "data.parquet"},
+			{"s3://minio/minio", "minio"},
+			{"s3://minio/minio/", "minio/"},
+			{"s3://minio/minio%2Fdata.parquet", "minio/data.parquet"},
+		} {
+			key, err := ResolveExternalObjectURI(location, tt.uri)
+			if err != nil || key != tt.want {
+				t.Errorf("URI %q: got %q, %v; want %q", tt.uri, key, err, tt.want)
 			}
 		}
 		key, err := ResolveExternalObjectURI(location, "minio://minio/minio/data.parquet")

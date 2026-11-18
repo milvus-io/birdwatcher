@@ -895,13 +895,16 @@ func TestInspectParquetExternalModes(t *testing.T) {
 					if format == "iceberg-table" {
 						internalStore.data["files/insert_log/1/2/20/_metadata/manifest-7.avro"] = scanFixtureManifest(t, &storagemanifest.Manifest{
 							ColumnGroups: []storagemanifest.ColumnGroup{
-								{Columns: []string{"source_id"}, Format: format, Files: []storagemanifest.ColumnGroupFile{{Path: "s3://other/part.parquet"}}},
+								{Columns: []string{"source_id"}, Format: format, Files: []storagemanifest.ColumnGroupFile{
+									{Path: "s3://other/part.parquet"},
+									{Path: uri},
+								}},
 								{Columns: []string{"101"}, Format: "parquet", Files: []storagemanifest.ColumnGroupFile{{Path: "generated.parquet"}}},
 							},
 						})
 						opens := externalStore.opens["table/data/part.parquet"]
-						require.ErrorContains(t, s.InspectParquetCommand(t.Context(), p), "failed to inspect 1 manifest files")
-						require.Equal(t, opens, externalStore.opens["table/data/part.parquet"])
+						require.EqualError(t, s.InspectParquetCommand(t.Context(), p), "manifest file failures: 1 path resolution, 1 inspection")
+						require.Equal(t, opens+1, externalStore.opens["table/data/part.parquet"])
 						require.Equal(t, 4, internalStore.opens["files/insert_log/1/2/20/_data/generated.parquet"])
 					}
 				}
@@ -953,6 +956,12 @@ func TestInspectParquetAmbiguousURI(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, output, "Physical NumRows: 1")
 			require.Equal(t, 1, externalStore.opens["data.parquet"])
+			require.Zero(t, externalStore.opens["minio/data.parquet"])
+
+			output, err = inspect("s3://minio/data.parquet")
+			require.NoError(t, err)
+			require.Contains(t, output, "Physical NumRows: 1")
+			require.Equal(t, 2, externalStore.opens["data.parquet"])
 			require.Zero(t, externalStore.opens["minio/data.parquet"])
 		})
 	}
