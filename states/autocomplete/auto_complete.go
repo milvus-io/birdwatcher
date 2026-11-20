@@ -25,6 +25,7 @@ type acCandidate interface {
 // cmdCandidate wraps cobra.Command as acCandidate.
 type cmdCandidate struct {
 	*cobra.Command
+	ctx ValueSuggestionContext
 }
 
 func (c *cmdCandidate) cmdName() string {
@@ -70,10 +71,10 @@ func (c *cmdCandidate) NextCandidates(_ cComp, _ []acCandidate) []acCandidate {
 
 	result := make([]acCandidate, 0, len(cmdFlags)+len(subCommands))
 	for _, cmd := range subCommands {
-		result = append(result, &cmdCandidate{Command: cmd})
+		result = append(result, &cmdCandidate{Command: cmd, ctx: c.ctx})
 	}
 	for _, flag := range cmdFlags {
-		result = append(result, &flagCandidate{Flag: flag})
+		result = append(result, &flagCandidate{Flag: flag, ctx: c.ctx})
 	}
 	result = append(result, c.args()...)
 
@@ -91,6 +92,7 @@ func (c *cmdCandidate) Suggest(target cComp) map[string]string {
 // flagCandidate wraps pflag.Flag as acCandidate.
 type flagCandidate struct {
 	*pflag.Flag
+	ctx ValueSuggestionContext
 }
 
 // Match implements acCandidate.
@@ -113,7 +115,7 @@ func (c *flagCandidate) Suggest(target cComp) map[string]string {
 		isEqualsForm := strings.Contains(target.raw, "=")
 		if target.cValue != "" || isEqualsForm {
 			result := make(map[string]string)
-			for _, v := range getValueSuggestions(c.Flag, target.cValue) {
+			for _, v := range getValueSuggestions(c.Flag, target.cValue, c.ctx) {
 				if isEqualsForm {
 					// Include --flag= prefix so go-prompt replaces the whole word correctly
 					result[fmt.Sprintf("--%s=%s", c.Name, v)] = ""
@@ -142,6 +144,7 @@ func (c *flagCandidate) NextCandidates(matched cComp, current []acCandidate) []a
 		return []acCandidate{&flagValueCandidate{
 			flag:               c.Flag,
 			previousCandidates: current,
+			ctx:                c.ctx,
 		}}
 	}
 	return current
@@ -152,6 +155,7 @@ func (c *flagCandidate) NextCandidates(matched cComp, current []acCandidate) []a
 type flagValueCandidate struct {
 	flag               *pflag.Flag
 	previousCandidates []acCandidate
+	ctx                ValueSuggestionContext
 }
 
 // Match implements acCandidate. Matches any command-type input (flag values appear as bare words).
@@ -167,7 +171,7 @@ func (c *flagValueCandidate) NextCandidates(_ cComp, _ []acCandidate) []acCandid
 // Suggest implements acCandidate. Returns value suggestions filtered by prefix.
 func (c *flagValueCandidate) Suggest(target cComp) map[string]string {
 	result := make(map[string]string)
-	for _, v := range getValueSuggestions(c.flag, target.cTag) {
+	for _, v := range getValueSuggestions(c.flag, target.cTag, c.ctx) {
 		result[v] = ""
 	}
 	return result
@@ -186,7 +190,7 @@ func hasValueSuggestions(flag *pflag.Flag) bool {
 }
 
 // getValueSuggestions returns value suggestions for a flag filtered by prefix.
-func getValueSuggestions(flag *pflag.Flag, partial string) []string {
+func getValueSuggestions(flag *pflag.Flag, partial string, ctx ValueSuggestionContext) []string {
 	if values, ok := flag.Annotations["values"]; ok {
 		var result []string
 		for _, v := range values {
@@ -198,6 +202,9 @@ func getValueSuggestions(flag *pflag.Flag, partial string) []string {
 	}
 	if names, ok := flag.Annotations["valuesSuggester"]; ok && len(names) > 0 {
 		if s, ok := GetValueSuggester(names[0]); ok {
+			if contextual, ok := s.(ContextValueSuggester); ok {
+				return contextual.SuggestWithContext(partial, ctx)
+			}
 			return s.Suggest(partial)
 		}
 	}
@@ -212,6 +219,7 @@ func SuggestInputCommands(input string, commands []*cobra.Command) map[string]st
 }
 
 func findCmdSuggestions(comps []cComp, commands []*cobra.Command) map[string]string {
+	ctx := ValueSuggestionContext{FlagValues: collectFlagValues(comps)}
 	// no suggestion if input is empty
 	if len(comps) == 0 {
 		return map[string]string{}
@@ -220,7 +228,7 @@ func findCmdSuggestions(comps []cComp, commands []*cobra.Command) map[string]str
 	// wraps commands into cmdCandidates
 	var candidates []acCandidate
 	for _, cmd := range commands {
-		candidates = append(candidates, &cmdCandidate{Command: cmd})
+		candidates = append(candidates, &cmdCandidate{Command: cmd, ctx: ctx})
 	}
 
 	if debugSuggestion {
@@ -267,6 +275,16 @@ loop:
 	}
 
 	return result
+}
+
+func collectFlagValues(comps []cComp) map[string]string {
+	values := make(map[string]string)
+	for _, comp := range comps {
+		if comp.cType == cmdCompFlag && comp.cTag != "" {
+			values[comp.cTag] = comp.cValue
+		}
+	}
+	return values
 }
 
 func printCandidates(candidates []acCandidate) {
