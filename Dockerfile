@@ -22,8 +22,7 @@ RUN go mod download
 # Then copy the rest of the source
 COPY . .
 
-
-RUN go build -o /birdwatcher/bin/birdwatcher cmd/birdwatcher/main.go
+RUN go build -o /birdwatcher/bin/birdwatcher -tags WKAFKA cmd/birdwatcher/main.go
 
 FROM debian:bookworm-slim
 
