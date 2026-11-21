@@ -356,15 +356,62 @@ func RemoveSegmentByID(ctx context.Context, cli kv.MetaKV, basePath string, coll
 	return err
 }
 
+// RemoveSegmentInsertLogPath removes a single missing insert binlog from a
+// segment's etcd metadata.
+//
+// Insert binlogs are stored as datapb.FieldBinlog values under
+// datacoord-meta/binlog/<coll>/<part>/<seg>/, one value per binlog group, each
+// holding the list of binlog entries (datapb.Binlog, each carrying a unique
+// LogID). The missing logID is an entry inside those values, not a key of its
+// own, so this rewrites the value with the offending entry removed (deleting
+// the key only when its binlog list becomes empty) instead of trying to delete
+// a non-existent datacoord-meta/insert_log/<...>/<logID> key, which always
+// failed with "key not found" and left the stale reference in place.
 func RemoveSegmentInsertLogPath(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, partitionID, segmentID, fieldID, logID int64) error {
-	// delete binlog entries
-	BinLogPath := path.Join(basePath, "datacoord-meta", "insert_log", fmt.Sprintf("%d/%d/%d/%d/%d", collectionID, partitionID, segmentID, fieldID, logID))
-	fmt.Println("remove", BinLogPath)
-	err := cli.Remove(ctx, BinLogPath)
+	prefix := path.Join(basePath, "datacoord-meta", "binlog",
+		fmt.Sprintf("%d/%d/%d", collectionID, partitionID, segmentID)) + "/"
+
+	fbls, keys, err := ListProtoObjects[datapb.FieldBinlog](ctx, cli, prefix)
 	if err != nil {
-		fmt.Printf("failed to delete insert binlogs from etcd for segment %d, err: %s\n", segmentID, err.Error())
+		return err
 	}
-	return err
+
+	removed := false
+	for idx, fbl := range fbls {
+		kept := make([]*datapb.Binlog, 0, len(fbl.GetBinlogs()))
+		found := false
+		for _, b := range fbl.GetBinlogs() {
+			if b.GetLogID() == logID {
+				found = true
+				continue
+			}
+			kept = append(kept, b)
+		}
+		if !found {
+			continue
+		}
+		removed = true
+
+		if len(kept) == 0 {
+			if err := cli.Remove(ctx, keys[idx]); err != nil {
+				return err
+			}
+			continue
+		}
+		fbl.Binlogs = kept
+		bs, err := proto.Marshal(fbl)
+		if err != nil {
+			return err
+		}
+		if err := cli.Save(ctx, keys[idx], string(bs)); err != nil {
+			return err
+		}
+	}
+
+	if !removed {
+		return fmt.Errorf("insert binlog logID %d not found under segment %d metadata", logID, segmentID)
+	}
+	return nil
 }
 
 func RemoveSegmentDeltaLogPath(ctx context.Context, cli kv.MetaKV, basePath string, collectionID, partitionID, segmentID, logID int64) error {
